@@ -11,6 +11,7 @@ import (
 	"github.com/jvrviegas/momentum/internal/config"
 	"github.com/jvrviegas/momentum/internal/domain"
 	"github.com/jvrviegas/momentum/internal/taskwarrior"
+	"github.com/jvrviegas/momentum/internal/ui"
 )
 
 // ViewName identifies one of Momentum's fixed views.
@@ -93,6 +94,16 @@ type Model struct {
 	MutationRunning bool
 	PendingMutation *MutationRequest
 	Sync            SyncState
+
+	Styles       ui.Styles
+	Icons        ui.Icons
+	QuickAdd     ui.QuickAddModel
+	Editor       ui.EditModel
+	Details      ui.DetailsModel
+	Confirm      ui.ConfirmModel
+	Help         ui.HelpModel
+	Quit         ui.QuitModel
+	DeleteTarget string
 }
 
 // NewModel builds an application model with deterministic defaults.
@@ -113,6 +124,8 @@ func NewModel(options ModelOptions) *Model {
 	if ctx == nil {
 		ctx = context.Background()
 	}
+	styles := ui.NewStyles(ui.ResolveTheme(settings.Theme, true))
+	icons := ui.IconsFor(settings.Icons)
 	return &Model{
 		Client:        options.Client,
 		Config:        settings,
@@ -127,6 +140,14 @@ func NewModel(options ModelOptions) *Model {
 		Width:         options.Width,
 		Height:        options.Height,
 		Sync:          NewSyncState(settings.Sync, now()),
+		Styles:        styles,
+		Icons:         icons,
+		QuickAdd:      ui.NewQuickAdd(styles, icons),
+		Editor:        ui.NewEdit(styles, icons),
+		Details:       ui.NewDetails(styles),
+		Confirm:       ui.NewConfirm(styles),
+		Help:          ui.NewHelp(styles),
+		Quit:          ui.NewQuit(styles),
 	}
 }
 
@@ -153,7 +174,25 @@ func (m *Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	switch message := msg.(type) {
 	case tea.WindowSizeMsg:
 		m.Width, m.Height = message.Width, message.Height
+		m.QuickAdd.SetSize(message.Width, message.Height)
+		m.Editor.SetSize(message.Width, message.Height)
+		m.Details.SetSize(message.Width, message.Height)
+		m.Confirm.SetSize(message.Width, message.Height)
+		m.Help.SetSize(message.Width, message.Height)
+		m.Quit.SetSize(message.Width, message.Height)
 		return m, nil
+	case ui.QuickAddErrorMsg:
+		m.QuickAdd.ApplyMessage(message)
+		return m, nil
+	case ui.QuickAddSubmitMsg:
+		m.QuickAdd.ApplyMessage(message)
+		m.Overlay = OverlayNone
+		return m, m.beginMutation(MutationRequest{Kind: MutationAdd, Input: message.Task})
+	case ui.EditErrorMsg:
+		m.Editor.ApplyMessage(message)
+		return m, nil
+	case ui.EditSubmitMsg:
+		return m, m.handleEditSubmit(message)
 	case TasksMsg:
 		return m, m.applyTasks(message)
 	case RefreshRequestedMsg:
@@ -227,9 +266,13 @@ func (m *Model) beginMutation(request MutationRequest) tea.Cmd {
 }
 
 func (m *Model) applyMutation(message MutationMsg) tea.Cmd {
+	pendingKind := MutationKind("")
+	if m.PendingMutation != nil {
+		pendingKind = m.PendingMutation.Kind
+	}
 	m.MutationRunning = false
-	m.PendingMutation = nil
 	if message.Err != nil {
+		m.PendingMutation = nil
 		m.Err = message.Err
 		m.Mode = ModeReady
 		m.Status = "Action failed: " + conciseError(message.Err)
@@ -237,6 +280,12 @@ func (m *Model) applyMutation(message MutationMsg) tea.Cmd {
 	}
 	m.Err = nil
 	m.Mode = ModeReady
+	if pendingKind == MutationModify {
+		m.Editor.Close()
+		m.Overlay = OverlayNone
+	}
+	m.PendingMutation = nil
+	m.Sync, _ = m.Sync.Mutation(m.now())
 	kind := string(message.Kind)
 	if kind == "" {
 		kind = "action"
@@ -245,6 +294,17 @@ func (m *Model) applyMutation(message MutationMsg) tea.Cmd {
 	// Every successful mutation has one and only one follow-up export. Sync
 	// bookkeeping is attached by the feature-integration layer.
 	return m.beginRefresh("mutation")
+}
+
+func (m *Model) handleEditSubmit(message ui.EditSubmitMsg) tea.Cmd {
+	if message.Diff.Empty() {
+		m.Editor.Close()
+		m.Overlay = OverlayNone
+		m.Status = "No changes"
+		return nil
+	}
+	uuid := m.Selected[normalizeView(m.ActiveView)]
+	return m.beginMutation(MutationRequest{Kind: MutationModify, UUID: uuid, Diff: message.Diff})
 }
 
 func (m *Model) restoreSelection(view ViewName, previousUUID string) {
@@ -272,14 +332,46 @@ func normalizeView(view ViewName) ViewName {
 
 func (m *Model) updateKey(message tea.KeyPressMsg) tea.Cmd {
 	if m.Overlay != OverlayNone {
-		if message.String() == "esc" || message.String() == "escape" {
-			m.Overlay = OverlayNone
+		switch m.Overlay {
+		case OverlayQuickAdd:
+			_, cmd := m.QuickAdd.Update(message)
+			if !m.QuickAdd.Open {
+				m.Overlay = OverlayNone
+			}
+			return cmd
+		case OverlayEdit:
+			_, cmd := m.Editor.Update(message)
+			if !m.Editor.Open {
+				m.Overlay = OverlayNone
+			}
+			return cmd
+		case OverlayDetails:
+			switch m.Details.Update(message) {
+			case ui.DetailsEdit:
+				m.Overlay = OverlayEdit
+				return m.Editor.OpenTask(m.Details.Task, ui.FieldDescription)
+			case ui.DetailsClose:
+				m.Overlay = OverlayNone
+			}
+			return nil
+		case OverlayConfirm:
+			return m.ConfirmDelete(m.Confirm.Update(message))
+		case OverlayHelp:
+			if m.Help.Update(message) == ui.HelpClose {
+				m.Overlay = OverlayNone
+			}
+			return nil
+		case OverlayQuit:
+			return m.handleQuitChoice(m.Quit.Update(message))
+		default:
+			return nil
 		}
-		return nil
 	}
 	switch message.String() {
 	case "r":
 		return m.beginRefresh("manual")
+	case "ctrl+r":
+		return m.beginSync()
 	case "1":
 		m.SwitchView(ViewInbox)
 	case "2":
@@ -288,8 +380,40 @@ func (m *Model) updateKey(message tea.KeyPressMsg) tea.Cmd {
 		m.MoveSelection(1)
 	case "k", "up":
 		m.MoveSelection(-1)
+	case "g":
+		m.MoveSelection(-len(m.tasksFor(m.ActiveView)))
+	case "G":
+		m.MoveSelection(len(m.tasksFor(m.ActiveView)))
+	case "ctrl+k":
+		return m.OpenQuickAdd()
+	case "/":
+		m.Overlay = OverlaySearch
+	case "enter":
+		m.OpenDetails()
+	case " ", "space":
+		return m.CompleteSelected()
+	case "e":
+		return m.OpenEditor(ui.FieldDescription)
+	case "p":
+		return m.OpenEditor(ui.FieldProject)
+	case "!":
+		return m.OpenEditor(ui.FieldPriority)
+	case "D":
+		return m.OpenEditor(ui.FieldDue)
+	case "S":
+		return m.OpenEditor(ui.FieldScheduled)
+	case "t":
+		return m.OpenEditor(ui.FieldTags)
+	case "s":
+		return m.ToggleStartSelected()
+	case "d":
+		m.DeleteSelected()
+	case "u":
+		return m.UndoLast()
+	case "?":
+		m.OpenHelp()
 	case "q", "ctrl+c":
-		return quitCommand()
+		return m.requestQuit()
 	}
 	return nil
 }

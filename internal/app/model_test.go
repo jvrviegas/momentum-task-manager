@@ -196,6 +196,7 @@ func TestFailedMutationPreservesReadyStateAndDoesNotRefresh(t *testing.T) {
 func TestOverlayOwnsInputBeforeGlobalKeys(t *testing.T) {
 	model := testModel(&fakeClient{})
 	model.Overlay = OverlayQuickAdd
+	model.QuickAdd.Open = true
 	model.Mode = ModeReady
 	_, cmd := model.Update(key("r"))
 	if cmd != nil || model.Mode != ModeReady || model.Overlay != OverlayQuickAdd {

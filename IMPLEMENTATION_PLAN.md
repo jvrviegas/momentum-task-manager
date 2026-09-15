@@ -2,7 +2,7 @@
 
 **Design:** [`DESIGN.md`](./DESIGN.md)  
 **Status:** Ready for implementation  
-**Progress:** 16 / 24 tasks complete  
+**Progress:** 17 / 24 tasks complete  
 **Module:** `github.com/jvrviegas/momentum`
 
 ## Status Legend
@@ -414,7 +414,7 @@ go build ./cmd/momentum
 
 ## Phase 5 — Feature Integration
 
-### [ ] T17: Wire task actions and refresh lifecycle
+### [x] T17: Wire task actions and refresh lifecycle
 
 **What:** Connect quick add, edit, completion, start/stop, deletion, undo, refresh, toasts, and stable selection to the adapter.  
 **Where:** `internal/app/actions.go`, root model tests  
@@ -424,13 +424,13 @@ go build ./cmd/momentum
 
 **Done when:**
 
-- [ ] Each action dispatches the expected async client method.
-- [ ] Exactly one refresh follows each success.
-- [ ] Errors preserve visible state.
-- [ ] Completion/deletion choose the next valid selection.
-- [ ] Auto-refresh pauses during active input overlays.
-- [ ] At least 14 update-loop cases pass.
-- [ ] `go test ./internal/app` passes.
+- [x] Each action dispatches the expected async client method.
+- [x] Exactly one refresh follows each success.
+- [x] Errors preserve visible state.
+- [x] Completion/deletion choose the next valid selection.
+- [x] Auto-refresh pauses during active input overlays.
+- [x] At least 14 update-loop cases pass.
+- [x] `go test ./internal/app` passes.
 
 ### [ ] T18: Wire structured editing end to end
 
@@ -668,6 +668,7 @@ Record implementation-time departures here before proceeding.
 | 2026-09-08 | T14 | `feat(ui): add contextual quick capture bar` | `go test ./internal/ui` | Bubbles text input, trigger-aware suggestions, keyboard navigation, bounded popup rendering, typed submission, and non-destructive parse errors implemented. |
 | 2026-09-08 | T15 | `feat(ui): add structured task editor` | `go test ./internal/ui ./internal/domain` | Six-field structured editor with direct focus, traversal precedence, field suggestions, changed-state markers, validation, minimal diff submission, and cancellation implemented. |
 | 2026-09-08 | T16 | `feat(ui): add task and confirmation overlays` | `go test ./internal/ui` | Read-only details with raw fields, destructive y/n confirmation, generated key help, minimum-size warning, and unsynced quit choices implemented. |
+| 2026-09-08 | T17 | `feat(app): connect task actions and refresh` | `go test ./internal/app` | Selected-task actions, confirmation-gated deletion, quick-add/edit routing, serialized mutation dispatch, success refresh, stale-content errors, and selection preservation implemented. |
 
 ## Completion Log
 
