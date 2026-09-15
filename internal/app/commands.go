@@ -1,0 +1,110 @@
+package app
+
+import (
+	"context"
+	"errors"
+
+	tea "charm.land/bubbletea/v2"
+
+	"github.com/jvrviegas/momentum/internal/domain"
+	"github.com/jvrviegas/momentum/internal/taskwarrior"
+)
+
+var errNilClient = errors.New("Taskwarrior client is not configured")
+
+// MutationRequest contains one operation for the serialized mutation queue.
+type MutationRequest struct {
+	Kind  MutationKind
+	UUID  string
+	Input domain.NewTask
+	Diff  domain.TaskDiff
+}
+
+// LoadTasksCommand returns a non-blocking Bubble Tea command for an export.
+func LoadTasksCommand(ctx context.Context, client taskwarrior.Client, reason string) tea.Cmd {
+	return func() tea.Msg {
+		if client == nil {
+			return TasksMsg{Err: errNilClient, Reason: reason}
+		}
+		tasks, err := client.ExportPending(commandContext(ctx))
+		return TasksMsg{Tasks: tasks, Err: err, Reason: reason}
+	}
+}
+
+// RefreshTasksCommand is the named refresh variant used by the root model.
+func RefreshTasksCommand(ctx context.Context, client taskwarrior.Client) tea.Cmd {
+	return LoadTasksCommand(ctx, client, "refresh")
+}
+
+// MutationCommand runs exactly one client mutation and returns a typed result.
+func MutationCommand(ctx context.Context, client taskwarrior.Client, request MutationRequest) tea.Cmd {
+	return func() tea.Msg {
+		if client == nil {
+			return MutationMsg{Kind: request.Kind, UUID: request.UUID, Err: errNilClient}
+		}
+		ctx := commandContext(ctx)
+		var err error
+		switch request.Kind {
+		case MutationAdd:
+			err = client.Add(ctx, request.Input)
+		case MutationModify:
+			err = client.Modify(ctx, request.UUID, request.Diff)
+		case MutationComplete:
+			err = client.Complete(ctx, request.UUID)
+		case MutationDelete:
+			err = client.Delete(ctx, request.UUID)
+		case MutationStart:
+			err = client.Start(ctx, request.UUID)
+		case MutationStop:
+			err = client.Stop(ctx, request.UUID)
+		case MutationUndo:
+			err = client.Undo(ctx)
+		default:
+			err = errors.New("unknown mutation")
+		}
+		return MutationMsg{Kind: request.Kind, UUID: request.UUID, Err: err}
+	}
+}
+
+// SyncCommand invokes Taskwarrior's native sync asynchronously.
+func SyncCommand(ctx context.Context, client taskwarrior.Client) tea.Cmd {
+	return func() tea.Msg {
+		if client == nil {
+			return SyncMsg{Err: errNilClient}
+		}
+		result, err := client.Sync(commandContext(ctx))
+		return SyncMsg{Result: result, Err: err}
+	}
+}
+
+// ProjectsCommand and TagsCommand load autocomplete data asynchronously.
+func ProjectsCommand(ctx context.Context, client interface {
+	Projects(context.Context) ([]string, error)
+}) tea.Cmd {
+	return func() tea.Msg {
+		if client == nil {
+			return ProjectsMsg{Err: errNilClient}
+		}
+		values, err := client.Projects(commandContext(ctx))
+		return ProjectsMsg{Values: values, Err: err}
+	}
+}
+
+func TagsCommand(ctx context.Context, client interface {
+	Tags(context.Context) ([]string, error)
+}) tea.Cmd {
+	return func() tea.Msg {
+		if client == nil {
+			return TagsMsg{Err: errNilClient}
+		}
+		values, err := client.Tags(commandContext(ctx))
+		return TagsMsg{Values: values, Err: err}
+	}
+}
+
+func commandContext(ctx context.Context) context.Context {
+	if ctx == nil {
+		return context.Background()
+	}
+	return ctx
+}

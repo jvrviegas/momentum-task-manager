@@ -2,7 +2,7 @@
 
 **Design:** [`DESIGN.md`](./DESIGN.md)  
 **Status:** Ready for implementation  
-**Progress:** 10 / 24 tasks complete  
+**Progress:** 11 / 24 tasks complete  
 **Module:** `github.com/jvrviegas/momentum`
 
 ## Status Legend
@@ -303,7 +303,7 @@ go build ./cmd/momentum
 
 ## Phase 4 — Application Shell and UI Components
 
-### [ ] T11: Implement root application state and message contracts
+### [x] T11: Implement root application state and message contracts
 
 **What:** Create the root Bubble Tea model, typed messages, focus/modal precedence, async command dispatch, and fake-client test harness.  
 **Where:** `internal/app/model.go`, `messages.go`, `commands.go`, tests  
@@ -313,13 +313,13 @@ go build ./cmd/momentum
 
 **Done when:**
 
-- [ ] Initial loading, ready, refreshing, mutating, modal, and error states are explicit.
-- [ ] No client call blocks `Update`.
-- [ ] Mutations are serialized.
-- [ ] Overlay input takes precedence over global keys.
-- [ ] Existing content remains during refresh.
-- [ ] At least 12 update-loop tests pass with a fake client.
-- [ ] `go test ./internal/app` passes.
+- [x] Initial loading, ready, refreshing, mutating, modal, and error states are explicit.
+- [x] No client call blocks `Update`.
+- [x] Mutations are serialized.
+- [x] Overlay input takes precedence over global keys.
+- [x] Existing content remains during refresh.
+- [x] At least 12 update-loop tests pass with a fake client.
+- [x] `go test ./internal/app` passes.
 
 ### [ ] T12: Implement theme and responsive layout primitives
 
@@ -662,6 +662,7 @@ Record implementation-time departures here before proceeding.
 | 2026-09-08 | T07 | `feat(taskwarrior): load pending tasks` | `go test ./internal/taskwarrior` | Direct argv runner, pending export decoding, project/tag discovery, context read, finite timeout, and redacted typed errors implemented. |
 | 2026-09-08 | T08 | `feat(taskwarrior): add task mutation adapter` | `go test ./internal/taskwarrior` | UUID-only add/modify/completion/start-stop/delete/undo argv builders and execution paths implemented with non-interactive deletion. |
 | 2026-09-08 | T10 | `feat(sync): model automatic synchronization` | `go test ./internal/app` | Pure startup/periodic/mutation timers, capped retry backoff, undo grace, manual sync, and shutdown transitions implemented. |
+| 2026-09-08 | T11 | `feat(app): add root bubble tea state machine` | `go test ./internal/app` | Typed messages, async command factories, explicit loading/ready/refresh/mutation/error states, serialized mutation gate, and UUID selection restoration implemented. |
 
 ## Completion Log
 
