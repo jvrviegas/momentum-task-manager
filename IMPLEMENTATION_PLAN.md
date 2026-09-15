@@ -2,7 +2,7 @@
 
 **Design:** [`DESIGN.md`](./DESIGN.md)  
 **Status:** Ready for implementation  
-**Progress:** 13 / 24 tasks complete  
+**Progress:** 14 / 24 tasks complete  
 **Module:** `github.com/jvrviegas/momentum`
 
 ## Status Legend
@@ -356,7 +356,7 @@ go build ./cmd/momentum
 - [x] At least 10 rendering cases pass.
 - [x] `go test ./internal/ui` passes.
 
-### [ ] T14: Implement quick-add command bar and suggestions [P]
+### [x] T14: Implement quick-add command bar and suggestions [P]
 
 **What:** Build the command-bar UI, contextual suggestion popup, keyboard behavior, parse errors, and submission messages.  
 **Where:** `internal/ui/quickadd.go`, tests  
@@ -366,12 +366,12 @@ go build ./cmd/momentum
 
 **Done when:**
 
-- [ ] `Ctrl+K`, `Tab`, arrows, Ctrl+P/N, Enter, and two-stage Escape work.
-- [ ] Suggestions render above the input and stay inside terminal bounds.
-- [ ] Parse errors display without losing entered text.
-- [ ] Submission emits typed app messages, not direct process calls.
-- [ ] At least 12 interaction cases pass.
-- [ ] `go test ./internal/ui` passes.
+- [x] `Ctrl+K`, `Tab`, arrows, Ctrl+P/N, Enter, and two-stage Escape work.
+- [x] Suggestions render above the input and stay inside terminal bounds.
+- [x] Parse errors display without losing entered text.
+- [x] Submission emits typed app messages, not direct process calls.
+- [x] At least 12 interaction cases pass.
+- [x] `go test ./internal/ui` passes.
 
 ### [ ] T15: Implement structured edit modal [P]
 
@@ -665,6 +665,7 @@ Record implementation-time departures here before proceeding.
 | 2026-09-08 | T11 | `feat(app): add root bubble tea state machine` | `go test ./internal/app` | Typed messages, async command factories, explicit loading/ready/refresh/mutation/error states, serialized mutation gate, and UUID selection restoration implemented. |
 | 2026-09-08 | T12 | `feat(ui): add adaptive momentum theme` | `go test ./internal/ui` | Tokyo Night-inspired dark/light palettes, explicit icon sets, centralized responsive breakpoints, and display-width-safe truncation implemented. |
 | 2026-09-08 | T13 | `feat(ui): render task views` | `go test ./internal/ui` | Responsive sidebar/tabs, counts, width-safe task rows, selection scrolling, and approved Inbox/Today empty states implemented. |
+| 2026-09-08 | T14 | `feat(ui): add contextual quick capture bar` | `go test ./internal/ui` | Bubbles text input, trigger-aware suggestions, keyboard navigation, bounded popup rendering, typed submission, and non-destructive parse errors implemented. |
 
 ## Completion Log
 

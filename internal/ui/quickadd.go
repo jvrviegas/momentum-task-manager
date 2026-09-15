@@ -1,0 +1,245 @@
+package ui
+
+import (
+	"fmt"
+	"strings"
+	"time"
+
+	"charm.land/bubbles/v2/textinput"
+	tea "charm.land/bubbletea/v2"
+	"charm.land/lipgloss/v2"
+
+	"github.com/jvrviegas/momentum/internal/domain"
+	"github.com/jvrviegas/momentum/internal/quickadd"
+)
+
+// QuickAddSubmitMsg is emitted after a successful parse; it contains no
+// process execution and can be routed to the app command layer.
+type QuickAddSubmitMsg struct {
+	Task domain.NewTask
+}
+
+// QuickAddModel owns the bottom command bar and its contextual suggestions.
+type QuickAddModel struct {
+	Input           textinput.Model
+	Suggestions     []quickadd.Suggestion
+	SuggestionIndex int
+	SuggestionsOpen bool
+	Open            bool
+	ParseErr        error
+	Projects        []string
+	Tags            []string
+	Width           int
+	Height          int
+	Now             time.Time
+	Styles          Styles
+	Icons           Icons
+}
+
+// NewQuickAdd creates a focused command bar model.
+func NewQuickAdd(styles Styles, icons Icons) QuickAddModel {
+	input := textinput.New()
+	input.Prompt = "> "
+	input.Placeholder = "Capture a task…"
+	return QuickAddModel{Input: input, Styles: styles, Icons: icons, Now: time.Now()}
+}
+
+// OpenQuickAdd resets parse state and focuses the command bar.
+func (q *QuickAddModel) OpenQuickAdd(value string) tea.Cmd {
+	q.Open = true
+	q.ParseErr = nil
+	q.Input.SetValue(value)
+	q.Input.CursorEnd()
+	q.refreshSuggestions()
+	return q.Input.Focus()
+}
+
+// Close closes the bar without touching the underlying Taskwarrior client.
+func (q *QuickAddModel) Close() {
+	q.Open = false
+	q.SuggestionsOpen = false
+	q.Suggestions = nil
+	q.Input.Blur()
+}
+
+func (q *QuickAddModel) SetSize(width, height int) {
+	q.Width, q.Height = width, height
+	q.Input.SetWidth(max(1, width-4))
+}
+
+func (q *QuickAddModel) SetCatalog(projects, tags []string) {
+	q.Projects = append([]string(nil), projects...)
+	q.Tags = append([]string(nil), tags...)
+	q.refreshSuggestions()
+}
+
+// Update routes overlay-owned keys and delegates ordinary editing to Bubbles.
+func (q *QuickAddModel) Update(msg tea.Msg) (*QuickAddModel, tea.Cmd) {
+	if !q.Open {
+		return q, nil
+	}
+	if keyMsg, ok := msg.(tea.KeyPressMsg); ok {
+		switch keyMsg.String() {
+		case "esc", "escape":
+			if q.SuggestionsOpen {
+				q.SuggestionsOpen = false
+				return q, nil
+			}
+			q.Close()
+			return q, nil
+		case "tab":
+			if q.SuggestionsOpen && len(q.Suggestions) > 0 {
+				q.acceptSuggestion()
+				return q, nil
+			}
+		case "up", "ctrl+p":
+			if q.SuggestionsOpen {
+				q.moveSuggestion(-1)
+				return q, nil
+			}
+		case "down", "ctrl+n":
+			if q.SuggestionsOpen {
+				q.moveSuggestion(1)
+				return q, nil
+			}
+		case "enter":
+			return q, q.submit()
+		case "ctrl+k":
+			// Ctrl+K is the global opener; inside the bar it must not delete
+			// input through textinput's default key map.
+			return q, nil
+		}
+	}
+	var cmd tea.Cmd
+	q.Input, cmd = q.Input.Update(msg)
+	q.ParseErr = nil
+	q.refreshSuggestions()
+	return q, cmd
+}
+
+func (q *QuickAddModel) refreshSuggestions() {
+	if !q.Open {
+		q.Suggestions = nil
+		q.SuggestionsOpen = false
+		return
+	}
+	ctx := quickadd.ContextAt(q.Input.Value(), q.Input.Position())
+	q.Suggestions = quickadd.SuggestionsFor(ctx, q.Projects, q.Tags, q.currentTime())
+	q.SuggestionsOpen = len(q.Suggestions) > 0
+	if q.SuggestionIndex >= len(q.Suggestions) {
+		q.SuggestionIndex = 0
+	}
+}
+
+func (q *QuickAddModel) currentTime() time.Time {
+	if q.Now.IsZero() {
+		return time.Now()
+	}
+	return q.Now
+}
+
+func (q *QuickAddModel) moveSuggestion(delta int) {
+	if len(q.Suggestions) == 0 {
+		return
+	}
+	q.SuggestionIndex = (q.SuggestionIndex + delta) % len(q.Suggestions)
+	if q.SuggestionIndex < 0 {
+		q.SuggestionIndex += len(q.Suggestions)
+	}
+}
+
+func (q *QuickAddModel) acceptSuggestion() {
+	if len(q.Suggestions) == 0 {
+		return
+	}
+	ctx := quickadd.ContextAt(q.Input.Value(), q.Input.Position())
+	value, cursor := quickadd.ApplySuggestion(q.Input.Value(), ctx, q.Suggestions[q.SuggestionIndex])
+	q.Input.SetValue(value)
+	q.Input.SetCursor(cursor)
+	q.refreshSuggestions()
+}
+
+func (q *QuickAddModel) submit() tea.Cmd {
+	input := q.Input.Value()
+	return func() tea.Msg {
+		task, err := quickadd.Parse(input)
+		if err != nil {
+			return QuickAddErrorMsg{Err: err}
+		}
+		return QuickAddSubmitMsg{Task: task}
+	}
+}
+
+// QuickAddErrorMsg keeps the input visible while reporting a parse failure.
+type QuickAddErrorMsg struct {
+	Err error
+}
+
+// ApplyMessage consumes the typed parse result and keeps errors local to the
+// overlay. A successful message is returned for the app layer to route.
+func (q *QuickAddModel) ApplyMessage(msg tea.Msg) (tea.Msg, bool) {
+	switch message := msg.(type) {
+	case QuickAddErrorMsg:
+		q.ParseErr = message.Err
+		return nil, true
+	case QuickAddSubmitMsg:
+		q.Close()
+		return message, true
+	default:
+		return nil, false
+	}
+}
+
+// View renders suggestions above the command bar and keeps all lines inside
+// the configured terminal height.
+func (q QuickAddModel) View() string {
+	if !q.Open || q.Width <= 0 || q.Height <= 0 {
+		return ""
+	}
+	bar := q.Input.View()
+	if q.Width > 0 {
+		bar = q.Styles.Panel.Width(q.Width).Render(Truncate(bar, q.Width))
+	}
+	lines := []string{}
+	if q.SuggestionsOpen {
+		maxSuggestions := q.Height - 2
+		if maxSuggestions < 0 {
+			maxSuggestions = 0
+		}
+		for index, suggestion := range q.Suggestions {
+			if index >= maxSuggestions {
+				break
+			}
+			line := fmt.Sprintf("%s %s", q.Icons.Chevron, suggestion.Text)
+			if index == q.SuggestionIndex {
+				line = q.Styles.Selection.Render(PadRight(Truncate(line, q.Width), q.Width))
+			} else {
+				line = q.Styles.Muted.Render(Truncate(line, q.Width))
+			}
+			lines = append(lines, line)
+		}
+	}
+	if q.ParseErr != nil && q.Height > len(lines)+1 {
+		lines = append(lines, q.Styles.Overdue.Render(Truncate(q.ParseErr.Error(), q.Width)))
+	}
+	lines = append(lines, bar)
+	if len(lines) > q.Height {
+		lines = lines[len(lines)-q.Height:]
+	}
+	return lipgloss.JoinVertical(lipgloss.Left, lines...)
+}
+
+// ErrorText is a plain error accessor for status rendering and tests.
+func (q QuickAddModel) ErrorText() string {
+	if q.ParseErr == nil {
+		return ""
+	}
+	return strings.TrimSpace(q.ParseErr.Error())
+}
+
+func max(a, b int) int {
+	if a > b {
+		return a
+	}
+	return b
+}
