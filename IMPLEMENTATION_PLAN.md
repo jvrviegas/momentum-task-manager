@@ -2,7 +2,7 @@
 
 **Design:** [`DESIGN.md`](./DESIGN.md)  
 **Status:** Ready for implementation  
-**Progress:** 7 / 24 tasks complete  
+**Progress:** 8 / 24 tasks complete  
 **Module:** `github.com/jvrviegas/momentum`
 
 ## Status Legend
@@ -224,7 +224,7 @@ go build ./cmd/momentum
 
 ## Phase 3 — Taskwarrior and Sync Core
 
-### [ ] T07: Implement the Taskwarrior read adapter
+### [x] T07: Implement the Taskwarrior read adapter
 
 **What:** Execute pending export and project discovery safely, decode JSON, capture typed errors, and respect active context.  
 **Where:** `internal/taskwarrior/client.go`, `export.go`, `errors.go`, tests and fixtures  
@@ -234,15 +234,15 @@ go build ./cmd/momentum
 
 **Done when:**
 
-- [ ] Commands use `exec.CommandContext` and argv only.
-- [ ] Export fixtures decode into domain tasks.
-- [ ] Non-zero exits retain redacted stderr and exit metadata.
-- [ ] Project suggestions combine script-oriented output and exported projects.
-- [ ] Actual user tags are collected without virtual tags.
-- [ ] Active context can be shown without changing it.
-- [ ] Unit tests use a fake executable/runner.
-- [ ] At least 10 adapter tests pass.
-- [ ] `go test ./internal/taskwarrior` passes.
+- [x] Commands use `exec.CommandContext` and argv only.
+- [x] Export fixtures decode into domain tasks.
+- [x] Non-zero exits retain redacted stderr and exit metadata.
+- [x] Project suggestions combine script-oriented output and exported projects.
+- [x] Actual user tags are collected without virtual tags.
+- [x] Active context can be shown without changing it.
+- [x] Unit tests use a fake executable/runner.
+- [x] At least 10 adapter tests pass.
+- [x] `go test ./internal/taskwarrior` passes.
 
 ### [ ] T08: Implement UUID-based mutation commands [P]
 
@@ -659,6 +659,7 @@ Record implementation-time departures here before proceeding.
 | 2026-09-08 | T05 | `feat(config): load and validate momentum settings` | `go test ./internal/config` | Defaults, injectable XDG resolution, strict TOML unknown-key checks, duration validation, and icon override implemented. |
 | 2026-09-08 | T06 | `feat(quickadd): parse task capture syntax` | `go test ./internal/quickadd` | Boundary-aware five-trigger parser, escaping, typed errors, and deterministic contextual suggestions implemented. |
 | 2026-09-08 | T09 | `feat(domain): generate non-destructive task edits` | `go test ./internal/domain ./internal/taskwarrior` | Editable snapshots, explicit clears, deterministic tag set diffs, and unsupported-field isolation implemented. |
+| 2026-09-08 | T07 | `feat(taskwarrior): load pending tasks` | `go test ./internal/taskwarrior` | Direct argv runner, pending export decoding, project/tag discovery, context read, finite timeout, and redacted typed errors implemented. |
 
 ## Completion Log
 
