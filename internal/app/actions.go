@@ -87,7 +87,18 @@ func (m *Model) OpenQuickAdd() tea.Cmd {
 		return nil
 	}
 	m.Overlay = OverlayQuickAdd
+	m.QuickAdd.SetSize(m.Width, m.Height)
 	return m.QuickAdd.OpenQuickAdd("")
+}
+
+// OpenSearch opens the local in-memory filter.
+func (m *Model) OpenSearch() tea.Cmd {
+	if m.MutationRunning {
+		return nil
+	}
+	m.Overlay = OverlaySearch
+	m.Search.SetSize(m.Width, m.Height)
+	return m.Search.OpenSearch(m.Search.Query)
 }
 
 // OpenEditor opens the structured editor for the selected task.

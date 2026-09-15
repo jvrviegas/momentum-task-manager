@@ -100,6 +100,7 @@ type Model struct {
 	Styles       ui.Styles
 	Icons        ui.Icons
 	QuickAdd     ui.QuickAddModel
+	Search       ui.SearchModel
 	Editor       ui.EditModel
 	Details      ui.DetailsModel
 	Confirm      ui.ConfirmModel
@@ -155,6 +156,7 @@ func NewModel(options ModelOptions) *Model {
 		Styles:         styles,
 		Icons:          icons,
 		QuickAdd:       ui.NewQuickAdd(styles, icons),
+		Search:         ui.NewSearch(styles, icons),
 		Editor:         ui.NewEdit(styles, icons),
 		Details:        ui.NewDetails(styles),
 		Confirm:        ui.NewConfirm(styles),
@@ -187,6 +189,7 @@ func (m *Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	case tea.WindowSizeMsg:
 		m.Width, m.Height = message.Width, message.Height
 		m.QuickAdd.SetSize(message.Width, message.Height)
+		m.Search.SetSize(message.Width, message.Height)
 		m.Editor.SetSize(message.Width, message.Height)
 		m.Details.SetSize(message.Width, message.Height)
 		m.Confirm.SetSize(message.Width, message.Height)
@@ -205,6 +208,17 @@ func (m *Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		return m, nil
 	case ui.EditSubmitMsg:
 		return m, m.handleEditSubmit(message)
+	case ui.SearchCommitMsg:
+		m.Search.Query = message.Query
+		m.Search.Active = message.Query != ""
+		m.Overlay = OverlayNone
+		m.restoreSelection(m.ActiveView, m.Selected[normalizeView(m.ActiveView)])
+		return m, nil
+	case ui.SearchClearMsg:
+		m.Search.Clear()
+		m.Overlay = OverlayNone
+		m.restoreSelection(m.ActiveView, m.Selected[normalizeView(m.ActiveView)])
+		return m, nil
 	case SyncConfigMsg:
 		return m, m.applySyncConfig(message)
 	case SyncMsg:
@@ -223,6 +237,10 @@ func (m *Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		return m, m.applyMutation(message)
 	case tea.KeyPressMsg:
 		return m, m.updateKey(message)
+	case tea.MouseClickMsg:
+		return m, m.handleMouse(message)
+	case tea.MouseWheelMsg:
+		return m, m.handleMouse(message)
 	default:
 		return m, nil
 	}
@@ -357,10 +375,16 @@ func (m *Model) restoreSelection(view ViewName, previousUUID string) {
 }
 
 func (m *Model) tasksFor(view ViewName) []domain.Task {
+	var tasks []domain.Task
 	if normalizeView(view) == ViewToday {
-		return m.Views.Today
+		tasks = m.Views.Today
+	} else {
+		tasks = m.Views.Inbox
 	}
-	return m.Views.Inbox
+	if m.Search.Active {
+		return ui.FilterTasks(tasks, m.Search.Query)
+	}
+	return tasks
 }
 
 func normalizeView(view ViewName) ViewName {
@@ -376,6 +400,12 @@ func (m *Model) updateKey(message tea.KeyPressMsg) tea.Cmd {
 		case OverlayQuickAdd:
 			_, cmd := m.QuickAdd.Update(message)
 			if !m.QuickAdd.Open {
+				m.Overlay = OverlayNone
+			}
+			return cmd
+		case OverlaySearch:
+			_, cmd := m.Search.Update(message)
+			if !m.Search.Open {
 				m.Overlay = OverlayNone
 			}
 			return cmd
@@ -416,6 +446,16 @@ func (m *Model) updateKey(message tea.KeyPressMsg) tea.Cmd {
 		m.SwitchView(ViewInbox)
 	case "2":
 		m.SwitchView(ViewToday)
+	case "h":
+		m.Focus = FocusSidebar
+	case "l":
+		m.Focus = FocusList
+	case "tab":
+		if m.Focus == FocusSidebar {
+			m.Focus = FocusList
+		} else {
+			m.Focus = FocusSidebar
+		}
 	case "j", "down":
 		m.MoveSelection(1)
 	case "k", "up":
@@ -427,7 +467,12 @@ func (m *Model) updateKey(message tea.KeyPressMsg) tea.Cmd {
 	case "ctrl+k":
 		return m.OpenQuickAdd()
 	case "/":
-		m.Overlay = OverlaySearch
+		return m.OpenSearch()
+	case "esc", "escape":
+		if m.Search.Active {
+			m.Search.Clear()
+			m.restoreSelection(m.ActiveView, m.Selected[normalizeView(m.ActiveView)])
+		}
 	case "enter":
 		m.OpenDetails()
 	case " ", "space":
@@ -504,13 +549,4 @@ func conciseError(err error) string {
 		return text[:157] + "..."
 	}
 	return text
-}
-
-// View implements tea.Model. Full composition is supplied by internal/ui in
-// the later integration phase; this safe fallback is useful during loading.
-func (m *Model) View() tea.View {
-	if m == nil {
-		return tea.NewView("")
-	}
-	return tea.NewView(m.Status)
 }

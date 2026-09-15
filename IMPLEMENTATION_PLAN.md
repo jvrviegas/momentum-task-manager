@@ -2,7 +2,7 @@
 
 **Design:** [`DESIGN.md`](./DESIGN.md)  
 **Status:** Ready for implementation  
-**Progress:** 19 / 24 tasks complete  
+**Progress:** 20 / 24 tasks complete  
 **Module:** `github.com/jvrviegas/momentum`
 
 ## Status Legend
@@ -468,7 +468,7 @@ go build ./cmd/momentum
 - [x] At least 16 sync-flow cases pass.
 - [x] `go test ./internal/app ./internal/taskwarrior` passes.
 
-### [ ] T20: Integrate navigation, search, mouse, and final responsive composition
+### [x] T20: Integrate navigation, search, mouse, and final responsive composition
 
 **What:** Compose all UI components and implement complete keyboard/mouse routing and local fuzzy search.  
 **Where:** `internal/app/update.go`, `internal/app/view.go`, `internal/ui/search.go`, tests  
@@ -478,13 +478,13 @@ go build ./cmd/momentum
 
 **Done when:**
 
-- [ ] Every approved global key works in the correct state.
-- [ ] Overlay keys cannot accidentally trigger global mutations.
-- [ ] Search filters description/project/tags and reports matches.
-- [ ] Limited mouse behavior works.
-- [ ] Wide, compact, narrow, and minimum-size rendering passes tests.
-- [ ] At least 20 composition/update cases pass.
-- [ ] Full gate and race gate pass.
+- [x] Every approved global key works in the correct state.
+- [x] Overlay keys cannot accidentally trigger global mutations.
+- [x] Search filters description/project/tags and reports matches.
+- [x] Limited mouse behavior works.
+- [x] Wide, compact, narrow, and minimum-size rendering passes tests.
+- [x] At least 20 composition/update cases pass.
+- [x] Full gate and race gate pass.
 
 ---
 
@@ -671,6 +671,7 @@ Record implementation-time departures here before proceeding.
 | 2026-09-08 | T17 | `feat(app): connect task actions and refresh` | `go test ./internal/app` | Selected-task actions, confirmation-gated deletion, quick-add/edit routing, serialized mutation dispatch, success refresh, stale-content errors, and selection preservation implemented. |
 | 2026-09-08 | T18 | `feat(app): connect structured task editing` | `go test ./internal/app` | Direct field shortcuts, minimal diff submission, empty-diff short circuit, UUID modify routing, and rejected-edit input retention implemented. |
 | 2026-09-08 | T19 | `feat(sync): integrate taskwarrior synchronization` | `go test ./internal/app ./internal/taskwarrior` | Native sync/config-readiness adapter, startup/periodic/retry timers, local-only fallback, undo countdown, manual sync, and shutdown flow integrated. |
+| 2026-09-08 | T20 | `feat(app): compose interactive momentum interface` | `go test ./...` | Responsive full-screen composition, local fuzzy search, global/overlay routing, keyboard navigation, limited mouse interaction, and modal rendering integrated. |
 
 ## Completion Log
 
