@@ -2,7 +2,7 @@
 
 **Design:** [`DESIGN.md`](./DESIGN.md)  
 **Status:** Ready for implementation  
-**Progress:** 2 / 24 tasks complete  
+**Progress:** 3 / 24 tasks complete  
 **Module:** `github.com/jvrviegas/momentum`
 
 ## Status Legend
@@ -148,7 +148,7 @@ go build ./cmd/momentum
 
 ## Phase 2 — Independent Core Packages
 
-### [ ] T03: Implement domain task decoding types [P]
+### [x] T03: Implement domain task decoding types [P]
 
 **What:** Define Taskwarrior export-facing and domain task types with optional timestamps and retained raw fields.  
 **Where:** `internal/domain/task.go`, `internal/domain/task_test.go`  
@@ -158,11 +158,11 @@ go build ./cmd/momentum
 
 **Done when:**
 
-- [ ] UUID, description, status, project, priority, dates, start, wait, tags, annotations, dependencies, recurrence, urgency, ID, and raw fields are represented.
-- [ ] Optional fields remain distinguishable from zero values.
-- [ ] Timestamp fixtures parse correctly.
-- [ ] At least 6 focused test cases pass.
-- [ ] `go test ./internal/domain` passes.
+- [x] UUID, description, status, project, priority, dates, start, wait, tags, annotations, dependencies, recurrence, urgency, ID, and raw fields are represented.
+- [x] Optional fields remain distinguishable from zero values.
+- [x] Timestamp fixtures parse correctly.
+- [x] At least 6 focused test cases pass.
+- [x] `go test ./internal/domain` passes.
 
 ### [ ] T04: Implement view classification and sorting [P]
 
@@ -654,6 +654,7 @@ Record implementation-time departures here before proceeding.
 |---|---|---|---|---|
 | 2026-09-08 | T01 | `chore: scaffold momentum go module` | `go list ./...`; `go build ./cmd/momentum`; `go test ./...` | Go 1.27.1 installed; Taskwarrior 3.5.0 confirmed. |
 | 2026-09-08 | T02 | `chore: add verified tui dependencies` | `go mod verify`; `go test ./...`; `go vet ./...`; `go build ./cmd/momentum` | Charm v2 modules and BurntSushi TOML v1.6.0 pinned; API/version rationale in `docs/dependencies.md`. |
+| 2026-09-08 | T03 | `feat(domain): define task model` | `go test ./internal/domain` | Export dates parse into optional localizable times; raw and unknown JSON properties retained. |
 
 ## Completion Log
 
