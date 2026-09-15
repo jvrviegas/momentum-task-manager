@@ -2,7 +2,7 @@
 
 **Design:** [`DESIGN.md`](./DESIGN.md)  
 **Status:** Ready for implementation  
-**Progress:** 17 / 24 tasks complete  
+**Progress:** 18 / 24 tasks complete  
 **Module:** `github.com/jvrviegas/momentum`
 
 ## Status Legend
@@ -432,7 +432,7 @@ go build ./cmd/momentum
 - [x] At least 14 update-loop cases pass.
 - [x] `go test ./internal/app` passes.
 
-### [ ] T18: Wire structured editing end to end
+### [x] T18: Wire structured editing end to end
 
 **What:** Connect direct edit shortcuts, modal snapshots, minimal diffs, mutation submission, and error recovery.  
 **Where:** `internal/app/edit.go`, tests  
@@ -442,12 +442,12 @@ go build ./cmd/momentum
 
 **Done when:**
 
-- [ ] Each direct shortcut opens the correct task and field.
-- [ ] Empty diffs close without invoking Taskwarrior.
-- [ ] Supported changes invoke one modify operation.
-- [ ] Rejected edits retain user input and show the error.
-- [ ] At least 10 app edit-flow cases pass.
-- [ ] `go test ./internal/app` passes.
+- [x] Each direct shortcut opens the correct task and field.
+- [x] Empty diffs close without invoking Taskwarrior.
+- [x] Supported changes invoke one modify operation.
+- [x] Rejected edits retain user input and show the error.
+- [x] At least 10 app edit-flow cases pass.
+- [x] `go test ./internal/app` passes.
 
 ### [ ] T19: Wire synchronization, retry, undo countdown, and shutdown
 
@@ -669,6 +669,7 @@ Record implementation-time departures here before proceeding.
 | 2026-09-08 | T15 | `feat(ui): add structured task editor` | `go test ./internal/ui ./internal/domain` | Six-field structured editor with direct focus, traversal precedence, field suggestions, changed-state markers, validation, minimal diff submission, and cancellation implemented. |
 | 2026-09-08 | T16 | `feat(ui): add task and confirmation overlays` | `go test ./internal/ui` | Read-only details with raw fields, destructive y/n confirmation, generated key help, minimum-size warning, and unsynced quit choices implemented. |
 | 2026-09-08 | T17 | `feat(app): connect task actions and refresh` | `go test ./internal/app` | Selected-task actions, confirmation-gated deletion, quick-add/edit routing, serialized mutation dispatch, success refresh, stale-content errors, and selection preservation implemented. |
+| 2026-09-08 | T18 | `feat(app): connect structured task editing` | `go test ./internal/app` | Direct field shortcuts, minimal diff submission, empty-diff short circuit, UUID modify routing, and rejected-edit input retention implemented. |
 
 ## Completion Log
 

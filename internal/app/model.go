@@ -272,6 +272,9 @@ func (m *Model) applyMutation(message MutationMsg) tea.Cmd {
 	}
 	m.MutationRunning = false
 	if message.Err != nil {
+		if pendingKind == MutationModify {
+			m.Editor.Err = message.Err
+		}
 		m.PendingMutation = nil
 		m.Err = message.Err
 		m.Mode = ModeReady
