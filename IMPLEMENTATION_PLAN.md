@@ -2,7 +2,7 @@
 
 **Design:** [`DESIGN.md`](./DESIGN.md)  
 **Status:** Ready for implementation  
-**Progress:** 11 / 24 tasks complete  
+**Progress:** 12 / 24 tasks complete  
 **Module:** `github.com/jvrviegas/momentum`
 
 ## Status Legend
@@ -321,7 +321,7 @@ go build ./cmd/momentum
 - [x] At least 12 update-loop tests pass with a fake client.
 - [x] `go test ./internal/app` passes.
 
-### [ ] T12: Implement theme and responsive layout primitives
+### [x] T12: Implement theme and responsive layout primitives
 
 **What:** Add Tokyo Night-inspired dark/light themes, icon modes, breakpoints, width-safe truncation, and shared styles.  
 **Where:** `internal/ui/theme.go`, `layout.go`, `icons.go`, tests  
@@ -331,12 +331,12 @@ go build ./cmd/momentum
 
 **Done when:**
 
-- [ ] Auto/dark/light themes resolve deterministically in tests.
-- [ ] Unicode, Nerd Font, and ASCII icon sets exist.
-- [ ] Layout chooses sidebar, tabs, or minimum-size state by width.
-- [ ] Width calculations handle Unicode safely.
-- [ ] At least 10 rendering/layout cases pass.
-- [ ] `go test ./internal/ui` passes.
+- [x] Auto/dark/light themes resolve deterministically in tests.
+- [x] Unicode, Nerd Font, and ASCII icon sets exist.
+- [x] Layout chooses sidebar, tabs, or minimum-size state by width.
+- [x] Width calculations handle Unicode safely.
+- [x] At least 10 rendering/layout cases pass.
+- [x] `go test ./internal/ui` passes.
 
 ### [ ] T13: Implement sidebar, tabs, task list, and empty states [P]
 
@@ -663,6 +663,7 @@ Record implementation-time departures here before proceeding.
 | 2026-09-08 | T08 | `feat(taskwarrior): add task mutation adapter` | `go test ./internal/taskwarrior` | UUID-only add/modify/completion/start-stop/delete/undo argv builders and execution paths implemented with non-interactive deletion. |
 | 2026-09-08 | T10 | `feat(sync): model automatic synchronization` | `go test ./internal/app` | Pure startup/periodic/mutation timers, capped retry backoff, undo grace, manual sync, and shutdown transitions implemented. |
 | 2026-09-08 | T11 | `feat(app): add root bubble tea state machine` | `go test ./internal/app` | Typed messages, async command factories, explicit loading/ready/refresh/mutation/error states, serialized mutation gate, and UUID selection restoration implemented. |
+| 2026-09-08 | T12 | `feat(ui): add adaptive momentum theme` | `go test ./internal/ui` | Tokyo Night-inspired dark/light palettes, explicit icon sets, centralized responsive breakpoints, and display-width-safe truncation implemented. |
 
 ## Completion Log
 
