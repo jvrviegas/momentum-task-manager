@@ -2,7 +2,7 @@
 
 **Design:** [`DESIGN.md`](./DESIGN.md)  
 **Status:** Ready for implementation  
-**Progress:** 4 / 24 tasks complete  
+**Progress:** 5 / 24 tasks complete  
 **Module:** `github.com/jvrviegas/momentum`
 
 ## Status Legend
@@ -182,7 +182,7 @@ go build ./cmd/momentum
 - [x] At least 12 table-driven cases pass.
 - [x] `go test ./internal/domain` passes.
 
-### [ ] T05: Implement strict configuration loading [P]
+### [x] T05: Implement strict configuration loading [P]
 
 **What:** Add defaults, XDG path resolution, TOML decoding, validation, duration parsing, and icon environment override.  
 **Where:** `internal/config/config.go`, `internal/config/config_test.go`  
@@ -192,13 +192,13 @@ go build ./cmd/momentum
 
 **Done when:**
 
-- [ ] Missing config uses approved defaults.
-- [ ] CLI path override outranks XDG/default paths.
-- [ ] Unknown keys and invalid enum/duration values fail clearly.
-- [ ] `0s` refresh disables background refresh.
-- [ ] `MOMENTUM_ICONS` overrides TOML.
-- [ ] At least 10 test cases pass without reading user config.
-- [ ] `go test ./internal/config` passes.
+- [x] Missing config uses approved defaults.
+- [x] CLI path override outranks XDG/default paths.
+- [x] Unknown keys and invalid enum/duration values fail clearly.
+- [x] `0s` refresh disables background refresh.
+- [x] `MOMENTUM_ICONS` overrides TOML.
+- [x] At least 10 test cases pass without reading user config.
+- [x] `go test ./internal/config` passes.
 
 ### [ ] T06: Implement quick-add parsing and suggestion context [P]
 
@@ -656,6 +656,7 @@ Record implementation-time departures here before proceeding.
 | 2026-09-08 | T02 | `chore: add verified tui dependencies` | `go mod verify`; `go test ./...`; `go vet ./...`; `go build ./cmd/momentum` | Charm v2 modules and BurntSushi TOML v1.6.0 pinned; API/version rationale in `docs/dependencies.md`. |
 | 2026-09-08 | T03 | `feat(domain): define task model` | `go test ./internal/domain` | Export dates parse into optional localizable times; raw and unknown JSON properties retained. |
 | 2026-09-08 | T04 | `feat(domain): derive inbox and today views` | `go test ./internal/domain` | Pure local-date classification, precedence, section grouping, urgency sorting, and UUID selection restoration implemented. |
+| 2026-09-08 | T05 | `feat(config): load and validate momentum settings` | `go test ./internal/config` | Defaults, injectable XDG resolution, strict TOML unknown-key checks, duration validation, and icon override implemented. |
 
 ## Completion Log
 
