@@ -2,7 +2,7 @@
 
 **Design:** [`DESIGN.md`](./DESIGN.md)  
 **Status:** Ready for implementation  
-**Progress:** 20 / 24 tasks complete  
+**Progress:** 21 / 24 tasks complete  
 **Module:** `github.com/jvrviegas/momentum`
 
 ## Status Legend
@@ -490,7 +490,7 @@ go build ./cmd/momentum
 
 ## Phase 6 — CLI, Diagnostics, and Real Integration
 
-### [ ] T21: Implement CLI commands, diagnostics, and redacted logging
+### [x] T21: Implement CLI commands, diagnostics, and redacted logging
 
 **What:** Add inbox/today startup commands, config/debug/version/help flags, doctor checks, XDG state logs, and redaction.  
 **Where:** `cmd/momentum/*`, `internal/diagnostics/*`, tests  
@@ -500,13 +500,13 @@ go build ./cmd/momentum
 
 **Done when:**
 
-- [ ] Every documented command/flag parses and exits correctly.
-- [ ] `doctor` performs no task mutation and prints no secrets.
-- [ ] Debug logs use XDG state paths and redact sensitive values.
-- [ ] Startup validates Taskwarrior availability/version.
-- [ ] Inbox/today arguments override automatic startup selection.
-- [ ] At least 14 CLI/diagnostic/redaction cases pass.
-- [ ] Full gate passes.
+- [x] Every documented command/flag parses and exits correctly.
+- [x] `doctor` performs no task mutation and prints no secrets.
+- [x] Debug logs use XDG state paths and redact sensitive values.
+- [x] Startup validates Taskwarrior availability/version.
+- [x] Inbox/today arguments override automatic startup selection.
+- [x] At least 14 CLI/diagnostic/redaction cases pass.
+- [x] Full gate passes.
 
 ### [ ] T22: Add isolated Taskwarrior integration tests [P]
 
@@ -672,6 +672,7 @@ Record implementation-time departures here before proceeding.
 | 2026-09-08 | T18 | `feat(app): connect structured task editing` | `go test ./internal/app` | Direct field shortcuts, minimal diff submission, empty-diff short circuit, UUID modify routing, and rejected-edit input retention implemented. |
 | 2026-09-08 | T19 | `feat(sync): integrate taskwarrior synchronization` | `go test ./internal/app ./internal/taskwarrior` | Native sync/config-readiness adapter, startup/periodic/retry timers, local-only fallback, undo countdown, manual sync, and shutdown flow integrated. |
 | 2026-09-08 | T20 | `feat(app): compose interactive momentum interface` | `go test ./...` | Responsive full-screen composition, local fuzzy search, global/overlay routing, keyboard navigation, limited mouse interaction, and modal rendering integrated. |
+| 2026-09-08 | T21 | `feat(cli): add doctor and runtime options` | `go test ./...`; `go vet ./...`; `go build ./cmd/momentum` | Standard-library CLI surface, Taskwarrior startup/version validation, safe doctor checks, XDG structured logging, and redaction wired. |
 
 ## Completion Log
 

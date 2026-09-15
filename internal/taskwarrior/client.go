@@ -80,9 +80,10 @@ func (ExecRunner) Run(ctx context.Context, command string, args ...string) (Comm
 
 // CommandClient implements Client using a Taskwarrior executable.
 type CommandClient struct {
-	Binary  string
-	Runner  Runner
-	Timeout time.Duration
+	Binary    string
+	Runner    Runner
+	Timeout   time.Duration
+	OnCommand func(kind string, result CommandResult, err error)
 }
 
 // NewClient constructs a real Taskwarrior adapter.
@@ -116,6 +117,9 @@ func (c *CommandClient) run(ctx context.Context, kind string, args ...string) (C
 	commandCtx, cancel := context.WithTimeout(ctx, c.Timeout)
 	defer cancel()
 	result, err := c.Runner.Run(commandCtx, c.Binary, args...)
+	if c.OnCommand != nil {
+		c.OnCommand(kind, result, err)
+	}
 	if err != nil || result.ExitCode != 0 {
 		return result, &CommandError{
 			Kind:     kind,
@@ -127,6 +131,15 @@ func (c *CommandClient) run(ctx context.Context, kind string, args ...string) (C
 		}
 	}
 	return result, nil
+}
+
+// Version reads Taskwarrior's version without touching task data.
+func (c *CommandClient) Version(ctx context.Context) (string, error) {
+	result, err := c.run(ctx, "version", "--version")
+	if err != nil {
+		return "", err
+	}
+	return strings.TrimSpace(result.Stdout), nil
 }
 
 // ExportPending reads one context-respecting, machine-readable export.
