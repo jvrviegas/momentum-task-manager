@@ -2,7 +2,7 @@
 
 **Design:** [`DESIGN.md`](./DESIGN.md)  
 **Status:** Ready for implementation  
-**Progress:** 15 / 24 tasks complete  
+**Progress:** 16 / 24 tasks complete  
 **Module:** `github.com/jvrviegas/momentum`
 
 ## Status Legend
@@ -392,7 +392,7 @@ go build ./cmd/momentum
 - [x] At least 15 interaction cases pass.
 - [x] `go test ./internal/ui` passes.
 
-### [ ] T16: Implement details, confirmation, help, and quit modals [P]
+### [x] T16: Implement details, confirmation, help, and quit modals [P]
 
 **What:** Add read-only details, delete confirmation, generated key help, minimum-size warning, and unsynced-quit choices.  
 **Where:** `internal/ui/details.go`, `confirm.go`, `help.go`, `quit.go`, tests  
@@ -402,13 +402,13 @@ go build ./cmd/momentum
 
 **Done when:**
 
-- [ ] Details show supported and useful raw fields safely.
-- [ ] `e` transitions from details to edit.
-- [ ] Delete accepts only explicit confirmation.
-- [ ] Help derives text from key definitions.
-- [ ] Quit modal supports sync, local quit, and cancel.
-- [ ] At least 12 modal cases pass.
-- [ ] `go test ./internal/ui` passes.
+- [x] Details show supported and useful raw fields safely.
+- [x] `e` transitions from details to edit.
+- [x] Delete accepts only explicit confirmation.
+- [x] Help derives text from key definitions.
+- [x] Quit modal supports sync, local quit, and cancel.
+- [x] At least 12 modal cases pass.
+- [x] `go test ./internal/ui` passes.
 
 ---
 
@@ -667,6 +667,7 @@ Record implementation-time departures here before proceeding.
 | 2026-09-08 | T13 | `feat(ui): render task views` | `go test ./internal/ui` | Responsive sidebar/tabs, counts, width-safe task rows, selection scrolling, and approved Inbox/Today empty states implemented. |
 | 2026-09-08 | T14 | `feat(ui): add contextual quick capture bar` | `go test ./internal/ui` | Bubbles text input, trigger-aware suggestions, keyboard navigation, bounded popup rendering, typed submission, and non-destructive parse errors implemented. |
 | 2026-09-08 | T15 | `feat(ui): add structured task editor` | `go test ./internal/ui ./internal/domain` | Six-field structured editor with direct focus, traversal precedence, field suggestions, changed-state markers, validation, minimal diff submission, and cancellation implemented. |
+| 2026-09-08 | T16 | `feat(ui): add task and confirmation overlays` | `go test ./internal/ui` | Read-only details with raw fields, destructive y/n confirmation, generated key help, minimum-size warning, and unsynced quit choices implemented. |
 
 ## Completion Log
 
