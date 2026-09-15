@@ -2,7 +2,7 @@
 
 **Design:** [`DESIGN.md`](./DESIGN.md)  
 **Status:** Ready for implementation  
-**Progress:** 22 / 24 tasks complete  
+**Progress:** 23 / 24 tasks complete  
 **Module:** `github.com/jvrviegas/momentum`
 
 ## Status Legend
@@ -526,7 +526,7 @@ go build ./cmd/momentum
 - [x] At least 8 integration scenarios pass when Taskwarrior is available.
 - [x] `go test ./internal/taskwarrior -run Integration -v` passes.
 
-### [ ] T23: Perform cross-platform build and interactive UAT
+### [x] T23: Perform cross-platform build and interactive UAT
 
 **What:** Validate the complete application on Linux first, then macOS, recording results and any approved breakpoint/style adjustments.  
 **Where:** `docs/UAT.md`, implementation fixes as required  
@@ -536,13 +536,13 @@ go build ./cmd/momentum
 
 **Done when:**
 
-- [ ] Full and race gates pass on Linux.
-- [ ] Linux UAT covers empty/add/edit/search/actions/offline/sync/quit.
-- [ ] macOS full gate and equivalent UAT pass.
-- [ ] Terminal widths above 100, around 80, around 50, and below minimum are checked.
-- [ ] Unicode, Nerd Font, and ASCII modes are checked.
-- [ ] No test touches production Taskwarrior data.
-- [ ] `docs/UAT.md` records pass/fail evidence for every acceptance criterion.
+- [x] Full and race gates pass on Linux.
+- [x] Linux UAT covers empty/add/edit/search/actions/offline/sync/quit.
+- [x] macOS full gate and equivalent UAT pass.
+- [x] Terminal widths above 100, around 80, around 50, and below minimum are checked.
+- [x] Unicode, Nerd Font, and ASCII modes are checked.
+- [x] No test touches production Taskwarrior data.
+- [x] `docs/UAT.md` records pass/fail evidence for every acceptance criterion.
 
 ---
 
@@ -674,6 +674,7 @@ Record implementation-time departures here before proceeding.
 | 2026-09-08 | T20 | `feat(app): compose interactive momentum interface` | `go test ./...` | Responsive full-screen composition, local fuzzy search, global/overlay routing, keyboard navigation, limited mouse interaction, and modal rendering integrated. |
 | 2026-09-08 | T21 | `feat(cli): add doctor and runtime options` | `go test ./...`; `go vet ./...`; `go build ./cmd/momentum` | Standard-library CLI surface, Taskwarrior startup/version validation, safe doctor checks, XDG structured logging, and redaction wired. |
 | 2026-09-08 | T22 | `test(taskwarrior): add isolated integration coverage` | `go test ./internal/taskwarrior -run Integration -v` | Temporary TASKRC/TASKDATA guard, Taskwarrior 3.5 lifecycle coverage, context/discovery, UUID edits, undo, and validation failures implemented. |
+| 2026-09-08 | T23 | `test: validate momentum user workflows` | macOS gates/UAT; Linux `golang:1.27` gates and Debian sid Taskwarrior 3.5 UAT | Cross-platform builds, full/race gates, isolated Linux/macOS integration, local-only TTY quick-add smoke, responsive widths, and icon modes recorded in `docs/UAT.md`. |
 
 ## Completion Log
 
