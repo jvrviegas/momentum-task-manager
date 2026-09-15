@@ -2,7 +2,7 @@
 
 **Design:** [`DESIGN.md`](./DESIGN.md)  
 **Status:** Ready for implementation  
-**Progress:** 21 / 24 tasks complete  
+**Progress:** 22 / 24 tasks complete  
 **Module:** `github.com/jvrviegas/momentum`
 
 ## Status Legend
@@ -508,7 +508,7 @@ go build ./cmd/momentum
 - [x] At least 14 CLI/diagnostic/redaction cases pass.
 - [x] Full gate passes.
 
-### [ ] T22: Add isolated Taskwarrior integration tests [P]
+### [x] T22: Add isolated Taskwarrior integration tests [P]
 
 **What:** Exercise export, add, modify, done, start/stop, delete, undo, context, and error handling against temporary Taskwarrior data.  
 **Where:** `internal/taskwarrior/integration_test.go`, `internal/taskwarrior/testdata/`  
@@ -518,13 +518,13 @@ go build ./cmd/momentum
 
 **Done when:**
 
-- [ ] Tests set temporary config and data paths.
-- [ ] A guard fails before any test can address the real user database.
-- [ ] Lifecycle tests cover every v1 mutation.
-- [ ] Export and active-context behavior are verified on Taskwarrior 3.x.
-- [ ] Hooks/validation failure propagation has coverage.
-- [ ] At least 8 integration scenarios pass when Taskwarrior is available.
-- [ ] `go test ./internal/taskwarrior -run Integration -v` passes.
+- [x] Tests set temporary config and data paths.
+- [x] A guard fails before any test can address the real user database.
+- [x] Lifecycle tests cover every v1 mutation.
+- [x] Export and active-context behavior are verified on Taskwarrior 3.x.
+- [x] Hooks/validation failure propagation has coverage.
+- [x] At least 8 integration scenarios pass when Taskwarrior is available.
+- [x] `go test ./internal/taskwarrior -run Integration -v` passes.
 
 ### [ ] T23: Perform cross-platform build and interactive UAT
 
@@ -673,6 +673,7 @@ Record implementation-time departures here before proceeding.
 | 2026-09-08 | T19 | `feat(sync): integrate taskwarrior synchronization` | `go test ./internal/app ./internal/taskwarrior` | Native sync/config-readiness adapter, startup/periodic/retry timers, local-only fallback, undo countdown, manual sync, and shutdown flow integrated. |
 | 2026-09-08 | T20 | `feat(app): compose interactive momentum interface` | `go test ./...` | Responsive full-screen composition, local fuzzy search, global/overlay routing, keyboard navigation, limited mouse interaction, and modal rendering integrated. |
 | 2026-09-08 | T21 | `feat(cli): add doctor and runtime options` | `go test ./...`; `go vet ./...`; `go build ./cmd/momentum` | Standard-library CLI surface, Taskwarrior startup/version validation, safe doctor checks, XDG structured logging, and redaction wired. |
+| 2026-09-08 | T22 | `test(taskwarrior): add isolated integration coverage` | `go test ./internal/taskwarrior -run Integration -v` | Temporary TASKRC/TASKDATA guard, Taskwarrior 3.5 lifecycle coverage, context/discovery, UUID edits, undo, and validation failures implemented. |
 
 ## Completion Log
 
