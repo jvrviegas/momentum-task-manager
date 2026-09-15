@@ -159,10 +159,14 @@ func printUsage(w io.Writer) {
 var versionRE = regexp.MustCompile(`(?i)\b([0-9]+)(?:\.[0-9]+)+\b`)
 
 func validateTaskwarrior(ctx context.Context, client *taskwarrior.CommandClient) error {
+	return validateTaskwarriorWithLookPath(ctx, client, exec.LookPath)
+}
+
+func validateTaskwarriorWithLookPath(ctx context.Context, client *taskwarrior.CommandClient, lookPath func(string) (string, error)) error {
 	if client == nil {
 		return errors.New("Taskwarrior is not configured")
 	}
-	path, err := exec.LookPath(client.Binary)
+	path, err := lookPath(client.Binary)
 	if err != nil {
 		return errors.New("Taskwarrior executable not found; install Taskwarrior 3.x or run `momentum doctor`")
 	}

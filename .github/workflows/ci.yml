@@ -1,0 +1,36 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+permissions:
+  contents: read
+
+jobs:
+  verify:
+    name: format, test, vet, build
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-go@v5
+        with:
+          go-version-file: go.mod
+          cache: true
+      - name: Format
+        run: test -z "$(gofmt -l .)"
+      - name: Unit and isolated integration tests
+        run: go test ./...
+      - name: Race tests
+        run: go test -race ./...
+      - name: Vet
+        run: go vet ./...
+      - name: Linux amd64 build
+        run: GOOS=linux GOARCH=amd64 go build ./cmd/momentum
+      - name: Linux arm64 build
+        run: GOOS=linux GOARCH=arm64 go build ./cmd/momentum
+      - name: macOS amd64 build
+        run: GOOS=darwin GOARCH=amd64 go build ./cmd/momentum
+      - name: macOS arm64 build
+        run: GOOS=darwin GOARCH=arm64 go build ./cmd/momentum

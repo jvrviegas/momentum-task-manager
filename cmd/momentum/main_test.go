@@ -74,7 +74,7 @@ func TestValidateTaskwarriorAcceptsVersionThree(t *testing.T) {
 	client := taskwarrior.NewClientWithRunner("task", taskwarrior.RunnerFunc(func(context.Context, string, ...string) (taskwarrior.CommandResult, error) {
 		return taskwarrior.CommandResult{ExitCode: 0, Stdout: "Taskwarrior 3.5.0"}, nil
 	}))
-	if err := validateTaskwarrior(context.Background(), client); err != nil {
+	if err := validateTaskwarriorWithLookPath(context.Background(), client, func(string) (string, error) { return "/usr/bin/task", nil }); err != nil {
 		t.Fatal(err)
 	}
 }
@@ -83,7 +83,7 @@ func TestValidateTaskwarriorRejectsVersionTwo(t *testing.T) {
 	client := taskwarrior.NewClientWithRunner("task", taskwarrior.RunnerFunc(func(context.Context, string, ...string) (taskwarrior.CommandResult, error) {
 		return taskwarrior.CommandResult{ExitCode: 0, Stdout: "Taskwarrior 2.6.2"}, nil
 	}))
-	if err := validateTaskwarrior(context.Background(), client); err == nil || !strings.Contains(err.Error(), "3.x") {
+	if err := validateTaskwarriorWithLookPath(context.Background(), client, func(string) (string, error) { return "/usr/bin/task", nil }); err == nil || !strings.Contains(err.Error(), "3.x") {
 		t.Fatalf("err=%v", err)
 	}
 }
@@ -102,7 +102,7 @@ func TestValidateTaskwarriorRejectsVersionCommandFailure(t *testing.T) {
 	client := taskwarrior.NewClientWithRunner("task", taskwarrior.RunnerFunc(func(context.Context, string, ...string) (taskwarrior.CommandResult, error) {
 		return taskwarrior.CommandResult{ExitCode: 1, Stderr: "failed"}, errors.New("failed")
 	}))
-	if err := validateTaskwarrior(context.Background(), client); err == nil || !strings.Contains(err.Error(), "cannot run") {
+	if err := validateTaskwarriorWithLookPath(context.Background(), client, func(string) (string, error) { return "/usr/bin/task", nil }); err == nil || !strings.Contains(err.Error(), "cannot run") {
 		t.Fatalf("err=%v", err)
 	}
 }
@@ -111,7 +111,7 @@ func TestValidateTaskwarriorRejectsUnparseableVersion(t *testing.T) {
 	client := taskwarrior.NewClientWithRunner("task", taskwarrior.RunnerFunc(func(context.Context, string, ...string) (taskwarrior.CommandResult, error) {
 		return taskwarrior.CommandResult{ExitCode: 0, Stdout: "Taskwarrior development"}, nil
 	}))
-	if err := validateTaskwarrior(context.Background(), client); err == nil || !strings.Contains(err.Error(), "determine") {
+	if err := validateTaskwarriorWithLookPath(context.Background(), client, func(string) (string, error) { return "/usr/bin/task", nil }); err == nil || !strings.Contains(err.Error(), "determine") {
 		t.Fatalf("err=%v", err)
 	}
 }

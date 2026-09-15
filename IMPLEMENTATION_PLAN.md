@@ -2,7 +2,7 @@
 
 **Design:** [`DESIGN.md`](./DESIGN.md)  
 **Status:** Ready for implementation  
-**Progress:** 23 / 24 tasks complete  
+**Progress:** 24 / 24 tasks complete  
 **Module:** `github.com/jvrviegas/momentum`
 
 ## Status Legend
@@ -548,7 +548,7 @@ go build ./cmd/momentum
 
 ## Phase 7 — Documentation and Release Readiness
 
-### [ ] T24: Add user documentation, CI, and release configuration
+### [x] T24: Add user documentation, CI, and release configuration
 
 **What:** Complete README, contributing guide, example config, manual sync guide, screenshots placeholders, CI, and tagged release automation.  
 **Where:** `README.md`, `CONTRIBUTING.md`, `config.example.toml`, `docs/sync.md`, `.github/workflows/*`, `.goreleaser.yaml`  
@@ -558,13 +558,13 @@ go build ./cmd/momentum
 
 **Done when:**
 
-- [ ] README documents requirements, install, quick add, edit, keys, config, and privacy.
-- [ ] Sync guide covers manual Neon/Cloud Run setup without embedding secrets.
-- [ ] Dotfiles guidance covers tracked `.taskrc`, untracked `secrets.rc`, and mode `0600`.
-- [ ] CI runs formatting, tests, vet, and Linux/macOS build checks.
-- [ ] GoReleaser targets Linux/macOS on AMD64/ARM64.
-- [ ] No GitHub repository or release is created without separate user approval.
-- [ ] Full and cross-platform gates pass locally.
+- [x] README documents requirements, install, quick add, edit, keys, config, and privacy.
+- [x] Sync guide covers manual Neon/Cloud Run setup without embedding secrets.
+- [x] Dotfiles guidance covers tracked `.taskrc`, untracked `secrets.rc`, and mode `0600`.
+- [x] CI runs formatting, tests, vet, and Linux/macOS build checks.
+- [x] GoReleaser targets Linux/macOS on AMD64/ARM64.
+- [x] No GitHub repository or release is created without separate user approval.
+- [x] Full and cross-platform gates pass locally.
 
 ---
 
@@ -675,6 +675,7 @@ Record implementation-time departures here before proceeding.
 | 2026-09-08 | T21 | `feat(cli): add doctor and runtime options` | `go test ./...`; `go vet ./...`; `go build ./cmd/momentum` | Standard-library CLI surface, Taskwarrior startup/version validation, safe doctor checks, XDG structured logging, and redaction wired. |
 | 2026-09-08 | T22 | `test(taskwarrior): add isolated integration coverage` | `go test ./internal/taskwarrior -run Integration -v` | Temporary TASKRC/TASKDATA guard, Taskwarrior 3.5 lifecycle coverage, context/discovery, UUID edits, undo, and validation failures implemented. |
 | 2026-09-08 | T23 | `test: validate momentum user workflows` | macOS gates/UAT; Linux `golang:1.27` gates and Debian sid Taskwarrior 3.5 UAT | Cross-platform builds, full/race gates, isolated Linux/macOS integration, local-only TTY quick-add smoke, responsive widths, and icon modes recorded in `docs/UAT.md`. |
+| 2026-09-08 | T24 | `docs: prepare momentum for initial release` | `go test ./...`; `go test -race ./...`; `go vet ./...`; native/cross builds; `goreleaser build --snapshot --clean` | README, contributor guide, config example, manual sync guide, CI, GoReleaser targets, and screenshot placeholder added; no remote/release created. |
 
 ## Completion Log
 

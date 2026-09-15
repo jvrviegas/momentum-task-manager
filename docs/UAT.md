@@ -57,7 +57,7 @@ All real Taskwarrior checks create a temporary `TASKRC` and `TASKDATA` directory
 | 11 | No direct Taskwarrior database access | PASS — adapter uses `exec.CommandContext`; isolation guard |
 | 12 | Secret-safe diagnostics/logging | PASS — redaction and doctor tests |
 | 13 | Isolated automated tests | PASS — full and race gates; integration guard |
-| 14 | Installation/configuration/control/sync documentation | PENDING T24 documentation task |
+| 14 | Installation/configuration/control/sync documentation | PASS — `README.md`, `CONTRIBUTING.md`, `config.example.toml`, and `docs/sync.md` |
 
 ## Reproduction notes
 

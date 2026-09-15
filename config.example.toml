@@ -1,0 +1,11 @@
+# Momentum works without this file. Copy to ~/.config/momentum/config.toml.
+refresh_interval = "60s" # set to "0s" to disable background refresh
+theme = "auto"           # auto, dark, light
+icons = "unicode"        # unicode, nerd, ascii
+
+[sync]
+enabled = true
+interval = "5m"
+mutation_delay = "15s"
+startup = true
+shutdown = true
