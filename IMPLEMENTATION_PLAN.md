@@ -2,7 +2,7 @@
 
 **Design:** [`DESIGN.md`](./DESIGN.md)  
 **Status:** Ready for implementation  
-**Progress:** 14 / 24 tasks complete  
+**Progress:** 15 / 24 tasks complete  
 **Module:** `github.com/jvrviegas/momentum`
 
 ## Status Legend
@@ -373,7 +373,7 @@ go build ./cmd/momentum
 - [x] At least 12 interaction cases pass.
 - [x] `go test ./internal/ui` passes.
 
-### [ ] T15: Implement structured edit modal [P]
+### [x] T15: Implement structured edit modal [P]
 
 **What:** Build six editable fields, direct initial focus, keyboard traversal, suggestions, changed-state display, save, and cancel.  
 **Where:** `internal/ui/edit.go`, tests  
@@ -383,14 +383,14 @@ go build ./cmd/momentum
 
 **Done when:**
 
-- [ ] Direct shortcuts focus the specified field.
-- [ ] Up/Down and Tab/Shift+Tab traverse fields.
-- [ ] Suggestion-open behavior temporarily owns Up/Down.
-- [ ] Project/tag/date autocomplete and priority selection work.
-- [ ] Ctrl+S emits only a validated edit submission.
-- [ ] Escape discards changes.
-- [ ] At least 15 interaction cases pass.
-- [ ] `go test ./internal/ui` passes.
+- [x] Direct shortcuts focus the specified field.
+- [x] Up/Down and Tab/Shift+Tab traverse fields.
+- [x] Suggestion-open behavior temporarily owns Up/Down.
+- [x] Project/tag/date autocomplete and priority selection work.
+- [x] Ctrl+S emits only a validated edit submission.
+- [x] Escape discards changes.
+- [x] At least 15 interaction cases pass.
+- [x] `go test ./internal/ui` passes.
 
 ### [ ] T16: Implement details, confirmation, help, and quit modals [P]
 
@@ -666,6 +666,7 @@ Record implementation-time departures here before proceeding.
 | 2026-09-08 | T12 | `feat(ui): add adaptive momentum theme` | `go test ./internal/ui` | Tokyo Night-inspired dark/light palettes, explicit icon sets, centralized responsive breakpoints, and display-width-safe truncation implemented. |
 | 2026-09-08 | T13 | `feat(ui): render task views` | `go test ./internal/ui` | Responsive sidebar/tabs, counts, width-safe task rows, selection scrolling, and approved Inbox/Today empty states implemented. |
 | 2026-09-08 | T14 | `feat(ui): add contextual quick capture bar` | `go test ./internal/ui` | Bubbles text input, trigger-aware suggestions, keyboard navigation, bounded popup rendering, typed submission, and non-destructive parse errors implemented. |
+| 2026-09-08 | T15 | `feat(ui): add structured task editor` | `go test ./internal/ui ./internal/domain` | Six-field structured editor with direct focus, traversal precedence, field suggestions, changed-state markers, validation, minimal diff submission, and cancellation implemented. |
 
 ## Completion Log
 

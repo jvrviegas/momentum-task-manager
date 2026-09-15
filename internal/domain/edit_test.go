@@ -74,7 +74,7 @@ func TestClearingEachOptionalFieldIsExplicit(t *testing.T) {
 
 func TestDescriptionCanBeCleared(t *testing.T) {
 	got := Diff(EditSnapshot{Description: "old"}, EditSnapshot{})
-	if got.Description.Kind != Clear || !got.Description.Empty() {
+	if got.Description.Kind != Clear || got.Description.Empty() {
 		t.Fatalf("got %#v", got.Description)
 	}
 }

@@ -29,7 +29,7 @@ func clearChange() FieldChange { return FieldChange{Kind: Clear} }
 
 // Empty reports whether this individual field carries no value change.
 func (c FieldChange) Empty() bool {
-	return c.Kind == Unchanged || (c.Kind == Clear && c.Value == "")
+	return c.Kind == Unchanged
 }
 
 // TagChange is a deterministic set difference for Taskwarrior +tag/-tag args.
