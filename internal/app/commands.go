@@ -77,6 +77,19 @@ func SyncCommand(ctx context.Context, client taskwarrior.Client) tea.Cmd {
 	}
 }
 
+// SyncConfigCommand checks readiness without returning any configured value.
+func SyncConfigCommand(ctx context.Context, client interface {
+	SyncConfigured(context.Context) (bool, error)
+}) tea.Cmd {
+	return func() tea.Msg {
+		if client == nil {
+			return SyncConfigMsg{Err: errNilClient}
+		}
+		configured, err := client.SyncConfigured(commandContext(ctx))
+		return SyncConfigMsg{Configured: configured, Err: err}
+	}
+}
+
 // ProjectsCommand and TagsCommand load autocomplete data asynchronously.
 func ProjectsCommand(ctx context.Context, client interface {
 	Projects(context.Context) ([]string, error)

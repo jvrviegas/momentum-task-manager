@@ -94,6 +94,8 @@ type Model struct {
 	MutationRunning bool
 	PendingMutation *MutationRequest
 	Sync            SyncState
+	SyncReady       bool
+	SyncConfigured  bool
 
 	Styles       ui.Styles
 	Icons        ui.Icons
@@ -126,28 +128,38 @@ func NewModel(options ModelOptions) *Model {
 	}
 	styles := ui.NewStyles(ui.ResolveTheme(settings.Theme, true))
 	icons := ui.IconsFor(settings.Icons)
+	syncReady := true
+	syncConfigured := settings.Sync.Enabled
+	if _, ok := options.Client.(interface {
+		SyncConfigured(context.Context) (bool, error)
+	}); ok {
+		syncReady = false
+		syncConfigured = false
+	}
 	return &Model{
-		Client:        options.Client,
-		Config:        settings,
-		ctx:           ctx,
-		now:           now,
-		RequestedView: requested,
-		ActiveView:    normalizeView(requested),
-		Selections:    map[ViewName]int{ViewInbox: 0, ViewToday: 0},
-		Selected:      map[ViewName]string{ViewInbox: "", ViewToday: ""},
-		Focus:         FocusList,
-		Mode:          ModeLoading,
-		Width:         options.Width,
-		Height:        options.Height,
-		Sync:          NewSyncState(settings.Sync, now()),
-		Styles:        styles,
-		Icons:         icons,
-		QuickAdd:      ui.NewQuickAdd(styles, icons),
-		Editor:        ui.NewEdit(styles, icons),
-		Details:       ui.NewDetails(styles),
-		Confirm:       ui.NewConfirm(styles),
-		Help:          ui.NewHelp(styles),
-		Quit:          ui.NewQuit(styles),
+		Client:         options.Client,
+		Config:         settings,
+		ctx:            ctx,
+		now:            now,
+		RequestedView:  requested,
+		ActiveView:     normalizeView(requested),
+		Selections:     map[ViewName]int{ViewInbox: 0, ViewToday: 0},
+		Selected:       map[ViewName]string{ViewInbox: "", ViewToday: ""},
+		Focus:          FocusList,
+		Mode:           ModeLoading,
+		Width:          options.Width,
+		Height:         options.Height,
+		Sync:           NewSyncState(settings.Sync, now()),
+		SyncReady:      syncReady,
+		SyncConfigured: syncConfigured,
+		Styles:         styles,
+		Icons:          icons,
+		QuickAdd:       ui.NewQuickAdd(styles, icons),
+		Editor:         ui.NewEdit(styles, icons),
+		Details:        ui.NewDetails(styles),
+		Confirm:        ui.NewConfirm(styles),
+		Help:           ui.NewHelp(styles),
+		Quit:           ui.NewQuit(styles),
 	}
 }
 
@@ -193,6 +205,14 @@ func (m *Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		return m, nil
 	case ui.EditSubmitMsg:
 		return m, m.handleEditSubmit(message)
+	case SyncConfigMsg:
+		return m, m.applySyncConfig(message)
+	case SyncMsg:
+		return m, m.applySync(message)
+	case SyncTickMsg:
+		return m, m.handleSyncTick(time.Time(message))
+	case RefreshTickMsg:
+		return m, m.handleRefreshTick(time.Time(message))
 	case TasksMsg:
 		return m, m.applyTasks(message)
 	case RefreshRequestedMsg:
@@ -239,12 +259,29 @@ func (m *Model) applyTasks(message TasksMsg) tea.Cmd {
 	m.restoreSelection(ViewInbox, oldUUIDs[ViewInbox])
 	m.restoreSelection(ViewToday, oldUUIDs[ViewToday])
 	m.Mode = ModeReady
-	if message.Reason == "refresh" {
+	if message.Reason == "refresh" || message.Reason == "sync" || message.Reason == "mutation" {
 		m.Status = fmt.Sprintf("Updated %d tasks", len(m.Tasks))
 	} else {
 		m.Status = ""
 	}
-	return nil
+	var commands []tea.Cmd
+	if message.Reason == "initial" {
+		if !m.SyncReady {
+			if reader, ok := m.Client.(interface {
+				SyncConfigured(context.Context) (bool, error)
+			}); ok {
+				commands = append(commands, SyncConfigCommand(m.ctx, reader))
+			}
+		} else {
+			commands = append(commands, m.startStartupSync())
+		}
+		if m.Config.RefreshInterval > 0 {
+			commands = append(commands, refreshTickCommand(m.Config.RefreshInterval))
+		}
+	} else if m.SyncReady && m.Sync.NextAt.After(m.now()) && m.Sync.Phase != SyncInFlight {
+		commands = append(commands, m.scheduleSync())
+	}
+	return tea.Batch(commands...)
 }
 
 func (m *Model) beginRefresh(reason string) tea.Cmd {

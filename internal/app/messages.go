@@ -40,6 +40,16 @@ type SyncMsg struct {
 	Err    error
 }
 
+// SyncConfigMsg reports sync readiness without exposing credentials.
+type SyncConfigMsg struct {
+	Configured bool
+	Err        error
+}
+
+// SyncTickMsg and RefreshTickMsg keep the two independent clocks explicit.
+type SyncTickMsg time.Time
+type RefreshTickMsg time.Time
+
 // TickMsg drives refresh, sync, and countdown timers.
 type TickMsg time.Time
 

@@ -136,7 +136,7 @@ func (m *Model) Context() context.Context {
 }
 
 func (m *Model) beginSync() tea.Cmd {
-	if m.Sync.Phase == SyncDisabled || m.Client == nil {
+	if m.Sync.Phase == SyncDisabled || !m.SyncConfigured || m.Client == nil {
 		return nil
 	}
 	state, effect := m.Sync.Manual(m.now())
@@ -149,7 +149,7 @@ func (m *Model) beginSync() tea.Cmd {
 }
 
 func (m *Model) requestQuit() tea.Cmd {
-	if !m.Sync.Enabled {
+	if !m.Sync.Enabled || !m.SyncConfigured {
 		return quitCommand()
 	}
 	state, effect := m.Sync.Apply(SyncEvent{Kind: SyncQuitRequested, At: m.now()})

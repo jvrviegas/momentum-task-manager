@@ -2,7 +2,7 @@
 
 **Design:** [`DESIGN.md`](./DESIGN.md)  
 **Status:** Ready for implementation  
-**Progress:** 18 / 24 tasks complete  
+**Progress:** 19 / 24 tasks complete  
 **Module:** `github.com/jvrviegas/momentum`
 
 ## Status Legend
@@ -449,7 +449,7 @@ go build ./cmd/momentum
 - [x] At least 10 app edit-flow cases pass.
 - [x] `go test ./internal/app` passes.
 
-### [ ] T19: Wire synchronization, retry, undo countdown, and shutdown
+### [x] T19: Wire synchronization, retry, undo countdown, and shutdown
 
 **What:** Connect the sync state machine to timers and `task sync`, refresh after sync, footer status, manual sync, and quit flow.  
 **Where:** `internal/taskwarrior/sync.go`, `internal/app/sync.go`, tests  
@@ -459,14 +459,14 @@ go build ./cmd/momentum
 
 **Done when:**
 
-- [ ] Local tasks render before startup sync begins.
-- [ ] Successful sync triggers refresh and resets retry state.
-- [ ] Mutation delay and undo countdown are visible.
-- [ ] Failed sync leaves the application operational.
-- [ ] Manual sync and all quit choices work.
-- [ ] No timers are installed outside the running process.
-- [ ] At least 16 sync-flow cases pass.
-- [ ] `go test ./internal/app ./internal/taskwarrior` passes.
+- [x] Local tasks render before startup sync begins.
+- [x] Successful sync triggers refresh and resets retry state.
+- [x] Mutation delay and undo countdown are visible.
+- [x] Failed sync leaves the application operational.
+- [x] Manual sync and all quit choices work.
+- [x] No timers are installed outside the running process.
+- [x] At least 16 sync-flow cases pass.
+- [x] `go test ./internal/app ./internal/taskwarrior` passes.
 
 ### [ ] T20: Integrate navigation, search, mouse, and final responsive composition
 
@@ -670,6 +670,7 @@ Record implementation-time departures here before proceeding.
 | 2026-09-08 | T16 | `feat(ui): add task and confirmation overlays` | `go test ./internal/ui` | Read-only details with raw fields, destructive y/n confirmation, generated key help, minimum-size warning, and unsynced quit choices implemented. |
 | 2026-09-08 | T17 | `feat(app): connect task actions and refresh` | `go test ./internal/app` | Selected-task actions, confirmation-gated deletion, quick-add/edit routing, serialized mutation dispatch, success refresh, stale-content errors, and selection preservation implemented. |
 | 2026-09-08 | T18 | `feat(app): connect structured task editing` | `go test ./internal/app` | Direct field shortcuts, minimal diff submission, empty-diff short circuit, UUID modify routing, and rejected-edit input retention implemented. |
+| 2026-09-08 | T19 | `feat(sync): integrate taskwarrior synchronization` | `go test ./internal/app ./internal/taskwarrior` | Native sync/config-readiness adapter, startup/periodic/retry timers, local-only fallback, undo countdown, manual sync, and shutdown flow integrated. |
 
 ## Completion Log
 
