@@ -2,7 +2,7 @@
 
 **Design:** [`DESIGN.md`](./DESIGN.md)  
 **Status:** Ready for implementation  
-**Progress:** 6 / 24 tasks complete  
+**Progress:** 7 / 24 tasks complete  
 **Module:** `github.com/jvrviegas/momentum`
 
 ## Status Legend
@@ -263,7 +263,7 @@ go build ./cmd/momentum
 - [ ] At least 16 exact-argv cases pass.
 - [ ] `go test ./internal/taskwarrior` passes.
 
-### [ ] T09: Implement edit snapshot and diff generation [P]
+### [x] T09: Implement edit snapshot and diff generation [P]
 
 **What:** Convert tasks into structured edit fields and generate minimal supported-field modifications.  
 **Where:** `internal/domain/edit.go`, `internal/domain/edit_test.go`  
@@ -273,12 +273,12 @@ go build ./cmd/momentum
 
 **Done when:**
 
-- [ ] Unchanged fields produce an empty diff.
-- [ ] Clearing each optional field is represented distinctly.
-- [ ] Tag additions/removals are deterministic.
-- [ ] Unsupported/raw fields never enter the diff.
-- [ ] At least 12 edit cases pass.
-- [ ] `go test ./internal/domain` passes.
+- [x] Unchanged fields produce an empty diff.
+- [x] Clearing each optional field is represented distinctly.
+- [x] Tag additions/removals are deterministic.
+- [x] Unsupported/raw fields never enter the diff.
+- [x] At least 12 edit cases pass.
+- [x] `go test ./internal/domain` passes.
 
 ### [ ] T10: Implement synchronization state machine [P]
 
@@ -658,6 +658,7 @@ Record implementation-time departures here before proceeding.
 | 2026-09-08 | T04 | `feat(domain): derive inbox and today views` | `go test ./internal/domain` | Pure local-date classification, precedence, section grouping, urgency sorting, and UUID selection restoration implemented. |
 | 2026-09-08 | T05 | `feat(config): load and validate momentum settings` | `go test ./internal/config` | Defaults, injectable XDG resolution, strict TOML unknown-key checks, duration validation, and icon override implemented. |
 | 2026-09-08 | T06 | `feat(quickadd): parse task capture syntax` | `go test ./internal/quickadd` | Boundary-aware five-trigger parser, escaping, typed errors, and deterministic contextual suggestions implemented. |
+| 2026-09-08 | T09 | `feat(domain): generate non-destructive task edits` | `go test ./internal/domain ./internal/taskwarrior` | Editable snapshots, explicit clears, deterministic tag set diffs, and unsupported-field isolation implemented. |
 
 ## Completion Log
 
