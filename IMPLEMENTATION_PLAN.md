@@ -2,7 +2,7 @@
 
 **Design:** [`DESIGN.md`](./DESIGN.md)  
 **Status:** Ready for implementation  
-**Progress:** 1 / 24 tasks complete  
+**Progress:** 2 / 24 tasks complete  
 **Module:** `github.com/jvrviegas/momentum`
 
 ## Status Legend
@@ -118,7 +118,7 @@ go build ./cmd/momentum
 go test ./...
 ```
 
-### [ ] T02: Pin the terminal UI and configuration dependencies
+### [x] T02: Pin the terminal UI and configuration dependencies
 
 **What:** Verify official current APIs, add only required dependencies, and document version rationale.  
 **Where:** `go.mod`, `go.sum`, `docs/dependencies.md`  
@@ -128,11 +128,11 @@ go test ./...
 
 **Done when:**
 
-- [ ] Bubble Tea, Bubbles, Lip Gloss, and a strict TOML decoder are pinned.
-- [ ] Each dependency is justified in `docs/dependencies.md`.
-- [ ] No unnecessary CLI framework or fuzzy library is added.
-- [ ] A minimal Bubble Tea model compiles.
-- [ ] Full gate passes.
+- [x] Bubble Tea, Bubbles, Lip Gloss, and a strict TOML decoder are pinned.
+- [x] Each dependency is justified in `docs/dependencies.md`.
+- [x] No unnecessary CLI framework or fuzzy library is added.
+- [x] A minimal Bubble Tea model compiles.
+- [x] Full gate passes.
 
 **Verify:**
 
@@ -653,6 +653,7 @@ Record implementation-time departures here before proceeding.
 | Date | Task | Decision/deviation | Reason | Approved by |
 |---|---|---|---|---|
 | 2026-09-08 | T01 | `chore: scaffold momentum go module` | `go list ./...`; `go build ./cmd/momentum`; `go test ./...` | Go 1.27.1 installed; Taskwarrior 3.5.0 confirmed. |
+| 2026-09-08 | T02 | `chore: add verified tui dependencies` | `go mod verify`; `go test ./...`; `go vet ./...`; `go build ./cmd/momentum` | Charm v2 modules and BurntSushi TOML v1.6.0 pinned; API/version rationale in `docs/dependencies.md`. |
 
 ## Completion Log
 
