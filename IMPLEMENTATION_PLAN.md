@@ -2,7 +2,7 @@
 
 **Design:** [`DESIGN.md`](./DESIGN.md)  
 **Status:** Ready for implementation  
-**Progress:** 5 / 24 tasks complete  
+**Progress:** 6 / 24 tasks complete  
 **Module:** `github.com/jvrviegas/momentum`
 
 ## Status Legend
@@ -200,7 +200,7 @@ go build ./cmd/momentum
 - [x] At least 10 test cases pass without reading user config.
 - [x] `go test ./internal/config` passes.
 
-### [ ] T06: Implement quick-add parsing and suggestion context [P]
+### [x] T06: Implement quick-add parsing and suggestion context [P]
 
 **What:** Parse command-bar text into description and typed metadata, detect active suggestion context, and support escaping.  
 **Where:** `internal/quickadd/parser.go`, `internal/quickadd/suggest.go`, corresponding `_test.go` files  
@@ -210,15 +210,15 @@ go build ./cmd/momentum
 
 **Done when:**
 
-- [ ] All five triggers parse at token boundaries.
-- [ ] Email addresses remain description text.
-- [ ] Escaped triggers become literals.
-- [ ] Duplicate scalar fields and empty descriptions return typed errors.
-- [ ] Multiple unique tags work.
-- [ ] Suggestion context tracks token and cursor position.
-- [ ] Fuzzy ordering is deterministic.
-- [ ] At least 20 parser/suggestion cases pass.
-- [ ] `go test ./internal/quickadd` passes.
+- [x] All five triggers parse at token boundaries.
+- [x] Email addresses remain description text.
+- [x] Escaped triggers become literals.
+- [x] Duplicate scalar fields and empty descriptions return typed errors.
+- [x] Multiple unique tags work.
+- [x] Suggestion context tracks token and cursor position.
+- [x] Fuzzy ordering is deterministic.
+- [x] At least 20 parser/suggestion cases pass.
+- [x] `go test ./internal/quickadd` passes.
 
 ---
 
@@ -657,6 +657,7 @@ Record implementation-time departures here before proceeding.
 | 2026-09-08 | T03 | `feat(domain): define task model` | `go test ./internal/domain` | Export dates parse into optional localizable times; raw and unknown JSON properties retained. |
 | 2026-09-08 | T04 | `feat(domain): derive inbox and today views` | `go test ./internal/domain` | Pure local-date classification, precedence, section grouping, urgency sorting, and UUID selection restoration implemented. |
 | 2026-09-08 | T05 | `feat(config): load and validate momentum settings` | `go test ./internal/config` | Defaults, injectable XDG resolution, strict TOML unknown-key checks, duration validation, and icon override implemented. |
+| 2026-09-08 | T06 | `feat(quickadd): parse task capture syntax` | `go test ./internal/quickadd` | Boundary-aware five-trigger parser, escaping, typed errors, and deterministic contextual suggestions implemented. |
 
 ## Completion Log
 
