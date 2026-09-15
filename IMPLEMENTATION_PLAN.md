@@ -2,7 +2,7 @@
 
 **Design:** [`DESIGN.md`](./DESIGN.md)  
 **Status:** Ready for implementation  
-**Progress:** 9 / 24 tasks complete  
+**Progress:** 10 / 24 tasks complete  
 **Module:** `github.com/jvrviegas/momentum`
 
 ## Status Legend
@@ -280,7 +280,7 @@ go build ./cmd/momentum
 - [x] At least 12 edit cases pass.
 - [x] `go test ./internal/domain` passes.
 
-### [ ] T10: Implement synchronization state machine [P]
+### [x] T10: Implement synchronization state machine [P]
 
 **What:** Model startup sync, periodic sync, mutation delay, undo window, retries, manual sync, and shutdown decisions as pure transitions.  
 **Where:** `internal/app/sync_state.go`, `sync_state_test.go`  
@@ -290,14 +290,14 @@ go build ./cmd/momentum
 
 **Done when:**
 
-- [ ] Startup, 5-minute periodic, and 15-second mutation timers are represented.
-- [ ] Retry progression is 15s, 30s, 1m, 2m, 5m capped.
-- [ ] Success resets backoff.
-- [ ] Manual sync closes the undo window.
-- [ ] Disabled/local-only behavior schedules no sync.
-- [ ] Unsynced quit choices are represented.
-- [ ] At least 15 state-transition cases pass.
-- [ ] `go test ./internal/app` passes.
+- [x] Startup, 5-minute periodic, and 15-second mutation timers are represented.
+- [x] Retry progression is 15s, 30s, 1m, 2m, 5m capped.
+- [x] Success resets backoff.
+- [x] Manual sync closes the undo window.
+- [x] Disabled/local-only behavior schedules no sync.
+- [x] Unsynced quit choices are represented.
+- [x] At least 15 state-transition cases pass.
+- [x] `go test ./internal/app` passes.
 
 ---
 
@@ -661,6 +661,7 @@ Record implementation-time departures here before proceeding.
 | 2026-09-08 | T09 | `feat(domain): generate non-destructive task edits` | `go test ./internal/domain ./internal/taskwarrior` | Editable snapshots, explicit clears, deterministic tag set diffs, and unsupported-field isolation implemented. |
 | 2026-09-08 | T07 | `feat(taskwarrior): load pending tasks` | `go test ./internal/taskwarrior` | Direct argv runner, pending export decoding, project/tag discovery, context read, finite timeout, and redacted typed errors implemented. |
 | 2026-09-08 | T08 | `feat(taskwarrior): add task mutation adapter` | `go test ./internal/taskwarrior` | UUID-only add/modify/completion/start-stop/delete/undo argv builders and execution paths implemented with non-interactive deletion. |
+| 2026-09-08 | T10 | `feat(sync): model automatic synchronization` | `go test ./internal/app` | Pure startup/periodic/mutation timers, capped retry backoff, undo grace, manual sync, and shutdown transitions implemented. |
 
 ## Completion Log
 
