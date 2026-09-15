@@ -2,7 +2,7 @@
 
 **Design:** [`DESIGN.md`](./DESIGN.md)  
 **Status:** Ready for implementation  
-**Progress:** 8 / 24 tasks complete  
+**Progress:** 9 / 24 tasks complete  
 **Module:** `github.com/jvrviegas/momentum`
 
 ## Status Legend
@@ -244,7 +244,7 @@ go build ./cmd/momentum
 - [x] At least 10 adapter tests pass.
 - [x] `go test ./internal/taskwarrior` passes.
 
-### [ ] T08: Implement UUID-based mutation commands [P]
+### [x] T08: Implement UUID-based mutation commands [P]
 
 **What:** Add safe argv builders/executors for add, modify, done, delete, start, stop, and undo.  
 **Where:** `internal/taskwarrior/mutations.go`, `mutations_test.go`  
@@ -254,14 +254,14 @@ go build ./cmd/momentum
 
 **Done when:**
 
-- [ ] Every existing-task mutation uses UUID, not numeric ID.
-- [ ] User input never enters a shell command string.
-- [ ] Deletion/undo can run non-interactively after app confirmation.
-- [ ] Hook and validation failures return errors.
-- [ ] Clearing supported fields produces correct Taskwarrior args.
-- [ ] Add translates every quick-add field correctly.
-- [ ] At least 16 exact-argv cases pass.
-- [ ] `go test ./internal/taskwarrior` passes.
+- [x] Every existing-task mutation uses UUID, not numeric ID.
+- [x] User input never enters a shell command string.
+- [x] Deletion/undo can run non-interactively after app confirmation.
+- [x] Hook and validation failures return errors.
+- [x] Clearing supported fields produces correct Taskwarrior args.
+- [x] Add translates every quick-add field correctly.
+- [x] At least 16 exact-argv cases pass.
+- [x] `go test ./internal/taskwarrior` passes.
 
 ### [x] T09: Implement edit snapshot and diff generation [P]
 
@@ -660,6 +660,7 @@ Record implementation-time departures here before proceeding.
 | 2026-09-08 | T06 | `feat(quickadd): parse task capture syntax` | `go test ./internal/quickadd` | Boundary-aware five-trigger parser, escaping, typed errors, and deterministic contextual suggestions implemented. |
 | 2026-09-08 | T09 | `feat(domain): generate non-destructive task edits` | `go test ./internal/domain ./internal/taskwarrior` | Editable snapshots, explicit clears, deterministic tag set diffs, and unsupported-field isolation implemented. |
 | 2026-09-08 | T07 | `feat(taskwarrior): load pending tasks` | `go test ./internal/taskwarrior` | Direct argv runner, pending export decoding, project/tag discovery, context read, finite timeout, and redacted typed errors implemented. |
+| 2026-09-08 | T08 | `feat(taskwarrior): add task mutation adapter` | `go test ./internal/taskwarrior` | UUID-only add/modify/completion/start-stop/delete/undo argv builders and execution paths implemented with non-interactive deletion. |
 
 ## Completion Log
 
