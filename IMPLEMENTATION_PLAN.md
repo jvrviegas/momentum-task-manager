@@ -2,7 +2,7 @@
 
 **Design:** [`DESIGN.md`](./DESIGN.md)  
 **Status:** Ready for implementation  
-**Progress:** 12 / 24 tasks complete  
+**Progress:** 13 / 24 tasks complete  
 **Module:** `github.com/jvrviegas/momentum`
 
 ## Status Legend
@@ -338,7 +338,7 @@ go build ./cmd/momentum
 - [x] At least 10 rendering/layout cases pass.
 - [x] `go test ./internal/ui` passes.
 
-### [ ] T13: Implement sidebar, tabs, task list, and empty states [P]
+### [x] T13: Implement sidebar, tabs, task list, and empty states [P]
 
 **What:** Render view navigation, counts, Today sections, compact task rows, selection, scrolling, and empty content.  
 **Where:** `internal/ui/sidebar.go`, `tasklist.go`, `empty.go`, tests  
@@ -348,13 +348,13 @@ go build ./cmd/momentum
 
 **Done when:**
 
-- [ ] Wide mode shows sidebar; compact mode shows top tabs.
-- [ ] Today section ordering and labels are correct.
-- [ ] Rows hide metadata progressively at narrow widths.
-- [ ] Empty-state copy matches the design.
-- [ ] Selection and scrolling remain visible.
-- [ ] At least 10 rendering cases pass.
-- [ ] `go test ./internal/ui` passes.
+- [x] Wide mode shows sidebar; compact mode shows top tabs.
+- [x] Today section ordering and labels are correct.
+- [x] Rows hide metadata progressively at narrow widths.
+- [x] Empty-state copy matches the design.
+- [x] Selection and scrolling remain visible.
+- [x] At least 10 rendering cases pass.
+- [x] `go test ./internal/ui` passes.
 
 ### [ ] T14: Implement quick-add command bar and suggestions [P]
 
@@ -664,6 +664,7 @@ Record implementation-time departures here before proceeding.
 | 2026-09-08 | T10 | `feat(sync): model automatic synchronization` | `go test ./internal/app` | Pure startup/periodic/mutation timers, capped retry backoff, undo grace, manual sync, and shutdown transitions implemented. |
 | 2026-09-08 | T11 | `feat(app): add root bubble tea state machine` | `go test ./internal/app` | Typed messages, async command factories, explicit loading/ready/refresh/mutation/error states, serialized mutation gate, and UUID selection restoration implemented. |
 | 2026-09-08 | T12 | `feat(ui): add adaptive momentum theme` | `go test ./internal/ui` | Tokyo Night-inspired dark/light palettes, explicit icon sets, centralized responsive breakpoints, and display-width-safe truncation implemented. |
+| 2026-09-08 | T13 | `feat(ui): render task views` | `go test ./internal/ui` | Responsive sidebar/tabs, counts, width-safe task rows, selection scrolling, and approved Inbox/Today empty states implemented. |
 
 ## Completion Log
 
