@@ -2,7 +2,7 @@
 
 **Design:** [`DESIGN.md`](./DESIGN.md)  
 **Status:** Ready for implementation  
-**Progress:** 3 / 24 tasks complete  
+**Progress:** 4 / 24 tasks complete  
 **Module:** `github.com/jvrviegas/momentum`
 
 ## Status Legend
@@ -164,7 +164,7 @@ go build ./cmd/momentum
 - [x] At least 6 focused test cases pass.
 - [x] `go test ./internal/domain` passes.
 
-### [ ] T04: Implement view classification and sorting [P]
+### [x] T04: Implement view classification and sorting [P]
 
 **What:** Build pure Inbox/Today derivation, Today grouping, deduplication, deterministic ordering, and UUID selection restoration.  
 **Where:** `internal/domain/views.go`, `internal/domain/views_test.go`  
@@ -174,13 +174,13 @@ go build ./cmd/momentum
 
 **Done when:**
 
-- [ ] Inbox includes all pending input tasks.
-- [ ] Today precedence exactly matches the design.
-- [ ] Scheduled-before-today alone does not classify as overdue.
-- [ ] Sorting uses descending urgency with deterministic ties.
-- [ ] Local timezone and midnight boundary cases are tested.
-- [ ] At least 12 table-driven cases pass.
-- [ ] `go test ./internal/domain` passes.
+- [x] Inbox includes all pending input tasks.
+- [x] Today precedence exactly matches the design.
+- [x] Scheduled-before-today alone does not classify as overdue.
+- [x] Sorting uses descending urgency with deterministic ties.
+- [x] Local timezone and midnight boundary cases are tested.
+- [x] At least 12 table-driven cases pass.
+- [x] `go test ./internal/domain` passes.
 
 ### [ ] T05: Implement strict configuration loading [P]
 
@@ -655,6 +655,7 @@ Record implementation-time departures here before proceeding.
 | 2026-09-08 | T01 | `chore: scaffold momentum go module` | `go list ./...`; `go build ./cmd/momentum`; `go test ./...` | Go 1.27.1 installed; Taskwarrior 3.5.0 confirmed. |
 | 2026-09-08 | T02 | `chore: add verified tui dependencies` | `go mod verify`; `go test ./...`; `go vet ./...`; `go build ./cmd/momentum` | Charm v2 modules and BurntSushi TOML v1.6.0 pinned; API/version rationale in `docs/dependencies.md`. |
 | 2026-09-08 | T03 | `feat(domain): define task model` | `go test ./internal/domain` | Export dates parse into optional localizable times; raw and unknown JSON properties retained. |
+| 2026-09-08 | T04 | `feat(domain): derive inbox and today views` | `go test ./internal/domain` | Pure local-date classification, precedence, section grouping, urgency sorting, and UUID selection restoration implemented. |
 
 ## Completion Log
 
