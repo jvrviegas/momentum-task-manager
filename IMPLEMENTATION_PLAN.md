@@ -2,7 +2,7 @@
 
 **Design:** [`DESIGN.md`](./DESIGN.md)  
 **Status:** Ready for implementation  
-**Progress:** 0 / 24 tasks complete  
+**Progress:** 1 / 24 tasks complete  
 **Module:** `github.com/jvrviegas/momentum`
 
 ## Status Legend
@@ -25,8 +25,8 @@
 
 ## Prerequisites
 
-- [ ] Install the current stable Go toolchain; `go version` was unavailable during planning.
-- [ ] Confirm `task --version` reports Taskwarrior 3.x (planning environment: 3.4.2).
+- [x] Install the current stable Go toolchain; `go version` was unavailable during planning.
+- [x] Confirm `task --version` reports Taskwarrior 3.x (planning environment: 3.4.2).
 - [ ] Do not create a GitHub repository yet.
 - [ ] Cloud Run and Neon are manual user setup and do not block local-only application development.
 
@@ -94,7 +94,7 @@ Tasks marked `[P]` may run in parallel only when their dependencies are complete
 
 ## Phase 1 — Foundation
 
-### [ ] T01: Scaffold the Go module and repository layout
+### [x] T01: Scaffold the Go module and repository layout
 
 **What:** Create the minimal compilable module, package directories, entry point, license, and ignore rules.  
 **Where:** `go.mod`, `cmd/momentum/main.go`, `internal/*/doc.go`, `LICENSE`, `.gitignore`  
@@ -104,11 +104,11 @@ Tasks marked `[P]` may run in parallel only when their dependencies are complete
 
 **Done when:**
 
-- [ ] Module path is `github.com/jvrviegas/momentum`.
-- [ ] Package boundaries match `DESIGN.md`.
-- [ ] No GitHub remote is created.
-- [ ] `go build ./cmd/momentum` passes.
-- [ ] `go test ./...` passes.
+- [x] Module path is `github.com/jvrviegas/momentum`.
+- [x] Package boundaries match `DESIGN.md`.
+- [x] No GitHub remote is created.
+- [x] `go build ./cmd/momentum` passes.
+- [x] `go test ./...` passes.
 
 **Verify:**
 
@@ -652,7 +652,7 @@ Record implementation-time departures here before proceeding.
 
 | Date | Task | Decision/deviation | Reason | Approved by |
 |---|---|---|---|---|
-| — | — | None | — | — |
+| 2026-09-08 | T01 | `chore: scaffold momentum go module` | `go list ./...`; `go build ./cmd/momentum`; `go test ./...` | Go 1.27.1 installed; Taskwarrior 3.5.0 confirmed. |
 
 ## Completion Log
 

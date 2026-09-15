@@ -1,0 +1,11 @@
+# Build artifacts
+/bin/
+/momentum
+
+# Go coverage and profiles
+coverage.out
+*.prof
+
+# Local configuration and state
+.env
+.DS_Store
