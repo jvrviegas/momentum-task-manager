@@ -1,6 +1,9 @@
 package ui
 
-import "charm.land/lipgloss/v2"
+import (
+	"charm.land/lipgloss/v2"
+	"github.com/charmbracelet/x/ansi"
+)
 
 const (
 	// WideBreakpoint is the first width at which the sidebar is useful.
@@ -71,27 +74,7 @@ func Truncate(value string, width int) string {
 	if width <= 0 {
 		return ""
 	}
-	if lipgloss.Width(value) <= width {
-		return value
-	}
-	if width == 1 {
-		return "…"
-	}
-	available := width - lipgloss.Width("…")
-	if available <= 0 {
-		return "…"
-	}
-	result := make([]rune, 0, len([]rune(value)))
-	used := 0
-	for _, char := range []rune(value) {
-		charWidth := lipgloss.Width(string(char))
-		if used+charWidth > available {
-			break
-		}
-		result = append(result, char)
-		used += charWidth
-	}
-	return string(result) + "…"
+	return ansi.Truncate(value, width, "…")
 }
 
 // PadRight adds display-width spaces, never byte-count spaces.

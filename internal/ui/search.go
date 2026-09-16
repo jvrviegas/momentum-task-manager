@@ -2,7 +2,6 @@ package ui
 
 import (
 	"fmt"
-	"sort"
 	"strings"
 	"unicode"
 
@@ -96,27 +95,11 @@ func FilterTasks(tasks []domain.Task, query string) []domain.Task {
 	if query == "" {
 		return append([]domain.Task(nil), tasks...)
 	}
-	type scored struct {
-		task  domain.Task
-		score int
-		pos   int
-	}
-	matches := make([]scored, 0, len(tasks))
-	for position, task := range tasks {
-		score, ok := taskMatchScore(task, query)
-		if ok {
-			matches = append(matches, scored{task: task, score: score, pos: position})
+	result := make([]domain.Task, 0, len(tasks))
+	for _, task := range tasks {
+		if _, ok := taskMatchScore(task, query); ok {
+			result = append(result, task)
 		}
-	}
-	sort.SliceStable(matches, func(i, j int) bool {
-		if matches[i].score != matches[j].score {
-			return matches[i].score > matches[j].score
-		}
-		return matches[i].pos < matches[j].pos
-	})
-	result := make([]domain.Task, 0, len(matches))
-	for _, match := range matches {
-		result = append(result, match.task)
 	}
 	return result
 }

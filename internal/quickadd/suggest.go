@@ -192,22 +192,22 @@ func dateSuggestions(now time.Time) []string {
 }
 
 func fuzzyScore(query, candidate string) (int, bool) {
-	query = strings.ToLower(query)
-	candidateLower := strings.ToLower(candidate)
-	if query == "" {
+	queryRunes := []rune(strings.ToLower(query))
+	candidateRunes := []rune(strings.ToLower(candidate))
+	if len(queryRunes) == 0 {
 		return 0, true
 	}
-	if query == candidateLower {
+	if string(queryRunes) == string(candidateRunes) {
 		return 10000, true
 	}
-	if strings.HasPrefix(candidateLower, query) {
-		return 8000 - (len(candidateLower) - len(query)), true
+	if len(queryRunes) <= len(candidateRunes) && string(candidateRunes[:len(queryRunes)]) == string(queryRunes) {
+		return 8000 - (len(candidateRunes) - len(queryRunes)), true
 	}
-	qi := 0
+	queryIndex := 0
 	score := 0
 	last := -1
-	for index, char := range candidateLower {
-		if qi >= len(query) || byte(char) != query[qi] {
+	for index, char := range candidateRunes {
+		if queryIndex >= len(queryRunes) || char != queryRunes[queryIndex] {
 			continue
 		}
 		if last+1 == index {
@@ -215,16 +215,16 @@ func fuzzyScore(query, candidate string) (int, bool) {
 		} else {
 			score += 10
 		}
-		if index == 0 || candidateLower[index-1] == '.' || candidateLower[index-1] == '-' || candidateLower[index-1] == '_' {
+		if index == 0 || candidateRunes[index-1] == '.' || candidateRunes[index-1] == '-' || candidateRunes[index-1] == '_' {
 			score += 20
 		}
 		last = index
-		qi++
+		queryIndex++
 	}
-	if qi != len(query) {
+	if queryIndex != len(queryRunes) {
 		return 0, false
 	}
-	return score - (len(candidateLower) - len(query)), true
+	return score - (len(candidateRunes) - len(queryRunes)), true
 }
 
 func min(a, b int) int {

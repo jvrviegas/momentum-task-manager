@@ -126,7 +126,7 @@ func (m *Model) renderTaskBody(width, height int) string {
 					selectedLine = len(lines)
 				}
 				lines = append(lines, renderedTaskLine{
-					text: ui.RenderTaskRow(task, ui.TaskRowOptions{Width: width, ShowMetadata: ui.ChooseLayout(width, 20).ShowRowMetadata, Selected: task.UUID == selectedUUID, Now: m.now(), Styles: m.Styles, Icons: m.Icons}),
+					text: ui.RenderTaskRow(task, ui.TaskRowOptions{Width: width, ShowMetadata: ui.ChooseLayout(width, 20).ShowRowMetadata, Selected: task.UUID == selectedUUID, Now: m.nowTime(), Styles: m.Styles, Icons: m.Icons}),
 					uuid: task.UUID,
 				})
 			}
@@ -137,7 +137,7 @@ func (m *Model) renderTaskBody(width, height int) string {
 				selectedLine = len(lines)
 			}
 			lines = append(lines, renderedTaskLine{
-				text: ui.RenderTaskRow(task, ui.TaskRowOptions{Width: width, ShowMetadata: ui.ChooseLayout(width, 20).ShowRowMetadata, Selected: task.UUID == selectedUUID, Now: m.now(), Styles: m.Styles, Icons: m.Icons}),
+				text: ui.RenderTaskRow(task, ui.TaskRowOptions{Width: width, ShowMetadata: ui.ChooseLayout(width, 20).ShowRowMetadata, Selected: task.UUID == selectedUUID, Now: m.nowTime(), Styles: m.Styles, Icons: m.Icons}),
 				uuid: task.UUID,
 			})
 		}
@@ -158,10 +158,13 @@ func (m *Model) renderFooter(width int) string {
 	if m.Status != "" {
 		parts = append(parts, m.Status)
 	}
+	if m.TaskContext != "" {
+		parts = append(parts, "context: "+m.TaskContext)
+	}
 	if m.Search.Active {
 		parts = append(parts, ui.SearchSummary(len(m.tasksForUnfiltered()), len(m.tasksFor(m.ActiveView)), m.Search.Query))
 	}
-	parts = append(parts, m.SyncStatus(m.now()))
+	parts = append(parts, m.SyncStatus(m.nowTime()))
 	parts = append(parts, "? help · q quit")
 	return m.Styles.Muted.Render(ui.Truncate(strings.Join(parts, "  ·  "), width))
 }

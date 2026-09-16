@@ -90,6 +90,19 @@ func SyncConfigCommand(ctx context.Context, client interface {
 	}
 }
 
+// ContextCommand reads the active Taskwarrior context without changing it.
+func ContextCommand(ctx context.Context, client interface {
+	Context(context.Context) (string, error)
+}) tea.Cmd {
+	return func() tea.Msg {
+		if client == nil {
+			return ContextMsg{Err: errNilClient}
+		}
+		name, err := client.Context(commandContext(ctx))
+		return ContextMsg{Name: name, Err: err}
+	}
+}
+
 // ProjectsCommand and TagsCommand load autocomplete data asynchronously.
 func ProjectsCommand(ctx context.Context, client interface {
 	Projects(context.Context) ([]string, error)

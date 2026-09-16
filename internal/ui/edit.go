@@ -362,13 +362,14 @@ func fuzzyContains(query, candidate string) bool {
 	if strings.Contains(candidate, query) {
 		return true
 	}
+	queryRunes := []rune(query)
 	index := 0
-	for _, char := range candidate {
-		if index < len(query) && byte(char) == query[index] {
+	for _, char := range []rune(candidate) {
+		if index < len(queryRunes) && char == queryRunes[index] {
 			index++
 		}
 	}
-	return index == len(query)
+	return index == len(queryRunes)
 }
 
 func diffFieldChanged(d domain.TaskDiff, field EditField) bool {

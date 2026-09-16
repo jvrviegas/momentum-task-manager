@@ -14,6 +14,7 @@ import (
 	"strings"
 
 	tea "charm.land/bubbletea/v2"
+	"charm.land/lipgloss/v2"
 
 	"github.com/jvrviegas/momentum/internal/app"
 	"github.com/jvrviegas/momentum/internal/config"
@@ -102,7 +103,8 @@ func run(args []string, stdout, stderr io.Writer) int {
 		fmt.Fprintf(stderr, "momentum: unknown command %q\n", command)
 		return 2
 	}
-	model := app.NewModel(app.ModelOptions{Client: client, Config: settings, InitialView: initial})
+	darkBackground := lipgloss.HasDarkBackground(os.Stdin, os.Stdout)
+	model := app.NewModel(app.ModelOptions{Client: client, Config: settings, InitialView: initial, DarkBackground: &darkBackground})
 	program := tea.NewProgram(model)
 	if _, err := program.Run(); err != nil {
 		fmt.Fprintln(stderr, "momentum:", err)

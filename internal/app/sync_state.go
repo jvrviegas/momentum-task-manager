@@ -132,6 +132,9 @@ func (s SyncState) Apply(event SyncEvent) (SyncState, SyncEffect) {
 
 	switch event.Kind {
 	case SyncStartup:
+		if s.Phase == SyncInFlight {
+			return s, SyncEffect{}
+		}
 		if s.StartupEnabled && !s.Unsynced && !s.QuitPending {
 			return s.beginSync()
 		}
@@ -149,6 +152,9 @@ func (s SyncState) Apply(event SyncEvent) (SyncState, SyncEffect) {
 		s.Phase = SyncGrace
 		return s, SyncEffect{NextAt: s.NextAt, Message: "Changes pending sync"}
 	case SyncManual:
+		if s.Phase == SyncInFlight {
+			return s, SyncEffect{}
+		}
 		s.UndoAvailable = false
 		s.UndoUntil = time.Time{}
 		return s.beginSync()
@@ -168,6 +174,12 @@ func (s SyncState) Apply(event SyncEvent) (SyncState, SyncEffect) {
 		return s, effect
 	case SyncFailed:
 		s.Phase = SyncRetrying
+		if s.RetryIndex < 0 {
+			s.RetryIndex = 0
+		}
+		if s.RetryIndex >= len(retryDelays) {
+			s.RetryIndex = len(retryDelays) - 1
+		}
 		delay := retryDelays[s.RetryIndex]
 		if s.RetryIndex < len(retryDelays)-1 {
 			s.RetryIndex++

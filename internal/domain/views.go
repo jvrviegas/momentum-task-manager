@@ -1,6 +1,7 @@
 package domain
 
 import (
+	"fmt"
 	"slices"
 	"sort"
 	"strings"
@@ -41,12 +42,18 @@ func BuildViews(tasks []Task, now time.Time) Views {
 		GroupDueToday:       {},
 		GroupScheduledToday: {},
 	}
+	seenToday := make(map[string]struct{})
 	for _, task := range tasks {
 		if !task.IsPending() {
 			continue
 		}
 		inbox = append(inbox, task)
 		if group := ClassifyToday(task, now); group != "" {
+			key := taskIdentity(task)
+			if _, seen := seenToday[key]; seen {
+				continue
+			}
+			seenToday[key] = struct{}{}
 			groups[group] = append(groups[group], task)
 		}
 	}
@@ -99,6 +106,13 @@ func ClassifyToday(task Task, now time.Time) TodayGroup {
 		}
 	}
 	return ""
+}
+
+func taskIdentity(task Task) string {
+	if task.UUID != "" {
+		return "uuid:" + task.UUID
+	}
+	return fmt.Sprintf("fallback:%d:%s:%s", task.ID, task.Project, task.Description)
 }
 
 func dateOnly(value time.Time) time.Time {

@@ -111,10 +111,11 @@ func (c *CommandClient) run(ctx context.Context, kind string, args ...string) (C
 	if ctx == nil {
 		ctx = context.Background()
 	}
-	if c.Timeout <= 0 {
-		c.Timeout = defaultTimeout
+	timeout := c.Timeout
+	if timeout <= 0 {
+		timeout = defaultTimeout
 	}
-	commandCtx, cancel := context.WithTimeout(ctx, c.Timeout)
+	commandCtx, cancel := context.WithTimeout(ctx, timeout)
 	defer cancel()
 	result, err := c.Runner.Run(commandCtx, c.Binary, args...)
 	if c.OnCommand != nil {

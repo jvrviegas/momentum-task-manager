@@ -65,6 +65,12 @@ type MutationRequestedMsg struct {
 	Done    chan struct{}
 }
 
+// ContextMsg reports the active Taskwarrior context without changing it.
+type ContextMsg struct {
+	Name string
+	Err  error
+}
+
 // ProjectsMsg and TagsMsg populate contextual autocomplete data.
 type ProjectsMsg struct {
 	Values []string

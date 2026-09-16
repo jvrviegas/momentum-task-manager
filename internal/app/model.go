@@ -60,13 +60,14 @@ const (
 // ModelOptions configures a root model without coupling tests to process
 // globals. Client may be nil for rendering-only tests.
 type ModelOptions struct {
-	Client      taskwarrior.Client
-	Config      config.Config
-	InitialView ViewName
-	Now         func() time.Time
-	Context     context.Context
-	Width       int
-	Height      int
+	Client         taskwarrior.Client
+	Config         config.Config
+	InitialView    ViewName
+	Now            func() time.Time
+	Context        context.Context
+	Width          int
+	Height         int
+	DarkBackground *bool
 }
 
 // Model is Momentum's root Bubble Tea state machine.
@@ -89,6 +90,7 @@ type Model struct {
 	Width         int
 	Height        int
 	Status        string
+	TaskContext   string
 	Err           error
 
 	MutationRunning bool
@@ -127,10 +129,14 @@ func NewModel(options ModelOptions) *Model {
 	if ctx == nil {
 		ctx = context.Background()
 	}
-	styles := ui.NewStyles(ui.ResolveTheme(settings.Theme, true))
+	darkBackground := true
+	if options.DarkBackground != nil {
+		darkBackground = *options.DarkBackground
+	}
+	styles := ui.NewStyles(ui.ResolveTheme(settings.Theme, darkBackground))
 	icons := ui.IconsFor(settings.Icons)
 	syncReady := true
-	syncConfigured := settings.Sync.Enabled
+	syncConfigured := settings.Sync.Enabled && options.Client != nil
 	if _, ok := options.Client.(interface {
 		SyncConfigured(context.Context) (bool, error)
 	}); ok {
@@ -200,6 +206,9 @@ func (m *Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		m.QuickAdd.ApplyMessage(message)
 		return m, nil
 	case ui.QuickAddSubmitMsg:
+		if m.Overlay != OverlayQuickAdd || !m.QuickAdd.Open {
+			return m, nil
+		}
 		m.QuickAdd.ApplyMessage(message)
 		m.Overlay = OverlayNone
 		return m, m.beginMutation(MutationRequest{Kind: MutationAdd, Input: message.Task})
@@ -207,6 +216,9 @@ func (m *Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		m.Editor.ApplyMessage(message)
 		return m, nil
 	case ui.EditSubmitMsg:
+		if m.Overlay != OverlayEdit || !m.Editor.Open {
+			return m, nil
+		}
 		return m, m.handleEditSubmit(message)
 	case ui.SearchCommitMsg:
 		m.Search.Query = message.Query
@@ -218,6 +230,23 @@ func (m *Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		m.Search.Clear()
 		m.Overlay = OverlayNone
 		m.restoreSelection(m.ActiveView, m.Selected[normalizeView(m.ActiveView)])
+		return m, nil
+	case ContextMsg:
+		if message.Err == nil {
+			m.TaskContext = strings.TrimSpace(message.Name)
+		}
+		return m, nil
+	case ProjectsMsg:
+		if message.Err == nil {
+			m.QuickAdd.SetCatalog(message.Values, m.QuickAdd.Tags)
+			m.Editor.SetCatalog(message.Values, m.Editor.Tags)
+		}
+		return m, nil
+	case TagsMsg:
+		if message.Err == nil {
+			m.QuickAdd.SetCatalog(m.QuickAdd.Projects, message.Values)
+			m.Editor.SetCatalog(m.Editor.Projects, message.Values)
+		}
 		return m, nil
 	case SyncConfigMsg:
 		return m, m.applySyncConfig(message)
@@ -260,6 +289,9 @@ func (m *Model) applyTasks(message TasksMsg) tea.Cmd {
 		} else {
 			m.Mode = ModeReady
 		}
+		if message.Reason == "initial" && m.Config.RefreshInterval > 0 {
+			return refreshTickCommand(m.Config.RefreshInterval)
+		}
 		return nil
 	}
 	m.Err = nil
@@ -284,6 +316,11 @@ func (m *Model) applyTasks(message TasksMsg) tea.Cmd {
 	}
 	var commands []tea.Cmd
 	if message.Reason == "initial" {
+		if reader, ok := m.Client.(interface {
+			Context(context.Context) (string, error)
+		}); ok {
+			commands = append(commands, ContextCommand(m.ctx, reader))
+		}
 		if !m.SyncReady {
 			if reader, ok := m.Client.(interface {
 				SyncConfigured(context.Context) (bool, error)
@@ -343,7 +380,11 @@ func (m *Model) applyMutation(message MutationMsg) tea.Cmd {
 		m.Overlay = OverlayNone
 	}
 	m.PendingMutation = nil
-	m.Sync, _ = m.Sync.Mutation(m.now())
+	if message.Kind == MutationUndo {
+		m.Sync, _ = m.Sync.Apply(SyncEvent{Kind: SyncUndo, At: m.now()})
+	} else {
+		m.Sync, _ = m.Sync.Mutation(m.now())
+	}
 	kind := string(message.Kind)
 	if kind == "" {
 		kind = "action"
@@ -419,6 +460,7 @@ func (m *Model) updateKey(message tea.KeyPressMsg) tea.Cmd {
 			switch m.Details.Update(message) {
 			case ui.DetailsEdit:
 				m.Overlay = OverlayEdit
+				m.Editor.SetSize(m.Width, m.Height)
 				return m.Editor.OpenTask(m.Details.Task, ui.FieldDescription)
 			case ui.DetailsClose:
 				m.Overlay = OverlayNone

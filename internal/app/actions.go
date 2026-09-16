@@ -88,7 +88,18 @@ func (m *Model) OpenQuickAdd() tea.Cmd {
 	}
 	m.Overlay = OverlayQuickAdd
 	m.QuickAdd.SetSize(m.Width, m.Height)
-	return m.QuickAdd.OpenQuickAdd("")
+	commands := []tea.Cmd{m.QuickAdd.OpenQuickAdd("")}
+	if reader, ok := m.Client.(interface {
+		Projects(context.Context) ([]string, error)
+	}); ok {
+		commands = append(commands, ProjectsCommand(m.ctx, reader))
+	}
+	if reader, ok := m.Client.(interface {
+		Tags(context.Context) ([]string, error)
+	}); ok {
+		commands = append(commands, TagsCommand(m.ctx, reader))
+	}
+	return tea.Batch(commands...)
 }
 
 // OpenSearch opens the local in-memory filter.
@@ -108,7 +119,19 @@ func (m *Model) OpenEditor(field ui.EditField) tea.Cmd {
 		return nil
 	}
 	m.Overlay = OverlayEdit
-	return m.Editor.OpenTask(task, field)
+	m.Editor.SetSize(m.Width, m.Height)
+	commands := []tea.Cmd{m.Editor.OpenTask(task, field)}
+	if reader, ok := m.Client.(interface {
+		Projects(context.Context) ([]string, error)
+	}); ok {
+		commands = append(commands, ProjectsCommand(m.ctx, reader))
+	}
+	if reader, ok := m.Client.(interface {
+		Tags(context.Context) ([]string, error)
+	}); ok {
+		commands = append(commands, TagsCommand(m.ctx, reader))
+	}
+	return tea.Batch(commands...)
 }
 
 // OpenDetails opens the read-only task details modal.

@@ -7,10 +7,11 @@ import (
 	tea "charm.land/bubbletea/v2"
 
 	"github.com/jvrviegas/momentum/internal/domain"
+	"github.com/jvrviegas/momentum/internal/taskwarrior"
 	"github.com/jvrviegas/momentum/internal/ui"
 )
 
-func actionModel(client *fakeClient) *Model {
+func actionModel(client taskwarrior.Client) *Model {
 	model := testModel(client)
 	model.Tasks = []domain.Task{{UUID: "one", Description: "One", Status: "pending"}, {UUID: "two", Description: "Two", Status: "pending"}}
 	model.Views = domain.BuildViews(model.Tasks, model.now())
