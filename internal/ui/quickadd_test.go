@@ -21,7 +21,7 @@ func specialQuickKey(code rune, mod tea.KeyMod) tea.KeyPressMsg {
 func testQuickAdd() QuickAddModel {
 	q := NewQuickAdd(NewStyles(ResolveTheme("dark", true)), IconsFor("unicode"))
 	q.Now = time.Date(2026, 9, 8, 10, 0, 0, 0, time.UTC)
-	q.SetSize(50, 8)
+	q.SetSize(50, 14)
 	q.OpenQuickAdd("")
 	q.SetCatalog([]string{"work.client", "personal"}, []string{"planning", "client"})
 	return q
@@ -125,7 +125,7 @@ func TestQuickAddCtrlKDoesNotDeleteInput(t *testing.T) {
 	}
 }
 
-func TestQuickAddSuggestionsRenderAboveBarWithinBounds(t *testing.T) {
+func TestQuickAddModalRendersSuggestionsAndGuidanceWithinBounds(t *testing.T) {
 	q := testQuickAdd()
 	q.Input.SetValue("#")
 	q.Input.CursorEnd()
@@ -135,8 +135,13 @@ func TestQuickAddSuggestionsRenderAboveBarWithinBounds(t *testing.T) {
 	if len(lines) > q.Height || len(lines) < 2 {
 		t.Fatalf("lines=%d view=%q", len(lines), got)
 	}
-	if strings.Index(got, "#work.client") < 0 || strings.LastIndex(got, "#") <= strings.Index(got, "#work.client") {
-		t.Fatalf("suggestion should be above input: %q", got)
+	for _, want := range []string{"Quick capture", "#work.client", "#project", "!priority", "@due", ">scheduled", "+tag", "Enter add", "Esc cancel", "Tab complete"} {
+		if !strings.Contains(got, want) {
+			t.Errorf("modal missing %q: %q", want, got)
+		}
+	}
+	if strings.Index(got, "#work.client") <= strings.Index(got, "> ") {
+		t.Fatalf("suggestion should render below input: %q", got)
 	}
 }
 

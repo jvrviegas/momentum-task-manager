@@ -101,12 +101,28 @@ func TestTodayCompositionKeepsSectionOrderAndNoDuplicate(t *testing.T) {
 	}
 }
 
-func TestQuickAddOverlayIsComposedAtBottom(t *testing.T) {
+func TestQuickAddOverlayIsCenteredWithCommandHints(t *testing.T) {
 	model := readyCompositionModel(100, 30)
 	model.OpenQuickAdd()
 	content := model.View().Content
-	if !strings.Contains(content, "Capture a task") && !strings.Contains(content, "> ") {
-		t.Fatalf("quick add missing: %q", content)
+	for _, want := range []string{"Quick capture", "#project", "!priority", "@due", ">scheduled", "+tag"} {
+		if !strings.Contains(content, want) {
+			t.Fatalf("quick capture missing %q: %q", want, content)
+		}
+	}
+	lines := strings.Split(content, "\n")
+	if len(lines) == 0 || strings.TrimSpace(lines[0]) != "" {
+		t.Fatalf("quick capture is not vertically centered: %q", content)
+	}
+	titleLine := ""
+	for _, line := range lines {
+		if strings.Contains(line, "Quick capture") {
+			titleLine = line
+			break
+		}
+	}
+	if titleLine == "" || !strings.HasPrefix(titleLine, " ") {
+		t.Fatalf("quick capture is not horizontally centered: %q", content)
 	}
 }
 

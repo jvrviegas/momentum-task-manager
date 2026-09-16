@@ -19,7 +19,7 @@ type QuickAddSubmitMsg struct {
 	Task domain.NewTask
 }
 
-// QuickAddModel owns the bottom command bar and its contextual suggestions.
+// QuickAddModel owns the centered capture modal and its contextual suggestions.
 type QuickAddModel struct {
 	Input           textinput.Model
 	Suggestions     []quickadd.Suggestion
@@ -37,7 +37,7 @@ type QuickAddModel struct {
 	Icons           Icons
 }
 
-// NewQuickAdd creates a focused command bar model.
+// NewQuickAdd creates a focused quick-capture model.
 func NewQuickAdd(styles Styles, icons Icons) QuickAddModel {
 	input := textinput.New()
 	input.Prompt = "> "
@@ -65,7 +65,7 @@ func (q *QuickAddModel) Close() {
 
 func (q *QuickAddModel) SetSize(width, height int) {
 	q.Width, q.Height = width, height
-	q.Input.SetWidth(max(1, width-4))
+	q.Input.SetWidth(max(1, quickAddContentWidth(width)-2))
 }
 
 func (q *QuickAddModel) SetCatalog(projects, tags []string) {
@@ -197,22 +197,58 @@ func (q *QuickAddModel) ApplyMessage(msg tea.Msg) (tea.Msg, bool) {
 	}
 }
 
-// View renders suggestions above the command bar and keeps all lines inside
-// the configured terminal height.
+// View renders a responsive capture modal with syntax and keyboard guidance.
 func (q QuickAddModel) View() string {
 	if !q.Open || q.Width <= 0 || q.Height <= 0 {
 		return ""
 	}
-	bar := q.Input.View()
-	if q.Width > 0 {
-		bar = q.Styles.Panel.Width(q.Width).Render(Truncate(bar, q.Width))
+	contentWidth := quickAddContentWidth(q.Width)
+	if q.Height <= 2 {
+		return q.Styles.Panel.Render(Truncate(q.Input.View(), contentWidth))
 	}
-	lines := []string{}
+	maxLines := max(1, q.Height-2) // Reserve the modal border.
+
+	title := q.Styles.Title.Render("Quick capture")
+	bar := q.Styles.Panel.Render(Truncate(q.Input.View(), contentWidth))
+	syntax := []string{
+		q.Styles.Muted.Render(Truncate("#project · !priority", contentWidth)),
+		q.Styles.Muted.Render(Truncate("@due · >scheduled", contentWidth)),
+		q.Styles.Muted.Render(Truncate("+tag", contentWidth)),
+	}
+	keys := q.Styles.Muted.Render(Truncate("Enter add · Esc cancel", contentWidth))
+
+	// Title, input, syntax, and primary keys remain visible whenever the
+	// terminal meets the application's minimum size. Suggestions and richer
+	// guidance use the remaining space.
+	reserved := 6
+	if q.ParseErr != nil {
+		reserved++
+	}
+	extra := max(0, maxLines-reserved)
+	maxSuggestions := min(5, min(len(q.Suggestions), extra))
+	extra -= maxSuggestions
+
+	subtitle := ""
+	if extra > 0 {
+		subtitle = q.Styles.Muted.Render(Truncate("Describe the task, then add optional metadata.", contentWidth))
+		extra--
+	}
+	example := ""
+	if extra > 0 {
+		example = q.Styles.Muted.Render(Truncate("Example: Prepare proposal #work !high @tomorrow +planning", contentWidth))
+		extra--
+	}
+	suggestionKeys := ""
+	if extra > 0 && q.SuggestionsOpen {
+		suggestionKeys = q.Styles.Muted.Render(Truncate("↑/↓ choose · Tab complete", contentWidth))
+	}
+
+	lines := []string{title}
+	if subtitle != "" {
+		lines = append(lines, subtitle)
+	}
+	lines = append(lines, bar)
 	if q.SuggestionsOpen {
-		maxSuggestions := q.Height - 2
-		if maxSuggestions < 0 {
-			maxSuggestions = 0
-		}
 		start := max(0, q.SuggestionIndex-maxSuggestions+1)
 		for index := start; index < min(len(q.Suggestions), start+maxSuggestions); index++ {
 			suggestion := q.Suggestions[index]
@@ -222,21 +258,46 @@ func (q QuickAddModel) View() string {
 			}
 			line := fmt.Sprintf("%s %s", q.Icons.Chevron, text)
 			if index == q.SuggestionIndex {
-				line = q.Styles.Selection.Render(PadRight(Truncate(line, q.Width), q.Width))
+				line = q.Styles.Selection.Render(PadRight(Truncate(line, contentWidth), contentWidth))
 			} else {
-				line = q.Styles.Muted.Render(Truncate(line, q.Width))
+				line = q.Styles.Muted.Render(Truncate(line, contentWidth))
 			}
 			lines = append(lines, line)
 		}
 	}
-	if q.ParseErr != nil && q.Height > len(lines)+1 {
-		lines = append(lines, q.Styles.Overdue.Render(Truncate(q.ParseErr.Error(), q.Width)))
+	if q.ParseErr != nil {
+		lines = append(lines, q.Styles.Overdue.Render(Truncate(q.ParseErr.Error(), contentWidth)))
 	}
-	lines = append(lines, bar)
-	if len(lines) > q.Height {
-		lines = lines[len(lines)-q.Height:]
+	lines = append(lines, syntax...)
+	if example != "" {
+		lines = append(lines, example)
 	}
-	return lipgloss.JoinVertical(lipgloss.Left, lines...)
+	if suggestionKeys != "" {
+		lines = append(lines, suggestionKeys)
+	}
+	lines = append(lines, keys)
+	if len(lines) > maxLines {
+		lines = lines[:maxLines]
+	}
+	for index := range lines {
+		lines[index] = PadRight(lines[index], contentWidth)
+	}
+	body := lipgloss.JoinVertical(lipgloss.Left, lines...)
+	return q.Styles.Border.Render(body)
+}
+
+func quickAddContentWidth(terminalWidth int) int {
+	if terminalWidth <= 0 {
+		return 0
+	}
+	modalWidth := terminalWidth
+	if modalWidth > 4 {
+		modalWidth -= 4
+	}
+	if modalWidth > 72 {
+		modalWidth = 72
+	}
+	return max(1, modalWidth-2) // Reserve the modal border.
 }
 
 // ErrorText is a plain error accessor for status rendering and tests.

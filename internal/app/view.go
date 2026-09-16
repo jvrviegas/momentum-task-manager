@@ -32,7 +32,7 @@ func (m *Model) render(layout ui.Layout) string {
 	base := m.renderBase(layout)
 	switch m.Overlay {
 	case OverlayQuickAdd:
-		return fitLines(lipgloss.JoinVertical(lipgloss.Top, base, m.QuickAdd.View()), layout.Width, layout.Height)
+		return lipgloss.Place(layout.Width, layout.Height, lipgloss.Center, lipgloss.Center, m.QuickAdd.View())
 	case OverlaySearch:
 		return fitLines(lipgloss.JoinVertical(lipgloss.Top, base, m.Search.View()), layout.Width, layout.Height)
 	case OverlayEdit:
