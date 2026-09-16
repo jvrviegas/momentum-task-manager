@@ -1,7 +1,7 @@
 # Implementation plan — Settings → Projects and pending-only renames
 
 **Created:** 2026-09-16  
-**Status:** T01 complete; T02 next. All product policies are recorded and implementation is proceeding sequentially.  
+**Status:** T02 complete; T03 next. All product policies are recorded and implementation is proceeding sequentially.  
 **Baseline:** `b5c567a` on `main` (catalog: `d8c1728`; quick capture: `84bb513`). Recheck HEAD and working tree before starting.  
 **Requirements:** [SP-01–SP-16](../spec/settings-projects.md)  
 **Decision record:** [ADR 0001 / O1–O6](../adr/0001-project-settings-and-pending-task-renames.md)
@@ -95,7 +95,7 @@ Change `[ ]` to `[x]` only when the task's tests and completion criteria pass. P
 |---|---|---|---|---|
 | [x] | T00 | Verify adapter/config feasibility for accepted policies | — | Taskwarrior 3.5.0 and isolated config probes passed; explicit context filter, `status:pending recur.none:` + `project.is:` guard, hook/reconciliation, lossless TOML, symlink, atomic-write, partial-failure, and undo constraints recorded below. Documentation remains uncommitted per handoff. |
 | [x] | T01 | Pure catalog edit and task-mapping planner | T00 | `go test ./internal/domain -count=1` passed; table-driven edit/mapping tests added; commit `feat(projects): plan catalog edits and pending renames` |
-| [ ] | T02 | Safe project-catalog config store | T00 | — |
+| [x] | T02 | Safe project-catalog config store | T00 | `go test ./internal/config -count=1` passed; source-preserving, conflict-checked, symlink-safe store and isolated filesystem tests added; commit `feat(config): safely persist project catalog edits` |
 | [ ] | T03 | Carry active config path and inject store | T02 | — |
 | [ ] | T04 | Pure Projects settings editor component | T01 | — |
 | [ ] | T05 | Settings routing and live catalog saves | T03, T04 | — |
@@ -149,13 +149,13 @@ Change `[ ]` to `[x]` only when the task's tests and completion criteria pass. P
 **Reuses:** config validation, XDG/path rules, temp-directory test helpers.  
 **Tests:** filesystem unit/integration tests using temporary configs only.
 
-- [ ] Read a source snapshot/revision and replace only catalog content at an explicit path; create missing config directories/file deliberately.
-- [ ] Preserve unrelated fields/comments, newline handling, and permissions; retain symlinks while updating their resolved targets with link/target conflict checks. Handle valid TOML shapes, including comments, quoted strings, and interleaved top-level tables; do not serialize effective environment overrides.
-- [ ] Validate generated TOML through the existing strict loader before replacement; reject a changed source file rather than overwrite it.
-- [ ] Write via a temporary file in the destination directory and atomic replacement; clean temporary artifacts on failure. State any concurrency limitations honestly; detect conflicts as late as practicable.
-- [ ] Test existing/missing/empty config, no projects, multiple entries, clearing all entries, comments around catalog tables, unrelated sync settings, invalid source, read-only/write failure, external edits, and symlinks per O6. Failures retain original file bytes.
+- [x] Read a source snapshot/revision and replace only catalog content at an explicit path; create missing config directories/file deliberately.
+- [x] Preserve unrelated fields/comments, newline handling, and permissions; retain symlinks while updating their resolved targets with link/target conflict checks. Handle valid TOML shapes, including comments, quoted strings, and interleaved top-level tables; do not serialize effective environment overrides.
+- [x] Validate generated TOML through the existing strict loader before replacement; reject a changed source file rather than overwrite it.
+- [x] Write via a temporary file in the destination directory and atomic replacement; clean temporary artifacts on failure. State any concurrency limitations honestly; detect conflicts as late as practicable.
+- [x] Test existing/missing/empty config, no projects, multiple entries, clearing all entries, comments around catalog tables, unrelated sync settings, invalid source, read-only/write failure, external edits, and symlinks per O6. Failures retain original file bytes.
 
-**Gate:** `go test ./internal/config` passes, with before/after fixture assertions.  
+**Gate:** `go test ./internal/config -count=1` passed: 27 top-level tests and 35 passing actions including subtests; `go test ./... -count=1`, `go vet ./...`, and the formatting check also passed. The store uses direct `go-toml-edit v0.4.3` source editing and does not call its generic file writer.  
 **Commit:** `feat(config): safely persist project catalog edits`
 
 ### T03 — Active-path/store dependency wiring
@@ -344,19 +344,19 @@ Populate evidence with a test name, UAT step, or commit plus result—not merely
 | SP-03 | T01, T04, T11 | T01: `TestComposeProjectValueAndDraftResolution` and `TestPlanUpdateProjectClassifiesChangesAndMapsConfiguredDescendants` passed; UI coverage remains in T04/T11. |
 | SP-04 | T01, T04, T11 | T01: draft/value validation and duplicate-result rejection passed in `TestComposeProjectValueAndDraftResolution`, `TestPlanAddProjectCopiesCatalogAndRejectsDuplicates`, and `TestPlanUpdateRejectsOwnDescendantAndResultingCollisions`; UI coverage remains in T04/T11. |
 | SP-05 | T00, T01, T04, T05, T11 | T01: `TestPlanRemoveProjectHonorsSubtreeChoiceWithoutMutatingInput` passed; child-removal prompt/UI coverage remains in T04/T05/T11. |
-| SP-06 | T02–T05, T10, T11 | Pending |
+| SP-06 | T02–T05, T10, T11 | T02: explicit-path snapshot/save tests passed for missing, empty, array, and array-table catalogs; app wiring/live UI/restart coverage remains pending. |
 | SP-07 | T01, T04, T05, T07, T10, T11 | T01: label-only/no-op classification and absence of task mappings passed in `TestPlanUpdateProjectClassifiesChangesAndMapsConfiguredDescendants` and `TestProjectCatalogPlanDoesNotOfferTaskMappingsForLabelOnlyOrNoOp`; workflow coverage remains pending. |
 | SP-08 | T07, T08, T10, T11 | T01: stored-value edits are distinguished from label-only edits; opt-in UI flow remains pending. |
 | SP-09 | T00, T01, T06–T08, T10, T11 | T01: exact pending/non-recurring UUID mapping passed in `TestProjectCatalogPlanMapsOnlyEligiblePendingTasks`; active-context adapter coverage remains pending. |
 | SP-10 | T00, T01, T06–T08, T10, T11 | T01: configured and unconfigured dotted descendants plus `workshop` boundary passed in `TestProjectCatalogPlanMapsOnlyEligiblePendingTasks` and `TestMapPendingProjectTasksHonorsExactBoundaryAndSubprojectOption`; preview counts remain pending. |
 | SP-11 | T01, T07, T08, T10, T11 | T01: explicit source/destination mappings and catalog collision rejection passed in `TestPlanUpdateProjectClassifiesChangesAndMapsConfiguredDescendants` and `TestPlanUpdateRejectsOwnDescendantAndResultingCollisions`; confirmation flow remains pending. |
 | SP-12 | T01, T06–T08, T10, T11 | T01: copied catalog snapshots and exact UUID/value mappings passed in `TestPlanUpdateProjectClassifiesChangesAndMapsConfiguredDescendants` and `TestProjectCatalogPlanMapsOnlyEligiblePendingTasks`; stale revalidation remains pending. |
-| SP-13 | T00, T02, T03, T05, T08, T11 | Pending |
+| SP-13 | T00, T02, T03, T05, T08, T11 | T02: `TestProjectCatalogStorePreservesUnrelatedTOMLAndArrayTableComments`, `TestProjectCatalogStorePreservesCRLFForNewArrayTables`, `TestProjectCatalogStoreRejectsExternalEditsAndInvalidSourceWithoutOverwrite`, `TestProjectCatalogStoreRejectsReadOnlyTarget`, `TestProjectCatalogStorePreservesSymlinkAndUpdatesResolvedTarget`, and `TestProjectCatalogStoreRejectsChangedSymlinkTarget` passed; app-level conflict/result handling remains pending. |
 | SP-14 | T05, T09, T10, T11 | Pending |
 | SP-15 | T00, T07–T11 | Pending |
-| SP-16 | T02, T04–T11 | Pending |
+| SP-16 | T02, T04–T11 | T02: all store tests use `t.TempDir` and isolated config paths; invalid/read-only/conflict/symlink failures retain source bytes. Remaining UI/Taskwarrior isolation coverage is pending. |
 
-**Coverage at handoff:** 16/16 requirements mapped; T01 domain evidence recorded for SP-03–SP-05 and SP-07–SP-12, with the remaining UI/adapter/workflow portions pending; 0/16 requirements fully verified; 1/12 tasks complete.
+**Coverage at handoff:** 16/16 requirements mapped; T01 domain evidence and T02 config-store evidence recorded, with the remaining UI/adapter/workflow portions pending; 0/16 requirements fully verified; 2/12 tasks complete.
 
 ## Execution log
 
@@ -366,3 +366,4 @@ Populate evidence with a test name, UAT step, or commit plus result—not merely
 | 2026-09-16 | T00 policy recording | Partial | Not committed | All product choices, including O2-R/O3-T, recorded consistently in ADR/spec/plan; no feature code or feasibility experiments executed | Complete technical checks; do not reopen resolved choices |
 | 2026-09-16 | T00 technical feasibility | Complete; docs uncommitted | Pending explicit commit instruction | Isolated Taskwarrior 3.5.0 probes, official Taskwarrior hook/context/modify docs, BurntSushi encoder probe, and `go-toml-edit` v0.4.3 lossless-edit probe recorded in the T00 feasibility record below; baseline Go gates passed | Start T01 without reopening O1–O6 or O2-R/O3-T |
 | 2026-09-16 | T01 pure catalog/migration planning | Complete | `feat(projects): plan catalog edits and pending renames` | Added source-independent `ProjectDraft`, catalog add/update/remove plans, collision and hierarchy validation, configured descendant mappings, and pending UUID old/new mappings. `go test ./internal/domain -count=1 -v` passed (35 top-level tests, 63 passing actions including subtests); `go test ./... -count=1` passed across 8 packages. | Start T02 safe config catalog persistence |
+| 2026-09-16 | T02 safe config catalog persistence | Complete | `feat(config): safely persist project catalog edits` | Added `ProjectCatalogStore`/`FileProjectCatalogStore` with lossless array/array-table editing, strict pre-replacement validation, optimistic source/link/target checks, same-directory atomic replacement, mode/newline preservation, and isolated temp-file tests. `go test ./internal/config -count=1` passed (27 top-level tests, 35 passing actions including subtests); full tests/vet/formatting passed. | Start T03 active config path/store wiring |
