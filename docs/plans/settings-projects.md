@@ -1,7 +1,7 @@
 # Implementation plan — Settings → Projects and pending-only renames
 
 **Created:** 2026-09-16  
-**Status:** T03 complete; T04 next. All product policies are recorded and implementation is proceeding sequentially.  
+**Status:** T04 complete; T05 next. All product policies are recorded and implementation is proceeding sequentially.  
 **Baseline:** `b5c567a` on `main` (catalog: `d8c1728`; quick capture: `84bb513`). Recheck HEAD and working tree before starting.  
 **Requirements:** [SP-01–SP-16](../spec/settings-projects.md)  
 **Decision record:** [ADR 0001 / O1–O6](../adr/0001-project-settings-and-pending-task-renames.md)
@@ -97,7 +97,7 @@ Change `[ ]` to `[x]` only when the task's tests and completion criteria pass. P
 | [x] | T01 | Pure catalog edit and task-mapping planner | T00 | `go test ./internal/domain -count=1` passed; table-driven edit/mapping tests added; commit `feat(projects): plan catalog edits and pending renames` |
 | [x] | T02 | Safe project-catalog config store | T00 | `go test ./internal/config -count=1` passed; source-preserving, conflict-checked, symlink-safe store and isolated filesystem tests added; commit `feat(config): safely persist project catalog edits` |
 | [x] | T03 | Carry active config path and inject store | T02 | Resolved path is passed to `FileProjectCatalogStore` and `ModelOptions`; constructor/path-isolation tests pass; commit `feat(app): inject the active project config store` |
-| [ ] | T04 | Pure Projects settings editor component | T01 | — |
+| [x] | T04 | Pure Projects settings editor component | T01 | `go test ./internal/ui -count=1` passed; pure draft/list/prompt component and width/input tests added; commit `feat(ui): add the project catalog settings editor` |
 | [ ] | T05 | Settings routing and live catalog saves | T03, T04 | — |
 | [ ] | T06 | Guarded pending-project migration adapter | T01 | — |
 | [ ] | T07 | Rename preview/confirmation component | T01 | — |
@@ -179,13 +179,13 @@ Change `[ ]` to `[x]` only when the task's tests and completion criteria pass. P
 **Depends on:** T01. **Requirements:** SP-02–SP-07, SP-16.  
 **Tests:** pure UI interaction and width-bound rendering tests.
 
-- [ ] Render configured hierarchy/value list, empty state, and keyboard help; keep selection visible for a long catalog.
-- [ ] Support add/edit/remove drafts, name/value/parent fields, full-value preview, inline errors, and explicit save/cancel intents.
-- [ ] For a parent with configured descendants, ask whether to remove the children too; show counts and test No (parent only), Yes (configured subtree), and Cancel (no changes). Emit no task deletion/modify intent for removal or label-only edits.
-- [ ] Unsaved changes require explicit save/discard before leaving; keep draft on save errors and clear it only after success/discard.
-- [ ] Test wide/compact/narrow/minimum layouts, long names, blank/duplicate/invalid values, parent changes, navigation, and absence of I/O from the component.
+- [x] Render configured hierarchy/value list, empty state, and keyboard help; keep selection visible for a long catalog.
+- [x] Support add/edit/remove drafts, name/value/parent fields, full-value preview, inline errors, and explicit save/cancel intents.
+- [x] For a parent with configured descendants, ask whether to remove the children too; show counts and test No (parent only), Yes (configured subtree), and Cancel (no changes). Emit no task deletion/modify intent for removal or label-only edits.
+- [x] Unsaved changes require explicit save/discard before leaving; keep draft on save errors and clear it only after success/discard.
+- [x] Test wide/compact/narrow/minimum layouts, long names, blank/duplicate/invalid values, parent changes, navigation, and absence of I/O from the component.
 
-**Gate:** `go test ./internal/ui`.  
+**Gate:** `go test ./internal/ui -count=1` passed: 86 UI tests; the new coverage includes `TestProjectSettingsRendersConfiguredHierarchyAndEmptyState`, `TestProjectSettingsKeepsSelectedLongCatalogEntryVisible`, `TestProjectSettingsAddComposesParentAndPublishesOnlyAfterSave`, `TestProjectSettingsLabelOnlyEditDoesNotPlanTaskMappings`, `TestProjectSettingsRejectsInvalidHierarchyAndKeepsDraft`, `TestProjectSettingsRemoveAsksAboutConfiguredChildren`, `TestProjectSettingsRemoveWithoutChildrenEmitsSaveIntent`, `TestProjectSettingsDirtyCancelRequiresExplicitDiscard`, `TestProjectSettingsSaveFailureRetainsDraft`, `TestProjectSettingsSupportsResponsiveWidths`, and `TestProjectSettingsSetProjectsCopiesInput`. Full tests, vet, and formatting also passed.  
 **Commit:** `feat(ui): add the project catalog settings editor`
 
 ### T05 — Settings navigation and catalog-only save integration
@@ -340,12 +340,12 @@ Populate evidence with a test name, UAT step, or commit plus result—not merely
 | Requirement | Implementation tasks | Verified evidence |
 |---|---|---|
 | SP-01 | T05, T11 | Pending |
-| SP-02 | T04, T05, T11 | Pending |
-| SP-03 | T01, T04, T11 | T01: `TestComposeProjectValueAndDraftResolution` and `TestPlanUpdateProjectClassifiesChangesAndMapsConfiguredDescendants` passed; UI coverage remains in T04/T11. |
-| SP-04 | T01, T04, T11 | T01: draft/value validation and duplicate-result rejection passed in `TestComposeProjectValueAndDraftResolution`, `TestPlanAddProjectCopiesCatalogAndRejectsDuplicates`, and `TestPlanUpdateRejectsOwnDescendantAndResultingCollisions`; UI coverage remains in T04/T11. |
-| SP-05 | T00, T01, T04, T05, T11 | T01: `TestPlanRemoveProjectHonorsSubtreeChoiceWithoutMutatingInput` passed; child-removal prompt/UI coverage remains in T04/T05/T11. |
+| SP-02 | T04, T05, T11 | T04: `TestProjectSettingsRendersConfiguredHierarchyAndEmptyState`, `TestProjectSettingsKeepsSelectedLongCatalogEntryVisible`, and `TestProjectSettingsSetProjectsCopiesInput` passed; live settings routing remains pending. |
+| SP-03 | T01, T04, T11 | T01: `TestComposeProjectValueAndDraftResolution` and `TestPlanUpdateProjectClassifiesChangesAndMapsConfiguredDescendants` passed; T04 covers editable name/value/parent fields and full-value preview in `TestProjectSettingsAddComposesParentAndPublishesOnlyAfterSave`; end-to-end UI remains pending. |
+| SP-04 | T01, T04, T11 | T01: draft/value validation and duplicate-result rejection passed in `TestComposeProjectValueAndDraftResolution`, `TestPlanAddProjectCopiesCatalogAndRejectsDuplicates`, and `TestPlanUpdateRejectsOwnDescendantAndResultingCollisions`; T04 invalid-hierarchy retention passed in `TestProjectSettingsRejectsInvalidHierarchyAndKeepsDraft`; remaining validation/UAT is pending. |
+| SP-05 | T00, T01, T04, T05, T11 | T01: `TestPlanRemoveProjectHonorsSubtreeChoiceWithoutMutatingInput`; T04: `TestProjectSettingsRemoveAsksAboutConfiguredChildren` and `TestProjectSettingsRemoveWithoutChildrenEmitsSaveIntent` passed, including No/Yes/Cancel; app wiring remains pending. |
 | SP-06 | T02–T05, T10, T11 | T02: explicit-path snapshot/save tests passed for missing, empty, array, and array-table catalogs; T03: `TestNewAppModelUsesTheResolvedConfigPathForEveryPathMode` passed for explicit/XDG/fallback resolution; live UI/restart coverage remains pending. |
-| SP-07 | T01, T04, T05, T07, T10, T11 | T01: label-only/no-op classification and absence of task mappings passed in `TestPlanUpdateProjectClassifiesChangesAndMapsConfiguredDescendants` and `TestProjectCatalogPlanDoesNotOfferTaskMappingsForLabelOnlyOrNoOp`; workflow coverage remains pending. |
+| SP-07 | T01, T04, T05, T07, T10, T11 | T01: label-only/no-op classification and absence of task mappings passed in `TestPlanUpdateProjectClassifiesChangesAndMapsConfiguredDescendants` and `TestProjectCatalogPlanDoesNotOfferTaskMappingsForLabelOnlyOrNoOp`; T04 preserves that behavior in `TestProjectSettingsLabelOnlyEditDoesNotPlanTaskMappings`; workflow coverage remains pending. |
 | SP-08 | T07, T08, T10, T11 | T01: stored-value edits are distinguished from label-only edits; opt-in UI flow remains pending. |
 | SP-09 | T00, T01, T06–T08, T10, T11 | T01: exact pending/non-recurring UUID mapping passed in `TestProjectCatalogPlanMapsOnlyEligiblePendingTasks`; active-context adapter coverage remains pending. |
 | SP-10 | T00, T01, T06–T08, T10, T11 | T01: configured and unconfigured dotted descendants plus `workshop` boundary passed in `TestProjectCatalogPlanMapsOnlyEligiblePendingTasks` and `TestMapPendingProjectTasksHonorsExactBoundaryAndSubprojectOption`; preview counts remain pending. |
@@ -354,9 +354,9 @@ Populate evidence with a test name, UAT step, or commit plus result—not merely
 | SP-13 | T00, T02, T03, T05, T08, T11 | T02: `TestProjectCatalogStorePreservesUnrelatedTOMLAndArrayTableComments`, `TestProjectCatalogStorePreservesCRLFForNewArrayTables`, `TestProjectCatalogStoreRejectsExternalEditsAndInvalidSourceWithoutOverwrite`, `TestProjectCatalogStoreRejectsReadOnlyTarget`, `TestProjectCatalogStorePreservesSymlinkAndUpdatesResolvedTarget`, and `TestProjectCatalogStoreRejectsChangedSymlinkTarget` passed; T03 preserves the injected active path; app-level conflict/result handling remains pending. |
 | SP-14 | T05, T09, T10, T11 | Pending |
 | SP-15 | T00, T07–T11 | Pending |
-| SP-16 | T02, T04–T11 | T02: all store tests use `t.TempDir` and isolated config paths; invalid/read-only/conflict/symlink failures retain source bytes. Remaining UI/Taskwarrior isolation coverage is pending. |
+| SP-16 | T02, T04–T11 | T02: all store tests use `t.TempDir` and isolated config paths; invalid/read-only/conflict/symlink failures retain source bytes. T04 is pure and has no I/O dependency; remaining UI/Taskwarrior isolation coverage is pending. |
 
-**Coverage at handoff:** 16/16 requirements mapped; T01 domain, T02 config-store, and T03 dependency-wiring evidence recorded, with the remaining UI/adapter/workflow portions pending; 0/16 requirements fully verified; 3/12 tasks complete.
+**Coverage at handoff:** 16/16 requirements mapped; T01 domain, T02 config-store, T03 dependency-wiring, and T04 pure-UI evidence recorded, with the remaining app/adapter/workflow portions pending; 0/16 requirements fully verified; 4/12 tasks complete.
 
 ## Execution log
 
@@ -368,3 +368,4 @@ Populate evidence with a test name, UAT step, or commit plus result—not merely
 | 2026-09-16 | T01 pure catalog/migration planning | Complete | `feat(projects): plan catalog edits and pending renames` | Added source-independent `ProjectDraft`, catalog add/update/remove plans, collision and hierarchy validation, configured descendant mappings, and pending UUID old/new mappings. `go test ./internal/domain -count=1 -v` passed (35 top-level tests, 63 passing actions including subtests); `go test ./... -count=1` passed across 8 packages. | Start T02 safe config catalog persistence |
 | 2026-09-16 | T02 safe config catalog persistence | Complete | `feat(config): safely persist project catalog edits` | Added `ProjectCatalogStore`/`FileProjectCatalogStore` with lossless array/array-table editing, strict pre-replacement validation, optimistic source/link/target checks, same-directory atomic replacement, mode/newline preservation, and isolated temp-file tests. `go test ./internal/config -count=1` passed (27 top-level tests, 35 passing actions including subtests); full tests/vet/formatting passed. | Start T03 active config path/store wiring |
 | 2026-09-16 | T03 active config path/store wiring | Complete | `feat(app): inject the active project config store` | `newAppModel` now injects the exact `resolvedPath` into both `ModelOptions.ProjectStore` and `ProjectConfigPath`; rendering-only models leave the seam nil. Path-mode and construction-I/O tests passed; targeted packages, full tests, vet, and formatting passed. | Start T04 Projects settings editor |
+| 2026-09-16 | T04 pure Projects settings editor | Complete | `feat(ui): add the project catalog settings editor` | Added the pure list/editor component with owned catalog snapshots, parent/value composition, domain-backed validation, explicit save/cancel/discard intents, child-removal No/Yes/Cancel prompt, and bounded responsive rendering. `go test ./internal/ui -count=1` passed (86 tests); full tests/vet/formatting passed. | Start T05 settings navigation and live catalog saves |
