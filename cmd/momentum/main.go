@@ -114,13 +114,17 @@ func run(args []string, stdout, stderr io.Writer) int {
 }
 
 func newAppModel(client taskwarrior.Client, settings config.Config, resolvedPath string, initial app.ViewName, darkBackground *bool) *app.Model {
+	store := config.NewProjectCatalogStore(resolvedPath)
+	migrationClient, _ := client.(app.ProjectMigrationClient)
+	coordinator := app.NewProjectMigrationCoordinator(store, migrationClient)
 	return app.NewModel(app.ModelOptions{
-		Client:            client,
-		Config:            settings,
-		InitialView:       initial,
-		DarkBackground:    darkBackground,
-		ProjectStore:      config.NewProjectCatalogStore(resolvedPath),
-		ProjectConfigPath: resolvedPath,
+		Client:               client,
+		Config:               settings,
+		InitialView:          initial,
+		DarkBackground:       darkBackground,
+		ProjectStore:         store,
+		ProjectConfigPath:    resolvedPath,
+		MigrationCoordinator: coordinator,
 	})
 }
 

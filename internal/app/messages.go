@@ -6,6 +6,7 @@ import (
 	"github.com/jvrviegas/momentum/internal/config"
 	"github.com/jvrviegas/momentum/internal/domain"
 	"github.com/jvrviegas/momentum/internal/taskwarrior"
+	"github.com/jvrviegas/momentum/internal/ui"
 )
 
 // TasksMsg is returned by both initial load and refresh commands.
@@ -91,6 +92,13 @@ type ProjectCatalogSaveMsg struct {
 	Plan     domain.ProjectCatalogPlan
 	Snapshot config.ProjectCatalogSnapshot
 	Err      error
+}
+
+// ProjectRenamePreviewMsg is the typed result of one async preview export.
+type ProjectRenamePreviewMsg struct {
+	ID      uint64
+	Preview ui.ProjectRenamePreview
+	Err     error
 }
 
 // ProjectMigrationMsg is the typed result of one asynchronous migration.

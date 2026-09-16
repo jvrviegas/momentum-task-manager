@@ -7,6 +7,7 @@ import (
 	tea "charm.land/bubbletea/v2"
 
 	"github.com/jvrviegas/momentum/internal/domain"
+	"github.com/jvrviegas/momentum/internal/ui"
 )
 
 func (m *Model) beginProjectMigration(request ProjectMigrationRequest) tea.Cmd {
@@ -20,6 +21,7 @@ func (m *Model) beginProjectMigration(request ProjectMigrationRequest) tea.Cmd {
 	m.PendingMigration = &request
 	m.MigrationRunning = true
 	m.MigrationRefreshPending = false
+	m.MigrationOutcome = nil
 	m.MigrationSyncBefore = m.Sync
 	m.Sync.UndoAvailable = false
 	m.Sync.UndoUntil = time.Time{}
@@ -39,9 +41,22 @@ func (m *Model) applyProjectMigration(message ProjectMigrationMsg) tea.Cmd {
 		if result.CatalogSnapshot.Path != "" || result.CatalogSnapshot.Revision.Exists {
 			m.ProjectSnapshot = result.CatalogSnapshot
 		}
+		m.ProjectSettings.ApplyMessage(ui.ProjectSettingsSavedMsg{Plan: request.Plan, Projects: m.Config.Projects})
+		if m.ProjectRename.Open {
+			m.ProjectRename.ApplyMessage(ui.ProjectRenameResultMsg{})
+		}
 		m.refreshProjectSuggestions()
+	} else if m.ProjectRename.Open {
+		err := projectMigrationError(result)
+		if err == nil && result.Stale {
+			err = ErrProjectMigrationStale
+		}
+		if err != nil {
+			m.ProjectRename.ApplyMessage(ui.ProjectRenameResultMsg{Stale: result.Stale, Err: err})
+		}
 	}
 	if result.ChangedCount() == 0 {
+		m.MigrationOutcome = nil
 		m.Sync = m.MigrationSyncBefore
 		m.finishProjectMigration()
 		m.Mode = ModeReady
@@ -60,6 +75,8 @@ func (m *Model) applyProjectMigration(message ProjectMigrationMsg) tea.Cmd {
 		return m.scheduleSync()
 	}
 
+	resultCopy := result
+	m.MigrationOutcome = &resultCopy
 	m.markMigrationTaskChanges(m.now())
 	m.Status = fmt.Sprintf("Projects saved; %d task(s) changed", result.ChangedCount())
 	if result.FailedCount() > 0 || result.AmbiguousCount() > 0 {

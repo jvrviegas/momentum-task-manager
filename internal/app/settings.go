@@ -15,6 +15,13 @@ func normalizeTaskView(view ViewName) ViewName {
 }
 
 func (m *Model) updateSettingsKey(message tea.KeyPressMsg) tea.Cmd {
+	if m.ProjectRename.Open {
+		if m.RenamePreviewLoading || m.MigrationRunning || m.ProjectSaveRunning {
+			return nil
+		}
+		_, cmd := m.ProjectRename.Update(message)
+		return cmd
+	}
 	if message.String() == "q" || message.String() == "ctrl+c" {
 		if m.ProjectSaveRunning {
 			return nil
@@ -74,6 +81,9 @@ func (m *Model) applyProjectCatalogSave(message ProjectCatalogSaveMsg) tea.Cmd {
 	m.ProjectSaveRunning = false
 	if message.Err != nil {
 		m.ProjectSettings.ApplyMessage(ui.ProjectSettingsSavedMsg{Plan: message.Plan, Err: message.Err})
+		if m.ProjectRename.Open {
+			m.ProjectRename.ApplyMessage(ui.ProjectRenameResultMsg{Err: message.Err})
+		}
 		m.Err = message.Err
 		m.Status = "Project save failed: " + conciseError(message.Err)
 		return nil
@@ -81,6 +91,9 @@ func (m *Model) applyProjectCatalogSave(message ProjectCatalogSaveMsg) tea.Cmd {
 	m.Err = nil
 	m.Config.Projects = append(domain.ProjectCatalog(nil), message.Plan.After...)
 	m.ProjectSettings.ApplyMessage(ui.ProjectSettingsSavedMsg{Plan: message.Plan, Projects: m.Config.Projects})
+	if m.ProjectRename.Open {
+		m.ProjectRename.ApplyMessage(ui.ProjectRenameResultMsg{})
+	}
 	if message.Snapshot.Path != "" || message.Snapshot.Revision.Exists {
 		m.ProjectSnapshot = message.Snapshot
 	}

@@ -115,6 +115,7 @@ type Model struct {
 	Help            ui.HelpModel
 	Quit            ui.QuitModel
 	ProjectSettings ui.ProjectSettingsModel
+	ProjectRename   ui.ProjectRenameModel
 
 	DiscoveredProjects       []string
 	ProjectDiscoveryID       uint64
@@ -123,11 +124,16 @@ type Model struct {
 	ProjectSaveID            uint64
 	ProjectSnapshot          config.ProjectCatalogSnapshot
 	MigrationCoordinator     *ProjectMigrationCoordinator
+	RenamePreviewID          uint64
+	RenamePreviewLoading     bool
+	RenameExactPlan          domain.ProjectCatalogPlan
+	RenameSubprojectsPlan    domain.ProjectCatalogPlan
 	MigrationRunning         bool
 	MigrationID              uint64
 	PendingMigration         *ProjectMigrationRequest
 	MigrationSyncBefore      SyncState
 	MigrationRefreshPending  bool
+	MigrationOutcome         *ProjectMigrationResult
 	SyncDeferred             bool
 	QuitAfterProjectSettings bool
 	DeleteTarget             string
@@ -194,6 +200,7 @@ func NewModel(options ModelOptions) *Model {
 		Help:                 ui.NewHelp(styles),
 		Quit:                 ui.NewQuit(styles),
 		ProjectSettings:      ui.NewProjectSettings(styles),
+		ProjectRename:        ui.NewProjectRename(styles),
 	}
 	model.ProjectSettings.SetProjects(settings.Projects)
 	if model.ActiveView == ViewSettings {
@@ -235,6 +242,7 @@ func (m *Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		m.Help.SetSize(message.Width, message.Height)
 		m.Quit.SetSize(message.Width, message.Height)
 		m.ProjectSettings.SetSize(message.Width, message.Height)
+		m.ProjectRename.SetSize(message.Width, message.Height)
 		return m, nil
 	case ui.QuickAddErrorMsg:
 		m.QuickAdd.ApplyMessage(message)
@@ -255,7 +263,17 @@ func (m *Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		}
 		return m, m.handleEditSubmit(message)
 	case ui.ProjectSettingsSaveMsg:
-		return m, m.beginProjectCatalogSave(message.Plan)
+		return m, m.handleProjectSettingsSave(message.Plan)
+	case ProjectRenamePreviewMsg:
+		return m, m.applyProjectRenamePreview(message)
+	case ui.ProjectRenameOptionMsg:
+		return m, m.refreshProjectRenamePreview(message)
+	case ui.ProjectRenameConfirmMsg:
+		return m, m.handleProjectRenameConfirm(message)
+	case ui.ProjectRenameCancelMsg:
+		m.RenamePreviewLoading = false
+		m.ProjectRename.Close()
+		return m, nil
 	case ui.ProjectSettingsErrorMsg:
 		m.ProjectSettings.ApplyMessage(message)
 		return m, nil
@@ -383,7 +401,10 @@ func (m *Model) applyTasks(message TasksMsg) tea.Cmd {
 	if migrationRefresh {
 		m.finishProjectMigration()
 	}
-	if message.Reason == "refresh" || message.Reason == "sync" || message.Reason == "mutation" || message.Reason == "migration" {
+	if message.Reason == "migration" && m.MigrationOutcome != nil {
+		result := m.MigrationOutcome
+		m.Status = fmt.Sprintf("Migration: %d changed, %d skipped, %d failed, %d ambiguous; refreshed %d tasks", result.ChangedCount(), result.SkippedCount(), result.FailedCount(), result.AmbiguousCount(), len(m.Tasks))
+	} else if message.Reason == "refresh" || message.Reason == "sync" || message.Reason == "mutation" || message.Reason == "migration" {
 		m.Status = fmt.Sprintf("Updated %d tasks", len(m.Tasks))
 	} else {
 		m.Status = ""

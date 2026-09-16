@@ -11,6 +11,7 @@ import (
 
 	"github.com/jvrviegas/momentum/internal/config"
 	"github.com/jvrviegas/momentum/internal/domain"
+	"github.com/jvrviegas/momentum/internal/taskwarrior"
 	"github.com/jvrviegas/momentum/internal/ui"
 )
 
@@ -188,6 +189,9 @@ func TestCatalogSaveFailureRetainsDraftAndLiveCatalog(t *testing.T) {
 func TestCatalogDiscoveryUsesSeparateSnapshotAfterConfiguredRename(t *testing.T) {
 	store := &settingsStore{}
 	model := settingsModel(store)
+	model.MigrationCoordinator = NewProjectMigrationCoordinator(store, &coordinatorClient{
+		export: taskwarrior.ProjectMigrationExport{Tasks: []domain.Task{{UUID: "discovered", Status: "pending", Project: "personal"}}},
+	})
 	model.Update(ProjectsMsg{Values: []string{"personal"}})
 	model.SwitchView(ViewSettings)
 	model.ProjectSettings.OpenEdit(0)
@@ -195,7 +199,17 @@ func TestCatalogDiscoveryUsesSeparateSnapshotAfterConfiguredRename(t *testing.T)
 	model.ProjectSettings.Input(ui.ProjectSettingsValue).SetValue("delivery")
 	_, intentCmd := model.Update(settingsKey('s', tea.ModCtrl))
 	intent := intentCmd().(ui.ProjectSettingsSaveMsg)
-	_, saveCmd := model.Update(intent)
+	_, previewCmd := model.Update(intent)
+	model.Update(previewCmd())
+	model.Update(key("enter"))
+	_, confirmCmd := model.Update(key("y"))
+	if confirmCmd == nil {
+		t.Fatal("catalog-only rename did not emit confirmation")
+	}
+	_, saveCmd := model.Update(confirmCmd())
+	if saveCmd == nil {
+		t.Fatal("catalog-only rename did not start save")
+	}
 	model.Update(saveCmd())
 	if !reflect.DeepEqual(model.QuickAdd.Projects, []string{"delivery", "personal"}) {
 		t.Fatalf("old configured value was reintroduced as false discovery: %v", model.QuickAdd.Projects)

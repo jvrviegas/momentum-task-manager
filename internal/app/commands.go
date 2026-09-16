@@ -3,12 +3,14 @@ package app
 import (
 	"context"
 	"errors"
+	"strings"
 
 	tea "charm.land/bubbletea/v2"
 
 	"github.com/jvrviegas/momentum/internal/config"
 	"github.com/jvrviegas/momentum/internal/domain"
 	"github.com/jvrviegas/momentum/internal/taskwarrior"
+	"github.com/jvrviegas/momentum/internal/ui"
 )
 
 var (
@@ -141,6 +143,47 @@ func TagsCommandWithID(ctx context.Context, client interface {
 		}
 		values, err := client.Tags(commandContext(ctx))
 		return TagsMsg{Values: values, Err: err, RequestID: requestID}
+	}
+}
+
+// ProjectRenamePreviewCommand exports the active context and builds exact and
+// Include-subprojects task mappings asynchronously.
+func ProjectRenamePreviewCommand(ctx context.Context, client ProjectMigrationClient, id uint64, exactPlan, subprojectsPlan domain.ProjectCatalogPlan) tea.Cmd {
+	return func() tea.Msg {
+		if client == nil {
+			return ProjectRenamePreviewMsg{ID: id, Err: ErrProjectMigrationNoClient}
+		}
+		export, err := client.ExportPendingInContext(commandContext(ctx))
+		if err != nil {
+			return ProjectRenamePreviewMsg{ID: id, Err: err}
+		}
+		before := make(map[string]struct{}, len(exactPlan.Before))
+		for _, project := range exactPlan.Before {
+			before[project.Value] = struct{}{}
+		}
+		destination := exactPlan.DestinationValue
+		destinationTaskOnly := false
+		if _, exists := before[destination]; !exists {
+			for _, task := range export.Tasks {
+				if task.Project == destination || strings.HasPrefix(task.Project, destination+".") {
+					destinationTaskOnly = true
+					break
+				}
+			}
+		}
+		return ProjectRenamePreviewMsg{
+			ID: id,
+			Preview: ui.ProjectRenamePreview{
+				ExactPlan:           exactPlan,
+				SubprojectsPlan:     subprojectsPlan,
+				ExactTasks:          exactPlan.PendingTaskMappings(export.Tasks),
+				SubprojectTasks:     subprojectsPlan.PendingTaskMappings(export.Tasks),
+				ContextName:         export.Scope.ContextName,
+				ReadFilter:          export.Scope.ReadFilter,
+				HasActiveContext:    export.Scope.ContextName != "",
+				DestinationTaskOnly: destinationTaskOnly,
+			},
+		}
 	}
 }
 

@@ -29,6 +29,7 @@ type ProjectRenamePreview struct {
 	SubprojectTasks []domain.ProjectTaskMapping
 
 	ContextName         string
+	ReadFilter          string
 	HasActiveContext    bool
 	DestinationTaskOnly bool
 	CollisionMessage    string
@@ -180,6 +181,10 @@ func (p *ProjectRenameModel) Update(msg tea.Msg) (*ProjectRenameModel, tea.Cmd) 
 			p.IncludeSubprojects = !p.IncludeSubprojects
 			return p, p.invalidateOptions()
 		}
+	case "r":
+		if !p.PreviewValid {
+			return p, p.invalidateOptions()
+		}
 	case "enter":
 		return p, p.requestConfirmation()
 	case "esc", "escape":
@@ -194,6 +199,8 @@ func (p ProjectRenameModel) CanSelectTaskMigration() bool {
 }
 
 func (p ProjectRenameModel) CanSelectSubprojects() bool {
+	// The same option also covers task-only descendants that are not present in
+	// the configured catalog, so a configured child is not required to expose it.
 	return p.Preview.ExactPlan.ValueChanged() && p.Preview.SubprojectsPlan.ValueChanged()
 }
 
@@ -243,7 +250,7 @@ func (p *ProjectRenameModel) updateConfirmation(key tea.KeyPressMsg) tea.Cmd {
 			IncludeSubprojects: p.IncludeSubprojects,
 			TaskMappings:       append([]domain.ProjectTaskMapping(nil), p.activeTasks()...),
 		}
-		p.Close()
+		p.ConfirmOpen = false
 		return renameMessageCommand(message)
 	case "n", "esc", "escape":
 		p.ConfirmOpen = false
@@ -339,7 +346,7 @@ func (p ProjectRenameModel) renderPreview() string {
 	if p.Err != nil {
 		lines = append(lines, p.Styles.Overdue.Render(Truncate(p.Err.Error(), max(1, p.Width-4))))
 	}
-	lines = append(lines, p.Styles.Muted.Render("Enter confirm   Esc cancel"))
+	lines = append(lines, p.Styles.Muted.Render("Enter confirm   r refresh   Esc cancel"))
 	return p.renderPanel(lines)
 }
 
