@@ -1,7 +1,7 @@
 # Implementation plan — Settings → Projects and pending-only renames
 
 **Created:** 2026-09-16  
-**Status:** T05 complete; T06 next. All product policies are recorded and implementation is proceeding sequentially.  
+**Status:** T06 complete; T07 next. All product policies are recorded and implementation is proceeding sequentially.  
 **Baseline:** `b5c567a` on `main` (catalog: `d8c1728`; quick capture: `84bb513`). Recheck HEAD and working tree before starting.  
 **Requirements:** [SP-01–SP-16](../spec/settings-projects.md)  
 **Decision record:** [ADR 0001 / O1–O6](../adr/0001-project-settings-and-pending-task-renames.md)
@@ -99,7 +99,7 @@ Change `[ ]` to `[x]` only when the task's tests and completion criteria pass. P
 | [x] | T03 | Carry active config path and inject store | T02 | Resolved path is passed to `FileProjectCatalogStore` and `ModelOptions`; constructor/path-isolation tests pass; commit `feat(app): inject the active project config store` |
 | [x] | T04 | Pure Projects settings editor component | T01 | `go test ./internal/ui -count=1` passed; pure draft/list/prompt component and width/input tests added; commit `feat(ui): add the project catalog settings editor` |
 | [x] | T05 | Settings routing and live catalog saves | T03, T04 | Targeted app/UI/config tests and `go vet ./...` pass; Settings route/save/discovery integration committed as `feat(settings): connect project editing and live suggestions` |
-| [ ] | T06 | Guarded pending-project migration adapter | T01 | — |
+| [x] | T06 | Guarded pending-project migration adapter | T01 | `go test ./internal/taskwarrior -count=1` and all 11 isolated Integration tests passed; guarded context export/reconciliation adapter committed as `feat(taskwarrior): guard pending project reassignments` |
 | [ ] | T07 | Rename preview/confirmation component | T01 | — |
 | [ ] | T08 | Explicit migration coordinator with partial outcomes | T02, T06 | — |
 | [ ] | T09 | Migration-specific serialization/sync/undo lifecycle | T08 | — |
@@ -211,13 +211,13 @@ Change `[ ]` to `[x]` only when the task's tests and completion criteria pass. P
 **Reuses:** `CommandClient.run`, injected `Runner`, `newIsolatedEnvironment`.  
 **Tests:** argv unit tests plus real Taskwarrior integration, not parallel.
 
-- [ ] Export pending tasks in the active Taskwarrior context without UI search/Today filtering or global override; no persistent context changes. Bind preview to that context, invalidate on context change, and test an explicit no-active-context case.
-- [ ] Apply only the planned UUID's project assignment, guarded by pending status and expected old value. Never execute an unrestricted `project:old modify` bulk command.
-- [ ] Return verified outcomes (changed/skipped/error) rather than assuming every successful process changed a task; handle timeouts/ambiguous results with reconciliation.
-- [ ] Preserve descendant suffixes from the domain mapping and all unrelated fields; commands use argument vectors, not a shell.
-- [ ] Test matching/mismatching old value, pending→completed changes, child boundary matching, context scope, hook errors, and non-pending records. Retain production-path guards; absence of Taskwarrior is a recorded blocked integration gate, not full success.
+- [x] Export pending tasks in the active Taskwarrior context without UI search/Today filtering or global override; no persistent context changes. Bind preview to that context, invalidate on context change, and test an explicit no-active-context case.
+- [x] Apply only the planned UUID's project assignment, guarded by pending status and expected old value. Never execute an unrestricted `project:old modify` bulk command.
+- [x] Return verified outcomes (changed/skipped/error) rather than assuming every successful process changed a task; handle timeouts/ambiguous results with reconciliation.
+- [x] Preserve descendant suffixes from the domain mapping and all unrelated fields; commands use argument vectors, not a shell.
+- [x] Test matching/mismatching old value, pending→completed changes, child boundary matching, context scope, hook errors, and non-pending records. Retain production-path guards; absence of Taskwarrior is a recorded blocked integration gate, not full success.
 
-**Gate:** `go test ./internal/taskwarrior` and `go test ./internal/taskwarrior -run Integration -v` with the new tests actually executed.  
+**Gate:** `go test ./internal/taskwarrior -count=1` passed: 45 adapter tests; `go test ./internal/taskwarrior -run Integration -v -count=1` executed and passed all 11 isolated integration tests against Taskwarrior 3.5.0, including `TestIntegrationProjectMigrationHonorsActiveContextWithoutChangingIt`, `TestIntegrationProjectMigrationIsPendingExactAndContextScoped`, and `TestIntegrationProjectMigrationReportsHookRejection`. Unit coverage includes guarded argv, no-active-context export, changed/skipped/failed/timeout/ambiguous reconciliation, and unsafe mapping rejection.  
 **Commit:** `feat(taskwarrior): guard pending project reassignments`
 
 ### T07 — Rename preview/confirmation component
@@ -347,16 +347,16 @@ Populate evidence with a test name, UAT step, or commit plus result—not merely
 | SP-06 | T02–T05, T10, T11 | T02: explicit-path snapshot/save tests passed for missing, empty, array, and array-table catalogs; T03: `TestNewAppModelUsesTheResolvedConfigPathForEveryPathMode` passed for explicit/XDG/fallback resolution; T05: async save success/failure and immediate suggestion updates passed; restart/UAT remains pending. |
 | SP-07 | T01, T04, T05, T07, T10, T11 | T01: label-only/no-op classification and absence of task mappings passed in `TestPlanUpdateProjectClassifiesChangesAndMapsConfiguredDescendants` and `TestProjectCatalogPlanDoesNotOfferTaskMappingsForLabelOnlyOrNoOp`; T04 preserves that behavior in `TestProjectSettingsLabelOnlyEditDoesNotPlanTaskMappings`; workflow coverage remains pending. |
 | SP-08 | T07, T08, T10, T11 | T01: stored-value edits are distinguished from label-only edits; opt-in UI flow remains pending. |
-| SP-09 | T00, T01, T06–T08, T10, T11 | T01: exact pending/non-recurring UUID mapping passed in `TestProjectCatalogPlanMapsOnlyEligiblePendingTasks`; active-context adapter coverage remains pending. |
-| SP-10 | T00, T01, T06–T08, T10, T11 | T01: configured and unconfigured dotted descendants plus `workshop` boundary passed in `TestProjectCatalogPlanMapsOnlyEligiblePendingTasks` and `TestMapPendingProjectTasksHonorsExactBoundaryAndSubprojectOption`; preview counts remain pending. |
+| SP-09 | T00, T01, T06–T08, T10, T11 | T01: exact pending/non-recurring UUID mapping passed in `TestProjectCatalogPlanMapsOnlyEligiblePendingTasks`; T06: `TestExportPendingInContextCapturesScopeAndUsesExplicitFilter`, `TestIntegrationProjectMigrationHonorsActiveContextWithoutChangingIt`, and `TestIntegrationProjectMigrationIsPendingExactAndContextScoped` passed; coordinator coverage remains pending. |
+| SP-10 | T00, T01, T06–T08, T10, T11 | T01: configured and unconfigured dotted descendants plus `workshop` boundary passed in `TestProjectCatalogPlanMapsOnlyEligiblePendingTasks` and `TestMapPendingProjectTasksHonorsExactBoundaryAndSubprojectOption`; T06 applies the explicit descendant mappings through guarded UUID commands; preview counts remain pending. |
 | SP-11 | T01, T07, T08, T10, T11 | T01: explicit source/destination mappings and catalog collision rejection passed in `TestPlanUpdateProjectClassifiesChangesAndMapsConfiguredDescendants` and `TestPlanUpdateRejectsOwnDescendantAndResultingCollisions`; confirmation flow remains pending. |
-| SP-12 | T01, T06–T08, T10, T11 | T01: copied catalog snapshots and exact UUID/value mappings passed in `TestPlanUpdateProjectClassifiesChangesAndMapsConfiguredDescendants` and `TestProjectCatalogPlanMapsOnlyEligiblePendingTasks`; stale revalidation remains pending. |
+| SP-12 | T01, T06–T08, T10, T11 | T01: copied catalog snapshots and exact UUID/value mappings passed in `TestPlanUpdateProjectClassifiesChangesAndMapsConfiguredDescendants` and `TestProjectCatalogPlanMapsOnlyEligiblePendingTasks`; T06 stale completion and post-command reconciliation passed in `TestApplyProjectTaskClassifiesStaleEligibilityAsSkipped` and `TestIntegrationProjectMigrationIsPendingExactAndContextScoped`; full preview invalidation remains pending. |
 | SP-13 | T00, T02, T03, T05, T08, T11 | T02: `TestProjectCatalogStorePreservesUnrelatedTOMLAndArrayTableComments`, `TestProjectCatalogStorePreservesCRLFForNewArrayTables`, `TestProjectCatalogStoreRejectsExternalEditsAndInvalidSourceWithoutOverwrite`, `TestProjectCatalogStoreRejectsReadOnlyTarget`, `TestProjectCatalogStorePreservesSymlinkAndUpdatesResolvedTarget`, and `TestProjectCatalogStoreRejectsChangedSymlinkTarget` passed; T03 preserves the injected active path; T05 retains the previous live catalog on async save failure; coordinator-level handling remains pending. |
 | SP-14 | T05, T09, T10, T11 | T05: save operations use typed Bubble Tea commands/results and block repeated saves; migration/sync serialization remains pending in T09/T10. |
 | SP-15 | T00, T07–T11 | Pending |
-| SP-16 | T02, T04–T11 | T02: all store tests use `t.TempDir` and isolated config paths; invalid/read-only/conflict/symlink failures retain source bytes. T04 is pure and has no I/O dependency; T05 fake-store tests assert no task mutations; remaining Taskwarrior isolation coverage is pending. |
+| SP-16 | T02, T04–T11 | T02: all store tests use `t.TempDir` and isolated config paths; invalid/read-only/conflict/symlink failures retain source bytes. T04 is pure and has no I/O dependency; T05 fake-store tests assert no task mutations; T06 all real commands use `newIsolatedEnvironment` with production-path guards, and hook/reconciliation tests pass. Remaining coordinator/UAT isolation is pending. |
 
-**Coverage at handoff:** 16/16 requirements mapped; T01 domain, T02 config-store, T03 dependency-wiring, T04 pure-UI, and T05 settings integration evidence recorded, with the remaining adapter/workflow portions pending; 0/16 requirements fully verified; 5/12 tasks complete.
+**Coverage at handoff:** 16/16 requirements mapped; T01 domain, T02 config-store, T03 dependency-wiring, T04 pure-UI, T05 settings integration, and T06 Taskwarrior adapter evidence recorded, with the remaining coordinator/workflow portions pending; 0/16 requirements fully verified; 6/12 tasks complete.
 
 ## Execution log
 
@@ -370,3 +370,4 @@ Populate evidence with a test name, UAT step, or commit plus result—not merely
 | 2026-09-16 | T03 active config path/store wiring | Complete | `feat(app): inject the active project config store` | `newAppModel` now injects the exact `resolvedPath` into both `ModelOptions.ProjectStore` and `ProjectConfigPath`; rendering-only models leave the seam nil. Path-mode and construction-I/O tests passed; targeted packages, full tests, vet, and formatting passed. | Start T04 Projects settings editor |
 | 2026-09-16 | T04 pure Projects settings editor | Complete | `feat(ui): add the project catalog settings editor` | Added the pure list/editor component with owned catalog snapshots, parent/value composition, domain-backed validation, explicit save/cancel/discard intents, child-removal No/Yes/Cancel prompt, and bounded responsive rendering. `go test ./internal/ui -count=1` passed (86 tests); full tests/vet/formatting passed. | Start T05 settings navigation and live catalog saves |
 | 2026-09-16 | T05 settings navigation/catalog save integration | Complete | `feat(settings): connect project editing and live suggestions` | Added first-class Settings routing, no-count navigation tabs/sidebar hit testing, task-selection protection, async typed catalog saves, separate discovery snapshots, stale-result guards, immediate suggestion refresh, and dirty-quit handling. Targeted packages, 104 app tests, full tests, vet, and formatting passed. | Start T06 guarded pending-project adapter |
+| 2026-09-16 | T06 guarded pending-project adapter | Complete | `feat(taskwarrior): guard pending project reassignments` | Added active-context capture, explicit pending/non-recurring export filters, one-UUID exact-old project guards, context-safe reconciliation with unscoped UUID fallback, typed outcome classification, timeout ambiguity handling, and isolated real Taskwarrior/hook tests. 45 adapter tests and 11 isolated Integration tests passed against 3.5.0. | Start T07 rename preview/confirmation component |
