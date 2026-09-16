@@ -141,6 +141,10 @@ func (s SyncState) Apply(event SyncEvent) (SyncState, SyncEffect) {
 		return s, SyncEffect{}
 	case SyncTimer:
 		if (s.Phase == SyncWaiting || s.Phase == SyncRetrying || s.Phase == SyncGrace) && !s.NextAt.After(at) {
+			if s.Phase == SyncGrace {
+				s.UndoAvailable = false
+				s.UndoUntil = time.Time{}
+			}
 			return s.beginSync()
 		}
 		return s, SyncEffect{}

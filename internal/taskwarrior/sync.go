@@ -2,6 +2,7 @@ package taskwarrior
 
 import (
 	"context"
+	"errors"
 	"strings"
 )
 
@@ -20,6 +21,10 @@ func (c *CommandClient) SyncConfigured(ctx context.Context) (bool, error) {
 	for _, key := range []string{"sync.server.url", "sync.server.client_id", "sync.encryption_secret"} {
 		result, err := c.run(ctx, "sync-config", "_get", key)
 		if err != nil {
+			var commandErr *CommandError
+			if errors.As(err, &commandErr) && strings.Contains(commandErr.Stderr, "not a DOM reference") {
+				return false, nil
+			}
 			return false, err
 		}
 		if strings.TrimSpace(result.Stdout) == "" {

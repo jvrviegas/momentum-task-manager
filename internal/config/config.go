@@ -77,6 +77,9 @@ func Load(pathOverride string) (Config, error) {
 func LoadWithOptions(options LoadOptions) (Config, string, error) {
 	home := options.HomeDir
 	if home == "" {
+		home = lookup(options.Env, "HOME")
+	}
+	if home == "" {
 		var err error
 		home, err = os.UserHomeDir()
 		if err != nil {
