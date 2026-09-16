@@ -74,7 +74,7 @@ func (m *Model) ConfirmDelete(action ui.ConfirmAction) tea.Cmd {
 
 // UndoLast invokes native Taskwarrior undo only inside the local grace window.
 func (m *Model) UndoLast() tea.Cmd {
-	if !m.Sync.UndoAvailable || m.MutationRunning {
+	if !m.Sync.UndoAvailable || m.MutationRunning || m.MigrationRunning {
 		return nil
 	}
 	return m.beginMutation(MutationRequest{Kind: MutationUndo})
@@ -174,6 +174,11 @@ func (m *Model) Context() context.Context {
 }
 
 func (m *Model) beginSync() tea.Cmd {
+	if m.MigrationRunning {
+		m.SyncDeferred = true
+		m.Status = "Sync deferred until project migration finishes"
+		return nil
+	}
 	if m.Sync.Phase == SyncDisabled || !m.SyncConfigured || m.Client == nil {
 		return nil
 	}
@@ -187,6 +192,10 @@ func (m *Model) beginSync() tea.Cmd {
 }
 
 func (m *Model) requestQuit() tea.Cmd {
+	if m.MigrationRunning {
+		m.Status = "Quit deferred until project migration finishes"
+		return nil
+	}
 	if !m.Sync.Enabled || !m.SyncConfigured {
 		return quitCommand()
 	}

@@ -61,16 +61,17 @@ const (
 // ModelOptions configures a root model without coupling tests to process
 // globals. Client may be nil for rendering-only tests.
 type ModelOptions struct {
-	Client            taskwarrior.Client
-	Config            config.Config
-	InitialView       ViewName
-	Now               func() time.Time
-	Context           context.Context
-	Width             int
-	Height            int
-	DarkBackground    *bool
-	ProjectStore      config.ProjectCatalogStore
-	ProjectConfigPath string
+	Client               taskwarrior.Client
+	Config               config.Config
+	InitialView          ViewName
+	Now                  func() time.Time
+	Context              context.Context
+	Width                int
+	Height               int
+	DarkBackground       *bool
+	ProjectStore         config.ProjectCatalogStore
+	ProjectConfigPath    string
+	MigrationCoordinator *ProjectMigrationCoordinator
 }
 
 // Model is Momentum's root Bubble Tea state machine.
@@ -121,6 +122,13 @@ type Model struct {
 	ProjectSaveRunning       bool
 	ProjectSaveID            uint64
 	ProjectSnapshot          config.ProjectCatalogSnapshot
+	MigrationCoordinator     *ProjectMigrationCoordinator
+	MigrationRunning         bool
+	MigrationID              uint64
+	PendingMigration         *ProjectMigrationRequest
+	MigrationSyncBefore      SyncState
+	MigrationRefreshPending  bool
+	SyncDeferred             bool
 	QuitAfterProjectSettings bool
 	DeleteTarget             string
 }
@@ -158,33 +166,34 @@ func NewModel(options ModelOptions) *Model {
 		syncConfigured = false
 	}
 	model := &Model{
-		Client:            options.Client,
-		Config:            settings,
-		ProjectStore:      options.ProjectStore,
-		ProjectConfigPath: options.ProjectConfigPath,
-		ctx:               ctx,
-		now:               now,
-		RequestedView:     requested,
-		ActiveView:        normalizeView(requested),
-		Selections:        map[ViewName]int{ViewInbox: 0, ViewToday: 0},
-		Selected:          map[ViewName]string{ViewInbox: "", ViewToday: ""},
-		Focus:             FocusList,
-		Mode:              ModeLoading,
-		Width:             options.Width,
-		Height:            options.Height,
-		Sync:              NewSyncState(settings.Sync, now()),
-		SyncReady:         syncReady,
-		SyncConfigured:    syncConfigured,
-		Styles:            styles,
-		Icons:             icons,
-		QuickAdd:          ui.NewQuickAdd(styles, icons),
-		Search:            ui.NewSearch(styles, icons),
-		Editor:            ui.NewEdit(styles, icons),
-		Details:           ui.NewDetails(styles),
-		Confirm:           ui.NewConfirm(styles),
-		Help:              ui.NewHelp(styles),
-		Quit:              ui.NewQuit(styles),
-		ProjectSettings:   ui.NewProjectSettings(styles),
+		Client:               options.Client,
+		Config:               settings,
+		ProjectStore:         options.ProjectStore,
+		ProjectConfigPath:    options.ProjectConfigPath,
+		MigrationCoordinator: options.MigrationCoordinator,
+		ctx:                  ctx,
+		now:                  now,
+		RequestedView:        requested,
+		ActiveView:           normalizeView(requested),
+		Selections:           map[ViewName]int{ViewInbox: 0, ViewToday: 0},
+		Selected:             map[ViewName]string{ViewInbox: "", ViewToday: ""},
+		Focus:                FocusList,
+		Mode:                 ModeLoading,
+		Width:                options.Width,
+		Height:               options.Height,
+		Sync:                 NewSyncState(settings.Sync, now()),
+		SyncReady:            syncReady,
+		SyncConfigured:       syncConfigured,
+		Styles:               styles,
+		Icons:                icons,
+		QuickAdd:             ui.NewQuickAdd(styles, icons),
+		Search:               ui.NewSearch(styles, icons),
+		Editor:               ui.NewEdit(styles, icons),
+		Details:              ui.NewDetails(styles),
+		Confirm:              ui.NewConfirm(styles),
+		Help:                 ui.NewHelp(styles),
+		Quit:                 ui.NewQuit(styles),
+		ProjectSettings:      ui.NewProjectSettings(styles),
 	}
 	model.ProjectSettings.SetProjects(settings.Projects)
 	if model.ActiveView == ViewSettings {
@@ -265,6 +274,8 @@ func (m *Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		return m, nil
 	case ProjectCatalogSaveMsg:
 		return m, m.applyProjectCatalogSave(message)
+	case ProjectMigrationMsg:
+		return m, m.applyProjectMigration(message)
 	case ui.SearchCommitMsg:
 		m.Search.Query = message.Query
 		m.Search.Active = message.Query != ""
@@ -332,6 +343,7 @@ func (m *Model) applyTasks(message TasksMsg) tea.Cmd {
 		ViewInbox: m.Selected[ViewInbox],
 		ViewToday: m.Selected[ViewToday],
 	}
+	migrationRefresh := m.MigrationRunning && m.MigrationRefreshPending && message.Reason == "migration"
 	if message.Err != nil {
 		m.Err = message.Err
 		m.Status = "Refresh failed: " + conciseError(message.Err)
@@ -340,8 +352,14 @@ func (m *Model) applyTasks(message TasksMsg) tea.Cmd {
 		} else {
 			m.Mode = ModeReady
 		}
+		if migrationRefresh {
+			m.finishProjectMigration()
+		}
 		if message.Reason == "initial" && m.Config.RefreshInterval > 0 {
 			return refreshTickCommand(m.Config.RefreshInterval)
+		}
+		if migrationRefresh {
+			return m.scheduleSync()
 		}
 		return nil
 	}
@@ -362,7 +380,10 @@ func (m *Model) applyTasks(message TasksMsg) tea.Cmd {
 	m.restoreSelection(ViewInbox, oldUUIDs[ViewInbox])
 	m.restoreSelection(ViewToday, oldUUIDs[ViewToday])
 	m.Mode = ModeReady
-	if message.Reason == "refresh" || message.Reason == "sync" || message.Reason == "mutation" {
+	if migrationRefresh {
+		m.finishProjectMigration()
+	}
+	if message.Reason == "refresh" || message.Reason == "sync" || message.Reason == "mutation" || message.Reason == "migration" {
 		m.Status = fmt.Sprintf("Updated %d tasks", len(m.Tasks))
 	} else {
 		m.Status = ""
@@ -393,7 +414,7 @@ func (m *Model) applyTasks(message TasksMsg) tea.Cmd {
 }
 
 func (m *Model) beginRefresh(reason string) tea.Cmd {
-	if m.Mode == ModeLoading || m.Mode == ModeMutating || m.Overlay != OverlayNone {
+	if m.Mode == ModeLoading || m.Mode == ModeMutating || m.Overlay != OverlayNone || (m.MigrationRunning && reason != "migration") {
 		return nil
 	}
 	m.Mode = ModeRefreshing
@@ -401,7 +422,7 @@ func (m *Model) beginRefresh(reason string) tea.Cmd {
 }
 
 func (m *Model) beginMutation(request MutationRequest) tea.Cmd {
-	if m.MutationRunning {
+	if m.MutationRunning || m.MigrationRunning {
 		return nil
 	}
 	m.MutationRunning = true

@@ -27,6 +27,10 @@ func syncTickCommandAt(at time.Time) tea.Cmd {
 }
 
 func (m *Model) startStartupSync() tea.Cmd {
+	if m.MigrationRunning {
+		m.SyncDeferred = true
+		return nil
+	}
 	if !m.SyncReady || !m.SyncConfigured || m.Sync.Phase == SyncDisabled || m.Client == nil {
 		return m.scheduleSync()
 	}
@@ -40,6 +44,9 @@ func (m *Model) startStartupSync() tea.Cmd {
 }
 
 func (m *Model) scheduleSync() tea.Cmd {
+	if m.MigrationRunning {
+		return nil
+	}
 	if !m.SyncReady || !m.SyncConfigured || m.Sync.Phase == SyncDisabled || m.Sync.NextAt.IsZero() {
 		return nil
 	}
@@ -67,6 +74,10 @@ func (m *Model) applySyncConfig(message SyncConfigMsg) tea.Cmd {
 }
 
 func (m *Model) applySync(message SyncMsg) tea.Cmd {
+	if m.MigrationRunning {
+		m.SyncDeferred = true
+		return nil
+	}
 	if !m.SyncConfigured || m.Sync.Phase == SyncDisabled {
 		return nil
 	}
@@ -91,6 +102,10 @@ func (m *Model) applySync(message SyncMsg) tea.Cmd {
 }
 
 func (m *Model) handleSyncTick(at time.Time) tea.Cmd {
+	if m.MigrationRunning {
+		m.SyncDeferred = true
+		return nil
+	}
 	if !m.SyncConfigured || m.Sync.Phase == SyncDisabled {
 		return nil
 	}
@@ -105,7 +120,7 @@ func (m *Model) handleSyncTick(at time.Time) tea.Cmd {
 
 func (m *Model) handleRefreshTick(_ time.Time) tea.Cmd {
 	next := refreshTickCommand(m.Config.RefreshInterval)
-	if m.Overlay != OverlayNone || m.Mode == ModeLoading || m.Mode == ModeMutating {
+	if m.MigrationRunning || m.Overlay != OverlayNone || m.Mode == ModeLoading || m.Mode == ModeMutating {
 		return next
 	}
 	refresh := m.beginRefresh("timer")
@@ -128,7 +143,13 @@ func (m *Model) SyncCountdown(now time.Time) string {
 // SyncStatus returns a concise footer status for local-only, retry, or grace
 // states without exposing Taskwarrior settings.
 func (m *Model) SyncStatus(now time.Time) string {
-	if m == nil || !m.SyncConfigured || m.Sync.Phase == SyncDisabled {
+	if m == nil {
+		return "Local only"
+	}
+	if m.MigrationRunning {
+		return "Project migration in progress · undo unavailable"
+	}
+	if !m.SyncConfigured || m.Sync.Phase == SyncDisabled {
 		return "Local only"
 	}
 	if countdown := m.SyncCountdown(now); countdown != "" {

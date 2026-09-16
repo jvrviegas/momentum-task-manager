@@ -144,6 +144,17 @@ func TagsCommandWithID(ctx context.Context, client interface {
 	}
 }
 
+// ProjectMigrationCommand runs one confirmed migration asynchronously through
+// the injected coordinator.
+func ProjectMigrationCommand(ctx context.Context, coordinator *ProjectMigrationCoordinator, id uint64, request ProjectMigrationRequest) tea.Cmd {
+	return func() tea.Msg {
+		if coordinator == nil {
+			return ProjectMigrationMsg{ID: id, Result: ProjectMigrationResult{PreflightErr: ErrProjectMigrationNoClient}}
+		}
+		return ProjectMigrationMsg{ID: id, Result: coordinator.Execute(commandContext(ctx), request)}
+	}
+}
+
 // ProjectCatalogSaveCommand persists one already validated catalog plan
 // asynchronously through the injected store.
 func ProjectCatalogSaveCommand(ctx context.Context, store config.ProjectCatalogStore, snapshot config.ProjectCatalogSnapshot, plan domain.ProjectCatalogPlan, id uint64) tea.Cmd {

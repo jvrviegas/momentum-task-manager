@@ -1,7 +1,7 @@
 # Implementation plan — Settings → Projects and pending-only renames
 
 **Created:** 2026-09-16  
-**Status:** T08 complete; T09 next. All product policies are recorded and implementation is proceeding sequentially.  
+**Status:** T09 complete; T10 next. All product policies are recorded and implementation is proceeding sequentially.  
 **Baseline:** `b5c567a` on `main` (catalog: `d8c1728`; quick capture: `84bb513`). Recheck HEAD and working tree before starting.  
 **Requirements:** [SP-01–SP-16](../spec/settings-projects.md)  
 **Decision record:** [ADR 0001 / O1–O6](../adr/0001-project-settings-and-pending-task-renames.md)
@@ -102,7 +102,7 @@ Change `[ ]` to `[x]` only when the task's tests and completion criteria pass. P
 | [x] | T06 | Guarded pending-project migration adapter | T01 | `go test ./internal/taskwarrior -count=1` and all 11 isolated Integration tests passed; guarded context export/reconciliation adapter committed as `feat(taskwarrior): guard pending project reassignments` |
 | [x] | T07 | Rename preview/confirmation component | T01 | `go test ./internal/ui -count=1` passed; explicit scope/mode/merge preview and confirmation tests added; commit `feat(ui): preview pending project renames explicitly` |
 | [x] | T08 | Explicit migration coordinator with partial outcomes | T02, T06 | Coordinator fault-injection tests pass for preflight/catalog-first/partial/ambiguous/cancel paths; commit `feat(app): coordinate explicit project migrations` |
-| [ ] | T09 | Migration-specific serialization/sync/undo lifecycle | T08 | — |
+| [x] | T09 | Migration-specific serialization/sync/undo lifecycle | T08 | Migration gate/sync/undo lifecycle tests pass, including race gate; commit `feat(sync): serialize project migrations safely` |
 | [ ] | T10 | Connect settings rename intent to migration lifecycle | T05, T07, T09 | — |
 | [ ] | T11 | End-to-end evidence, documentation, final regression gate | T10 | — |
 
@@ -255,13 +255,13 @@ Change `[ ]` to `[x]` only when the task's tests and completion criteria pass. P
 **Depends on:** T08. **Requirements:** SP-14–SP-16.  
 **Tests:** state-machine tests with controlled clock, fake clients, and in-flight commands.
 
-- [ ] Acquire/release one migration operation gate; block competing task edits, repeated migration/save submission, and misleading quit/undo actions.
-- [ ] Do not begin migration during an in-flight sync/task write. Defer startup/manual/timer/retry/shutdown sync while migration owns the gate; handle stale timers/responses safely and resume scheduling afterward.
-- [ ] Task changes, including partial success, mark task data unsynced and schedule refresh/native sync according to existing configuration; zero-task/catalog-only operations do not.
-- [ ] Disable undo during migration and prevent native `u`/previous grace state from being advertised as reversing the batch or config save after task changes. Preserve later ordinary single-task undo. Do not lose pre-existing dirty task state on failure or no-op.
-- [ ] Test local-only operation, sync-disabled mode, pending previous undo grace, mid-migration sync ticks, refresh ticks, quit/cancel, success, partial failure, and preservation of later ordinary single-task undo behavior.
+- [x] Acquire/release one migration operation gate; block competing task edits, repeated migration/save submission, and misleading quit/undo actions.
+- [x] Do not begin migration during an in-flight sync/task write. Defer startup/manual/timer/retry/shutdown sync while migration owns the gate; handle stale timers/responses safely and resume scheduling afterward.
+- [x] Task changes, including partial success, mark task data unsynced and schedule refresh/native sync according to existing configuration; zero-task/catalog-only operations do not.
+- [x] Disable undo during migration and prevent native `u`/previous grace state from being advertised as reversing the batch or config save after task changes. Preserve later ordinary single-task undo. Do not lose pre-existing dirty task state on failure or no-op.
+- [x] Test local-only operation, sync-disabled mode, pending previous undo grace, mid-migration sync ticks, refresh ticks, quit/cancel, success, partial failure, and preservation of later ordinary single-task undo behavior.
 
-**Gate:** `go test ./internal/app`; `go test -race ./internal/app`.  
+**Gate:** `go test ./internal/app -count=1` passed: 121 top-level tests and 128 passing actions including subtests; `go test -race ./internal/app`, full tests, vet, and formatting also passed. Migration lifecycle coverage includes `TestMigrationGateBlocksCompetingTaskWritesSyncAndUndo`, `TestCatalogOnlyMigrationRestoresSyncStateAndDoesNotRefreshTasks`, `TestMigrationTaskChangesDisableUndoMarkUnsyncedAndReleaseAfterRefresh`, `TestMigrationPartialTaskChangeKeepsDirtyStateAndLaterOrdinaryUndo`, cancellation/pre-existing-grace cases, timer deferral, and typed command results.  
 **Commit:** `feat(sync): serialize project migrations safely`
 
 ### T10 — End-to-end settings rename wiring
@@ -352,11 +352,11 @@ Populate evidence with a test name, UAT step, or commit plus result—not merely
 | SP-11 | T01, T07, T08, T10, T11 | T01: explicit source/destination mappings and catalog collision rejection passed in `TestPlanUpdateProjectClassifiesChangesAndMapsConfiguredDescendants` and `TestPlanUpdateRejectsOwnDescendantAndResultingCollisions`; T07: mapping/context/count, zero-match, task-only warning, historical-retention, and no-batch-undo preview tests passed; T08 catalog-first/zero-match/failure outcome tests passed; workflow remains pending. |
 | SP-12 | T01, T06–T08, T10, T11 | T01: copied catalog snapshots and exact UUID/value mappings passed in `TestPlanUpdateProjectClassifiesChangesAndMapsConfiguredDescendants` and `TestProjectCatalogPlanMapsOnlyEligiblePendingTasks`; T06 stale completion and post-command reconciliation passed in `TestApplyProjectTaskClassifiesStaleEligibilityAsSkipped` and `TestIntegrationProjectMigrationIsPendingExactAndContextScoped`; full preview invalidation remains pending. |
 | SP-13 | T00, T02, T03, T05, T08, T11 | T02: source/comment/newline/permission/conflict/symlink tests passed; T03 preserves the injected active path; T05 retains the previous live catalog on async save failure; T08 separates catalog-save failure from task outcomes and never starts tasks after a failed save; final handling remains pending. |
-| SP-14 | T05, T09, T10, T11 | T05: save operations use typed Bubble Tea commands/results and block repeated saves; migration/sync serialization remains pending in T09/T10. |
-| SP-15 | T00, T07–T11 | T07: task-only merge warning, stale/error, explicit confirmation, history, and no-batch-undo tests passed; T08: catalog-first/partial/ambiguous/no-retry tests passed; sync/undo lifecycle remains pending. |
+| SP-14 | T05, T09, T10, T11 | T05: save operations use typed Bubble Tea commands/results and block repeated saves; T09 gate tests pass for migration ownership, competing writes, sync/timer deferral, refresh release, and quit/undo suppression; end-to-end workflow remains pending. |
+| SP-15 | T00, T07–T11 | T07: task-only merge warning, stale/error, explicit confirmation, history, and no-batch-undo tests passed; T08: catalog-first/partial/ambiguous/no-retry tests passed; T09: migration disables misleading undo, preserves prior dirty state on no-op/failure, and restores ordinary single-task undo after release. |
 | SP-16 | T02, T04–T11 | T02: all store tests use `t.TempDir` and isolated config paths; invalid/read-only/conflict/symlink failures retain source bytes. T04 is pure and has no I/O dependency; T05 fake-store tests assert no task mutations; T06 all real commands use `newIsolatedEnvironment` with production-path guards, and hook/reconciliation tests pass; T08 fake-store/client fault injection has no production-data access. Remaining workflow/UAT isolation is pending. |
 
-**Coverage at handoff:** 16/16 requirements mapped; T01 domain, T02 config-store, T03 dependency-wiring, T04 pure-UI, T05 settings integration, T06 Taskwarrior adapter, T07 preview, and T08 coordinator evidence recorded, with the remaining lifecycle/workflow portions pending; 0/16 requirements fully verified; 8/12 tasks complete.
+**Coverage at handoff:** 16/16 requirements mapped; T01 domain, T02 config-store, T03 dependency-wiring, T04 pure-UI, T05 settings integration, T06 Taskwarrior adapter, T07 preview, T08 coordinator, and T09 lifecycle evidence recorded, with the remaining end-to-end workflow/UAT portions pending; 0/16 requirements fully verified; 9/12 tasks complete.
 
 ## Execution log
 
@@ -373,3 +373,4 @@ Populate evidence with a test name, UAT step, or commit plus result—not merely
 | 2026-09-16 | T06 guarded pending-project adapter | Complete | `feat(taskwarrior): guard pending project reassignments` | Added active-context capture, explicit pending/non-recurring export filters, one-UUID exact-old project guards, context-safe reconciliation with unscoped UUID fallback, typed outcome classification, timeout ambiguity handling, and isolated real Taskwarrior/hook tests. 45 adapter tests and 11 isolated Integration tests passed against 3.5.0. | Start T07 rename preview/confirmation component |
 | 2026-09-16 | T07 rename preview/confirmation component | Complete | `feat(ui): preview pending project renames explicitly` | Added the pure preview with per-edit Catalog-only defaults, separate descendant counts/mappings, context/no-context copy, task-only effective-merge warning, explicit confirmation, stale/error handling, historical retention, and no-batch-undo messaging. `go test ./internal/ui -count=1` passed (98 tests); full tests/vet/formatting passed. | Start T08 migration coordinator |
 | 2026-09-16 | T08 migration coordinator | Complete | `feat(app): coordinate explicit project migrations` | Added exact-scope/UUID-set preflight revalidation, catalog-first save ordering, separate catalog/task outcomes, stop-on-failure partial semantics, zero-match/catalog-only paths, cancellation, and no-retry behavior. Targeted app/config/Taskwarrior tests, 114 app tests, full tests, vet, and formatting passed. | Start T09 migration sync/undo lifecycle |
+| 2026-09-16 | T09 migration sync/undo lifecycle | Complete | `feat(sync): serialize project migrations safely` | Added the migration gate, deferred competing sync/refresh/quit/undo paths, task-change unsynced scheduling without batch undo, refresh-time release, and preservation of prior dirty state on no-op/failure. `go test ./internal/app -count=1` passed (121 top-level tests, 128 actions); race/full tests/vet/formatting passed. | Start T10 end-to-end settings rename wiring |

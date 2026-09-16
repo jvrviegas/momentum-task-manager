@@ -93,6 +93,12 @@ type ProjectCatalogSaveMsg struct {
 	Err      error
 }
 
+// ProjectMigrationMsg is the typed result of one asynchronous migration.
+type ProjectMigrationMsg struct {
+	ID     uint64
+	Result ProjectMigrationResult
+}
+
 // ToastMsg displays a short in-application status message.
 type ToastMsg struct {
 	Text string
