@@ -9,3 +9,14 @@ interval = "5m"
 mutation_delay = "15s"
 startup = true
 shutdown = true
+
+# Optional suggestion catalog; no tasks are created or modified.
+# Values are lowercase dotted paths; names label each final path segment.
+# Keep [[projects]] at the top level, not inside [sync].
+[[projects]]
+name = "Work"
+value = "work"
+
+[[projects]]
+name = "Client"
+value = "work.client"

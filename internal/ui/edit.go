@@ -49,6 +49,7 @@ type EditModel struct {
 	SuggestionIndex int
 	SuggestionsOpen bool
 	Projects        []string
+	ProjectLabels   map[string]string
 	Tags            []string
 	Width           int
 	Height          int
@@ -108,6 +109,12 @@ func (e *EditModel) SetCatalog(projects, tags []string) {
 	e.Projects = append([]string(nil), projects...)
 	e.Tags = append([]string(nil), tags...)
 	e.refreshSuggestions()
+}
+
+// SetProjectCatalog installs project values and readable suggestion labels.
+func (e *EditModel) SetProjectCatalog(projects domain.ProjectCatalog) {
+	e.ProjectLabels = projects.Labels()
+	e.SetCatalog(projects.Values(), e.Tags)
 }
 
 // Input returns a copy of a field input for read-only inspection.
@@ -226,7 +233,9 @@ func (e *EditModel) refreshSuggestions() {
 			continue
 		}
 		if prefix != "" && !fuzzyContains(prefix, candidate) {
-			continue
+			if e.Focused != FieldProject || !fuzzyContains(prefix, e.ProjectLabels[candidate]) {
+				continue
+			}
 		}
 		seen[strings.ToLower(candidate)] = struct{}{}
 		result = append(result, candidate)
@@ -325,7 +334,15 @@ func (e EditModel) View() string {
 		lines = append(lines, line)
 	}
 	if e.SuggestionsOpen {
-		lines = append(lines, e.Styles.Muted.Render(Truncate("Suggestions: "+strings.Join(e.Suggestions, "  "), e.Width)))
+		labels := append([]string(nil), e.Suggestions...)
+		if e.Focused == FieldProject {
+			for i, value := range labels {
+				if label := e.ProjectLabels[value]; label != "" {
+					labels[i] = label + " (" + value + ")"
+				}
+			}
+		}
+		lines = append(lines, e.Styles.Muted.Render(Truncate("Suggestions: "+strings.Join(labels, "  "), e.Width)))
 	}
 	if e.Err != nil {
 		lines = append(lines, e.Styles.Overdue.Render(Truncate(e.Err.Error(), e.Width)))

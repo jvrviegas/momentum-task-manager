@@ -677,6 +677,18 @@ Record implementation-time departures here before proceeding.
 | 2026-09-08 | T23 | `test: validate momentum user workflows` | macOS gates/UAT; Linux `golang:1.27` gates and Debian sid Taskwarrior 3.5 UAT | Cross-platform builds, full/race gates, isolated Linux/macOS integration, local-only TTY quick-add smoke, responsive widths, and icon modes recorded in `docs/UAT.md`. |
 | 2026-09-08 | T24 | `docs: prepare momentum for initial release` | `go test ./...`; `go test -race ./...`; `go vet ./...`; native/cross builds; `goreleaser build --snapshot --clean` | README, contributor guide, config example, manual sync guide, CI, GoReleaser targets, and screenshot placeholder added; no remote/release created. |
 
+## Approved extension — project suggestion catalog
+
+User-approved scope: Momentum owns an optional config-backed catalog of common projects solely for suggestions. Each entry stores a display name and a lowercase, hyphenated/dotted Taskwarrior value; hierarchy follows the dotted value. No project screen, project status, independent database, task migration, or automatic catalog growth is introduced.
+
+- Load and validate `[[projects]]` with the existing strict TOML loader; default catalog stays empty.
+- Seed the user's 16 screenshot entries in their local config, not application defaults.
+- Populate quick capture and project editing before discovery, merge unique discovered values, and retain configured suggestions when discovery fails.
+- Match labels and values, display breadcrumbs, insert only values, and keep long suggestion lists navigable.
+- Verify config errors, hierarchy, source ownership, merge/failure behavior, label matching, submission values, and absence of task mutations.
+
+This extends the original stateless design only through Momentum configuration. Taskwarrior remains authoritative for all task data; changing catalog entries never changes tasks.
+
 ## Completion Log
 
 | Date | Task | Commit | Verification | Notes |

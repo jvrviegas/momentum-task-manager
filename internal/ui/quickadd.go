@@ -28,6 +28,7 @@ type QuickAddModel struct {
 	Open            bool
 	ParseErr        error
 	Projects        []string
+	ProjectLabels   map[string]string
 	Tags            []string
 	Width           int
 	Height          int
@@ -71,6 +72,12 @@ func (q *QuickAddModel) SetCatalog(projects, tags []string) {
 	q.Projects = append([]string(nil), projects...)
 	q.Tags = append([]string(nil), tags...)
 	q.refreshSuggestions()
+}
+
+// SetProjectCatalog installs an owned snapshot of project values and labels.
+func (q *QuickAddModel) SetProjectCatalog(projects domain.ProjectCatalog) {
+	q.ProjectLabels = projects.Labels()
+	q.SetCatalog(projects.Values(), q.Tags)
 }
 
 // Update routes overlay-owned keys and delegates ordinary editing to Bubbles.
@@ -124,7 +131,7 @@ func (q *QuickAddModel) refreshSuggestions() {
 		return
 	}
 	ctx := quickadd.ContextAt(q.Input.Value(), q.Input.Position())
-	q.Suggestions = quickadd.SuggestionsFor(ctx, q.Projects, q.Tags, q.currentTime())
+	q.Suggestions = quickadd.SuggestionsWithProjectLabels(ctx, q.Projects, q.Tags, q.ProjectLabels, q.currentTime())
 	q.SuggestionsOpen = len(q.Suggestions) > 0
 	if q.SuggestionIndex >= len(q.Suggestions) {
 		q.SuggestionIndex = 0
@@ -206,11 +213,14 @@ func (q QuickAddModel) View() string {
 		if maxSuggestions < 0 {
 			maxSuggestions = 0
 		}
-		for index, suggestion := range q.Suggestions {
-			if index >= maxSuggestions {
-				break
+		start := max(0, q.SuggestionIndex-maxSuggestions+1)
+		for index := start; index < min(len(q.Suggestions), start+maxSuggestions); index++ {
+			suggestion := q.Suggestions[index]
+			text := suggestion.Text
+			if suggestion.Label != "" {
+				text = suggestion.Label + "  " + suggestion.Text
 			}
-			line := fmt.Sprintf("%s %s", q.Icons.Chevron, suggestion.Text)
+			line := fmt.Sprintf("%s %s", q.Icons.Chevron, text)
 			if index == q.SuggestionIndex {
 				line = q.Styles.Selection.Render(PadRight(Truncate(line, q.Width), q.Width))
 			} else {

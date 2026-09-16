@@ -3,6 +3,7 @@ package config
 import (
 	"os"
 	"path/filepath"
+	"reflect"
 	"strings"
 	"testing"
 	"time"
@@ -55,7 +56,7 @@ func TestMissingConfigUsesDefaultsWithoutReadingUserConfig(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if !strings.HasSuffix(path, "missing.toml") || got != Defaults() {
+	if !strings.HasSuffix(path, "missing.toml") || !reflect.DeepEqual(got, Defaults()) {
 		t.Fatalf("path/config mismatch: %q %#v", path, got)
 	}
 }

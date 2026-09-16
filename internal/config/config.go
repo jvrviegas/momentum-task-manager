@@ -9,6 +9,8 @@ import (
 	"time"
 
 	"github.com/BurntSushi/toml"
+
+	"github.com/jvrviegas/momentum/internal/domain"
 )
 
 const (
@@ -33,10 +35,11 @@ type SyncConfig struct {
 // Config contains settings owned by Momentum. Taskwarrior sync credentials are
 // deliberately not represented here; they remain in Taskwarrior configuration.
 type Config struct {
-	RefreshInterval time.Duration `toml:"refresh_interval"`
-	Theme           string        `toml:"theme"`
-	Icons           string        `toml:"icons"`
-	Sync            SyncConfig    `toml:"sync"`
+	RefreshInterval time.Duration         `toml:"refresh_interval"`
+	Theme           string                `toml:"theme"`
+	Icons           string                `toml:"icons"`
+	Sync            SyncConfig            `toml:"sync"`
+	Projects        domain.ProjectCatalog `toml:"projects"`
 }
 
 // LoadOptions makes configuration loading deterministic in tests and callers
@@ -181,7 +184,12 @@ func (c Config) Validate() error {
 	if c.Sync.MutationDelay < 0 {
 		return fmt.Errorf("config key %q must be zero or a positive duration", "sync.mutation_delay")
 	}
-	return nil
+	return c.Projects.Validate()
+}
+
+// IsZero identifies omitted settings without requiring Config to be comparable.
+func (c Config) IsZero() bool {
+	return c.RefreshInterval == 0 && c.Theme == "" && c.Icons == "" && c.Sync == (SyncConfig{}) && c.Projects == nil
 }
 
 func lookup(values map[string]string, key string) string {

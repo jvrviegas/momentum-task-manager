@@ -114,7 +114,7 @@ type Model struct {
 // NewModel builds an application model with deterministic defaults.
 func NewModel(options ModelOptions) *Model {
 	settings := options.Config
-	if settings == (config.Config{}) {
+	if settings.IsZero() {
 		settings = config.Defaults()
 	}
 	requested := options.InitialView
@@ -143,7 +143,7 @@ func NewModel(options ModelOptions) *Model {
 		syncReady = false
 		syncConfigured = false
 	}
-	return &Model{
+	model := &Model{
 		Client:         options.Client,
 		Config:         settings,
 		ctx:            ctx,
@@ -169,6 +169,9 @@ func NewModel(options ModelOptions) *Model {
 		Help:           ui.NewHelp(styles),
 		Quit:           ui.NewQuit(styles),
 	}
+	model.QuickAdd.SetProjectCatalog(settings.Projects)
+	model.Editor.SetProjectCatalog(settings.Projects)
+	return model
 }
 
 // New is a concise constructor for application entry points.
@@ -238,8 +241,9 @@ func (m *Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		return m, nil
 	case ProjectsMsg:
 		if message.Err == nil {
-			m.QuickAdd.SetCatalog(message.Values, m.QuickAdd.Tags)
-			m.Editor.SetCatalog(message.Values, m.Editor.Tags)
+			projects := m.Config.Projects.Merge(message.Values)
+			m.QuickAdd.SetProjectCatalog(projects)
+			m.Editor.SetProjectCatalog(projects)
 		}
 		return m, nil
 	case TagsMsg:

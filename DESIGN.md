@@ -10,7 +10,7 @@
 
 Momentum is a polished, keyboard-first terminal frontend for Taskwarrior 3.x. It gives Taskwarrior a focused two-view workflow, fast structured editing, a quick-add command bar with contextual suggestions, and optional synchronization through Taskwarrior's native sync command.
 
-Momentum is a stateless wrapper. Taskwarrior remains the only source of truth and owns all persistence, recurrence, hooks, validation, contexts, synchronization, and conflict handling.
+Momentum is a stateless wrapper for task data. Taskwarrior remains the only source of truth for tasks and owns their persistence, recurrence, hooks, validation, contexts, synchronization, and conflict handling. Momentum may store a local project suggestion catalog in its configuration; these entries are not Taskwarrior entities and never change existing task assignments.
 
 ## 2. Goals
 
@@ -434,7 +434,7 @@ The adapter must:
 - redact secrets and task descriptions from debug logs where practical
 - return typed errors suitable for concise UI display and detailed logs
 
-Project suggestions should use Taskwarrior's script-oriented project listing when supported and supplement it with projects found in the pending export. Tag suggestions should come from actual exported user tags to avoid suggesting Taskwarrior virtual tags. Unknown project/tag values remain valid.
+Project suggestions should use Taskwarrior's script-oriented project listing when supported and supplement it with projects found in the pending export. Optional Momentum `[[projects]]` configuration entries supply a readable `name` and unique lowercase dotted `value`. Configured entries precede discovered values for an empty query, remain available without tasks or successful discovery, and supply breadcrumbs in quick capture and the project editor. Matching uses labels and values; completion inserts only the Taskwarrior value. Catalog edits take effect after restart and never modify tasks. Tag suggestions should come from actual exported user tags to avoid suggesting Taskwarrior virtual tags. Unknown project/tag values remain valid.
 
 ## 11. Synchronization Design
 

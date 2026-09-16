@@ -92,6 +92,30 @@ Copy [`config.example.toml`](./config.example.toml) to get started. `MOMENTUM_IC
 
 Themes are `auto`, `dark`, and `light`; icons are `unicode`, `nerd`, and `ascii`.
 
+### Project suggestion catalog
+
+Store frequently used projects in your Momentum config, even before they have tasks:
+
+```toml
+[[projects]]
+name = "Work"
+value = "work"
+
+[[projects]]
+name = "Client"
+value = "work.client"
+```
+
+Each entry has a readable `name` and a unique Taskwarrior `value`. Values use lowercase letters/numbers, hyphens, and dots for hierarchy. Parent entries are optional and selectable. The example displays **Work → Client** and inserts `#work.client`; neither spaces nor display labels are sent as project values.
+
+- Type `#` in quick capture to see suggestions; type part of a name or value to filter, use arrows to select, and Tab to complete.
+- Configured projects appear first for an empty query and merge with discovered Taskwarrior projects without duplicate values. They are also available in the project editor.
+- The catalog is available even with no tasks or when project discovery fails. It is local to Momentum, not restricted by Taskwarrior contexts or synchronized by `task sync`.
+- Add, rename, or remove entries in the config and restart Momentum. These changes affect suggestions **only**, never existing tasks. Discovered projects can still appear after removal from the catalog.
+- Unknown project values remain valid in quick capture. New task assignments are not automatically saved to the catalog.
+
+There is no project-management screen or separate project database; the optional catalog lives entirely in configuration. Without it, suggestions work as before.
+
 ## Synchronization
 
 Momentum does not implement or provision synchronization. It runs Taskwarrior's native `task sync` when Taskwarrior sync settings are present. Local work remains available when sync is unavailable. After a mutation, sync waits 15 seconds and shows an undo grace countdown. See [`docs/sync.md`](./docs/sync.md) for the manual TaskChampion/Cloud Run/Neon setup.

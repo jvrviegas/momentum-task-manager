@@ -37,6 +37,7 @@ type Suggestion struct {
 	Kind  SuggestionKind
 	Value string
 	Text  string
+	Label string // Optional display label; never inserted into the task.
 	Score int
 }
 
@@ -93,6 +94,12 @@ func SuggestionContextAt(input string, cursor int) SuggestionContext {
 
 // SuggestionsFor returns field-aware, fuzzy-ranked candidates.
 func SuggestionsFor(ctx SuggestionContext, projects, tags []string, now time.Time) []Suggestion {
+	return SuggestionsWithProjectLabels(ctx, projects, tags, nil, now)
+}
+
+// SuggestionsWithProjectLabels matches both project values and readable labels.
+// Completion always inserts the value, never the display label.
+func SuggestionsWithProjectLabels(ctx SuggestionContext, projects, tags []string, labels map[string]string, now time.Time) []Suggestion {
 	if !ctx.Active {
 		return nil
 	}
@@ -123,6 +130,18 @@ func SuggestionsFor(ctx SuggestionContext, projects, tags []string, now time.Tim
 		}
 		seen[key] = struct{}{}
 		score, ok := fuzzyScore(ctx.Prefix, value)
+		label := ""
+		if ctx.Kind == SuggestionProject {
+			label = labels[value]
+			if label != "" {
+				if labelScore, matches := fuzzyScore(ctx.Prefix, label); matches {
+					if !ok || labelScore > score {
+						score = labelScore
+					}
+					ok = true
+				}
+			}
+		}
 		if !ok {
 			continue
 		}
@@ -130,6 +149,7 @@ func SuggestionsFor(ctx SuggestionContext, projects, tags []string, now time.Tim
 			Kind:  ctx.Kind,
 			Value: value,
 			Text:  string(ctx.Trigger) + value,
+			Label: label,
 			Score: score,
 		})
 	}
