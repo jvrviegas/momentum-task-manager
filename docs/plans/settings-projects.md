@@ -1,7 +1,7 @@
 # Implementation plan — Settings → Projects and pending-only renames
 
 **Created:** 2026-09-16  
-**Status:** T06 complete; T07 next. All product policies are recorded and implementation is proceeding sequentially.  
+**Status:** T07 complete; T08 next. All product policies are recorded and implementation is proceeding sequentially.  
 **Baseline:** `b5c567a` on `main` (catalog: `d8c1728`; quick capture: `84bb513`). Recheck HEAD and working tree before starting.  
 **Requirements:** [SP-01–SP-16](../spec/settings-projects.md)  
 **Decision record:** [ADR 0001 / O1–O6](../adr/0001-project-settings-and-pending-task-renames.md)
@@ -100,7 +100,7 @@ Change `[ ]` to `[x]` only when the task's tests and completion criteria pass. P
 | [x] | T04 | Pure Projects settings editor component | T01 | `go test ./internal/ui -count=1` passed; pure draft/list/prompt component and width/input tests added; commit `feat(ui): add the project catalog settings editor` |
 | [x] | T05 | Settings routing and live catalog saves | T03, T04 | Targeted app/UI/config tests and `go vet ./...` pass; Settings route/save/discovery integration committed as `feat(settings): connect project editing and live suggestions` |
 | [x] | T06 | Guarded pending-project migration adapter | T01 | `go test ./internal/taskwarrior -count=1` and all 11 isolated Integration tests passed; guarded context export/reconciliation adapter committed as `feat(taskwarrior): guard pending project reassignments` |
-| [ ] | T07 | Rename preview/confirmation component | T01 | — |
+| [x] | T07 | Rename preview/confirmation component | T01 | `go test ./internal/ui -count=1` passed; explicit scope/mode/merge preview and confirmation tests added; commit `feat(ui): preview pending project renames explicitly` |
 | [ ] | T08 | Explicit migration coordinator with partial outcomes | T02, T06 | — |
 | [ ] | T09 | Migration-specific serialization/sync/undo lifecycle | T08 | — |
 | [ ] | T10 | Connect settings rename intent to migration lifecycle | T05, T07, T09 | — |
@@ -226,12 +226,12 @@ Change `[ ]` to `[x]` only when the task's tests and completion criteria pass. P
 **Depends on:** T01. **Requirements:** SP-07–SP-12, SP-15, SP-16.  
 **Tests:** pure UI state/input/render tests.
 
-- [ ] Show catalog-only default versus explicit pending migration; reset choices between edits; no migration controls for name-only changes.
-- [ ] Show old/new mappings, pending count, active context (or no active context), descendant choice with separate catalog/task counts, catalog-collision rejection, explicit effective-merge warning/confirmation for task-only destinations, historical-retention statement, and no-batch-undo explanation.
-- [ ] Require explicit confirmation; changing scope/options invalidates preview. Support zero matches, canceled intent, stale preview, and retry/error messaging.
-- [ ] Test all branches and supported widths; never insert display labels into task values.
+- [x] Show catalog-only default versus explicit pending migration; reset choices between edits; no migration controls for name-only changes.
+- [x] Show old/new mappings, pending count, active context (or no active context), descendant choice with separate catalog/task counts, catalog-collision rejection, explicit effective-merge warning/confirmation for task-only destinations, historical-retention statement, and no-batch-undo explanation.
+- [x] Require explicit confirmation; changing scope/options invalidates preview. Support zero matches, canceled intent, stale preview, and retry/error messaging.
+- [x] Test all branches and supported widths; never insert display labels into task values.
 
-**Gate:** `go test ./internal/ui`.  
+**Gate:** `go test ./internal/ui -count=1` passed: 98 UI tests, including `TestProjectRenameCatalogOnlyIsDefaultAndShowsPreviewContext`, `TestProjectRenameIncludeSubprojectsShowsSeparateCatalogAndTaskCounts`, `TestProjectRenameModeChangeInvalidatesPreviewAndEmitsIntent`, `TestProjectRenameRequiresExplicitConfirmationAndEmitsOnlyTaskValues`, `TestProjectRenameTaskOnlyDestinationRequiresEffectiveMergeWarning`, `TestProjectRenameNameOnlyAndZeroMatchPreviewsRemainCatalogOnly`, `TestProjectRenameCancelStaleAndErrorKeepActionableState`, `TestProjectRenameWidthsStayBounded`, and `TestProjectRenameUpdatePreviewCopiesTaskMappings`. Full tests, vet, and formatting also passed.  
 **Commit:** `feat(ui): preview pending project renames explicitly`
 
 ### T08 — Migration coordinator and partial outcome model
@@ -346,17 +346,17 @@ Populate evidence with a test name, UAT step, or commit plus result—not merely
 | SP-05 | T00, T01, T04, T05, T11 | T01: `TestPlanRemoveProjectHonorsSubtreeChoiceWithoutMutatingInput`; T04: `TestProjectSettingsRemoveAsksAboutConfiguredChildren` and `TestProjectSettingsRemoveWithoutChildrenEmitsSaveIntent` passed, including No/Yes/Cancel; app wiring remains pending. |
 | SP-06 | T02–T05, T10, T11 | T02: explicit-path snapshot/save tests passed for missing, empty, array, and array-table catalogs; T03: `TestNewAppModelUsesTheResolvedConfigPathForEveryPathMode` passed for explicit/XDG/fallback resolution; T05: async save success/failure and immediate suggestion updates passed; restart/UAT remains pending. |
 | SP-07 | T01, T04, T05, T07, T10, T11 | T01: label-only/no-op classification and absence of task mappings passed in `TestPlanUpdateProjectClassifiesChangesAndMapsConfiguredDescendants` and `TestProjectCatalogPlanDoesNotOfferTaskMappingsForLabelOnlyOrNoOp`; T04 preserves that behavior in `TestProjectSettingsLabelOnlyEditDoesNotPlanTaskMappings`; workflow coverage remains pending. |
-| SP-08 | T07, T08, T10, T11 | T01: stored-value edits are distinguished from label-only edits; opt-in UI flow remains pending. |
+| SP-08 | T07, T08, T10, T11 | T01: stored-value edits are distinguished from label-only edits; T07: `TestProjectRenameCatalogOnlyIsDefaultAndShowsPreviewContext`, `TestProjectRenameModeChangeInvalidatesPreviewAndEmitsIntent`, and `TestProjectRenameNameOnlyAndZeroMatchPreviewsRemainCatalogOnly` passed; app workflow remains pending. |
 | SP-09 | T00, T01, T06–T08, T10, T11 | T01: exact pending/non-recurring UUID mapping passed in `TestProjectCatalogPlanMapsOnlyEligiblePendingTasks`; T06: `TestExportPendingInContextCapturesScopeAndUsesExplicitFilter`, `TestIntegrationProjectMigrationHonorsActiveContextWithoutChangingIt`, and `TestIntegrationProjectMigrationIsPendingExactAndContextScoped` passed; coordinator coverage remains pending. |
 | SP-10 | T00, T01, T06–T08, T10, T11 | T01: configured and unconfigured dotted descendants plus `workshop` boundary passed in `TestProjectCatalogPlanMapsOnlyEligiblePendingTasks` and `TestMapPendingProjectTasksHonorsExactBoundaryAndSubprojectOption`; T06 applies the explicit descendant mappings through guarded UUID commands; preview counts remain pending. |
-| SP-11 | T01, T07, T08, T10, T11 | T01: explicit source/destination mappings and catalog collision rejection passed in `TestPlanUpdateProjectClassifiesChangesAndMapsConfiguredDescendants` and `TestPlanUpdateRejectsOwnDescendantAndResultingCollisions`; confirmation flow remains pending. |
+| SP-11 | T01, T07, T08, T10, T11 | T01: explicit source/destination mappings and catalog collision rejection passed in `TestPlanUpdateProjectClassifiesChangesAndMapsConfiguredDescendants` and `TestPlanUpdateRejectsOwnDescendantAndResultingCollisions`; T07: mapping/context/count, zero-match, task-only warning, historical-retention, and no-batch-undo preview tests passed; coordinator/workflow remains pending. |
 | SP-12 | T01, T06–T08, T10, T11 | T01: copied catalog snapshots and exact UUID/value mappings passed in `TestPlanUpdateProjectClassifiesChangesAndMapsConfiguredDescendants` and `TestProjectCatalogPlanMapsOnlyEligiblePendingTasks`; T06 stale completion and post-command reconciliation passed in `TestApplyProjectTaskClassifiesStaleEligibilityAsSkipped` and `TestIntegrationProjectMigrationIsPendingExactAndContextScoped`; full preview invalidation remains pending. |
 | SP-13 | T00, T02, T03, T05, T08, T11 | T02: `TestProjectCatalogStorePreservesUnrelatedTOMLAndArrayTableComments`, `TestProjectCatalogStorePreservesCRLFForNewArrayTables`, `TestProjectCatalogStoreRejectsExternalEditsAndInvalidSourceWithoutOverwrite`, `TestProjectCatalogStoreRejectsReadOnlyTarget`, `TestProjectCatalogStorePreservesSymlinkAndUpdatesResolvedTarget`, and `TestProjectCatalogStoreRejectsChangedSymlinkTarget` passed; T03 preserves the injected active path; T05 retains the previous live catalog on async save failure; coordinator-level handling remains pending. |
 | SP-14 | T05, T09, T10, T11 | T05: save operations use typed Bubble Tea commands/results and block repeated saves; migration/sync serialization remains pending in T09/T10. |
-| SP-15 | T00, T07–T11 | Pending |
+| SP-15 | T00, T07–T11 | T07: `TestProjectRenameTaskOnlyDestinationRequiresEffectiveMergeWarning`, `TestProjectRenameCancelStaleAndErrorKeepActionableState`, and `TestProjectRenameRequiresExplicitConfirmationAndEmitsOnlyTaskValues` passed; execution lifecycle remains pending. |
 | SP-16 | T02, T04–T11 | T02: all store tests use `t.TempDir` and isolated config paths; invalid/read-only/conflict/symlink failures retain source bytes. T04 is pure and has no I/O dependency; T05 fake-store tests assert no task mutations; T06 all real commands use `newIsolatedEnvironment` with production-path guards, and hook/reconciliation tests pass. Remaining coordinator/UAT isolation is pending. |
 
-**Coverage at handoff:** 16/16 requirements mapped; T01 domain, T02 config-store, T03 dependency-wiring, T04 pure-UI, T05 settings integration, and T06 Taskwarrior adapter evidence recorded, with the remaining coordinator/workflow portions pending; 0/16 requirements fully verified; 6/12 tasks complete.
+**Coverage at handoff:** 16/16 requirements mapped; T01 domain, T02 config-store, T03 dependency-wiring, T04 pure-UI, T05 settings integration, T06 Taskwarrior adapter, and T07 preview evidence recorded, with the remaining coordinator/workflow portions pending; 0/16 requirements fully verified; 7/12 tasks complete.
 
 ## Execution log
 
@@ -371,3 +371,4 @@ Populate evidence with a test name, UAT step, or commit plus result—not merely
 | 2026-09-16 | T04 pure Projects settings editor | Complete | `feat(ui): add the project catalog settings editor` | Added the pure list/editor component with owned catalog snapshots, parent/value composition, domain-backed validation, explicit save/cancel/discard intents, child-removal No/Yes/Cancel prompt, and bounded responsive rendering. `go test ./internal/ui -count=1` passed (86 tests); full tests/vet/formatting passed. | Start T05 settings navigation and live catalog saves |
 | 2026-09-16 | T05 settings navigation/catalog save integration | Complete | `feat(settings): connect project editing and live suggestions` | Added first-class Settings routing, no-count navigation tabs/sidebar hit testing, task-selection protection, async typed catalog saves, separate discovery snapshots, stale-result guards, immediate suggestion refresh, and dirty-quit handling. Targeted packages, 104 app tests, full tests, vet, and formatting passed. | Start T06 guarded pending-project adapter |
 | 2026-09-16 | T06 guarded pending-project adapter | Complete | `feat(taskwarrior): guard pending project reassignments` | Added active-context capture, explicit pending/non-recurring export filters, one-UUID exact-old project guards, context-safe reconciliation with unscoped UUID fallback, typed outcome classification, timeout ambiguity handling, and isolated real Taskwarrior/hook tests. 45 adapter tests and 11 isolated Integration tests passed against 3.5.0. | Start T07 rename preview/confirmation component |
+| 2026-09-16 | T07 rename preview/confirmation component | Complete | `feat(ui): preview pending project renames explicitly` | Added the pure preview with per-edit Catalog-only defaults, separate descendant counts/mappings, context/no-context copy, task-only effective-merge warning, explicit confirmation, stale/error handling, historical retention, and no-batch-undo messaging. `go test ./internal/ui -count=1` passed (98 tests); full tests/vet/formatting passed. | Start T08 migration coordinator |
