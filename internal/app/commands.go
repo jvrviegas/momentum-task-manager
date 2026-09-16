@@ -6,11 +6,15 @@ import (
 
 	tea "charm.land/bubbletea/v2"
 
+	"github.com/jvrviegas/momentum/internal/config"
 	"github.com/jvrviegas/momentum/internal/domain"
 	"github.com/jvrviegas/momentum/internal/taskwarrior"
 )
 
-var errNilClient = errors.New("Taskwarrior client is not configured")
+var (
+	errNilClient               = errors.New("Taskwarrior client is not configured")
+	errProjectStoreUnavailable = errors.New("project config store is not available")
+)
 
 // MutationRequest contains one operation for the serialized mutation queue.
 type MutationRequest struct {
@@ -107,24 +111,48 @@ func ContextCommand(ctx context.Context, client interface {
 func ProjectsCommand(ctx context.Context, client interface {
 	Projects(context.Context) ([]string, error)
 }) tea.Cmd {
+	return ProjectsCommandWithID(ctx, client, 0)
+}
+
+func ProjectsCommandWithID(ctx context.Context, client interface {
+	Projects(context.Context) ([]string, error)
+}, requestID uint64) tea.Cmd {
 	return func() tea.Msg {
 		if client == nil {
-			return ProjectsMsg{Err: errNilClient}
+			return ProjectsMsg{Err: errNilClient, RequestID: requestID}
 		}
 		values, err := client.Projects(commandContext(ctx))
-		return ProjectsMsg{Values: values, Err: err}
+		return ProjectsMsg{Values: values, Err: err, RequestID: requestID}
 	}
 }
 
 func TagsCommand(ctx context.Context, client interface {
 	Tags(context.Context) ([]string, error)
 }) tea.Cmd {
+	return TagsCommandWithID(ctx, client, 0)
+}
+
+func TagsCommandWithID(ctx context.Context, client interface {
+	Tags(context.Context) ([]string, error)
+}, requestID uint64) tea.Cmd {
 	return func() tea.Msg {
 		if client == nil {
-			return TagsMsg{Err: errNilClient}
+			return TagsMsg{Err: errNilClient, RequestID: requestID}
 		}
 		values, err := client.Tags(commandContext(ctx))
-		return TagsMsg{Values: values, Err: err}
+		return TagsMsg{Values: values, Err: err, RequestID: requestID}
+	}
+}
+
+// ProjectCatalogSaveCommand persists one already validated catalog plan
+// asynchronously through the injected store.
+func ProjectCatalogSaveCommand(ctx context.Context, store config.ProjectCatalogStore, snapshot config.ProjectCatalogSnapshot, plan domain.ProjectCatalogPlan, id uint64) tea.Cmd {
+	return func() tea.Msg {
+		if store == nil {
+			return ProjectCatalogSaveMsg{ID: id, Plan: plan, Err: errProjectStoreUnavailable}
+		}
+		saved, err := store.Save(commandContext(ctx), snapshot, plan.After)
+		return ProjectCatalogSaveMsg{ID: id, Plan: plan, Snapshot: saved, Err: err}
 	}
 }
 

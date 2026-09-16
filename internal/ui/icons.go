@@ -17,18 +17,19 @@ type Icons struct {
 	Chevron   string
 	Search    string
 	Sync      string
+	Settings  string
 }
 
 func unicodeIcons() Icons {
-	return Icons{Pending: "□", Completed: "✓", Active: "▶", Overdue: "!", Today: "◷", Inbox: "▱", Chevron: "›", Search: "⌕", Sync: "↻"}
+	return Icons{Pending: "□", Completed: "✓", Active: "▶", Overdue: "!", Today: "◷", Inbox: "▱", Chevron: "›", Search: "⌕", Sync: "↻", Settings: "⚙"}
 }
 
 func nerdIcons() Icons {
-	return Icons{Pending: "󰄱", Completed: "󰄬", Active: "󰐊", Overdue: "󰀦", Today: "󰃭", Inbox: "󰇮", Chevron: "󰅂", Search: "󰍉", Sync: "󰑐"}
+	return Icons{Pending: "󰄱", Completed: "󰄬", Active: "󰐊", Overdue: "󰀦", Today: "󰃭", Inbox: "󰇮", Chevron: "󰅂", Search: "󰍉", Sync: "󰑐", Settings: "󰒓"}
 }
 
 func asciiIcons() Icons {
-	return Icons{Pending: "[ ]", Completed: "[x]", Active: ">", Overdue: "!", Today: "D", Inbox: "I", Chevron: ">", Search: "/", Sync: "~"}
+	return Icons{Pending: "[ ]", Completed: "[x]", Active: ">", Overdue: "!", Today: "D", Inbox: "I", Chevron: ">", Search: "/", Sync: "~", Settings: "S"}
 }
 
 // IconsFor resolves the explicit configured icon mode; unknown values safely

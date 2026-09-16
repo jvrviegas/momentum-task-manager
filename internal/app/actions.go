@@ -89,15 +89,17 @@ func (m *Model) OpenQuickAdd() tea.Cmd {
 	m.Overlay = OverlayQuickAdd
 	m.QuickAdd.SetSize(m.Width, m.Height)
 	commands := []tea.Cmd{m.QuickAdd.OpenQuickAdd("")}
+	m.ProjectDiscoveryID++
+	requestID := m.ProjectDiscoveryID
 	if reader, ok := m.Client.(interface {
 		Projects(context.Context) ([]string, error)
 	}); ok {
-		commands = append(commands, ProjectsCommand(m.ctx, reader))
+		commands = append(commands, ProjectsCommandWithID(m.ctx, reader, requestID))
 	}
 	if reader, ok := m.Client.(interface {
 		Tags(context.Context) ([]string, error)
 	}); ok {
-		commands = append(commands, TagsCommand(m.ctx, reader))
+		commands = append(commands, TagsCommandWithID(m.ctx, reader, requestID))
 	}
 	return tea.Batch(commands...)
 }
@@ -121,15 +123,17 @@ func (m *Model) OpenEditor(field ui.EditField) tea.Cmd {
 	m.Overlay = OverlayEdit
 	m.Editor.SetSize(m.Width, m.Height)
 	commands := []tea.Cmd{m.Editor.OpenTask(task, field)}
+	m.ProjectDiscoveryID++
+	requestID := m.ProjectDiscoveryID
 	if reader, ok := m.Client.(interface {
 		Projects(context.Context) ([]string, error)
 	}); ok {
-		commands = append(commands, ProjectsCommand(m.ctx, reader))
+		commands = append(commands, ProjectsCommandWithID(m.ctx, reader, requestID))
 	}
 	if reader, ok := m.Client.(interface {
 		Tags(context.Context) ([]string, error)
 	}); ok {
-		commands = append(commands, TagsCommand(m.ctx, reader))
+		commands = append(commands, TagsCommandWithID(m.ctx, reader, requestID))
 	}
 	return tea.Batch(commands...)
 }

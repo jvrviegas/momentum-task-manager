@@ -3,6 +3,7 @@ package app
 import (
 	"time"
 
+	"github.com/jvrviegas/momentum/internal/config"
 	"github.com/jvrviegas/momentum/internal/domain"
 	"github.com/jvrviegas/momentum/internal/taskwarrior"
 )
@@ -73,13 +74,23 @@ type ContextMsg struct {
 
 // ProjectsMsg and TagsMsg populate contextual autocomplete data.
 type ProjectsMsg struct {
-	Values []string
-	Err    error
+	Values    []string
+	Err       error
+	RequestID uint64
 }
 
 type TagsMsg struct {
-	Values []string
-	Err    error
+	Values    []string
+	Err       error
+	RequestID uint64
+}
+
+// ProjectCatalogSaveMsg is the typed result of an asynchronous catalog save.
+type ProjectCatalogSaveMsg struct {
+	ID       uint64
+	Plan     domain.ProjectCatalogPlan
+	Snapshot config.ProjectCatalogSnapshot
+	Err      error
 }
 
 // ToastMsg displays a short in-application status message.

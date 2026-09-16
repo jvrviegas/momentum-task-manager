@@ -115,6 +115,13 @@ func (s *FileProjectCatalogStore) Save(ctx context.Context, snapshot ProjectCata
 		}
 	}
 
+	if snapshotNeedsRead(snapshot) {
+		fresh, readErr := s.Read(ctx)
+		if readErr != nil {
+			return ProjectCatalogSnapshot{}, readErr
+		}
+		snapshot = fresh
+	}
 	source, revision, err := readConfigSource(path)
 	if err != nil {
 		return ProjectCatalogSnapshot{}, fmt.Errorf("read current project config %s: %w", path, err)
@@ -355,6 +362,10 @@ func observeConfigPath(path string) (configPathObservation, error) {
 	revision.TargetMode = targetInfo.Mode().Perm()
 	revision.targetInfo = targetInfo
 	return configPathObservation{revision: revision}, nil
+}
+
+func snapshotNeedsRead(snapshot ProjectCatalogSnapshot) bool {
+	return snapshot.Path == "" && !snapshot.Revision.Exists && snapshot.Revision.TargetPath == "" && snapshot.Revision.Digest == ([32]byte{})
 }
 
 func sameRevision(expected, current ProjectCatalogRevision) bool {

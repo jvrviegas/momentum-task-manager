@@ -18,9 +18,10 @@ import (
 type ViewName string
 
 const (
-	ViewAuto  ViewName = "auto"
-	ViewInbox ViewName = "inbox"
-	ViewToday ViewName = "today"
+	ViewAuto     ViewName = "auto"
+	ViewInbox    ViewName = "inbox"
+	ViewToday    ViewName = "today"
+	ViewSettings ViewName = "settings"
 )
 
 // AppMode describes the root state independently from overlays.
@@ -103,16 +104,25 @@ type Model struct {
 	SyncReady       bool
 	SyncConfigured  bool
 
-	Styles       ui.Styles
-	Icons        ui.Icons
-	QuickAdd     ui.QuickAddModel
-	Search       ui.SearchModel
-	Editor       ui.EditModel
-	Details      ui.DetailsModel
-	Confirm      ui.ConfirmModel
-	Help         ui.HelpModel
-	Quit         ui.QuitModel
-	DeleteTarget string
+	Styles          ui.Styles
+	Icons           ui.Icons
+	QuickAdd        ui.QuickAddModel
+	Search          ui.SearchModel
+	Editor          ui.EditModel
+	Details         ui.DetailsModel
+	Confirm         ui.ConfirmModel
+	Help            ui.HelpModel
+	Quit            ui.QuitModel
+	ProjectSettings ui.ProjectSettingsModel
+
+	DiscoveredProjects       []string
+	ProjectDiscoveryID       uint64
+	SettingsReturnView       ViewName
+	ProjectSaveRunning       bool
+	ProjectSaveID            uint64
+	ProjectSnapshot          config.ProjectCatalogSnapshot
+	QuitAfterProjectSettings bool
+	DeleteTarget             string
 }
 
 // NewModel builds an application model with deterministic defaults.
@@ -174,6 +184,11 @@ func NewModel(options ModelOptions) *Model {
 		Confirm:           ui.NewConfirm(styles),
 		Help:              ui.NewHelp(styles),
 		Quit:              ui.NewQuit(styles),
+		ProjectSettings:   ui.NewProjectSettings(styles),
+	}
+	model.ProjectSettings.SetProjects(settings.Projects)
+	if model.ActiveView == ViewSettings {
+		model.ProjectSettings.OpenProjects(settings.Projects)
 	}
 	model.QuickAdd.SetProjectCatalog(settings.Projects)
 	model.Editor.SetProjectCatalog(settings.Projects)
@@ -210,6 +225,7 @@ func (m *Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		m.Confirm.SetSize(message.Width, message.Height)
 		m.Help.SetSize(message.Width, message.Height)
 		m.Quit.SetSize(message.Width, message.Height)
+		m.ProjectSettings.SetSize(message.Width, message.Height)
 		return m, nil
 	case ui.QuickAddErrorMsg:
 		m.QuickAdd.ApplyMessage(message)
@@ -229,6 +245,26 @@ func (m *Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			return m, nil
 		}
 		return m, m.handleEditSubmit(message)
+	case ui.ProjectSettingsSaveMsg:
+		return m, m.beginProjectCatalogSave(message.Plan)
+	case ui.ProjectSettingsErrorMsg:
+		m.ProjectSettings.ApplyMessage(message)
+		return m, nil
+	case ui.ProjectSettingsCancelMsg:
+		if message.Close {
+			m.leaveSettings()
+		}
+		return m, nil
+	case ui.ProjectSettingsDiscardMsg:
+		if m.QuitAfterProjectSettings {
+			m.QuitAfterProjectSettings = false
+			m.leaveSettings()
+			return m, m.requestQuit()
+		}
+		m.Status = "Project changes discarded"
+		return m, nil
+	case ProjectCatalogSaveMsg:
+		return m, m.applyProjectCatalogSave(message)
 	case ui.SearchCommitMsg:
 		m.Search.Query = message.Query
 		m.Search.Active = message.Query != ""
@@ -246,13 +282,18 @@ func (m *Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		}
 		return m, nil
 	case ProjectsMsg:
+		if message.RequestID != 0 && message.RequestID != m.ProjectDiscoveryID {
+			return m, nil
+		}
 		if message.Err == nil {
-			projects := m.Config.Projects.Merge(message.Values)
-			m.QuickAdd.SetProjectCatalog(projects)
-			m.Editor.SetProjectCatalog(projects)
+			m.DiscoveredProjects = uniqueProjectValues(message.Values)
+			m.refreshProjectSuggestions()
 		}
 		return m, nil
 	case TagsMsg:
+		if message.RequestID != 0 && message.RequestID != m.ProjectDiscoveryID {
+			return m, nil
+		}
 		if message.Err == nil {
 			m.QuickAdd.SetCatalog(m.QuickAdd.Projects, message.Values)
 			m.Editor.SetCatalog(m.Editor.Projects, message.Values)
@@ -307,14 +348,16 @@ func (m *Model) applyTasks(message TasksMsg) tea.Cmd {
 	m.Err = nil
 	m.Tasks = append([]domain.Task(nil), message.Tasks...)
 	m.Views = domain.BuildViews(m.Tasks, m.now())
-	if m.RequestedView == ViewAuto {
-		if len(m.Views.Today) > 0 {
-			m.ActiveView = ViewToday
+	if m.ActiveView != ViewSettings {
+		if m.RequestedView == ViewAuto {
+			if len(m.Views.Today) > 0 {
+				m.ActiveView = ViewToday
+			} else {
+				m.ActiveView = ViewInbox
+			}
 		} else {
-			m.ActiveView = ViewInbox
+			m.ActiveView = normalizeView(m.RequestedView)
 		}
-	} else {
-		m.ActiveView = normalizeView(m.RequestedView)
 	}
 	m.restoreSelection(ViewInbox, oldUUIDs[ViewInbox])
 	m.restoreSelection(ViewToday, oldUUIDs[ViewToday])
@@ -418,6 +461,9 @@ func (m *Model) handleEditSubmit(message ui.EditSubmitMsg) tea.Cmd {
 
 func (m *Model) restoreSelection(view ViewName, previousUUID string) {
 	view = normalizeView(view)
+	if view == ViewSettings {
+		return
+	}
 	tasks := m.tasksFor(view)
 	previousIndex := m.Selections[view]
 	index := domain.RestoreSelection(tasks, previousUUID, previousIndex)
@@ -426,8 +472,12 @@ func (m *Model) restoreSelection(view ViewName, previousUUID string) {
 }
 
 func (m *Model) tasksFor(view ViewName) []domain.Task {
+	view = normalizeView(view)
+	if view == ViewSettings {
+		return nil
+	}
 	var tasks []domain.Task
-	if normalizeView(view) == ViewToday {
+	if view == ViewToday {
 		tasks = m.Views.Today
 	} else {
 		tasks = m.Views.Inbox
@@ -439,10 +489,12 @@ func (m *Model) tasksFor(view ViewName) []domain.Task {
 }
 
 func normalizeView(view ViewName) ViewName {
-	if view == ViewToday {
-		return ViewToday
+	switch view {
+	case ViewToday, ViewSettings:
+		return view
+	default:
+		return ViewInbox
 	}
-	return ViewInbox
 }
 
 func (m *Model) updateKey(message tea.KeyPressMsg) tea.Cmd {
@@ -489,6 +541,9 @@ func (m *Model) updateKey(message tea.KeyPressMsg) tea.Cmd {
 			return nil
 		}
 	}
+	if m.ActiveView == ViewSettings {
+		return m.updateSettingsKey(message)
+	}
 	switch message.String() {
 	case "r":
 		return m.beginRefresh("manual")
@@ -498,6 +553,8 @@ func (m *Model) updateKey(message tea.KeyPressMsg) tea.Cmd {
 		m.SwitchView(ViewInbox)
 	case "2":
 		m.SwitchView(ViewToday)
+	case "3":
+		m.SwitchView(ViewSettings)
 	case "h":
 		m.Focus = FocusSidebar
 	case "l":
@@ -558,6 +615,22 @@ func (m *Model) updateKey(message tea.KeyPressMsg) tea.Cmd {
 // SwitchView changes the active fixed view and restores its UUID selection.
 func (m *Model) SwitchView(view ViewName) {
 	view = normalizeView(view)
+	if view == ViewSettings {
+		if m.ActiveView != ViewSettings {
+			m.SettingsReturnView = normalizeTaskView(m.ActiveView)
+		}
+		m.ActiveView = ViewSettings
+		m.Focus = FocusList
+		m.ProjectSettings.SetSize(m.Width, m.Height)
+		if !m.ProjectSettings.Open {
+			m.ProjectSettings.OpenProjects(m.Config.Projects)
+		}
+		return
+	}
+	if m.ActiveView == ViewSettings && (m.ProjectSaveRunning || m.ProjectSettings.Dirty()) {
+		m.Status = "Save or discard project changes before leaving Settings"
+		return
+	}
 	m.ActiveView = view
 	m.Focus = FocusList
 	m.restoreSelection(view, m.Selected[view])
@@ -565,6 +638,9 @@ func (m *Model) SwitchView(view ViewName) {
 
 // MoveSelection moves within the active view and keeps the UUID identity.
 func (m *Model) MoveSelection(delta int) {
+	if m.ActiveView == ViewSettings {
+		return
+	}
 	view := normalizeView(m.ActiveView)
 	m.ActiveView = view
 	tasks := m.tasksFor(view)

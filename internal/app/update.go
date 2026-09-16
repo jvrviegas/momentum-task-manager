@@ -28,20 +28,14 @@ func (m *Model) handleMouse(message tea.MouseMsg) tea.Cmd {
 	if !layout.Usable {
 		return nil
 	}
-	if layout.ShowSidebar && mouse.X < layout.SidebarWidth {
-		switch mouse.Y {
-		case 0:
-			m.SwitchView(ViewInbox)
-		case 1:
-			m.SwitchView(ViewToday)
-		}
+	nav := m.navigationItems()
+	if layout.ShowSidebar && mouse.X >= 0 && mouse.X < layout.SidebarWidth && mouse.Y >= 0 && mouse.Y < len(nav) {
+		m.SwitchView(ViewName(nav[mouse.Y].Key))
 		return nil
 	}
 	if layout.ShowTabs && mouse.Y == 1 {
-		if mouse.X < layout.Width/2 {
-			m.SwitchView(ViewInbox)
-		} else {
-			m.SwitchView(ViewToday)
+		if index := ui.TabIndexAt(nav, layout.Width, mouse.X); index >= 0 {
+			m.SwitchView(ViewName(nav[index].Key))
 		}
 		return nil
 	}
@@ -60,6 +54,9 @@ func (m *Model) handleMouse(message tea.MouseMsg) tea.Cmd {
 }
 
 func (m *Model) taskUUIDAt(y int, layout ui.Layout) string {
+	if m.ActiveView == ViewSettings {
+		return ""
+	}
 	rowTop := 2
 	if layout.ShowTabs {
 		rowTop++

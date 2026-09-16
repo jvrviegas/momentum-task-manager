@@ -18,7 +18,7 @@ var keyBindings = []KeyBinding{
 	{Keys: "j / k / ↑ / ↓", Description: "move selection"},
 	{Keys: "h / l / Tab", Description: "switch focus/view"},
 	{Keys: "g / G", Description: "first / last task"},
-	{Keys: "1 / 2", Description: "Inbox / Today"},
+	{Keys: "1 / 2 / 3", Description: "Inbox / Today / Settings"},
 	{Keys: "Enter", Description: "open details"},
 	{Keys: "Ctrl+K", Description: "quick add"},
 	{Keys: "/", Description: "search current view"},

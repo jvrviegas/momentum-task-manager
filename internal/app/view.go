@@ -53,10 +53,7 @@ func (m *Model) render(layout ui.Layout) string {
 }
 
 func (m *Model) renderBase(layout ui.Layout) string {
-	nav := []ui.NavItem{
-		{Key: "inbox", Label: "Inbox", Count: len(m.Views.Inbox), Icon: m.Icons.Inbox},
-		{Key: "today", Label: "Today", Count: len(m.Views.Today), Icon: m.Icons.Today},
-	}
+	nav := m.navigationItems()
 	mainWidth := layout.ContentWidth
 	if mainWidth < 1 {
 		mainWidth = layout.Width
@@ -73,12 +70,20 @@ func (m *Model) renderBase(layout ui.Layout) string {
 	if m.Search.Active {
 		title += "  /" + m.Search.Query
 	}
-	parts = append(parts, fmt.Sprintf("%s  %s", m.Styles.Title.Render(title), m.Styles.Muted.Render(fmt.Sprintf("%d tasks", len(m.tasksFor(m.ActiveView))))))
+	if m.ActiveView == ViewSettings {
+		parts = append(parts, m.Styles.Title.Render(title))
+	} else {
+		parts = append(parts, fmt.Sprintf("%s  %s", m.Styles.Title.Render(title), m.Styles.Muted.Render(fmt.Sprintf("%d tasks", len(m.tasksFor(m.ActiveView))))))
+	}
 	bodyHeight := layout.Height - len(parts) - 1
 	if bodyHeight < 1 {
 		bodyHeight = 1
 	}
-	parts = append(parts, m.renderTaskBody(mainWidth, bodyHeight))
+	if m.ActiveView == ViewSettings {
+		parts = append(parts, m.ProjectSettings.ViewAt(mainWidth, bodyHeight))
+	} else {
+		parts = append(parts, m.renderTaskBody(mainWidth, bodyHeight))
+	}
 	parts = append(parts, m.renderFooter(mainWidth))
 	main := lipgloss.JoinVertical(lipgloss.Left, parts...)
 	if layout.ShowSidebar {

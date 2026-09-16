@@ -41,7 +41,9 @@ type ProjectSettingsErrorMsg struct{ Err error }
 
 // ProjectSettingsCancelMsg is emitted when the current edit or settings screen
 // is explicitly canceled without changing the catalog.
-type ProjectSettingsCancelMsg struct{}
+type ProjectSettingsCancelMsg struct {
+	Close bool
+}
 
 // ProjectSettingsDiscardMsg is emitted after the user explicitly discards a
 // dirty draft.
@@ -183,6 +185,17 @@ func (p ProjectSettingsModel) Dirty() bool {
 	return p.CurrentDraft() != p.initialDraft()
 }
 
+// PromptDiscard opens the explicit dirty-draft prompt and reports whether it
+// was opened.
+func (p *ProjectSettingsModel) PromptDiscard() bool {
+	if p == nil || !p.Dirty() {
+		return false
+	}
+	p.DiscardPromptOpen = true
+	p.Err = nil
+	return true
+}
+
 // PreviewValue composes the full dotted value currently entered.
 func (p ProjectSettingsModel) PreviewValue() (string, error) {
 	draft := p.CurrentDraft()
@@ -253,14 +266,14 @@ func (p *ProjectSettingsModel) updateList(key tea.KeyPressMsg) tea.Cmd {
 		return p.beginRemove()
 	case "esc", "escape", "q":
 		p.Close()
-		return settingsMessageCommand(ProjectSettingsCancelMsg{})
+		return settingsMessageCommand(ProjectSettingsCancelMsg{Close: true})
 	}
 	return nil
 }
 
 func (p *ProjectSettingsModel) updateEditor(key tea.KeyPressMsg) tea.Cmd {
 	switch key.String() {
-	case "esc", "escape":
+	case "esc", "escape", "q":
 		if p.Dirty() {
 			p.DiscardPromptOpen = true
 			p.Err = nil
@@ -269,7 +282,7 @@ func (p *ProjectSettingsModel) updateEditor(key tea.KeyPressMsg) tea.Cmd {
 		p.Editing = false
 		p.clearInputs()
 		p.Err = nil
-		return settingsMessageCommand(ProjectSettingsCancelMsg{})
+		return settingsMessageCommand(ProjectSettingsCancelMsg{Close: false})
 	case "tab":
 		if p.SuggestionsOpen {
 			p.acceptSuggestion()
@@ -521,6 +534,13 @@ func (p *ProjectSettingsModel) selectedProject() (domain.Project, bool) {
 		return domain.Project{}, false
 	}
 	return p.Projects[p.Selected], true
+}
+
+// ViewAt renders a settings snapshot at a composition-specific size without
+// mutating the live component.
+func (p ProjectSettingsModel) ViewAt(width, height int) string {
+	p.SetSize(width, height)
+	return p.View()
 }
 
 // View renders the settings list, draft form, or explicit prompt.
