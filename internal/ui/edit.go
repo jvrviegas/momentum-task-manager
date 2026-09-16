@@ -267,7 +267,7 @@ func (e *EditModel) submit() tea.Cmd {
 		if strings.TrimSpace(after.Description) == "" {
 			return EditErrorMsg{Err: fmt.Errorf("description cannot be empty")}
 		}
-		switch strings.ToUpper(strings.TrimSpace(after.Priority)) {
+		switch normalizePriority(after.Priority) {
 		case "", "H", "M", "L":
 		default:
 			return EditErrorMsg{Err: fmt.Errorf("priority must be H, M, L, or empty")}
@@ -282,7 +282,7 @@ func (e EditModel) CurrentSnapshot() domain.EditSnapshot {
 	return domain.EditSnapshot{
 		Description: e.Inputs[FieldDescription].Value(),
 		Project:     e.Inputs[FieldProject].Value(),
-		Priority:    e.Inputs[FieldPriority].Value(),
+		Priority:    normalizePriority(e.Inputs[FieldPriority].Value()),
 		Due:         e.Inputs[FieldDue].Value(),
 		Scheduled:   e.Inputs[FieldScheduled].Value(),
 		Tags:        splitTags(e.Inputs[FieldTags].Value()),
@@ -341,6 +341,21 @@ func (e EditModel) fieldChanged(field EditField) bool {
 }
 
 func validField(field EditField) bool { return field >= FieldDescription && field <= FieldTags }
+
+func normalizePriority(value string) string {
+	switch strings.ToLower(strings.TrimSpace(value)) {
+	case "", "none":
+		return ""
+	case "h", "high":
+		return "H"
+	case "m", "medium":
+		return "M"
+	case "l", "low":
+		return "L"
+	default:
+		return strings.TrimSpace(value)
+	}
+}
 
 func splitTags(value string) []string {
 	parts := strings.Fields(value)
