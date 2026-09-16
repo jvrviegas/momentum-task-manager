@@ -1,16 +1,20 @@
 # Momentum Design
 
-**Status:** Approved for implementation  
+**Status:** Implemented; see `docs/UAT.md` for acceptance evidence  
 **Application:** Momentum  
 **Module path:** `github.com/jvrviegas/momentum`  
 **Target directory:** `/home/joaovvr/Projects/Personal/momentum`  
-**Last updated:** 2026-09-08
+**Last updated:** 2026-09-16
 
 ## 1. Product Summary
 
 Momentum is a polished, keyboard-first terminal frontend for Taskwarrior 3.x. It gives Taskwarrior a focused two-view workflow, fast structured editing, a quick-add command bar with contextual suggestions, and optional synchronization through Taskwarrior's native sync command.
 
 Momentum is a stateless wrapper for task data. Taskwarrior remains the only source of truth for tasks and owns their persistence, recurrence, hooks, validation, contexts, synchronization, and conflict handling. Momentum may store a local project suggestion catalog in its configuration; these entries are not Taskwarrior entities and never change existing task assignments.
+
+### Delivered extension: Settings → Projects
+
+Momentum includes in-app catalog management and an explicit opt-in to migrate changed project values on eligible pending tasks while leaving historical values intact. The narrow exception to the bulk-operations non-goal is recorded in [ADR 0001](docs/adr/0001-project-settings-and-pending-task-renames.md); detailed [requirements](docs/spec/settings-projects.md), [implementation evidence](docs/plans/settings-projects.md), and [UAT evidence](docs/UAT.md) govern the shipped behavior. Active-context scope, child-removal prompts, duplicate rejection, catalog-first partial outcomes, no batch undo, and symlink preservation are implemented as recorded.
 
 ## 2. Goals
 
@@ -29,7 +33,7 @@ Momentum is a stateless wrapper for task data. Taskwarrior remains the only sour
 - Writing directly to `~/.task` or any Taskwarrior database file.
 - Custom or user-defined views.
 - A Kanban board.
-- Bulk task operations.
+- General bulk task operations. The explicit Settings → Projects pending-only value migration is the narrow documented exception; it is not a general bulk editor.
 - Editing annotations, dependencies, recurrence, or arbitrary UDAs.
 - Changing Taskwarrior contexts from Momentum.
 - Desktop notifications or background execution while Momentum is closed.
@@ -200,7 +204,7 @@ Ctrl+K to add a task
 | `j` / `k`, `Down` / `Up` | Move task selection |
 | `h` / `l`, `Tab` | Switch sidebar/list focus |
 | `g` / `G` | First/last task |
-| `1` / `2` | Inbox/Today |
+| `1` / `2` / `3` | Inbox/Today/Settings → Projects |
 | `Enter` | Open/close details as context permits |
 | `Ctrl+K` | Quick add |
 | `/` | Search current view |
@@ -371,7 +375,7 @@ type Client interface {
 }
 ```
 
-The UI depends on this interface and uses a fake implementation in tests.
+The UI depends on this interface and uses a fake implementation in tests. The explicit project migration uses a separate injected seam: it captures the active context read filter, exports `status:pending recur.none:`, applies one guarded UUID assignment with `project.is:<old>`, and reconciles the UUID afterward. It is not a general bulk-edit interface.
 
 ### Task data model
 
@@ -408,7 +412,7 @@ Read path:
 task status:pending export
 ```
 
-Momentum computes overlapping views locally from one consistent export. The active Taskwarrior context is respected and displayed subtly in the footer.
+Momentum computes overlapping views locally from one consistent export. Taskwarrior 3.x deliberately leaves machine-readable `export` unencumbered by the active context, so a context-scoped operation must explicitly read `_get rc.context` and `_get rc.context.<name>.read`, then add that filter to its export/modify argv. The existing generic export path must not be treated as context-safe for the pending-only migration; this correction is tracked in the [Settings → Projects plan](docs/plans/settings-projects.md#t00-feasibility-record--2026-09-16).
 
 Mutation examples:
 
@@ -434,7 +438,7 @@ The adapter must:
 - redact secrets and task descriptions from debug logs where practical
 - return typed errors suitable for concise UI display and detailed logs
 
-Project suggestions should use Taskwarrior's script-oriented project listing when supported and supplement it with projects found in the pending export. Optional Momentum `[[projects]]` configuration entries supply a readable `name` and unique lowercase dotted `value`. Configured entries precede discovered values for an empty query, remain available without tasks or successful discovery, and supply breadcrumbs in quick capture and the project editor. Matching uses labels and values; completion inserts only the Taskwarrior value. Catalog edits take effect after restart and never modify tasks. Tag suggestions should come from actual exported user tags to avoid suggesting Taskwarrior virtual tags. Unknown project/tag values remain valid.
+Project suggestions use Taskwarrior's script-oriented project listing when supported and supplement it with projects found in the pending export. Optional Momentum `[[projects]]` configuration entries supply a readable `name` and unique lowercase dotted `value`. Configured entries precede discovered values for an empty query, remain available without tasks or successful discovery, and supply breadcrumbs in quick capture, the project editor, and Settings → Projects. Matching uses labels and values; completion inserts only the Taskwarrior value. Settings catalog saves take effect immediately without restart and never mutate tasks by themselves. An explicitly confirmed value migration is the narrow pending-only exception: it uses active context scope, preserves historical values, and reports partial results without batch undo. Tag suggestions should come from actual exported user tags to avoid suggesting Taskwarrior virtual tags. Unknown project/tag values remain valid.
 
 ## 11. Synchronization Design
 

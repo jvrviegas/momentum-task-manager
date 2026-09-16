@@ -52,6 +52,19 @@ func settingsModel(store config.ProjectCatalogStore) *Model {
 	return model
 }
 
+func TestProjectCatalogSnapshotLoadsAsTypedAsyncMessage(t *testing.T) {
+	store := &settingsStore{snapshot: config.ProjectCatalogSnapshot{Path: "/tmp/project-config.toml"}}
+	model := settingsModel(store)
+	message, ok := ProjectCatalogSnapshotCommand(context.Background(), store)().(ProjectCatalogSnapshotMsg)
+	if !ok || message.Err != nil || message.Snapshot.Path != "/tmp/project-config.toml" {
+		t.Fatalf("message=%#v", message)
+	}
+	model.Update(message)
+	if model.ProjectSnapshot.Path != "/tmp/project-config.toml" || store.readCalls != 1 {
+		t.Fatalf("snapshot=%#v reads=%d", model.ProjectSnapshot, store.readCalls)
+	}
+}
+
 func TestSettingsRouteIsExplicitAndCannotMutateHiddenTask(t *testing.T) {
 	client := &fakeClient{}
 	model := actionModel(client)

@@ -1,9 +1,11 @@
 # Momentum Trackable Implementation Plan
 
 **Design:** [`DESIGN.md`](./DESIGN.md)  
-**Status:** Ready for implementation  
-**Progress:** 24 / 24 tasks complete  
+**Status:** Baseline complete; Settings → Projects extension implemented and documented
+**Progress:** 24 / 24 tasks complete
 **Module:** `github.com/jvrviegas/momentum`
+
+> **Baseline correction (2026-09-16):** T22 verified context discovery, but its wording did not establish that machine-readable `task export` applies the active context. Taskwarrior 3.5.0 intentionally leaves `export` context-unencumbered. Context-scoped future operations must retrieve `rc.context.<name>.read` and supply it explicitly; the pending-only rename plan records the isolated evidence.
 
 ## Status Legend
 
@@ -521,7 +523,7 @@ go build ./cmd/momentum
 - [x] Tests set temporary config and data paths.
 - [x] A guard fails before any test can address the real user database.
 - [x] Lifecycle tests cover every v1 mutation.
-- [x] Export and active-context behavior are verified on Taskwarrior 3.x.
+- [x] Context discovery is verified on Taskwarrior 3.x; machine-readable export context behavior is documented by the baseline correction above.
 - [x] Hooks/validation failure propagation has coverage.
 - [x] At least 8 integration scenarios pass when Taskwarrior is available.
 - [x] `go test ./internal/taskwarrior -run Integration -v` passes.
@@ -679,18 +681,22 @@ Record implementation-time departures here before proceeding.
 
 ## Approved extension — project suggestion catalog
 
-User-approved scope: Momentum owns an optional config-backed catalog of common projects solely for suggestions. Each entry stores a display name and a lowercase, hyphenated/dotted Taskwarrior value; hierarchy follows the dotted value. No project screen, project status, independent database, task migration, or automatic catalog growth is introduced.
+User-approved scope: Momentum owns an optional config-backed catalog of common projects. Each entry stores a display name and a lowercase, hyphenated/dotted Taskwarrior value; hierarchy follows the dotted value. Settings → Projects manages this catalog and supports an explicit pending-only task-value migration; there is no independent project database or automatic catalog growth.
 
 - Load and validate `[[projects]]` with the existing strict TOML loader; default catalog stays empty.
 - Seed the user's 16 screenshot entries in their local config, not application defaults.
 - Populate quick capture and project editing before discovery, merge unique discovered values, and retain configured suggestions when discovery fails.
 - Match labels and values, display breadcrumbs, insert only values, and keep long suggestion lists navigable.
-- Verify config errors, hierarchy, source ownership, merge/failure behavior, label matching, submission values, and absence of task mutations.
+- Verify config errors, hierarchy, source ownership, merge/failure behavior, label matching, submission values, and absence of automatic task mutations.
 
-This extends the original stateless design only through Momentum configuration. Taskwarrior remains authoritative for all task data; changing catalog entries never changes tasks.
+This extends the original stateless design through Momentum configuration and one explicit pending-only operation. Taskwarrior remains authoritative for all task data; catalog edits are catalog-only unless the user separately previews and confirms a pending migration. Full delivery evidence is in [docs/plans/settings-projects.md](docs/plans/settings-projects.md) and [docs/UAT.md](docs/UAT.md).
+
+## Delivered follow-up — Settings → Projects
+
+The Settings → Projects implementation is complete in commits `04bc15c` through `019256c`, with the final config-snapshot correction recorded in the T11 commit. It provides in-app catalog editing, lossless active-config persistence, explicit rename preview/confirmation, active-context guarded migration, partial-result reporting, and migration-safe sync/undo lifecycle. Requirements and accepted policies remain in [docs/spec/settings-projects.md](docs/spec/settings-projects.md) and [ADR 0001](docs/adr/0001-project-settings-and-pending-task-renames.md); acceptance evidence is in [docs/UAT.md](docs/UAT.md).
 
 ## Completion Log
 
 | Date | Task | Commit | Verification | Notes |
 |---|---|---|---|---|
-| — | — | — | — | — |
+| 2026-09-16 | Settings → Projects extension | `04bc15c` … `019256c` | T01–T10 implemented; final T11 gates/evidence in `docs/UAT.md`. | Automated gates pass; live maintainer UAT remains the final release check. |

@@ -290,6 +290,13 @@ func (m *Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		}
 		m.Status = "Project changes discarded"
 		return m, nil
+	case ProjectCatalogSnapshotMsg:
+		if message.Err == nil {
+			m.ProjectSnapshot = message.Snapshot
+		} else {
+			m.Status = "Project config unavailable: " + conciseError(message.Err)
+		}
+		return m, nil
 	case ProjectCatalogSaveMsg:
 		return m, m.applyProjectCatalogSave(message)
 	case ProjectMigrationMsg:
@@ -427,6 +434,9 @@ func (m *Model) applyTasks(message TasksMsg) tea.Cmd {
 		}
 		if m.Config.RefreshInterval > 0 {
 			commands = append(commands, refreshTickCommand(m.Config.RefreshInterval))
+		}
+		if m.ProjectStore != nil {
+			commands = append(commands, ProjectCatalogSnapshotCommand(m.ctx, m.ProjectStore))
 		}
 	} else if m.SyncReady && m.Sync.NextAt.After(m.now()) && m.Sync.Phase != SyncInFlight {
 		commands = append(commands, m.scheduleSync())

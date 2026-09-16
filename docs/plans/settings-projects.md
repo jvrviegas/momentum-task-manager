@@ -1,7 +1,7 @@
 # Implementation plan — Settings → Projects and pending-only renames
 
 **Created:** 2026-09-16  
-**Status:** T10 complete; T11 next. All product policies are recorded and implementation is proceeding sequentially.  
+**Status:** T11 partial: automated implementation gates and evidence complete; live maintainer visual/keyboard UAT remains.  
 **Baseline:** `b5c567a` on `main` (catalog: `d8c1728`; quick capture: `84bb513`). Recheck HEAD and working tree before starting.  
 **Requirements:** [SP-01–SP-16](../spec/settings-projects.md)  
 **Decision record:** [ADR 0001 / O1–O6](../adr/0001-project-settings-and-pending-task-renames.md)
@@ -93,7 +93,7 @@ Change `[ ]` to `[x]` only when the task's tests and completion criteria pass. P
 
 | Done | ID | Deliverable | Depends on | Evidence / commit |
 |---|---|---|---|---|
-| [x] | T00 | Verify adapter/config feasibility for accepted policies | — | Taskwarrior 3.5.0 and isolated config probes passed; explicit context filter, `status:pending recur.none:` + `project.is:` guard, hook/reconciliation, lossless TOML, symlink, atomic-write, partial-failure, and undo constraints recorded below. Documentation remains uncommitted per handoff. |
+| [x] | T00 | Verify adapter/config feasibility for accepted policies | — | Taskwarrior 3.5.0 and isolated config probes passed; explicit context filter, `status:pending recur.none:` + `project.is:` guard, hook/reconciliation, lossless TOML, symlink, atomic-write, partial-failure, and undo constraints recorded below; supporting docs are included in the final documentation commit. |
 | [x] | T01 | Pure catalog edit and task-mapping planner | T00 | `go test ./internal/domain -count=1` passed; table-driven edit/mapping tests added; commit `feat(projects): plan catalog edits and pending renames` |
 | [x] | T02 | Safe project-catalog config store | T00 | `go test ./internal/config -count=1` passed; source-preserving, conflict-checked, symlink-safe store and isolated filesystem tests added; commit `feat(config): safely persist project catalog edits` |
 | [x] | T03 | Carry active config path and inject store | T02 | Resolved path is passed to `FileProjectCatalogStore` and `ModelOptions`; constructor/path-isolation tests pass; commit `feat(app): inject the active project config store` |
@@ -104,7 +104,7 @@ Change `[ ]` to `[x]` only when the task's tests and completion criteria pass. P
 | [x] | T08 | Explicit migration coordinator with partial outcomes | T02, T06 | Coordinator fault-injection tests pass for preflight/catalog-first/partial/ambiguous/cancel paths; commit `feat(app): coordinate explicit project migrations` |
 | [x] | T09 | Migration-specific serialization/sync/undo lifecycle | T08 | Migration gate/sync/undo lifecycle tests pass, including race gate; commit `feat(sync): serialize project migrations safely` |
 | [x] | T10 | Connect settings rename intent to migration lifecycle | T05, T07, T09 | End-to-end settings/preview/catalog-only/pending/stale/partial/zero-match workflow tests pass; commit `feat(settings): connect pending-only project renames` |
-| [ ] | T11 | End-to-end evidence, documentation, final regression gate | T10 | — |
+| [~] | T11 | End-to-end evidence, documentation, final regression gate | T10 | `docs/UAT.md` records automated acceptance evidence and the explicit live-UAT limitation; all automated/build gates pass. Maintainer visual/keyboard pass remains before release. |
 
 **Suggested execution order:** T00, T01, T02, T03, T04, T05, T06, T07, T08, T09, T10, T11. This is a topological sequence; it does not add dependencies. Default to sequential execution because several tasks touch app state and environment-based integration tests must not run in parallel. Catalog-only Settings is demonstrable at T05, but the requested feature is incomplete until T11.
 
@@ -124,7 +124,7 @@ Change `[ ]` to `[x]` only when the task's tests and completion criteria pass. P
 - [x] Update ADR/spec/plan with the agreed policies and test cases; capture baseline test names/counts.
 
 **Gate/evidence:** record exact isolated commands, tested Taskwarrior version, observed outputs, chosen config technique, and policy answers. Never run these probes on the user's task data. No product code is considered done in this task.  
-**Commit:** `docs(settings): resolve project rename policies`
+**Commit:** Feasibility record carried into `docs(settings): document and validate project management`
 
 ### T01 — Pure catalog edits and migration mappings
 
@@ -285,12 +285,12 @@ Change `[ ]` to `[x]` only when the task's tests and completion criteria pass. P
 **Depends on:** T10. **Requirements:** SP-01–SP-16.  
 **Tests:** isolated manual keyboard UAT plus full automated regression gates. This supplements, never substitutes for, co-located tests in earlier tasks.
 
-- [ ] Demonstrate Settings at wide/compact/narrow sizes; add/edit/reparent/remove, dirty cancel/quit, no-task catalog, and immediate suggestions.
-- [ ] Demonstrate pending-only rename with completed/deleted/waiting/template records, descendants off/on, prefix lookalikes, agreed context scope/collision behavior, stale preview, custom config, and partial failure.
-- [ ] Inspect before/after exports from an isolated database to prove historical values/statuses and unrelated fields are unchanged by Momentum; inspect temporary TOML to prove unrelated content/comments survive.
-- [ ] Update current docs that say restart is always required or catalog edits can never explicitly initiate task operations; retain clarity that automatic side effects remain forbidden. Amend the narrow bulk-edit exception, not all bulk-operation non-goals.
-- [ ] Record actual commands, test names/counts, Taskwarrior version, skips/blockers, manual outcomes, and requirement evidence below. Update ADR open-policy outcomes and spec status.
-- [ ] Run formatting check, `go test ./...`, `go test -race ./...`, `go vet ./...`, `go build ./cmd/momentum`, and `git diff --check`. All pass; required real integration tests must not merely skip.
+- [~] Automated tests demonstrate Settings at wide/compact/narrow/minimum sizes; add/edit/reparent/remove, dirty cancel/quit, no-task catalog, and immediate suggestions. Live maintainer visual/keyboard demonstration remains.
+- [~] Isolated tests demonstrate pending-only rename with non-pending/history/recurrence guards, descendants off/on, prefix lookalikes, active/no context, collision/merge behavior, stale preview/retry, custom path, and partial failure. Live maintainer demonstration remains.
+- [x] Isolated Taskwarrior/config tests inspect before/after task values, statuses, unrelated fields, comments, symlinks, permissions, and source conflicts.
+- [x] Updated current docs that previously said restart was always required or catalog edits could never explicitly initiate task operations; retained the narrow bulk-edit exception and automatic-side-effect safeguards.
+- [x] Recorded actual commands, test names/counts, Taskwarrior version, zero skips, the live-UAT limitation, and requirement evidence in `docs/UAT.md`; ADR/spec statuses updated.
+- [x] Ran formatting, `go test ./...`, `go test -race ./...`, `go vet ./...`, native/cross builds, and final `git diff --check`; all passed and required real integration tests executed.
 
 **Commit:** `docs(settings): document and validate project management`
 
@@ -339,8 +339,8 @@ Populate evidence with a test name, UAT step, or commit plus result—not merely
 
 | Requirement | Implementation tasks | Verified evidence |
 |---|---|---|
-| SP-01 | T05, T11 | T05: `TestSettingsRouteIsExplicitAndCannotMutateHiddenTask` and `TestSettingsMouseNavigationUsesActualCompactTabBoundary` passed; final manual width/UAT evidence remains in T11. |
-| SP-02 | T04, T05, T11 | T04: list/empty/long-catalog rendering tests passed; T05: Settings opens the Projects section and updates configured suggestions through the save path; restart/UAT remains pending. |
+| SP-01 | T05, T11 | T05: `TestSettingsRouteIsExplicitAndCannotMutateHiddenTask` and `TestSettingsMouseNavigationUsesActualCompactTabBoundary` passed; automated routing/width evidence is in T11/UAT, while live visual keyboard UAT remains explicitly pending. |
+| SP-02 | T04, T05, T11 | T04 list/empty/long-catalog rendering and T05 Settings/save/suggestion tests pass; live restart/visual UAT remains explicitly pending in `docs/UAT.md`. |
 | SP-03 | T01, T04, T11 | T01: `TestComposeProjectValueAndDraftResolution` and `TestPlanUpdateProjectClassifiesChangesAndMapsConfiguredDescendants` passed; T04 covers editable name/value/parent fields and full-value preview in `TestProjectSettingsAddComposesParentAndPublishesOnlyAfterSave`; end-to-end UI remains pending. |
 | SP-04 | T01, T04, T11 | T01: draft/value validation and duplicate-result rejection passed in `TestComposeProjectValueAndDraftResolution`, `TestPlanAddProjectCopiesCatalogAndRejectsDuplicates`, and `TestPlanUpdateRejectsOwnDescendantAndResultingCollisions`; T04 invalid-hierarchy retention passed in `TestProjectSettingsRejectsInvalidHierarchyAndKeepsDraft`; remaining validation/UAT is pending. |
 | SP-05 | T00, T01, T04, T05, T11 | T01: `TestPlanRemoveProjectHonorsSubtreeChoiceWithoutMutatingInput`; T04: `TestProjectSettingsRemoveAsksAboutConfiguredChildren` and `TestProjectSettingsRemoveWithoutChildrenEmitsSaveIntent` passed, including No/Yes/Cancel; app wiring remains pending. |
@@ -356,7 +356,7 @@ Populate evidence with a test name, UAT step, or commit plus result—not merely
 | SP-15 | T00, T07–T11 | T07 task-only merge warning, stale/error, explicit confirmation, history, and no-batch-undo; T08 catalog-first/partial/ambiguous/no-retry; T09 undo/dirty-state lifecycle; T10 partial/zero-match final workflow tests pass. |
 | SP-16 | T02, T04–T11 | T02: all store tests use `t.TempDir` and isolated config paths; invalid/read-only/conflict/symlink failures retain source bytes. T04 is pure and has no I/O dependency; T05 fake-store tests assert no task mutations; T06 all real commands use `newIsolatedEnvironment` with production-path guards, and hook/reconciliation tests pass; T08 fake-store/client fault injection has no production-data access. Remaining workflow/UAT isolation is pending. |
 
-**Coverage at handoff:** 16/16 requirements mapped; T01–T10 implementation evidence recorded, with final manual UAT/release documentation pending; 0/16 requirements fully verified until T11; 10/12 tasks complete.
+**Coverage at handoff:** 16/16 requirements mapped and T01–T10 implementation evidence plus T11 automated gates/documentation recorded; 16/16 have automated evidence, but live visual/keyboard acceptance sign-off remains pending; T11 is `[~]`, with 11/12 tasks complete.
 
 ## Execution log
 
@@ -364,7 +364,7 @@ Populate evidence with a test name, UAT step, or commit plus result—not merely
 |---|---|---|---|---|---|
 | 2026-09-16 | Planning | Complete | Not committed by this planning session | Source map, requirements, ADR, and task dependencies reviewed; no feature code changed | Resolve T00 before implementing policy-dependent paths |
 | 2026-09-16 | T00 policy recording | Partial | Not committed | All product choices, including O2-R/O3-T, recorded consistently in ADR/spec/plan; no feature code or feasibility experiments executed | Complete technical checks; do not reopen resolved choices |
-| 2026-09-16 | T00 technical feasibility | Complete; docs uncommitted | Pending explicit commit instruction | Isolated Taskwarrior 3.5.0 probes, official Taskwarrior hook/context/modify docs, BurntSushi encoder probe, and `go-toml-edit` v0.4.3 lossless-edit probe recorded in the T00 feasibility record below; baseline Go gates passed | Start T01 without reopening O1–O6 or O2-R/O3-T |
+| 2026-09-16 | T00 technical feasibility | Complete | `docs(settings): document and validate project management` | Isolated Taskwarrior 3.5.0 probes, official Taskwarrior hook/context/modify docs, BurntSushi encoder probe, and `go-toml-edit` v0.4.3 lossless-edit probe recorded in the T00 feasibility record below; baseline Go gates passed | Start T01 without reopening O1–O6 or O2-R/O3-T |
 | 2026-09-16 | T01 pure catalog/migration planning | Complete | `feat(projects): plan catalog edits and pending renames` | Added source-independent `ProjectDraft`, catalog add/update/remove plans, collision and hierarchy validation, configured descendant mappings, and pending UUID old/new mappings. `go test ./internal/domain -count=1 -v` passed (35 top-level tests, 63 passing actions including subtests); `go test ./... -count=1` passed across 8 packages. | Start T02 safe config catalog persistence |
 | 2026-09-16 | T02 safe config catalog persistence | Complete | `feat(config): safely persist project catalog edits` | Added `ProjectCatalogStore`/`FileProjectCatalogStore` with lossless array/array-table editing, strict pre-replacement validation, optimistic source/link/target checks, same-directory atomic replacement, mode/newline preservation, and isolated temp-file tests. `go test ./internal/config -count=1` passed (27 top-level tests, 35 passing actions including subtests); full tests/vet/formatting passed. | Start T03 active config path/store wiring |
 | 2026-09-16 | T03 active config path/store wiring | Complete | `feat(app): inject the active project config store` | `newAppModel` now injects the exact `resolvedPath` into both `ModelOptions.ProjectStore` and `ProjectConfigPath`; rendering-only models leave the seam nil. Path-mode and construction-I/O tests passed; targeted packages, full tests, vet, and formatting passed. | Start T04 Projects settings editor |
@@ -375,3 +375,4 @@ Populate evidence with a test name, UAT step, or commit plus result—not merely
 | 2026-09-16 | T08 migration coordinator | Complete | `feat(app): coordinate explicit project migrations` | Added exact-scope/UUID-set preflight revalidation, catalog-first save ordering, separate catalog/task outcomes, stop-on-failure partial semantics, zero-match/catalog-only paths, cancellation, and no-retry behavior. Targeted app/config/Taskwarrior tests, 114 app tests, full tests, vet, and formatting passed. | Start T09 migration sync/undo lifecycle |
 | 2026-09-16 | T09 migration sync/undo lifecycle | Complete | `feat(sync): serialize project migrations safely` | Added the migration gate, deferred competing sync/refresh/quit/undo paths, task-change unsynced scheduling without batch undo, refresh-time release, and preservation of prior dirty state on no-op/failure. `go test ./internal/app -count=1` passed (121 top-level tests, 128 actions); race/full tests/vet/formatting passed. | Start T10 end-to-end settings rename wiring |
 | 2026-09-16 | T10 end-to-end settings rename wiring | Complete | `feat(settings): connect pending-only project renames` | Connected value drafts to fresh previews, explicit Catalog-only/pending confirmation, descendant options, Taskwarrior scope, coordinator/lifecycle, stale retry, partial/zero-match results, and post-save catalog/suggestion updates. Full tests/race/vet/formatting passed; final manual UAT remains for T11. | Start T11 acceptance evidence and documentation |
+| 2026-09-16 | T11 acceptance evidence/documentation | Partial | `docs(settings): document and validate project management` | Final automated counts: baseline `b5c567a` 285 top-level/308 actions, final 377 top-level/423 actions, 0 skips. Full/race/vet/native+cross-build gates pass; Taskwarrior 3.5.0 has 11 executed isolated Integration tests. README/DESIGN/implementation/spec/ADR/notebook docs and `docs/UAT.md` updated. Live maintainer visual/keyboard UAT remains the only open release check. | Run the maintainer smoke pass in `docs/UAT.md` before release |

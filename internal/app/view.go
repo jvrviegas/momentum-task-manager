@@ -80,7 +80,11 @@ func (m *Model) renderBase(layout ui.Layout) string {
 		bodyHeight = 1
 	}
 	if m.ActiveView == ViewSettings {
-		parts = append(parts, m.ProjectSettings.ViewAt(mainWidth, bodyHeight))
+		if m.ProjectRename.Open {
+			parts = append(parts, m.ProjectRename.ViewAt(mainWidth, bodyHeight))
+		} else {
+			parts = append(parts, m.ProjectSettings.ViewAt(mainWidth, bodyHeight))
+		}
 	} else {
 		parts = append(parts, m.renderTaskBody(mainWidth, bodyHeight))
 	}

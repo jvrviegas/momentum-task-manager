@@ -86,6 +86,12 @@ type TagsMsg struct {
 	RequestID uint64
 }
 
+// ProjectCatalogSnapshotMsg is the typed result of the async config revision read.
+type ProjectCatalogSnapshotMsg struct {
+	Snapshot config.ProjectCatalogSnapshot
+	Err      error
+}
+
 // ProjectCatalogSaveMsg is the typed result of an asynchronous catalog save.
 type ProjectCatalogSaveMsg struct {
 	ID       uint64

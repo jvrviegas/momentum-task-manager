@@ -198,6 +198,18 @@ func ProjectMigrationCommand(ctx context.Context, coordinator *ProjectMigrationC
 	}
 }
 
+// ProjectCatalogSnapshotCommand reads the active config source revision
+// asynchronously without mutating it.
+func ProjectCatalogSnapshotCommand(ctx context.Context, store config.ProjectCatalogStore) tea.Cmd {
+	return func() tea.Msg {
+		if store == nil {
+			return ProjectCatalogSnapshotMsg{Err: errProjectStoreUnavailable}
+		}
+		snapshot, err := store.Read(commandContext(ctx))
+		return ProjectCatalogSnapshotMsg{Snapshot: snapshot, Err: err}
+	}
+}
+
 // ProjectCatalogSaveCommand persists one already validated catalog plan
 // asynchronously through the injected store.
 func ProjectCatalogSaveCommand(ctx context.Context, store config.ProjectCatalogStore, snapshot config.ProjectCatalogSnapshot, plan domain.ProjectCatalogPlan, id uint64) tea.Cmd {

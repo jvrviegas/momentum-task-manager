@@ -38,7 +38,7 @@ Momentum never writes Taskwarrior data files directly. It invokes `task` with an
 
 ## Views
 
-- **Inbox** contains every pending task in the active Taskwarrior context.
+- **Inbox** contains every pending task in the active Taskwarrior context; context-scoped machine-readable exports must apply that context filter explicitly (see the [Settings → Projects feasibility record](docs/plans/settings-projects.md#t00-feasibility-record--2026-09-16)).
 - **Today** contains unique pending tasks classified as Overdue, Due Today, or Scheduled Today, in that order.
 - Taskwarrior urgency sorts rows; raw urgency is not shown in the normal row.
 
@@ -67,7 +67,7 @@ Use a leading backslash for a literal trigger, for example `\#launch`. Email add
 | `j`/`k`, arrows | move selection |
 | `h`/`l`, `Tab` | switch focus |
 | `g`/`G` | first/last task |
-| `1`/`2` | Inbox/Today |
+| `1`/`2`/`3` | Inbox/Today/Settings → Projects |
 | `Enter` | details |
 | `Ctrl+K` | quick add |
 | `/` | local fuzzy search |
@@ -111,10 +111,10 @@ Each entry has a readable `name` and a unique Taskwarrior `value`. Values use lo
 - Type `#` in quick capture to see suggestions; type part of a name or value to filter, use arrows to select, and Tab to complete.
 - Configured projects appear first for an empty query and merge with discovered Taskwarrior projects without duplicate values. They are also available in the project editor.
 - The catalog is available even with no tasks or when project discovery fails. It is local to Momentum, not restricted by Taskwarrior contexts or synchronized by `task sync`.
-- Add, rename, or remove entries in the config and restart Momentum. These changes affect suggestions **only**, never existing tasks. Discovered projects can still appear after removal from the catalog.
+- Use **Settings → Projects** to add, edit, reparent, or remove entries; successful saves update suggestions immediately and persist to the active config path. Manual TOML edits still take effect on restart. Display-name edits affect suggestions **only**, never existing tasks. Discovered projects can still appear after removal from the catalog.
 - Unknown project values remain valid in quick capture. New task assignments are not automatically saved to the catalog.
 
-There is no project-management screen or separate project database; the optional catalog lives entirely in configuration. Without it, suggestions work as before.
+Settings → Projects is a catalog-management screen, not a separate project database; the catalog still lives entirely in configuration. Value edits default to Catalog only. The user may explicitly preview and confirm a pending-only migration in the active Taskwarrior context, optionally including dotted descendants; completed, deleted, waiting, recurring, and historical values are retained. Config and task outcomes are reported separately, with no batch undo or automatic rollback. See the [implementation tracker](docs/plans/settings-projects.md), [requirements](docs/spec/settings-projects.md), [UAT evidence](docs/UAT.md), and [decision record](docs/adr/0001-project-settings-and-pending-task-renames.md).
 
 ## Synchronization
 
