@@ -4,11 +4,44 @@ import (
 	"bytes"
 	"context"
 	"errors"
+	"os"
+	"path/filepath"
 	"strings"
 	"testing"
 
+	"github.com/jvrviegas/momentum/internal/app"
+	"github.com/jvrviegas/momentum/internal/config"
 	"github.com/jvrviegas/momentum/internal/taskwarrior"
 )
+
+func TestNewAppModelUsesTheResolvedConfigPathForEveryPathMode(t *testing.T) {
+	root := t.TempDir()
+	cases := []struct {
+		name    string
+		options config.LoadOptions
+	}{
+		{name: "explicit", options: config.LoadOptions{PathOverride: filepath.Join(root, "explicit.toml"), Env: map[string]string{}}},
+		{name: "xdg", options: config.LoadOptions{HomeDir: filepath.Join(root, "home"), XDGConfigHome: filepath.Join(root, "xdg"), Env: map[string]string{}}},
+		{name: "fallback", options: config.LoadOptions{HomeDir: filepath.Join(root, "fallback-home"), Env: map[string]string{}}},
+	}
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			settings, resolved, err := config.LoadWithOptions(tc.options)
+			if err != nil {
+				t.Fatal(err)
+			}
+			dark := true
+			model := newAppModel(nil, settings, resolved, app.ViewInbox, &dark)
+			store, ok := model.ProjectStore.(*config.FileProjectCatalogStore)
+			if !ok || store.Path != resolved || model.ProjectConfigPath != resolved {
+				t.Fatalf("store=%#v path=%q resolved=%q", model.ProjectStore, model.ProjectConfigPath, resolved)
+			}
+			if _, err := os.Stat(resolved); !os.IsNotExist(err) {
+				t.Fatalf("model construction touched %q: %v", resolved, err)
+			}
+		})
+	}
+}
 
 func TestVersionCommandDoesNotLoadConfigOrTaskwarrior(t *testing.T) {
 	var out, errOut bytes.Buffer

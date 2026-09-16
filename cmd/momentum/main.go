@@ -104,13 +104,24 @@ func run(args []string, stdout, stderr io.Writer) int {
 		return 2
 	}
 	darkBackground := lipgloss.HasDarkBackground(os.Stdin, os.Stdout)
-	model := app.NewModel(app.ModelOptions{Client: client, Config: settings, InitialView: initial, DarkBackground: &darkBackground})
+	model := newAppModel(client, settings, resolvedPath, initial, &darkBackground)
 	program := tea.NewProgram(model)
 	if _, err := program.Run(); err != nil {
 		fmt.Fprintln(stderr, "momentum:", err)
 		return 1
 	}
 	return 0
+}
+
+func newAppModel(client taskwarrior.Client, settings config.Config, resolvedPath string, initial app.ViewName, darkBackground *bool) *app.Model {
+	return app.NewModel(app.ModelOptions{
+		Client:            client,
+		Config:            settings,
+		InitialView:       initial,
+		DarkBackground:    darkBackground,
+		ProjectStore:      config.NewProjectCatalogStore(resolvedPath),
+		ProjectConfigPath: resolvedPath,
+	})
 }
 
 func extractCommand(args []string) (string, []string, error) {

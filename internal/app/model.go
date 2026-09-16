@@ -60,22 +60,26 @@ const (
 // ModelOptions configures a root model without coupling tests to process
 // globals. Client may be nil for rendering-only tests.
 type ModelOptions struct {
-	Client         taskwarrior.Client
-	Config         config.Config
-	InitialView    ViewName
-	Now            func() time.Time
-	Context        context.Context
-	Width          int
-	Height         int
-	DarkBackground *bool
+	Client            taskwarrior.Client
+	Config            config.Config
+	InitialView       ViewName
+	Now               func() time.Time
+	Context           context.Context
+	Width             int
+	Height            int
+	DarkBackground    *bool
+	ProjectStore      config.ProjectCatalogStore
+	ProjectConfigPath string
 }
 
 // Model is Momentum's root Bubble Tea state machine.
 type Model struct {
-	Client taskwarrior.Client
-	Config config.Config
-	ctx    context.Context
-	now    func() time.Time
+	Client            taskwarrior.Client
+	Config            config.Config
+	ProjectStore      config.ProjectCatalogStore
+	ProjectConfigPath string
+	ctx               context.Context
+	now               func() time.Time
 
 	Tasks []domain.Task
 	Views domain.Views
@@ -144,30 +148,32 @@ func NewModel(options ModelOptions) *Model {
 		syncConfigured = false
 	}
 	model := &Model{
-		Client:         options.Client,
-		Config:         settings,
-		ctx:            ctx,
-		now:            now,
-		RequestedView:  requested,
-		ActiveView:     normalizeView(requested),
-		Selections:     map[ViewName]int{ViewInbox: 0, ViewToday: 0},
-		Selected:       map[ViewName]string{ViewInbox: "", ViewToday: ""},
-		Focus:          FocusList,
-		Mode:           ModeLoading,
-		Width:          options.Width,
-		Height:         options.Height,
-		Sync:           NewSyncState(settings.Sync, now()),
-		SyncReady:      syncReady,
-		SyncConfigured: syncConfigured,
-		Styles:         styles,
-		Icons:          icons,
-		QuickAdd:       ui.NewQuickAdd(styles, icons),
-		Search:         ui.NewSearch(styles, icons),
-		Editor:         ui.NewEdit(styles, icons),
-		Details:        ui.NewDetails(styles),
-		Confirm:        ui.NewConfirm(styles),
-		Help:           ui.NewHelp(styles),
-		Quit:           ui.NewQuit(styles),
+		Client:            options.Client,
+		Config:            settings,
+		ProjectStore:      options.ProjectStore,
+		ProjectConfigPath: options.ProjectConfigPath,
+		ctx:               ctx,
+		now:               now,
+		RequestedView:     requested,
+		ActiveView:        normalizeView(requested),
+		Selections:        map[ViewName]int{ViewInbox: 0, ViewToday: 0},
+		Selected:          map[ViewName]string{ViewInbox: "", ViewToday: ""},
+		Focus:             FocusList,
+		Mode:              ModeLoading,
+		Width:             options.Width,
+		Height:            options.Height,
+		Sync:              NewSyncState(settings.Sync, now()),
+		SyncReady:         syncReady,
+		SyncConfigured:    syncConfigured,
+		Styles:            styles,
+		Icons:             icons,
+		QuickAdd:          ui.NewQuickAdd(styles, icons),
+		Search:            ui.NewSearch(styles, icons),
+		Editor:            ui.NewEdit(styles, icons),
+		Details:           ui.NewDetails(styles),
+		Confirm:           ui.NewConfirm(styles),
+		Help:              ui.NewHelp(styles),
+		Quit:              ui.NewQuit(styles),
 	}
 	model.QuickAdd.SetProjectCatalog(settings.Projects)
 	model.Editor.SetProjectCatalog(settings.Projects)
