@@ -625,7 +625,7 @@ func (m *Model) updateKey(message tea.KeyPressMsg) tea.Cmd {
 		m.MoveSelection(-len(m.tasksFor(m.ActiveView)))
 	case "G":
 		m.MoveSelection(len(m.tasksFor(m.ActiveView)))
-	case "ctrl+k":
+	case "c", "ctrl+k":
 		return m.OpenQuickAdd()
 	case "/":
 		return m.OpenSearch()
