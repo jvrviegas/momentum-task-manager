@@ -178,6 +178,14 @@ func TestMouseWheelMovesSelection(t *testing.T) {
 	}
 }
 
+func TestCreateKeyOpensQuickAdd(t *testing.T) {
+	model := readyCompositionModel(100, 30)
+	model.Update(key("c"))
+	if model.Overlay != OverlayQuickAdd || !model.QuickAdd.Open {
+		t.Fatalf("quick add not open: overlay=%s open=%v", model.Overlay, model.QuickAdd.Open)
+	}
+}
+
 func TestGlobalFocusAndSearchKeys(t *testing.T) {
 	model := readyCompositionModel(100, 30)
 	model.Update(key("h"))
