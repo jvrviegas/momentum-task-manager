@@ -70,7 +70,7 @@ Use a leading backslash for a literal trigger, for example `\#launch`. Email add
 | `g`/`G` | first/last task |
 | `1`/`2`/`3` | Inbox/Today/Settings → Projects |
 | `Enter` | details |
-| `Ctrl+K` | quick add |
+| `c` / `Ctrl+K` | create a task with quick capture |
 | `/` | local fuzzy search; use `project:name` for an exact project or `project:none` for unassigned tasks |
 | `Space` | complete |
 | `e`, `p`, `!`, `D`, `S`, `t` | edit Description, Project, Priority, Due, Scheduled, Tags |
