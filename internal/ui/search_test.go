@@ -32,6 +32,28 @@ func TestFilterTasksCoversDescriptionProjectAndTags(t *testing.T) {
 	}
 }
 
+func TestFilterTasksSupportsExactProjectQualifier(t *testing.T) {
+	tasks := []domain.Task{
+		{UUID: "exact", Description: "Prepare proposal", Project: "Work.Client"},
+		{UUID: "prefix", Description: "Prepare proposal", Project: "work.client.archive"},
+		{UUID: "description", Description: "work.client proposal", Project: "personal"},
+		{UUID: "unassigned", Description: "Prepare proposal"},
+	}
+
+	if got := FilterTasks(tasks, "project:work.client"); len(got) != 1 || got[0].UUID != "exact" {
+		t.Fatalf("exact project filter=%#v", got)
+	}
+	if got := FilterTasks(tasks, "project:WORK.CLIENT prepare"); len(got) != 1 || got[0].UUID != "exact" {
+		t.Fatalf("combined project filter=%#v", got)
+	}
+	if got := FilterTasks(tasks, "project:work.client missing"); len(got) != 0 {
+		t.Fatalf("combined text should also apply: %#v", got)
+	}
+	if got := FilterTasks(tasks, "project:none"); len(got) != 1 || got[0].UUID != "unassigned" {
+		t.Fatalf("unassigned project filter=%#v", got)
+	}
+}
+
 func TestFilterTasksPreservesStableScoreTies(t *testing.T) {
 	tasks := []domain.Task{{UUID: "first", Description: "alpha"}, {UUID: "second", Description: "alpine"}}
 	got := FilterTasks(tasks, "a")

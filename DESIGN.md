@@ -169,6 +169,7 @@ Editable fields are Description, Project, Priority, Due, Scheduled, and Tags. Pr
 - **SEARCH-01:** `/` opens a local fuzzy filter for the current view.
 - **SEARCH-02:** Search covers description, project, and tags.
 - **SEARCH-03:** Search filters the in-memory view and does not invoke Taskwarrior.
+- **SEARCH-04:** `project:<name>` restricts results to an exact case-insensitive project match and can be combined with fuzzy text; `project:none` selects unassigned tasks.
 - **SEARCH-04:** `Enter` keeps the filter active; `Esc` clears it.
 - **SEARCH-05:** The UI displays match count while filtering.
 

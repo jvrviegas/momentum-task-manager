@@ -58,7 +58,7 @@ func BuildViews(tasks []Task, now time.Time) Views {
 		}
 	}
 
-	SortTasks(inbox)
+	SortInboxTasks(inbox)
 	sections := make([]TodaySection, 0, 3)
 	today := make([]Task, 0)
 	for _, group := range []TodayGroup{GroupOverdue, GroupDueToday, GroupScheduledToday} {
@@ -118,6 +118,37 @@ func taskIdentity(task Task) string {
 func dateOnly(value time.Time) time.Time {
 	year, month, day := value.Date()
 	return time.Date(year, month, day, 0, 0, 0, 0, value.Location())
+}
+
+// SortInboxTasks groups projects alphabetically, then orders by creation time.
+// Unassigned tasks and missing creation times sort last in their respective groups.
+func SortInboxTasks(tasks []Task) {
+	sort.SliceStable(tasks, func(i, j int) bool {
+		a, b := tasks[i], tasks[j]
+		if a.Project != b.Project {
+			if a.Project == "" || b.Project == "" {
+				return b.Project == ""
+			}
+			if strings.ToLower(a.Project) != strings.ToLower(b.Project) {
+				return strings.ToLower(a.Project) < strings.ToLower(b.Project)
+			}
+			return a.Project < b.Project
+		}
+		if a.Entry == nil || b.Entry == nil {
+			if a.Entry != b.Entry {
+				return b.Entry == nil
+			}
+		} else if !a.Entry.Equal(*b.Entry) {
+			return a.Entry.Before(*b.Entry)
+		}
+		if a.UUID != b.UUID {
+			return a.UUID < b.UUID
+		}
+		if a.Description != b.Description {
+			return a.Description < b.Description
+		}
+		return a.ID < b.ID
+	})
 }
 
 // SortTasks sorts by urgency descending and uses stable task identity fields to

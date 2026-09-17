@@ -75,7 +75,7 @@ func TestBuildViewsFiltersPendingAndGroupsWithoutDuplicates(t *testing.T) {
 	}
 }
 
-func TestBuildViewsSortsInboxByUrgencyAndDeterministicTies(t *testing.T) {
+func TestBuildViewsSortsInboxWithDeterministicTies(t *testing.T) {
 	tasks := []Task{
 		{UUID: "b", Description: "B", Status: "pending", Urgency: 3},
 		{UUID: "z", Description: "Z", Status: "pending", Urgency: 10},
@@ -84,7 +84,7 @@ func TestBuildViewsSortsInboxByUrgencyAndDeterministicTies(t *testing.T) {
 	}
 	views := BuildViews(tasks, time.Now())
 	got := []string{views.Inbox[0].UUID, views.Inbox[1].UUID, views.Inbox[2].UUID}
-	want := []string{"a", "z", "b"}
+	want := []string{"a", "b", "z"}
 	for i := range want {
 		if got[i] != want[i] {
 			t.Fatalf("order=%v, want=%v", got, want)

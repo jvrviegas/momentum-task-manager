@@ -21,7 +21,7 @@ var keyBindings = []KeyBinding{
 	{Keys: "1 / 2 / 3", Description: "Inbox / Today / Settings"},
 	{Keys: "Enter", Description: "open details"},
 	{Keys: "Ctrl+K", Description: "quick add"},
-	{Keys: "/", Description: "search current view"},
+	{Keys: "/", Description: "search (project:name filters project)"},
 	{Keys: "Space", Description: "complete task"},
 	{Keys: "e / p / ! / D / S / t", Description: "edit field"},
 	{Keys: "s", Description: "start / stop task"},

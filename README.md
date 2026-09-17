@@ -40,7 +40,8 @@ Momentum never writes Taskwarrior data files directly. It invokes `task` with an
 
 - **Inbox** contains every pending task in the active Taskwarrior context; context-scoped machine-readable exports must apply that context filter explicitly (see the [Settings → Projects feasibility record](docs/plans/settings-projects.md#t00-feasibility-record--2026-09-16)).
 - **Today** contains unique pending tasks classified as Overdue, Due Today, or Scheduled Today, in that order.
-- Taskwarrior urgency sorts rows; raw urgency is not shown in the normal row.
+- Inbox groups tasks by project alphabetically, with oldest-created tasks first within each group. Unassigned tasks appear under **No project** at the end; missing creation dates sort last within a group.
+- Today rows sort by Taskwarrior urgency; raw urgency is not shown in the normal row.
 
 ## Quick add
 
@@ -70,7 +71,7 @@ Use a leading backslash for a literal trigger, for example `\#launch`. Email add
 | `1`/`2`/`3` | Inbox/Today/Settings → Projects |
 | `Enter` | details |
 | `Ctrl+K` | quick add |
-| `/` | local fuzzy search |
+| `/` | local fuzzy search; use `project:name` for an exact project or `project:none` for unassigned tasks |
 | `Space` | complete |
 | `e`, `p`, `!`, `D`, `S`, `t` | edit Description, Project, Priority, Due, Scheduled, Tags |
 | `s` | start/stop |

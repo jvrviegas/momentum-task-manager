@@ -141,7 +141,14 @@ func (m *Model) renderTaskBody(width, height int) string {
 			}
 		}
 	} else {
-		for _, task := range tasks {
+		for index, task := range tasks {
+			if index == 0 || task.Project != tasks[index-1].Project {
+				project := task.Project
+				if project == "" {
+					project = "No project"
+				}
+				lines = append(lines, renderedTaskLine{text: m.Styles.Muted.Render(ui.Truncate("  "+project, width))})
+			}
 			if task.UUID == selectedUUID {
 				selectedLine = len(lines)
 			}

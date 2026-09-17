@@ -32,7 +32,7 @@ type SearchModel struct {
 func NewSearch(styles Styles, icons Icons) SearchModel {
 	input := textinput.New()
 	input.Prompt = "/ "
-	input.Placeholder = "Filter current view"
+	input.Placeholder = "Filter current view (project:name)"
 	return SearchModel{Input: input, Styles: styles, Icons: icons}
 }
 
@@ -88,29 +88,54 @@ func (s SearchModel) View() string {
 	return s.Styles.Panel.Width(s.Width).Render(Truncate(s.Input.View(), s.Width))
 }
 
-// FilterTasks applies a fuzzy match to description, project, and tags without
-// invoking the Taskwarrior adapter.
+// FilterTasks applies an optional exact project qualifier plus a fuzzy match
+// over description, project, and tags without invoking the Taskwarrior adapter.
 func FilterTasks(tasks []domain.Task, query string) []domain.Task {
-	query = strings.TrimSpace(strings.ToLower(query))
-	if query == "" {
+	project, query, hasProject := parseSearchQuery(query)
+	if query == "" && !hasProject {
 		return append([]domain.Task(nil), tasks...)
 	}
 	result := make([]domain.Task, 0, len(tasks))
 	for _, task := range tasks {
-		if _, ok := taskMatchScore(task, query); ok {
+		if _, ok := taskMatchScore(task, project, query, hasProject); ok {
 			result = append(result, task)
 		}
 	}
 	return result
 }
 
-// MatchesTask reports whether query matches one searchable field.
+// MatchesTask reports whether a task satisfies the project qualifier and fuzzy
+// search terms in query.
 func MatchesTask(task domain.Task, query string) bool {
-	_, ok := taskMatchScore(task, strings.TrimSpace(strings.ToLower(query)))
+	project, text, hasProject := parseSearchQuery(query)
+	_, ok := taskMatchScore(task, project, text, hasProject)
 	return ok
 }
 
-func taskMatchScore(task domain.Task, query string) (int, bool) {
+func parseSearchQuery(query string) (project, text string, hasProject bool) {
+	terms := strings.Fields(strings.ToLower(query))
+	textTerms := make([]string, 0, len(terms))
+	for _, term := range terms {
+		if strings.HasPrefix(term, "project:") && !hasProject {
+			project = strings.TrimPrefix(term, "project:")
+			hasProject = true
+			continue
+		}
+		textTerms = append(textTerms, term)
+	}
+	return project, strings.Join(textTerms, " "), hasProject
+}
+
+func taskMatchScore(task domain.Task, project, query string, hasProject bool) (int, bool) {
+	if hasProject {
+		matchesProject := strings.EqualFold(task.Project, project)
+		if project == "none" {
+			matchesProject = task.Project == ""
+		}
+		if !matchesProject {
+			return 0, false
+		}
+	}
 	if query == "" {
 		return 0, true
 	}
