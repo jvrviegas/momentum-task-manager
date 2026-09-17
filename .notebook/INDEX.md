@@ -1,8 +1,9 @@
 # .notebook
 > Project intelligence — read before every mission
 
-Last updated: 2026-09-16
+Last updated: 2026-09-17
 
+- [ui-readability-audit](ui-readability-audit.md) — Current density problems and proposed comfortable-layout direction | audit | ui, readability, spacing, responsive
 - [project-catalog](project-catalog.md) — Config-owned project labels, Settings editor, and guarded pending renames | flow | projects, config, quickadd, settings
 - [ui-flow](ui-flow.md) — Charm v2 model and responsive pure components | flow | bubbletea, ui, responsive
 - [sync-flow](sync-flow.md) — Native Taskwarrior sync with local grace/retry state | flow | sync, timers, shutdown
