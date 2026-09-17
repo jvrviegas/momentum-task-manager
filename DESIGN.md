@@ -187,7 +187,7 @@ Inbox:
 
 ```text
 No pending tasks
-Ctrl+K to capture something
+c or Ctrl+K to capture something
 ```
 
 Today:
@@ -208,6 +208,7 @@ Ctrl+K to add a task
 | `1` / `2` / `3` | Inbox/Today/Settings → Projects |
 | `Enter` | Open/close details as context permits |
 | `Ctrl+K` | Quick add |
+| `c` / `Ctrl+K` | Create a task with quick capture |
 | `/` | Search current view |
 | `Space` | Complete task |
 | `e`, `p`, `!`, `D`, `S`, `t` | Structured edit with initial field |
