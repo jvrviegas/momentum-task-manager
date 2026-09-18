@@ -25,10 +25,10 @@ func AddArgs(input domain.NewTask) ([]string, error) {
 		args = append(args, "project:"+input.Project)
 	}
 	if input.Due != "" {
-		args = append(args, "due:"+input.Due)
+		args = append(args, "due:"+normalizeDateAlias(input.Due))
 	}
 	if input.Scheduled != "" {
-		args = append(args, "scheduled:"+input.Scheduled)
+		args = append(args, "scheduled:"+normalizeDateAlias(input.Scheduled))
 	}
 	tags := append([]string(nil), input.Tags...)
 	sort.Strings(tags)
@@ -63,6 +63,8 @@ func ModifyArgs(uuid string, diff domain.TaskDiff) ([]string, error) {
 	appendChange("description", diff.Description)
 	appendChange("project", diff.Project)
 	appendChange("priority", diff.Priority)
+	diff.Due.Value = normalizeDateAlias(diff.Due.Value)
+	diff.Scheduled.Value = normalizeDateAlias(diff.Scheduled.Value)
 	appendChange("due", diff.Due)
 	appendChange("scheduled", diff.Scheduled)
 	if diff.Tags.Changed {
@@ -82,6 +84,13 @@ func ModifyArgs(uuid string, diff domain.TaskDiff) ([]string, error) {
 		}
 	}
 	return args, nil
+}
+
+func normalizeDateAlias(value string) string {
+	if strings.EqualFold(strings.TrimSpace(value), "next-week") {
+		return "sow+1w+4d"
+	}
+	return value
 }
 
 func validateUUID(uuid string) error {
