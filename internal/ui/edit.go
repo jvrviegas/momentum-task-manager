@@ -165,10 +165,6 @@ func (e *EditModel) Update(msg tea.Msg) (*EditModel, tea.Cmd) {
 			e.Close()
 			return e, nil
 		case "tab", "shift+tab":
-			if e.SuggestionsOpen && keyMsg.String() == "tab" {
-				e.acceptSuggestion()
-				return e, nil
-			}
 			delta := 1
 			if keyMsg.String() == "shift+tab" {
 				delta = -1
@@ -178,15 +174,11 @@ func (e *EditModel) Update(msg tea.Msg) (*EditModel, tea.Cmd) {
 		case "up", "ctrl+p":
 			if e.SuggestionsOpen {
 				e.moveSuggestion(-1)
-			} else {
-				e.moveField(-1)
 			}
 			return e, nil
 		case "down", "ctrl+n":
 			if e.SuggestionsOpen {
 				e.moveSuggestion(1)
-			} else {
-				e.moveField(1)
 			}
 			return e, nil
 		case "enter":
@@ -296,7 +288,9 @@ func (e *EditModel) acceptSuggestion() {
 	}
 	e.Inputs[e.Focused].SetValue(e.Suggestions[e.SuggestionIndex])
 	e.Inputs[e.Focused].CursorEnd()
-	e.refreshSuggestions()
+	e.SuggestionsOpen = false
+	e.Suggestions = nil
+	e.SuggestionIndex = 0
 }
 
 func (e *EditModel) submit() tea.Cmd {
