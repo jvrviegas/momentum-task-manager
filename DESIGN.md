@@ -125,8 +125,8 @@ Autocomplete:
 
 - **EDIT-01:** `e` opens a structured modal focused on Description.
 - **EDIT-02:** Direct task-list shortcuts open the same modal focused on a specific field.
-- **EDIT-03:** `Up`/`Down`, `Tab`, and `Shift+Tab` move between fields.
-- **EDIT-04:** When a field suggestion menu is open, `Up`/`Down` navigate suggestions; closing or accepting it restores field navigation.
+- **EDIT-03:** `Tab` and `Shift+Tab` exclusively move forward and backward between fields.
+- **EDIT-04:** `Up`/`Down` and `Ctrl+P`/`Ctrl+N` navigate field suggestions only; `Enter` accepts the highlighted suggestion.
 - **EDIT-05:** `Ctrl+S` saves only changed supported fields.
 - **EDIT-06:** `Esc` cancels without mutation.
 - **EDIT-07:** Unsupported exported fields remain untouched.
