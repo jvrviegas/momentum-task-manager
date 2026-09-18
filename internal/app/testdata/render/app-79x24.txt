@@ -1,6 +1,6 @@
 === today ===
 Momentum  ·  Today · 3 tasks
-▱ Inbox 4   ◷ Today 3   ⚙ Settings
+▱ Inbox 1   ◷ Today 3   ⚙ Settings
 
 Overdue · 1
 ▌ □ Overdue task
@@ -25,20 +25,20 @@ Scheduled Today · 1
 Sync ready
 
 === inbox ===
-Momentum  ·  Inbox · 4 tasks
-▱ Inbox 4   ◷ Today 3   ⚙ Settings
+Momentum  ·  Inbox · 1 tasks
+▱ Inbox 1   ◷ Today 3   ⚙ Settings
 
 work
 □ Inbox task
 
 
-No project
-□ Due task
-  Due Today 17:00
-□ Overdue task
-  Overdue · Due Sep 7 10:00
-□ Scheduled task
-  Scheduled Today 09:00
+
+
+
+
+
+
+
 
 
 
@@ -130,7 +130,7 @@ Error: fixture Taskwarrior unavailable  ·  Sync ready
 
 === search ===
 Momentum  ·  Today · 1 tasks · /scheduled
-▱ Inbox 4   ◷ Today 3   ⚙ Settings
+▱ Inbox 1   ◷ Today 3   ⚙ Settings
 
 Scheduled Today · 1
 □ Scheduled task
@@ -156,7 +156,7 @@ Scheduled Today · 1
 
 === settings-list ===
 Momentum  ·  Settings
-▱ Inbox 4   ◷ Today 3   ⚙ Settings
+▱ Inbox 1   ◷ Today 3   ⚙ Settings
 
 ╭─────────────────────────────────────────────────────────────────────────╮
 │Settings / Projects                                                      │
@@ -182,7 +182,7 @@ Sync ready
 
 === settings-editor ===
 Momentum  ·  Settings
-▱ Inbox 4   ◷ Today 3   ⚙ Settings
+▱ Inbox 1   ◷ Today 3   ⚙ Settings
 
 ╭─────────────────────────────────────────────────────────────────────────╮
 │Edit project                                                             │
