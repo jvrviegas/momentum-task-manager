@@ -176,7 +176,7 @@ go build ./cmd/momentum
 
 **Done when:**
 
-- [x] Inbox includes all pending input tasks.
+- [x] Inbox includes pending input tasks not classified into Today; Today-classified tasks are excluded.
 - [x] Today precedence exactly matches the design.
 - [x] Scheduled-before-today alone does not classify as overdue.
 - [x] Sorting uses descending urgency with deterministic ties.
