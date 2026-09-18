@@ -7,7 +7,6 @@ import (
 
 	"charm.land/bubbles/v2/textinput"
 	tea "charm.land/bubbletea/v2"
-	"charm.land/lipgloss/v2"
 
 	"github.com/jvrviegas/momentum/internal/domain"
 	"github.com/jvrviegas/momentum/internal/quickadd"
@@ -206,49 +205,49 @@ func (q QuickAddModel) View() string {
 	if q.Height <= 2 {
 		return q.Styles.Panel.Render(Truncate(q.Input.View(), contentWidth))
 	}
-	maxLines := max(1, q.Height-2) // Reserve the modal border.
+	contentHeight := ModalContentHeight(q.Height, 0)
+	if contentHeight < 1 {
+		contentHeight = 1
+	}
 
-	title := q.Styles.Title.Render("Quick capture")
+	title := q.Styles.ModalTitle.Render("Quick capture")
 	bar := q.Styles.Panel.Render(Truncate(q.Input.View(), contentWidth))
 	syntax := []string{
-		q.Styles.Muted.Render(Truncate("#project · !priority", contentWidth)),
-		q.Styles.Muted.Render(Truncate("@due · >scheduled", contentWidth)),
-		q.Styles.Muted.Render(Truncate("+tag", contentWidth)),
+		q.Styles.Metadata.Render(Truncate("#project · !priority", contentWidth)),
+		q.Styles.Metadata.Render(Truncate("@due · >scheduled", contentWidth)),
+		q.Styles.Metadata.Render(Truncate("+tag", contentWidth)),
 	}
-	keys := q.Styles.Muted.Render(Truncate("Enter add · Esc cancel", contentWidth))
+	keys := q.Styles.ModalAction.Render(Truncate("Enter add · Esc cancel", contentWidth))
 
-	// Title, input, syntax, and primary keys remain visible whenever the
-	// terminal meets the application's minimum size. Suggestions and richer
-	// guidance use the remaining space.
-	reserved := 6
+	// Title, input, error, and actions are protected first. Optional
+	// explanation, suggestions, syntax, and examples then consume the
+	// remaining rows in that priority order, so short terminals never lose
+	// the input or its submit/cancel controls.
+	mandatory := 3 // title, input, actions
 	if q.ParseErr != nil {
-		reserved++
+		mandatory++
 	}
-	extra := max(0, maxLines-reserved)
-	maxSuggestions := min(5, min(len(q.Suggestions), extra))
-	extra -= maxSuggestions
-
-	subtitle := ""
-	if extra > 0 {
-		subtitle = q.Styles.Muted.Render(Truncate("Describe the task, then add optional metadata.", contentWidth))
-		extra--
+	optional := max(0, contentHeight-mandatory)
+	showSubtitle := optional > 0
+	if showSubtitle {
+		optional--
 	}
-	example := ""
-	if extra > 0 {
-		example = q.Styles.Muted.Render(Truncate("Example: Prepare proposal #work !high @tomorrow +planning", contentWidth))
-		extra--
+	maxSuggestions := min(5, min(len(q.Suggestions), optional))
+	optional -= maxSuggestions
+	maxSyntax := min(len(syntax), optional)
+	optional -= maxSyntax
+	showSuggestionKeys := optional > 0 && q.SuggestionsOpen
+	if showSuggestionKeys {
+		optional--
 	}
-	suggestionKeys := ""
-	if extra > 0 && q.SuggestionsOpen {
-		suggestionKeys = q.Styles.Muted.Render(Truncate("↑/↓ choose · Tab complete", contentWidth))
-	}
+	showExample := optional > 0
 
 	lines := []string{title}
-	if subtitle != "" {
-		lines = append(lines, subtitle)
+	if showSubtitle {
+		lines = append(lines, q.Styles.Metadata.Render(Truncate("Describe the task, then add optional metadata.", contentWidth)))
 	}
 	lines = append(lines, bar)
-	if q.SuggestionsOpen {
+	if q.SuggestionsOpen && maxSuggestions > 0 {
 		start := max(0, q.SuggestionIndex-maxSuggestions+1)
 		for index := start; index < min(len(q.Suggestions), start+maxSuggestions); index++ {
 			suggestion := q.Suggestions[index]
@@ -260,44 +259,27 @@ func (q QuickAddModel) View() string {
 			if index == q.SuggestionIndex {
 				line = q.Styles.Selection.Render(PadRight(Truncate(line, contentWidth), contentWidth))
 			} else {
-				line = q.Styles.Muted.Render(Truncate(line, contentWidth))
+				line = q.Styles.Metadata.Render(Truncate(line, contentWidth))
 			}
 			lines = append(lines, line)
 		}
 	}
 	if q.ParseErr != nil {
-		lines = append(lines, q.Styles.Overdue.Render(Truncate(q.ParseErr.Error(), contentWidth)))
+		lines = append(lines, q.Styles.Error.Render(Truncate(q.ParseErr.Error(), contentWidth)))
 	}
-	lines = append(lines, syntax...)
-	if example != "" {
-		lines = append(lines, example)
+	lines = append(lines, syntax[:maxSyntax]...)
+	if showExample {
+		lines = append(lines, q.Styles.Metadata.Render(Truncate("Example: Prepare proposal #work !high @tomorrow +planning", contentWidth)))
 	}
-	if suggestionKeys != "" {
-		lines = append(lines, suggestionKeys)
+	if showSuggestionKeys {
+		lines = append(lines, q.Styles.ModalAction.Render(Truncate("↑/↓ choose · Tab complete", contentWidth)))
 	}
 	lines = append(lines, keys)
-	if len(lines) > maxLines {
-		lines = lines[:maxLines]
-	}
-	for index := range lines {
-		lines[index] = PadRight(lines[index], contentWidth)
-	}
-	body := lipgloss.JoinVertical(lipgloss.Left, lines...)
-	return q.Styles.Border.Render(body)
+	return renderBoundedPanel(lines, contentWidth, contentHeight, q.Styles)
 }
 
 func quickAddContentWidth(terminalWidth int) int {
-	if terminalWidth <= 0 {
-		return 0
-	}
-	modalWidth := terminalWidth
-	if modalWidth > 4 {
-		modalWidth -= 4
-	}
-	if modalWidth > 72 {
-		modalWidth = 72
-	}
-	return max(1, modalWidth-2) // Reserve the modal border.
+	return ModalContentWidth(terminalWidth, QuickAddMaxWidth)
 }
 
 // ErrorText is a plain error accessor for status rendering and tests.
