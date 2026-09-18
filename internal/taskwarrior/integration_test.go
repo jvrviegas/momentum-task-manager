@@ -8,6 +8,7 @@ import (
 	"path/filepath"
 	"strings"
 	"testing"
+	"time"
 
 	"github.com/jvrviegas/momentum/internal/domain"
 )
@@ -83,6 +84,23 @@ func TestIntegrationAddAndExport(t *testing.T) {
 	}
 	if !contains(task.Tags, "planning") || !contains(task.Tags, "client") {
 		t.Fatalf("tags=%#v", task.Tags)
+	}
+}
+
+func TestIntegrationNextWeekAliasSchedulesFridayOfNextCalendarWeek(t *testing.T) {
+	client, _ := isolatedClient(t)
+	now := time.Now().In(time.Local)
+	daysSinceMonday := (int(now.Weekday()) - int(time.Monday) + 7) % 7
+	want := time.Date(now.Year(), now.Month(), now.Day(), 0, 0, 0, 0, time.Local).
+		AddDate(0, 0, -daysSinceMonday+11)
+
+	task := integrationTask(t, client, domain.NewTask{Description: "next week Friday", Scheduled: "next-week"})
+	if task.Scheduled == nil {
+		t.Fatal("scheduled date is absent")
+	}
+	got := task.Scheduled.In(time.Local)
+	if got.Year() != want.Year() || got.YearDay() != want.YearDay() || got.Weekday() != time.Friday {
+		t.Fatalf("scheduled=%v want next-week Friday %v", got, want)
 	}
 }
 
