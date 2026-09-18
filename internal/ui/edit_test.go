@@ -101,20 +101,17 @@ func TestTabAndShiftTabTraverseFields(t *testing.T) {
 	}
 }
 
-func TestUpDownTraverseFieldsWithoutSuggestions(t *testing.T) {
+func TestUpDownDoNotTraverseFieldsWithoutSuggestions(t *testing.T) {
 	e := testEdit()
 	e.SetCatalog(nil, nil)
 	e.Update(editSpecial(tea.KeyDown, 0))
-	if e.Focused != FieldProject {
-		t.Fatalf("down focused=%d", e.Focused)
-	}
 	e.Update(editSpecial(tea.KeyUp, 0))
 	if e.Focused != FieldDescription {
-		t.Fatalf("up focused=%d", e.Focused)
+		t.Fatalf("arrow keys changed focus to %d", e.Focused)
 	}
 }
 
-func TestProjectSuggestionsOwnArrowAndTab(t *testing.T) {
+func TestProjectSuggestionsOwnArrowsAndEnter(t *testing.T) {
 	e := testEdit()
 	e.Update(editKey("p")) // append to the existing project only after focus changes below
 	// Re-open on project so the test is independent of Description's text.
@@ -130,9 +127,27 @@ func TestProjectSuggestionsOwnArrowAndTab(t *testing.T) {
 		t.Fatalf("suggestion index=%d", e.SuggestionIndex)
 	}
 	want := e.Suggestions[e.SuggestionIndex]
-	e.Update(editSpecial(tea.KeyTab, 0))
+	e.Update(editSpecial(tea.KeyEnter, 0))
 	if e.Input(FieldProject).Value() != want {
 		t.Fatalf("project value=%q want=%q", e.Input(FieldProject).Value(), want)
+	}
+	if e.SuggestionsOpen {
+		t.Fatal("accepting a suggestion should close suggestions")
+	}
+}
+
+func TestTabLeavesProjectWithoutAcceptingSuggestion(t *testing.T) {
+	e := testEdit()
+	e.OpenTask(editableTask(), FieldProject)
+	e.Inputs[FieldProject].SetValue("")
+	e.refreshSuggestions()
+
+	e.Update(editSpecial(tea.KeyTab, 0))
+	if e.Focused != FieldPriority {
+		t.Fatalf("tab focused=%d want=%d", e.Focused, FieldPriority)
+	}
+	if e.Input(FieldProject).Value() != "" {
+		t.Fatalf("tab accepted project suggestion %q", e.Input(FieldProject).Value())
 	}
 }
 
