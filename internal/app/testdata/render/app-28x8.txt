@@ -1,6 +1,6 @@
 === today ===
 Momentum  ·  Today · 3 tasks
-▱ Inbox 4   ◷ Today 3   ⚙ S…
+▱ Inbox 1   ◷ Today 3   ⚙ S…
 Overdue · 1
 ▌ □ Overdue task  ·  Overdue
 
@@ -9,8 +9,8 @@ Overdue · 1
 Sync ready  ·  [c] Create  …
 
 === inbox ===
-Momentum  ·  Inbox · 4 tasks
-▱ Inbox 4   ◷ Today 3   ⚙ S…
+Momentum  ·  Inbox · 1 tasks
+▱ Inbox 1   ◷ Today 3   ⚙ S…
 work
 □ Inbox task
 
@@ -50,7 +50,7 @@ Error: fixtu…  ·  Sync ready
 
 === search ===
 Momentum  ·  Today · 1 task…
-▱ Inbox 4   ◷ Today 3   ⚙ S…
+▱ Inbox 1   ◷ Today 3   ⚙ S…
 Scheduled Today · 1
 □ Sched…  ·  Scheduled Today
 
@@ -60,7 +60,7 @@ Scheduled Today · 1
 
 === settings-list ===
 Momentum  ·  Settings
-▱ Inbox 4   ◷ Today 3   ⚙ S…
+▱ Inbox 1   ◷ Today 3   ⚙ S…
 ╭──────────────────────╮
 │Settings / Projects   │
 │▸ Work  (work)        │
@@ -70,7 +70,7 @@ Sync ready  ·  [c] Create  …
 
 === settings-editor ===
 Momentum  ·  Settings
-▱ Inbox 4   ◷ Today 3   ⚙ S…
+▱ Inbox 1   ◷ Today 3   ⚙ S…
 ╭──────────────────────╮
 │Edit project          │
 │> Name k              │
