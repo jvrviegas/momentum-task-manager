@@ -25,6 +25,14 @@ func TestAddArgsTranslatesEveryQuickAddField(t *testing.T) {
 	}
 }
 
+func TestAddArgsTranslatesNextWeekToFridayOfNextCalendarWeek(t *testing.T) {
+	got, err := AddArgs(domain.NewTask{Description: "Plan", Due: "next-week", Scheduled: "next-week"})
+	want := []string{"add", "Plan", "due:sow+1w+4d", "scheduled:sow+1w+4d"}
+	if err != nil || !reflect.DeepEqual(got, want) {
+		t.Fatalf("got %#v err=%v, want %#v", got, err, want)
+	}
+}
+
 func TestAddArgsKeepsDescriptionAsOneArgument(t *testing.T) {
 	got, err := AddArgs(domain.NewTask{Description: "email bob@example.com"})
 	if err != nil || !reflect.DeepEqual(got, []string{"add", "email bob@example.com"}) {
@@ -53,6 +61,15 @@ func TestModifyArgsUsesUUIDAndMinimalChanges(t *testing.T) {
 	}
 	got, err := ModifyArgs("uuid-1", diff)
 	want := []string{"uuid-1", "modify", "project:work.client", "due:", "-old", "+new"}
+	if err != nil || !reflect.DeepEqual(got, want) {
+		t.Fatalf("got %#v err=%v want %#v", got, err, want)
+	}
+}
+
+func TestModifyArgsTranslatesNextWeekToFridayOfNextCalendarWeek(t *testing.T) {
+	setNextWeek := domain.FieldChange{Kind: domain.Set, Value: "next-week"}
+	got, err := ModifyArgs("uuid", domain.TaskDiff{Due: setNextWeek, Scheduled: setNextWeek})
+	want := []string{"uuid", "modify", "due:sow+1w+4d", "scheduled:sow+1w+4d"}
 	if err != nil || !reflect.DeepEqual(got, want) {
 		t.Fatalf("got %#v err=%v want %#v", got, err, want)
 	}
