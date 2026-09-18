@@ -1,0 +1,255 @@
+=== today ===
+VIEWS    ▱ Inbox 4        Momentum  ·  Today · 3 tasks
+▌ ◷ Today 3
+MANAGE    ⚙ Settings      Overdue · 1
+                          ▌ □ Overdue task
+                          ▌   Overdue · Due Sep 7 10:00
+
+
+                          Due Today · 1
+                          □ Due task
+                            Due Today 17:00
+
+
+                          Scheduled Today · 1
+                          □ Scheduled task
+                            Scheduled Today 09:00
+
+
+
+
+
+
+
+
+
+
+
+
+
+                          [c] Create  [/] Search  [?] Help  [q] Quit
+                          Sync ready
+
+=== inbox ===
+VIEWS  ▌ ▱ Inbox 4        Momentum  ·  Inbox · 4 tasks
+  ◷ Today 3
+MANAGE    ⚙ Settings      work
+                          □ Inbox task
+
+
+                          No project
+                          □ Due task
+                            Due Today 17:00
+                          □ Overdue task
+                            Overdue · Due Sep 7 10:00
+                          □ Scheduled task
+                            Scheduled Today 09:00
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+                          [c] Create  [/] Search  [?] Help  [q] Quit
+                          Sync ready
+
+=== empty ===
+VIEWS  ▌ ▱ Inbox 0        Momentum  ·  Inbox · 0 tasks
+  ◷ Today 0
+MANAGE    ⚙ Settings      No pending tasks
+                          Ctrl+K to capture something
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+                          [c] Create  [/] Search  [?] Help  [q] Quit
+                          Sync ready
+
+=== loading ===
+VIEWS    ▱ Inbox 0        Momentum  ·  Today · 0 tasks
+▌ ◷ Today 0
+MANAGE    ⚙ Settings      Loading tasks…
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+                          [c] Create  [/] Search  [?] Help  [q] Quit
+                          Sync ready
+
+=== error ===
+VIEWS    ▱ Inbox 0        Momentum  ·  Today · 0 tasks
+▌ ◷ Today 0
+MANAGE    ⚙ Settings      Unable to load tasks: fixture Taskwarrior unavailable
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+                          [c] Create  [/] Search  [?] Help  [q] Quit
+                          Error: fixture Taskwarrior unavailable  ·  Sync ready
+
+=== search ===
+VIEWS    ▱ Inbox 4        Momentum  ·  Today · 1 tasks · /scheduled
+▌ ◷ Today 3
+MANAGE    ⚙ Settings      Scheduled Today · 1
+                          □ Scheduled task
+                            Scheduled Today 09:00
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+                          [c] Create  [/] Search  [?] Help  [q] Quit
+                          1/3 matches  ·  Sync ready
+
+=== settings-list ===
+VIEWS    ▱ Inbox 4        Momentum  ·  Settings
+  ◷ Today 3
+MANAGE  ▌ ⚙ Settings      ╭──────────────────────────────────────────────────────────────────────────────╮
+                          │Settings / Projects                                                           │
+                          │[a] add   [e] edit   [d] remove   [Enter] edit                                │
+                          │▸ Work  (work)                                                                │
+                          │  Work → Client  (work.client)                                                │
+                          │Esc to close                                                                  │
+                          ╰──────────────────────────────────────────────────────────────────────────────╯
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+                          [c] Create  [/] Search  [?] Help  [q] Quit
+                          Sync ready
+
+=== settings-editor ===
+VIEWS    ▱ Inbox 4        Momentum  ·  Settings
+  ◷ Today 3
+MANAGE  ▌ ⚙ Settings      ╭──────────────────────────────────────────────────────────────────────────────╮
+                          │Edit project                                                                  │
+                          │> Name Work                                                                   │
+                          │  Value work                                                                  │
+                          │  Parent Parent                                                               │
+                          │Full value: work                                                              │
+                          │Tab next   Ctrl+S save   Esc cancel                                           │
+                          ╰──────────────────────────────────────────────────────────────────────────────╯
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+                          [c] Create  [/] Search  [?] Help  [q] Quit
+                          Sync ready
