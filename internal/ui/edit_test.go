@@ -48,6 +48,47 @@ func TestDirectOpenFocusesRequestedField(t *testing.T) {
 	}
 }
 
+func TestDateFieldsOpenAsReadableLocalTimestampsWithoutChanges(t *testing.T) {
+	e := NewEdit(Styles{}, Icons{})
+	e.OpenTask(editableTask(), FieldDue)
+	want := editableTask().Due.In(time.Local).Format("2006-01-02 15:04")
+	if got := e.Input(FieldDue).Value(); got != want {
+		t.Fatalf("due=%q want=%q", got, want)
+	}
+	if e.fieldChanged(FieldDue) {
+		t.Fatal("display formatting must not create a date change")
+	}
+}
+
+func TestDateFieldKeyboardStepsDayAndTime(t *testing.T) {
+	e := NewEdit(Styles{}, Icons{})
+	e.OpenTask(editableTask(), FieldDue)
+	start := editableTask().Due.In(time.Local)
+
+	e.Update(editSpecial(tea.KeyRight, tea.ModCtrl))
+	wantDay := start.AddDate(0, 0, 1).Format("2006-01-02 15:04")
+	if got := e.Input(FieldDue).Value(); got != wantDay {
+		t.Fatalf("day step=%q want=%q", got, wantDay)
+	}
+
+	e.Update(editSpecial(tea.KeyUp, tea.ModCtrl))
+	wantTime := start.AddDate(0, 0, 1).Add(30 * time.Minute).Format("2006-01-02 15:04")
+	if got := e.Input(FieldDue).Value(); got != wantTime {
+		t.Fatalf("time step=%q want=%q", got, wantTime)
+	}
+}
+
+func TestDateFieldViewShowsKeyboardGuidance(t *testing.T) {
+	e := testEdit()
+	e.OpenTask(editableTask(), FieldDue)
+	view := e.View()
+	for _, want := range []string{"YYYY-MM-DD HH:MM", "Ctrl+←/→ day", "Ctrl+↑/↓ 30m"} {
+		if !strings.Contains(view, want) {
+			t.Errorf("view missing %q: %q", want, view)
+		}
+	}
+}
+
 func TestTabAndShiftTabTraverseFields(t *testing.T) {
 	e := testEdit()
 	e.Update(editSpecial(tea.KeyTab, 0))
