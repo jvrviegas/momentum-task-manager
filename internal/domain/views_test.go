@@ -62,13 +62,17 @@ func TestBuildViewsFiltersPendingAndGroupsWithoutDuplicates(t *testing.T) {
 		taskAt("overdue", "pending", 10, "2026-09-07 08:00", "2026-09-08 08:00", loc),
 		taskAt("done", "completed", 100, "2026-09-07 08:00", "", loc),
 		taskAt("due", "pending", 5, "2026-09-08 08:00", "", loc),
+		taskAt("inbox", "pending", 1, "2026-09-09 08:00", "", loc),
 	}
 	views := BuildViews(tasks, now)
-	if len(views.Inbox) != 3 || len(views.Today) != 3 || len(views.Sections) != 3 {
+	if len(views.Inbox) != 1 || len(views.Today) != 3 || len(views.Sections) != 3 {
 		t.Fatalf("unexpected view sizes: inbox=%d today=%d sections=%d", len(views.Inbox), len(views.Today), len(views.Sections))
 	}
 	if views.Sections[0].Group != GroupOverdue || views.Sections[1].Group != GroupDueToday || views.Sections[2].Group != GroupScheduledToday {
 		t.Fatalf("unexpected section order: %#v", views.Sections)
+	}
+	if views.Inbox[0].UUID != "inbox" {
+		t.Fatalf("Today-classified tasks leaked into Inbox: %#v", views.Inbox)
 	}
 	if views.Today[0].UUID != "overdue" || views.Today[1].UUID != "due" || views.Today[2].UUID != "scheduled" {
 		t.Fatalf("unexpected flattened order: %#v", views.Today)
