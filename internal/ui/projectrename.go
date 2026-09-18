@@ -5,7 +5,6 @@ import (
 	"strings"
 
 	tea "charm.land/bubbletea/v2"
-	"charm.land/lipgloss/v2"
 
 	"github.com/jvrviegas/momentum/internal/domain"
 )
@@ -293,14 +292,14 @@ func (p ProjectRenameModel) View() string {
 
 func (p ProjectRenameModel) renderPreview() string {
 	plan := p.activePlan()
-	lines := []string{p.Styles.Title.Render("Rename project")}
+	lines := []string{p.Styles.ModalTitle.Render("Rename project")}
 	if len(plan.Mappings) > 0 {
 		for index, mapping := range plan.Mappings {
 			prefix := ""
 			if index > 0 {
 				prefix = "  "
 			}
-			lines = append(lines, Truncate(prefix+mapping.OldValue+" → "+mapping.NewValue, max(1, p.Width-4)))
+			lines = append(lines, Truncate(prefix+mapping.OldValue+" → "+mapping.NewValue, ModalContentWidth(p.Width, ModalMaxWidth)))
 		}
 	}
 	lines = append(lines,
@@ -331,41 +330,41 @@ func (p ProjectRenameModel) renderPreview() string {
 		lines = append(lines, "Name-only/no-op change: no task migration")
 	}
 	if p.Preview.DestinationTaskOnly && p.Mode == ProjectRenameCatalogAndPending {
-		lines = append(lines, p.Styles.Overdue.Render("Destination is used by tasks but not in the catalog"))
+		lines = append(lines, p.Styles.Error.Render("Destination is used by tasks but not in the catalog"))
 	}
 	if p.Preview.CollisionMessage != "" {
-		lines = append(lines, p.Styles.Overdue.Render(Truncate(p.Preview.CollisionMessage, max(1, p.Width-4))))
+		lines = append(lines, p.Styles.Error.Render(Truncate(p.Preview.CollisionMessage, ModalContentWidth(p.Width, ModalMaxWidth))))
 	}
 	if !p.PreviewValid {
-		lines = append(lines, p.Styles.Overdue.Render("Preview needs refresh before confirmation"))
+		lines = append(lines, p.Styles.Error.Render("Preview needs refresh before confirmation"))
 	}
 	lines = append(lines,
 		p.Styles.Muted.Render("Historical tasks retain their values"),
 		p.Styles.Muted.Render("native u cannot reverse this catalog/task operation"),
 	)
 	if p.Err != nil {
-		lines = append(lines, p.Styles.Overdue.Render(Truncate(p.Err.Error(), max(1, p.Width-4))))
+		lines = append(lines, p.Styles.Error.Render(Truncate(p.Err.Error(), ModalContentWidth(p.Width, ModalMaxWidth))))
 	}
-	lines = append(lines, p.Styles.Muted.Render("Enter confirm   r refresh   Esc cancel"))
+	lines = append(lines, p.Styles.ModalAction.Render("Enter confirm   r refresh   Esc cancel"))
 	return p.renderPanel(lines)
 }
 
 func (p ProjectRenameModel) renderMergeWarning() string {
 	lines := []string{
-		p.Styles.Title.Render("Effective merge warning"),
-		"The destination is used by Taskwarrior tasks but is not in the catalog.",
-		"Migrating will combine task projects under one effective value.",
-		"Enter confirm warning   Esc cancel",
+		p.Styles.ModalTitle.Render("Effective merge warning"),
+		p.Styles.ModalBody.Render("The destination is used by Taskwarrior tasks but is not in the catalog."),
+		p.Styles.ModalBody.Render("Migrating will combine task projects under one effective value."),
+		p.Styles.ModalAction.Render("Enter confirm warning   Esc cancel"),
 	}
 	return p.renderPanel(lines)
 }
 
 func (p ProjectRenameModel) renderConfirmation() string {
 	lines := []string{
-		p.Styles.Title.Render("Confirm project operation"),
+		p.Styles.ModalTitle.Render("Confirm project operation"),
 		fmt.Sprintf("Catalog descendants: %d", p.catalogDescendantCount()),
 		fmt.Sprintf("Pending tasks: %d", len(p.activeTasks())),
-		"[y] confirm   [n] cancel",
+		p.Styles.ModalAction.Render("[y] confirm   [n] cancel"),
 	}
 	return p.renderPanel(lines)
 }
@@ -394,15 +393,9 @@ func (p ProjectRenameModel) taskDescendantCount() int {
 }
 
 func (p ProjectRenameModel) renderPanel(lines []string) string {
-	maxLines := max(1, p.Height-2)
-	if len(lines) > maxLines {
-		lines = lines[:maxLines]
-	}
-	for i := range lines {
-		lines[i] = Truncate(lines[i], max(1, p.Width-4))
-	}
-	body := lipgloss.JoinVertical(lipgloss.Left, lines...)
-	return p.Styles.Border.Width(max(1, p.Width-2)).Render(body)
+	contentWidth := ModalContentWidth(p.Width, ModalMaxWidth)
+	contentHeight := max(1, p.Height-2)
+	return renderBoundedPanel(lines, contentWidth, contentHeight, p.Styles)
 }
 
 func renameMessageCommand(message tea.Msg) tea.Cmd {
