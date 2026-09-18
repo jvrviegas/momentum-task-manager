@@ -118,7 +118,7 @@ Autocomplete:
 - First `Esc` dismisses suggestions; a second `Esc` closes quick add.
 - Projects and tags use fuzzy matching.
 - Priority uses a fixed list.
-- Due and scheduled suggestions include today, tomorrow, upcoming weekdays, next-week, and ISO-date guidance.
+- Due and scheduled suggestions include today, tomorrow, upcoming weekdays, `next-week` (Friday of the next calendar week), and ISO-date guidance.
 - Any Taskwarrior-compatible date expression may be submitted even if it was not suggested.
 
 ### Structured editing
