@@ -1,6 +1,6 @@
 === today ===
 VIEWS                     Momentum  ·  Today · 3 tasks
-  ▱ Inbox 4
+  ▱ Inbox 1
 ▌ ◷ Today 3               Overdue · 1
                           ▌ □ Overdue task
 MANAGE                    ▌   Overdue · Due Sep 7 10:00
@@ -31,19 +31,19 @@ MANAGE                    ▌   Overdue · Due Sep 7 10:00
                           Sync ready
 
 === inbox ===
-VIEWS                     Momentum  ·  Inbox · 4 tasks
-▌ ▱ Inbox 4
+VIEWS                     Momentum  ·  Inbox · 1 tasks
+▌ ▱ Inbox 1
   ◷ Today 3               work
                           □ Inbox task
 MANAGE
   ⚙ Settings
-                          No project
-                          □ Due task
-                            Due Today 17:00
-                          □ Overdue task
-                            Overdue · Due Sep 7 10:00
-                          □ Scheduled task
-                            Scheduled Today 09:00
+
+
+
+
+
+
+
 
 
 
@@ -160,7 +160,7 @@ MANAGE
 
 === search ===
 VIEWS                     Momentum  ·  Today · 1 tasks · /scheduled
-  ▱ Inbox 4
+  ▱ Inbox 1
 ▌ ◷ Today 3               Scheduled Today · 1
                           □ Scheduled task
 MANAGE                      Scheduled Today 09:00
@@ -192,7 +192,7 @@ MANAGE                      Scheduled Today 09:00
 
 === settings-list ===
 VIEWS                     Momentum  ·  Settings
-  ▱ Inbox 4
+  ▱ Inbox 1
   ◷ Today 3               ╭──────────────────────────────────────────────────────────────────────────────╮
                           │Settings / Projects                                                           │
 MANAGE                    │[a] add   [e] edit   [d] remove   [Enter] edit                                │
@@ -224,7 +224,7 @@ MANAGE                    │[a] add   [e] edit   [d] remove   [Enter] edit     
 
 === settings-editor ===
 VIEWS                     Momentum  ·  Settings
-  ▱ Inbox 4
+  ▱ Inbox 1
   ◷ Today 3               ╭──────────────────────────────────────────────────────────────────────────────╮
                           │Edit project                                                                  │
 MANAGE                    │> Name Work                                                                   │
