@@ -82,10 +82,16 @@ func (s *SearchModel) Update(msg tea.Msg) (*SearchModel, tea.Cmd) {
 }
 
 func (s SearchModel) View() string {
-	if !s.Open || s.Width <= 0 || s.Height <= 0 {
+	return s.ViewAt(s.Width)
+}
+
+// ViewAt renders the active search input at a composition-specific width
+// without mutating the text input or its terminal-sized state.
+func (s SearchModel) ViewAt(width int) string {
+	if !s.Open || width <= 0 || s.Height <= 0 {
 		return ""
 	}
-	return s.Styles.Panel.Width(s.Width).Render(Truncate(s.Input.View(), s.Width))
+	return s.Styles.Panel.Width(width).Render(Truncate(s.Input.View(), width))
 }
 
 // FilterTasks applies an optional exact project qualifier plus a fuzzy match
