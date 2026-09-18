@@ -7,6 +7,7 @@ import (
 )
 
 // handleMouse implements only the deliberate click, tab, and wheel behaviors.
+// Hit regions are derived from the same layout and task blocks used by View.
 func (m *Model) handleMouse(message tea.MouseMsg) tea.Cmd {
 	if m.Overlay != OverlayNone {
 		return nil
@@ -29,15 +30,28 @@ func (m *Model) handleMouse(message tea.MouseMsg) tea.Cmd {
 		return nil
 	}
 	nav := m.navigationItems()
-	if layout.ShowSidebar && mouse.X >= 0 && mouse.X < layout.SidebarWidth && mouse.Y >= 0 && mouse.Y < len(nav) {
-		m.SwitchView(ViewName(nav[mouse.Y].Key))
-		return nil
-	}
-	if layout.ShowTabs && mouse.Y == 1 {
-		if index := ui.TabIndexAt(nav, layout.Width, mouse.X); index >= 0 {
+	if layout.ShowSidebar && mouse.X >= 0 && mouse.X < layout.SidebarWidth {
+		if index := ui.SidebarItemAt(nav, layout.Height, mouse.Y); index >= 0 {
 			m.SwitchView(ViewName(nav[index].Key))
 		}
 		return nil
+	}
+	mainLeft := 0
+	if layout.ShowSidebar {
+		mainLeft = layout.SidebarWidth + layout.ContentGutter
+	}
+	if mouse.X < mainLeft || mouse.X >= mainLeft+layout.MainWidth {
+		// The sidebar gutter is visual separation, not a task hit target.
+		return nil
+	}
+	if layout.ShowTabs {
+		geometry := layout.Geometry(false)
+		if mouse.Y == geometry.NavTop {
+			if index := ui.TabIndexAt(nav, layout.MainWidth, mouse.X); index >= 0 {
+				m.SwitchView(ViewName(nav[index].Key))
+			}
+			return nil
+		}
 	}
 	if uuid := m.taskUUIDAt(mouse.Y, layout); uuid != "" {
 		tasks := m.tasksFor(m.ActiveView)
@@ -54,45 +68,36 @@ func (m *Model) handleMouse(message tea.MouseMsg) tea.Cmd {
 }
 
 func (m *Model) taskUUIDAt(y int, layout ui.Layout) string {
-	if m.ActiveView == ViewSettings {
+	if m.ActiveView == ViewSettings || !layout.Usable {
 		return ""
 	}
-	rowTop := 2
-	if layout.ShowTabs {
-		rowTop++
+	width := layout.MainWidth
+	if width < 1 {
+		width = layout.ContentWidth
 	}
-	lineIndex := y - rowTop
-	if lineIndex < 0 {
+	geometry := layout.Geometry(m.Overlay == OverlaySearch && m.Search.Open)
+	lineIndex := y - geometry.BodyTop
+	if lineIndex < 0 || lineIndex >= geometry.BodyHeight {
 		return ""
 	}
-	lines := make([]string, 0)
-	uuids := make([]string, 0)
-	if normalizeView(m.ActiveView) == ViewToday {
-		for _, section := range m.Views.Sections {
-			sectionTasks := section.Tasks
-			if m.Search.Active {
-				sectionTasks = ui.FilterTasks(sectionTasks, m.Search.Query)
+	blocks := m.taskBlocks(width)
+	if len(blocks) == 0 {
+		return ""
+	}
+	selectedUUID := m.Selected[normalizeView(m.ActiveView)]
+	start, end := visibleRenderedBlockRange(blocks, selectedUUID, geometry.BodyHeight)
+	for _, block := range blocks[start:end] {
+		for range block.lines {
+			if lineIndex == 0 && block.selectable {
+				return block.uuid
 			}
-			if len(sectionTasks) == 0 {
-				continue
-			}
-			lines = append(lines, "section")
-			uuids = append(uuids, "")
-			for _, task := range sectionTasks {
-				lines = append(lines, "task")
-				uuids = append(uuids, task.UUID)
+			lineIndex--
+			if lineIndex < 0 {
+				return ""
 			}
 		}
-	} else {
-		for _, task := range m.tasksFor(m.ActiveView) {
-			lines = append(lines, "task")
-			uuids = append(uuids, task.UUID)
-		}
 	}
-	if lineIndex >= len(lines) {
-		return ""
-	}
-	return uuids[lineIndex]
+	return ""
 }
 
 // HandleKey is exposed for embedding applications that need the same routing
