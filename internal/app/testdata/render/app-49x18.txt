@@ -1,0 +1,159 @@
+=== today ===
+Momentum  ·  Today · 3 tasks
+▱ Inbox 4   ◷ Today 3   ⚙ Settings
+
+Overdue · 1
+▌ □ Overdue task  ·  Overdue
+
+
+Due Today · 1
+□ Due task  ·  Due Today
+
+
+Scheduled Today · 1
+□ Scheduled task  ·  Scheduled Today
+
+
+
+[c] Create  [/] Search  [?] Help  [q] Quit
+Sync ready
+
+=== inbox ===
+Momentum  ·  Inbox · 4 tasks
+▱ Inbox 4   ◷ Today 3   ⚙ Settings
+
+work
+□ Inbox task
+
+
+No project
+□ Due task  ·  Due Today
+□ Overdue task  ·  Overdue
+□ Scheduled task  ·  Scheduled Today
+
+
+
+
+
+[c] Create  [/] Search  [?] Help  [q] Quit
+Sync ready
+
+=== empty ===
+Momentum  ·  Inbox · 0 tasks
+▱ Inbox 0   ◷ Today 0   ⚙ Settings
+
+No pending tasks
+Ctrl+K to capture something
+
+
+
+
+
+
+
+
+
+
+
+[c] Create  [/] Search  [?] Help  [q] Quit
+Sync ready
+
+=== loading ===
+Momentum  ·  Today · 0 tasks
+▱ Inbox 0   ◷ Today 0   ⚙ Settings
+
+Loading tasks…
+
+
+
+
+
+
+
+
+
+
+
+
+[c] Create  [/] Search  [?] Help  [q] Quit
+Sync ready
+
+=== error ===
+Momentum  ·  Today · 0 tasks
+▱ Inbox 0   ◷ Today 0   ⚙ Settings
+
+Unable to load tasks: fixture Taskwarrior unavai…
+
+
+
+
+
+
+
+
+
+
+
+
+[c] Create  [/] Search  [?] Help  [q] Quit
+Error: fixture Taskwarrior unavai…  ·  Sync ready
+
+=== search ===
+Momentum  ·  Today · 1 tasks · /scheduled
+▱ Inbox 4   ◷ Today 3   ⚙ Settings
+
+Scheduled Today · 1
+□ Scheduled task  ·  Scheduled Today
+
+
+
+
+
+
+
+
+
+
+
+[c] Create  [/] Search  [?] Help  [q] Quit
+1/3 matches  ·  Sync ready
+
+=== settings-list ===
+Momentum  ·  Settings
+▱ Inbox 4   ◷ Today 3   ⚙ Settings
+
+╭───────────────────────────────────────────╮
+│Settings / Projects                        │
+│[a] add   [e] edit   [d] remove   [Enter] …│
+│▸ Work  (work)                             │
+│  Work → Client  (work.client)             │
+│Esc to close                               │
+╰───────────────────────────────────────────╯
+
+
+
+
+
+
+[c] Create  [/] Search  [?] Help  [q] Quit
+Sync ready
+
+=== settings-editor ===
+Momentum  ·  Settings
+▱ Inbox 4   ◷ Today 3   ⚙ Settings
+
+╭───────────────────────────────────────────╮
+│Edit project                               │
+│> Name Work                                │
+│  Value work                               │
+│  Parent Parent                            │
+│Full value: work                           │
+│Tab next   Ctrl+S save   Esc cancel        │
+╰───────────────────────────────────────────╯
+
+
+
+
+
+[c] Create  [/] Search  [?] Help  [q] Quit
+Sync ready
