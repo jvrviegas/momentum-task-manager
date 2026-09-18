@@ -1,10 +1,6 @@
 package ui
 
-import (
-	"strings"
-
-	"charm.land/lipgloss/v2"
-)
+import "strings"
 
 const (
 	InboxEmptyTitle = "No pending tasks"
@@ -26,7 +22,7 @@ func RenderEmpty(view string, width int, styles Styles) string {
 		return ""
 	}
 	for index, line := range lines {
-		lines[index] = lipgloss.NewStyle().Width(width).Render(Truncate(line, width))
+		lines[index] = styles.ModalBody.Width(width).Render(Truncate(line, width))
 	}
 	return strings.Join(lines, "\n")
 }
