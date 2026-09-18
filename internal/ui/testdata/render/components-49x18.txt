@@ -1,0 +1,105 @@
+=== task-comfortable ===
+▌ □ Renew the domain registration before the…
+▌   #personal.admin  ·  Due Today 17:00  ·  …
+
+=== task-compact ===
+[ ] Renew the domain registration before the…
+
+=== details ===
+╭───────────────────────────────────────────╮
+│Task details                               │
+│CORE                                       │
+│Description: Renew the domain registration │
+│             before the next billing window│
+│Status: pending                            │
+│Priority: High                             │
+│SCHEDULE                                   │
+│Due: 2026-09-08T17:00:00Z                  │
+│ORGANIZATION                               │
+│Project: personal.admin                    │
+│Tags: planning, admin                      │
+│Annotations: Check registrar account and   │
+│             confirm receipt               │
+│↑/↓ scroll · 1/7 · e edit · Esc close      │
+╰───────────────────────────────────────────╯
+
+=== help ===
+╭───────────────────────────────────────────╮
+│Keyboard shortcuts                         │
+│Navigation                                 │
+│j / k / ↑ / ↓      move selection          │
+│h / l / Tab        switch focus/view       │
+│g / G              first / last task       │
+│1 / 2 / 3          Inbox / Today / Settings│
+│Tasks                                      │
+│Enter              open details            │
+│Space              complete task           │
+│e / p / ! / D / S / t edit field           │
+│s                  start / stop task       │
+│d                  delete task             │
+│u                  undo last change        │
+│↑/↓ scroll · 1/11 · Esc close              │
+╰───────────────────────────────────────────╯
+
+=== quick-capture ===
+╭───────────────────────────────────────────╮
+│Quick capture                              │
+│Describe the task, then add optional metad…│
+│> Renew #                                 …│
+│› #personal.admin                          │
+│› #work                                    │
+│#project · !priority                       │
+│@due · >scheduled                          │
+│+tag                                       │
+│Example: Prepare proposal #work !high @tom…│
+│↑/↓ choose · Tab complete                  │
+│Enter add · Esc cancel                     │
+╰───────────────────────────────────────────╯
+
+=== edit ===
+╭───────────────────────────────────────────╮
+│Edit task                                  │
+│  Description e the next billing window    │
+│▌ Project personal.admin                   │
+│  Priority H                               │
+│  Due 2026-09-08T17:00:00Z                 │
+│  Scheduled Scheduled                      │
+│  Tags admin planning                      │
+│Tab next · Ctrl+S save · Esc cancel        │
+╰───────────────────────────────────────────╯
+
+=== confirm ===
+╭───────────────────────────────────────────╮
+│Delete task                                │
+│Delete the selected task permanently? This │
+│cannot be undone after synchronization.    │
+│[y] Yes   [n] No   [Esc] cancel            │
+╰───────────────────────────────────────────╯
+
+=== quit ===
+╭───────────────────────────────────────────╮
+│Unsynced changes                           │
+│Your local changes have not been synchroni…│
+│[s] Sync and quit                          │
+│[q] Quit without syncing                   │
+│[Esc] Cancel                               │
+╰───────────────────────────────────────────╯
+
+=== settings-list ===
+╭───────────────────────────────────────────╮
+│Settings / Projects                        │
+│[a] add   [e] edit   [d] remove   [Enter] …│
+│▸ Work  (work)                             │
+│  Work → Client  (work.client)             │
+│Esc to close                               │
+╰───────────────────────────────────────────╯
+
+=== settings-editor ===
+╭───────────────────────────────────────────╮
+│Edit project                               │
+│> Name Work                                │
+│  Value work                               │
+│  Parent Parent                            │
+│Full value: work                           │
+│Tab next   Ctrl+S save   Esc cancel        │
+╰───────────────────────────────────────────╯
