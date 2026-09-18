@@ -6,7 +6,6 @@ import (
 
 	"charm.land/bubbles/v2/textinput"
 	tea "charm.land/bubbletea/v2"
-	"charm.land/lipgloss/v2"
 
 	"github.com/jvrviegas/momentum/internal/domain"
 )
@@ -90,8 +89,9 @@ func NewProjectSettings(styles Styles) ProjectSettingsModel {
 // SetSize updates the component's responsive dimensions without doing I/O.
 func (p *ProjectSettingsModel) SetSize(width, height int) {
 	p.Width, p.Height = width, height
+	contentWidth := ModalContentWidth(width, ModalMaxWidth)
 	for i := range p.Inputs {
-		p.Inputs[i].SetWidth(max(1, width-22))
+		p.Inputs[i].SetWidth(max(1, contentWidth-22))
 	}
 }
 
@@ -562,8 +562,8 @@ func (p ProjectSettingsModel) View() string {
 
 func (p ProjectSettingsModel) renderList() string {
 	lines := []string{
-		p.Styles.Title.Render("Settings / Projects"),
-		p.Styles.Muted.Render("[a] add   [e] edit   [d] remove   [Enter] edit"),
+		p.Styles.ModalTitle.Render("Settings / Projects"),
+		p.Styles.ModalAction.Render("[a] add   [e] edit   [d] remove   [Enter] edit"),
 	}
 	if len(p.Projects) == 0 {
 		lines = append(lines,
@@ -572,7 +572,7 @@ func (p ProjectSettingsModel) renderList() string {
 		)
 	} else {
 		labels := p.Projects.Labels()
-		visible := max(1, p.Height-5)
+		visible := max(1, p.Height-2-5)
 		start := p.Selected - visible + 1
 		if start < 0 {
 			start = 0
@@ -588,7 +588,7 @@ func (p ProjectSettingsModel) renderList() string {
 				label = project.Value
 			}
 			line := fmt.Sprintf("%s %s  (%s)", marker(i == p.Selected), label, project.Value)
-			line = Truncate(line, max(1, p.Width-4))
+			line = Truncate(line, ModalContentWidth(p.Width, ModalMaxWidth))
 			if i == p.Selected {
 				line = p.Styles.Selection.Render(line)
 			}
@@ -596,9 +596,9 @@ func (p ProjectSettingsModel) renderList() string {
 		}
 	}
 	if p.Err != nil {
-		lines = append(lines, p.Styles.Overdue.Render(Truncate(p.Err.Error(), max(1, p.Width-4))))
+		lines = append(lines, p.Styles.Error.Render(Truncate(p.Err.Error(), ModalContentWidth(p.Width, ModalMaxWidth))))
 	}
-	lines = append(lines, p.Styles.Muted.Render("Esc to close"))
+	lines = append(lines, p.Styles.ModalAction.Render("Esc to close"))
 	return p.renderPanel(lines)
 }
 
@@ -608,67 +608,103 @@ func (p ProjectSettingsModel) renderEditor() string {
 		title = "Edit project"
 	}
 	lines := []string{
-		p.Styles.Title.Render(title),
+		p.Styles.ModalTitle.Render(title),
 		p.renderField(ProjectSettingsName),
 		p.renderField(ProjectSettingsValue),
 		p.renderField(ProjectSettingsParent),
 	}
 	preview, err := p.PreviewValue()
 	if err != nil {
-		lines = append(lines, p.Styles.Overdue.Render("Full value: "+Truncate(err.Error(), max(1, p.Width-15))))
+		lines = append(lines, p.Styles.Error.Render("Full value: "+Truncate(err.Error(), ModalContentWidth(p.Width, ModalMaxWidth))))
 	} else {
-		lines = append(lines, p.Styles.Project.Render("Full value: "+Truncate(preview, max(1, p.Width-15))))
+		lines = append(lines, p.Styles.Project.Render("Full value: "+Truncate(preview, ModalContentWidth(p.Width, ModalMaxWidth))))
 	}
 	if p.SuggestionsOpen {
-		values := append([]string(nil), p.Suggestions...)
-		if len(values) > 0 {
-			values[p.SuggestionIndex] = "▸ " + values[p.SuggestionIndex]
-		}
-		lines = append(lines, p.Styles.Muted.Render(Truncate("Parents: "+strings.Join(values, "  "), max(1, p.Width-4))))
+		lines = append(lines, p.renderParentSuggestions(ModalContentWidth(p.Width, ModalMaxWidth))...)
 	}
 	if p.Err != nil {
-		lines = append(lines, p.Styles.Overdue.Render(Truncate(p.Err.Error(), max(1, p.Width-4))))
+		lines = append(lines, p.Styles.Error.Render(Truncate(p.Err.Error(), ModalContentWidth(p.Width, ModalMaxWidth))))
 	}
-	lines = append(lines, p.Styles.Muted.Render("Tab next   Ctrl+S save   Esc cancel"))
-	return p.renderPanel(lines)
+	lines = append(lines, p.Styles.ModalAction.Render("Tab next   Ctrl+S save   Esc cancel"))
+	return p.renderEditorPanel(lines)
 }
 
 func (p ProjectSettingsModel) renderField(field ProjectSettingsField) string {
 	marker := " "
 	if p.Focused == field {
-		marker = "▸"
+		marker = ">"
 	}
-	return fmt.Sprintf("%s %-7s %s", marker, projectSettingsFieldNames[field], p.Inputs[field].View())
+	return fmt.Sprintf("%s %-7s %s", marker, p.Styles.FieldLabel.Render(projectSettingsFieldNames[field]), p.Inputs[field].View())
+}
+
+func (p ProjectSettingsModel) renderParentSuggestions(width int) []string {
+	if len(p.Suggestions) == 0 || width <= 0 {
+		return nil
+	}
+	count := min(3, len(p.Suggestions))
+	start := p.SuggestionIndex - count + 1
+	if start < 0 {
+		start = 0
+	}
+	if start+count > len(p.Suggestions) {
+		start = len(p.Suggestions) - count
+	}
+	lines := make([]string, 0, count)
+	for index := start; index < start+count; index++ {
+		marker := " "
+		if index == p.SuggestionIndex {
+			marker = ">"
+		}
+		lines = append(lines, p.Styles.Metadata.Render(Truncate(fmt.Sprintf("Parents %s %s", marker, p.Suggestions[index]), width)))
+	}
+	return lines
 }
 
 func (p ProjectSettingsModel) renderRemovePrompt() string {
 	project := p.RemoveTargetValue
 	lines := []string{
-		p.Styles.Title.Render("Remove project?"),
-		Truncate(project, max(1, p.Width-4)),
+		p.Styles.ModalTitle.Render("Remove project?"),
+		Truncate(project, ModalContentWidth(p.Width, ModalMaxWidth)),
 		fmt.Sprintf("Configured children: %d", p.RemoveChildCount),
-		"[n] only this entry",
-		"[y] this entry and its children",
-		"[Esc] cancel",
+		p.Styles.ModalAction.Render("[n] only this entry"),
+		p.Styles.ModalAction.Render("[y] this entry and its children"),
+		p.Styles.ModalAction.Render("[Esc] cancel"),
 	}
 	return p.renderPanel(lines)
 }
 
 func (p ProjectSettingsModel) renderDiscardPrompt() string {
 	lines := []string{
-		p.Styles.Title.Render("Unsaved project changes"),
-		"[s] save   [d] discard   [Esc] cancel",
+		p.Styles.ModalTitle.Render("Unsaved project changes"),
+		p.Styles.ModalAction.Render("[s] save   [d] discard   [Esc] cancel"),
 	}
 	return p.renderPanel(lines)
 }
 
 func (p ProjectSettingsModel) renderPanel(lines []string) string {
-	maxLines := max(1, p.Height-2)
-	if len(lines) > maxLines {
-		lines = lines[:maxLines]
+	contentWidth := ModalContentWidth(p.Width, ModalMaxWidth)
+	contentHeight := max(1, p.Height-2)
+	return renderBoundedPanel(lines, contentWidth, contentHeight, p.Styles)
+}
+
+func (p ProjectSettingsModel) renderEditorPanel(lines []string) string {
+	contentWidth := ModalContentWidth(p.Width, ModalMaxWidth)
+	contentHeight := max(1, p.Height-2)
+	if len(lines) > contentHeight && contentHeight >= 3 {
+		// Keep the active field and action footer visible before optional
+		// preview/suggestion rows. Field navigation remains usable on a
+		// minimum terminal even though not all three fields fit together.
+		focused := 1 + int(p.Focused)
+		if focused >= len(lines)-1 {
+			focused = 1
+		}
+		selected := []string{lines[0], lines[focused], lines[len(lines)-1]}
+		if p.Err != nil && len(selected) < contentHeight {
+			selected = append(selected, lines[len(lines)-2])
+		}
+		lines = selected
 	}
-	body := lipgloss.JoinVertical(lipgloss.Left, lines...)
-	return p.Styles.Border.Width(max(1, p.Width-2)).Render(body)
+	return renderBoundedPanel(lines, contentWidth, contentHeight, p.Styles)
 }
 
 func marker(selected bool) string {
