@@ -4,7 +4,6 @@ import (
 	"strings"
 
 	tea "charm.land/bubbletea/v2"
-	"charm.land/lipgloss/v2"
 )
 
 // ConfirmAction is the only result a destructive confirmation can emit.
@@ -66,9 +65,10 @@ func (c ConfirmModel) View() string {
 	if !c.Open || c.Width <= 0 || c.Height <= 0 {
 		return ""
 	}
-	lines := []string{c.Styles.Title.Render(c.Title), Truncate(c.Prompt, max(1, c.Width-4)), "[y] Yes   [n] No"}
-	if len(lines) > c.Height-2 && c.Height > 2 {
-		lines = lines[:c.Height-2]
-	}
-	return c.Styles.Border.Width(max(1, c.Width-2)).Render(lipgloss.JoinVertical(lipgloss.Left, lines...))
+	contentWidth := ModalContentWidth(c.Width, ModalMaxWidth)
+	contentHeight := ModalContentHeight(c.Height, 0)
+	lines := []string{c.Styles.ModalTitle.Render(c.Title)}
+	lines = append(lines, WrapText(c.Prompt, contentWidth)...)
+	lines = append(lines, c.Styles.ModalAction.Render("[y] Yes   [n] No   [Esc] cancel"))
+	return renderBoundedPanel(lines, contentWidth, contentHeight, c.Styles)
 }
