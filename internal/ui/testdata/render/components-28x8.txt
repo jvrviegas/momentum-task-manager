@@ -1,0 +1,72 @@
+=== task-comfortable ===
+▌ □ Renew the domain re…
+▌   #personal.admin  · …
+
+=== task-compact ===
+[ ] Renew the domain re…
+
+=== details ===
+╭──────────────────────╮
+│Task details          │
+│CORE                  │
+│Description: Renew the│
+│↑/↓ scroll · 1/31 · e…│
+╰──────────────────────╯
+
+=== help ===
+╭──────────────────────╮
+│Keyboard shortcuts    │
+│Navigation            │
+│j / k / ↑ / ↓ move    │
+│↑/↓ scroll · 1/42 · E…│
+╰──────────────────────╯
+
+=== quick-capture ===
+╭──────────────────────╮
+│Quick capture         │
+│Describe the task, th…│
+│> Renew #            …│
+│Enter add · Esc cancel│
+╰──────────────────────╯
+
+=== edit ===
+╭──────────────────────╮
+│Edit task             │
+│  Description ndow    │
+│▌ Project dmin        │
+│Tab next · Ctrl+S sav…│
+╰──────────────────────╯
+
+=== confirm ===
+╭──────────────────────╮
+│Delete task           │
+│cannot be undone after│
+│synchronization.      │
+│[y] Yes   [n] No   [E…│
+╰──────────────────────╯
+
+=== quit ===
+╭──────────────────────╮
+│Unsynced changes      │
+│[s] Sync and quit     │
+│[q] Quit without sync…│
+│[Esc] Cancel          │
+╰──────────────────────╯
+
+=== settings-list ===
+╭──────────────────────╮
+│Settings / Projects   │
+│[a] add   [e] edit   …│
+│▸ Work  (work)        │
+│Esc to close          │
+╰──────────────────────╯
+
+=== settings-editor ===
+╭──────────────────────╮
+│Edit project          │
+│> Name k              │
+│  Value k             │
+│  Parent Pa           │
+│Full value: work      │
+│Tab next   Ctrl+S sav…│
+╰──────────────────────╯
