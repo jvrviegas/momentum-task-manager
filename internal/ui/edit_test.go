@@ -151,6 +151,17 @@ func TestTabLeavesProjectWithoutAcceptingSuggestion(t *testing.T) {
 	}
 }
 
+func TestDateFieldSuggestionsIncludeNextWeekAlias(t *testing.T) {
+	e := testEdit()
+	e.OpenTask(editableTask(), FieldScheduled)
+	e.Inputs[FieldScheduled].SetValue("")
+	e.refreshSuggestions()
+	joined := "," + strings.Join(e.Suggestions, ",") + ","
+	if !strings.Contains(joined, ",next-week,") {
+		t.Fatalf("suggestions missing next-week alias: %#v", e.Suggestions)
+	}
+}
+
 func TestPrioritySuggestionsUseFixedList(t *testing.T) {
 	e := testEdit()
 	e.OpenTask(editableTask(), FieldPriority)
