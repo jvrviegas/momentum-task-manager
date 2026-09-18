@@ -79,7 +79,7 @@ Key added suites:
 | # | Criterion | Result |
 |---:|---|---|
 | 1 | Taskwarrior 3.x launch | PASS on macOS and prior Linux runtime |
-| 2 | Inbox/Today overlapping semantics | PASS — domain table tests |
+| 2 | Inbox/Today disjoint semantics | PASS — domain table tests |
 | 3 | Today grouping and no duplicates | PASS — domain and composition tests |
 | 4 | Safe quick add and five triggers | PASS — parser, adapter, and runtime smoke tests |
 | 5 | Structured edit and unsupported-field preservation | PASS — domain/UI/app/integration tests |
