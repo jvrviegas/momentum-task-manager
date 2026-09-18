@@ -70,7 +70,7 @@ func TestEditorCatalogMatchesLabelAndAssignsValue(t *testing.T) {
 	if !strings.Contains(e.View(), "Customer") {
 		t.Fatalf("missing label: %s", e.View())
 	}
-	e.Update(projectKey(tea.KeyTab))
+	e.Update(projectKey(tea.KeyEnter))
 	if e.Input(FieldProject).Value() != "work.client" {
 		t.Fatalf("value=%q", e.Input(FieldProject).Value())
 	}
