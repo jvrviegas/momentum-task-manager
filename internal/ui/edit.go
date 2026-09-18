@@ -8,7 +8,6 @@ import (
 
 	"charm.land/bubbles/v2/textinput"
 	tea "charm.land/bubbletea/v2"
-	"charm.land/lipgloss/v2"
 
 	"github.com/jvrviegas/momentum/internal/domain"
 )
@@ -44,6 +43,7 @@ type EditModel struct {
 	Task            domain.Task
 	Before          domain.EditSnapshot
 	Focused         EditField
+	Scroll          int
 	Open            bool
 	Suggestions     []string
 	SuggestionIndex int
@@ -78,6 +78,7 @@ func (e *EditModel) OpenTask(task domain.Task, initial EditField) tea.Cmd {
 	e.Before = domain.Snapshot(task)
 	e.Open = true
 	e.Err = nil
+	e.Scroll = 0
 	e.Focused = initial
 	values := []string{e.Before.Description, e.Before.Project, e.Before.Priority, e.Before.Due, e.Before.Scheduled, strings.Join(e.Before.Tags, " ")}
 	for index, value := range values {
@@ -90,6 +91,7 @@ func (e *EditModel) OpenTask(task domain.Task, initial EditField) tea.Cmd {
 
 func (e *EditModel) Close() {
 	e.Open = false
+	e.Scroll = 0
 	e.SuggestionsOpen = false
 	e.Suggestions = nil
 	e.Err = nil
@@ -100,9 +102,11 @@ func (e *EditModel) Close() {
 
 func (e *EditModel) SetSize(width, height int) {
 	e.Width, e.Height = width, height
+	contentWidth := ModalContentWidth(width, ModalMaxWidth)
 	for index := range e.Inputs {
-		e.Inputs[index].SetWidth(max(1, width-18))
+		e.Inputs[index].SetWidth(max(1, contentWidth-18))
 	}
+	e.ensureFieldVisible()
 }
 
 func (e *EditModel) SetCatalog(projects, tags []string) {
@@ -184,6 +188,7 @@ func (e *EditModel) focus(field EditField) tea.Cmd {
 		e.Inputs[index].Blur()
 	}
 	e.Focused = field
+	e.ensureFieldVisible()
 	return e.Inputs[field].Focus()
 }
 
@@ -318,37 +323,103 @@ func (e EditModel) View() string {
 	if !e.Open || e.Width <= 0 || e.Height <= 0 {
 		return ""
 	}
-	lines := []string{e.Styles.Title.Render("Edit task")}
-	for index, name := range editFieldNames {
-		value := e.Inputs[index].View()
+	contentWidth := ModalContentWidth(e.Width, ModalMaxWidth)
+	contentHeight := ModalContentHeight(e.Height, 0)
+
+	fieldBudget := contentHeight - 2 // title and action footer
+	if e.Err != nil {
+		fieldBudget--
+	}
+	if e.SuggestionsOpen {
+		fieldBudget--
+	}
+	if fieldBudget < 1 {
+		fieldBudget = 1
+	}
+	start, end := e.fieldWindow(fieldBudget)
+	lines := []string{e.Styles.ModalTitle.Render("Edit task")}
+	for index := start; index < end; index++ {
+		field := EditField(index)
 		marker := " "
-		if e.fieldChanged(EditField(index)) {
+		if e.fieldChanged(field) {
 			marker = "*"
 		}
-		line := fmt.Sprintf("%s %-10s %s", marker, name, value)
-		if EditField(index) == e.Focused {
-			line = e.Styles.Selection.Render(Truncate(line, e.Width))
+		if field == e.Focused {
+			marker = selectionMarker(e.Icons)
+		}
+		value := e.Inputs[index].View()
+		line := fmt.Sprintf("%s %-10s %s", marker, e.Styles.FieldLabel.Render(editFieldNames[index]), value)
+		if field == e.Focused {
+			line = e.Styles.Selection.Render(PadRight(Truncate(line, contentWidth), contentWidth))
 		} else {
-			line = Truncate(line, e.Width)
+			line = Truncate(line, contentWidth)
 		}
 		lines = append(lines, line)
 	}
 	if e.SuggestionsOpen {
-		labels := append([]string(nil), e.Suggestions...)
-		if e.Focused == FieldProject {
-			for i, value := range labels {
-				if label := e.ProjectLabels[value]; label != "" {
-					labels[i] = label + " (" + value + ")"
-				}
-			}
-		}
-		lines = append(lines, e.Styles.Muted.Render(Truncate("Suggestions: "+strings.Join(labels, "  "), e.Width)))
+		lines = append(lines, e.renderSuggestions(contentWidth)...)
 	}
 	if e.Err != nil {
-		lines = append(lines, e.Styles.Overdue.Render(Truncate(e.Err.Error(), e.Width)))
+		lines = append(lines, e.Styles.Error.Render(Truncate(e.Err.Error(), contentWidth)))
 	}
-	body := lipgloss.JoinVertical(lipgloss.Left, lines...)
-	return e.Styles.Border.Width(max(1, e.Width-2)).Render(body)
+	lines = append(lines, e.Styles.ModalAction.Render(Truncate("Tab next · Ctrl+S save · Esc cancel", contentWidth)))
+	return renderBoundedPanel(lines, contentWidth, contentHeight, e.Styles)
+}
+
+func (e EditModel) fieldWindow(budget int) (int, int) {
+	if budget >= len(editFieldNames) {
+		return 0, len(editFieldNames)
+	}
+	start := int(e.Focused) - budget + 1
+	if start < 0 {
+		start = 0
+	}
+	end := start + budget
+	if end > len(editFieldNames) {
+		end = len(editFieldNames)
+		start = end - budget
+	}
+	return start, end
+}
+
+func (e *EditModel) ensureFieldVisible() {
+	if e.Focused < FieldDescription {
+		e.Focused = FieldDescription
+	}
+	if e.Focused > FieldTags {
+		e.Focused = FieldTags
+	}
+	// The view derives a window from Focused; Scroll is retained as a small
+	// compatibility hint for embedders that inspect editor state.
+	e.Scroll = int(e.Focused)
+}
+
+func (e EditModel) renderSuggestions(width int) []string {
+	labels := append([]string(nil), e.Suggestions...)
+	if e.Focused == FieldProject {
+		for i, value := range labels {
+			if label := e.ProjectLabels[value]; label != "" {
+				labels[i] = label + " (" + value + ")"
+			}
+		}
+	}
+	count := min(3, len(labels))
+	start := e.SuggestionIndex - count + 1
+	if start < 0 {
+		start = 0
+	}
+	if start+count > len(labels) {
+		start = len(labels) - count
+	}
+	lines := make([]string, 0, count)
+	for index := start; index < start+count; index++ {
+		marker := " "
+		if index == e.SuggestionIndex {
+			marker = selectionMarker(e.Icons)
+		}
+		lines = append(lines, e.Styles.Metadata.Render(Truncate(fmt.Sprintf("Suggestions %s %s", marker, labels[index]), width)))
+	}
+	return lines
 }
 
 func (e EditModel) fieldChanged(field EditField) bool {
