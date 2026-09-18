@@ -3,22 +3,29 @@
 
 Entry: `internal/app/view.go:Model.renderBase()`
 
-Findings:
-- The shell stacks product title, view title, body, and footer without vertical breathing room; the sidebar is separated from content by only one column (`internal/app/view.go:Model.renderBase()`).
-- Task rows compress description, project, date, and abbreviated priority into one line. Inbox also repeats project metadata beneath project group headings (`internal/ui/tasklist.go:RenderTaskRow()`, `internal/app/view.go:Model.renderTaskBody()`).
-- Date metadata does not label whether it is due or scheduled, and priority renders as raw `H/M/L`, increasing interpretation cost (`internal/ui/tasklist.go:relevantDate()`, `internal/ui/tasklist.go:RenderTaskRow()`).
-- Wide mode begins at 80 columns and immediately removes 25 columns from main content; the transition to 79-column tabs is abrupt (`internal/ui/layout.go:ChooseLayout()`).
-- Details and help are fixed label/value lists that truncate by height rather than wrapping or scrolling (`internal/ui/details.go:DetailsModel.View()`, `internal/ui/help.go:RenderHelp()`).
-- Modal routes replace the underlying shell rather than retaining visual context (`internal/app/view.go:Model.render()`).
-- Styling has semantic colors but no shared spacing, section-heading, keycap, status, or focus tokens (`internal/ui/theme.go:Styles`).
-- No production screenshots are checked in, so visual regressions are covered indirectly by width/content assertions only (`docs/screenshots/README.md`, `internal/app/composition_test.go`).
+## Baseline findings
 
-Recommended direction:
-- Make a comfortable two-line task row the default at usable sizes, with title on line one and explicitly labeled metadata on line two.
-- Introduce a small shared spacing rhythm (1-cell local, 2-cell section separation), stronger section headings with counts, and a 2-column content gutter.
-- Remove redundant project badges from Inbox rows because project headers already carry that information.
-- Rework shell hierarchy into one page header, content section, and stable status/action footer; avoid duplicate titles.
-- Give details/help/edit surfaces consistent modal shells, wrapped or scrollable content, and contextual action footers.
-- Add ANSI-stripped golden render fixtures for wide, compact, narrow, dark, light, empty, selected, and modal states before broad visual refactoring.
+The original audit found:
+
+- The shell stacked product title, view title, body, and footer without vertical breathing room; the sidebar had only a one-column separation.
+- Task rows compressed description, project, date, and abbreviated priority onto one line. Inbox repeated project metadata beneath project group headings.
+- Dates did not label whether they were due or scheduled, and priorities rendered as raw `H/M/L`.
+- Wide mode began at 80 columns and immediately removed 25 columns from main content.
+- Details and help truncated fixed label/value lists by height.
+- Modal routes replaced the underlying shell and each form assembled its own hierarchy.
+- Styling had semantic colors but no shared spacing, section-heading, status, action, or focus vocabulary.
+- No deterministic production-like render fixtures were checked in.
+
+## Implemented decisions (2026-09-17)
+
+- `internal/ui/layout.go` centralizes a 1-cell local rhythm, 2-cell section gaps, modal width budgets, the 104-column sidebar boundary, the 50-column comfortable-row boundary, and the 28×8 minimum warning. `Layout.Geometry()` is shared by rendering and mouse hit testing.
+- `internal/ui/tasklist.go` renders `TaskBlock` values. Comfortable rows put description/state on line one and labeled metadata on line two; Inbox task blocks omit project metadata because `internal/app/view.go:taskBlocks()` renders project headings. Selected blocks use a left gutter marker on every line in both Unicode and ASCII modes.
+- `internal/app/view.go` composes one page header, grouped shell navigation, explicit Today counts, section gaps, and a two-line footer when height permits. Search occupies a real shell row rather than being appended after a clipped base view.
+- `internal/ui/details.go` and `help.go` wrap content and retain body scroll state. `theme.go` supplies shared bounded modal rendering for details, help, capture, edit, confirmations, and Settings surfaces.
+- Deterministic ANSI-stripped fixtures live in `internal/app/testdata/render/` and `internal/ui/testdata/render/`. They are compared by default and updated only with `MOMENTUM_UPDATE_GOLDENS=1`.
+
+## Remaining validation
+
+Automated width, height, color-stripped content, block-selection, mouse, workflow, race, vet, and build checks pass. A maintainer still needs to inspect real terminal output for dark/light contrast, Unicode/ASCII glyph widths, and production-like screenshots. No personal Taskwarrior data should be used for that check.
 
 Updated: 2026-09-17
