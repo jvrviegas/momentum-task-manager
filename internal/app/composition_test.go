@@ -155,7 +155,7 @@ func TestMouseClickSelectsTasksAndSidebarViews(t *testing.T) {
 	model.ActiveView = ViewInbox
 	model.Views.Today = nil
 	model.Views.Inbox = model.Tasks
-	model.Update(tea.MouseClickMsg{X: 5, Y: 1, Button: tea.MouseLeft})
+	model.Update(tea.MouseClickMsg{X: 5, Y: 2, Button: tea.MouseLeft})
 	if model.ActiveView != ViewToday {
 		t.Fatalf("sidebar click active=%s", model.ActiveView)
 	}

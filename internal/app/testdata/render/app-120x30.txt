@@ -1,10 +1,10 @@
 === today ===
-VIEWS    ▱ Inbox 4        Momentum  ·  Today · 3 tasks
-▌ ◷ Today 3
-MANAGE    ⚙ Settings      Overdue · 1
+VIEWS                     Momentum  ·  Today · 3 tasks
+  ▱ Inbox 4
+▌ ◷ Today 3               Overdue · 1
                           ▌ □ Overdue task
-                          ▌   Overdue · Due Sep 7 10:00
-
+MANAGE                    ▌   Overdue · Due Sep 7 10:00
+  ⚙ Settings
 
                           Due Today · 1
                           □ Due task
@@ -31,12 +31,12 @@ MANAGE    ⚙ Settings      Overdue · 1
                           Sync ready
 
 === inbox ===
-VIEWS  ▌ ▱ Inbox 4        Momentum  ·  Inbox · 4 tasks
-  ◷ Today 3
-MANAGE    ⚙ Settings      work
+VIEWS                     Momentum  ·  Inbox · 4 tasks
+▌ ▱ Inbox 4
+  ◷ Today 3               work
                           □ Inbox task
-
-
+MANAGE
+  ⚙ Settings
                           No project
                           □ Due task
                             Due Today 17:00
@@ -63,12 +63,12 @@ MANAGE    ⚙ Settings      work
                           Sync ready
 
 === empty ===
-VIEWS  ▌ ▱ Inbox 0        Momentum  ·  Inbox · 0 tasks
-  ◷ Today 0
-MANAGE    ⚙ Settings      No pending tasks
+VIEWS                     Momentum  ·  Inbox · 0 tasks
+▌ ▱ Inbox 0
+  ◷ Today 0               No pending tasks
                           Ctrl+K to capture something
-
-
+MANAGE
+  ⚙ Settings
 
 
 
@@ -95,12 +95,12 @@ MANAGE    ⚙ Settings      No pending tasks
                           Sync ready
 
 === loading ===
-VIEWS    ▱ Inbox 0        Momentum  ·  Today · 0 tasks
-▌ ◷ Today 0
-MANAGE    ⚙ Settings      Loading tasks…
+VIEWS                     Momentum  ·  Today · 0 tasks
+  ▱ Inbox 0
+▌ ◷ Today 0               Loading tasks…
 
-
-
+MANAGE
+  ⚙ Settings
 
 
 
@@ -127,12 +127,12 @@ MANAGE    ⚙ Settings      Loading tasks…
                           Sync ready
 
 === error ===
-VIEWS    ▱ Inbox 0        Momentum  ·  Today · 0 tasks
-▌ ◷ Today 0
-MANAGE    ⚙ Settings      Unable to load tasks: fixture Taskwarrior unavailable
+VIEWS                     Momentum  ·  Today · 0 tasks
+  ▱ Inbox 0
+▌ ◷ Today 0               Unable to load tasks: fixture Taskwarrior unavailable
 
-
-
+MANAGE
+  ⚙ Settings
 
 
 
@@ -159,12 +159,12 @@ MANAGE    ⚙ Settings      Unable to load tasks: fixture Taskwarrior unavailabl
                           Error: fixture Taskwarrior unavailable  ·  Sync ready
 
 === search ===
-VIEWS    ▱ Inbox 4        Momentum  ·  Today · 1 tasks · /scheduled
-▌ ◷ Today 3
-MANAGE    ⚙ Settings      Scheduled Today · 1
+VIEWS                     Momentum  ·  Today · 1 tasks · /scheduled
+  ▱ Inbox 4
+▌ ◷ Today 3               Scheduled Today · 1
                           □ Scheduled task
-                            Scheduled Today 09:00
-
+MANAGE                      Scheduled Today 09:00
+  ⚙ Settings
 
 
 
@@ -191,12 +191,12 @@ MANAGE    ⚙ Settings      Scheduled Today · 1
                           1/3 matches  ·  Sync ready
 
 === settings-list ===
-VIEWS    ▱ Inbox 4        Momentum  ·  Settings
-  ◷ Today 3
-MANAGE  ▌ ⚙ Settings      ╭──────────────────────────────────────────────────────────────────────────────╮
+VIEWS                     Momentum  ·  Settings
+  ▱ Inbox 4
+  ◷ Today 3               ╭──────────────────────────────────────────────────────────────────────────────╮
                           │Settings / Projects                                                           │
-                          │[a] add   [e] edit   [d] remove   [Enter] edit                                │
-                          │▸ Work  (work)                                                                │
+MANAGE                    │[a] add   [e] edit   [d] remove   [Enter] edit                                │
+▌ ⚙ Settings              │▸ Work  (work)                                                                │
                           │  Work → Client  (work.client)                                                │
                           │Esc to close                                                                  │
                           ╰──────────────────────────────────────────────────────────────────────────────╯
@@ -223,12 +223,12 @@ MANAGE  ▌ ⚙ Settings      ╭───────────────�
                           Sync ready
 
 === settings-editor ===
-VIEWS    ▱ Inbox 4        Momentum  ·  Settings
-  ◷ Today 3
-MANAGE  ▌ ⚙ Settings      ╭──────────────────────────────────────────────────────────────────────────────╮
+VIEWS                     Momentum  ·  Settings
+  ▱ Inbox 4
+  ◷ Today 3               ╭──────────────────────────────────────────────────────────────────────────────╮
                           │Edit project                                                                  │
-                          │> Name Work                                                                   │
-                          │  Value work                                                                  │
+MANAGE                    │> Name Work                                                                   │
+▌ ⚙ Settings              │  Value work                                                                  │
                           │  Parent Parent                                                               │
                           │Full value: work                                                              │
                           │Tab next   Ctrl+S save   Esc cancel                                           │

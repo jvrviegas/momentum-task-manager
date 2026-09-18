@@ -22,6 +22,26 @@ func TestRenderSidebarShowsCountsAndActiveView(t *testing.T) {
 	}
 }
 
+func TestRenderSidebarSeparatesGroupHeadingsAndClickRows(t *testing.T) {
+	items := []NavItem{
+		{Key: "inbox", Label: "Inbox", Count: 43, Icon: "I", Group: "Views"},
+		{Key: "today", Label: "Today", Count: 1, Icon: "D", Group: "Views"},
+		{Key: "settings", Label: "Settings", Icon: "S", HideCount: true, Group: "Manage"},
+	}
+	lines := strings.Split(RenderSidebar("inbox", items, 24, 8, Styles{}), "\n")
+	if !strings.Contains(lines[0], "VIEWS") || strings.Contains(lines[0], "Inbox") || !strings.Contains(lines[1], "Inbox 43") || !strings.Contains(lines[2], "Today 1") {
+		t.Fatalf("views group lines=%q", lines[:3])
+	}
+	if strings.TrimSpace(lines[3]) != "" || !strings.Contains(lines[4], "MANAGE") || strings.Contains(lines[4], "Settings") || !strings.Contains(lines[5], "Settings") {
+		t.Fatalf("manage group lines=%q", lines[3:6])
+	}
+	for y, want := range []int{-1, 0, 1, -1, -1, 2, -1, -1} {
+		if got := SidebarItemAt(items, 8, y); got != want {
+			t.Fatalf("row %d: item=%d want=%d", y, got, want)
+		}
+	}
+}
+
 func TestRenderSidebarAcceptsKeyOrLabelAsActive(t *testing.T) {
 	byKey := RenderSidebar("inbox", navItems(), 20, 2, NewStyles(ResolveTheme("dark", true)))
 	byLabel := RenderSidebar("Today", navItems(), 20, 2, NewStyles(ResolveTheme("dark", true)))

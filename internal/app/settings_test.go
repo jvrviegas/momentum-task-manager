@@ -87,6 +87,25 @@ func TestSettingsRouteIsExplicitAndCannotMutateHiddenTask(t *testing.T) {
 	}
 }
 
+func TestSettingsNumberShortcutsReturnToTaskViews(t *testing.T) {
+	for _, test := range []struct {
+		key  string
+		view ViewName
+	}{
+		{key: "1", view: ViewInbox},
+		{key: "2", view: ViewToday},
+	} {
+		t.Run(test.key, func(t *testing.T) {
+			model := actionModel(&fakeClient{})
+			model.Update(key("3"))
+			model.Update(key(test.key))
+			if model.ActiveView != test.view || model.ProjectSettings.Open {
+				t.Fatalf("shortcut %s left active=%s settings_open=%t", test.key, model.ActiveView, model.ProjectSettings.Open)
+			}
+		})
+	}
+}
+
 func TestSettingsMouseNavigationUsesActualCompactTabBoundary(t *testing.T) {
 	model := actionModel(&fakeClient{})
 	model.Width, model.Height = 79, 20
@@ -104,6 +123,17 @@ func TestSettingsMouseNavigationUsesActualCompactTabBoundary(t *testing.T) {
 	model.Update(tea.MouseClickMsg{X: settingsX, Y: 1, Button: tea.MouseLeft})
 	if model.ActiveView != ViewSettings {
 		t.Fatalf("tab click x=%d active=%s", settingsX, model.ActiveView)
+	}
+	inboxX := -1
+	for x := 0; x < model.Width; x++ {
+		if ui.TabIndexAt(nav, model.Width, x) == 0 {
+			inboxX = x
+			break
+		}
+	}
+	model.Update(tea.MouseClickMsg{X: inboxX, Y: 1, Button: tea.MouseLeft})
+	if model.ActiveView != ViewInbox || model.ProjectSettings.Open {
+		t.Fatalf("inbox tab click x=%d active=%s settings_open=%t", inboxX, model.ActiveView, model.ProjectSettings.Open)
 	}
 }
 

@@ -22,6 +22,16 @@ func (m *Model) updateSettingsKey(message tea.KeyPressMsg) tea.Cmd {
 		_, cmd := m.ProjectRename.Update(message)
 		return cmd
 	}
+	if !m.ProjectSettings.Editing && !m.ProjectSettings.RemovePromptOpen && !m.ProjectSettings.DiscardPromptOpen {
+		switch message.String() {
+		case "1":
+			m.SwitchView(ViewInbox)
+			return nil
+		case "2":
+			m.SwitchView(ViewToday)
+			return nil
+		}
+	}
 	if message.String() == "q" || message.String() == "ctrl+c" {
 		if m.ProjectSaveRunning {
 			return nil

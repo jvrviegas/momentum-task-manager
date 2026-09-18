@@ -7,9 +7,8 @@ import (
 	"charm.land/lipgloss/v2"
 )
 
-// NavItem is a view navigation entry. Group is rendered as a small inline
-// section label on the first item in that group so the rail remains compact
-// and its click rows stay one-to-one with navigation entries.
+// NavItem is a view navigation entry. Group is rendered as a standalone
+// section heading when the rail has enough vertical space.
 type NavItem struct {
 	Key       string
 	Label     string
@@ -19,21 +18,28 @@ type NavItem struct {
 	Group     string
 }
 
+type sidebarRow struct {
+	itemIndex int
+	group     string
+}
+
 // RenderSidebar renders a borderless wide-layout navigation rail.
 func RenderSidebar(active string, items []NavItem, width, height int, styles Styles) string {
 	if width <= 0 || height <= 0 {
 		return ""
 	}
+	rows := sidebarRows(items, height)
 	lines := make([]string, 0, height)
-	lastGroup := ""
-	for _, item := range items {
-		groupStart := item.Group != "" && !strings.EqualFold(item.Group, lastGroup)
-		line := renderSidebarItem(active, item, groupStart, width, styles)
-		lines = append(lines, line)
-		lastGroup = item.Group
-		if len(lines) == height {
-			break
+	for _, row := range rows {
+		if row.itemIndex >= 0 {
+			lines = append(lines, renderSidebarItem(active, items[row.itemIndex], width, styles))
+			continue
 		}
+		if row.group != "" {
+			lines = append(lines, renderSidebarGroup(row.group, width, styles))
+			continue
+		}
+		lines = append(lines, "")
 	}
 	for len(lines) < height {
 		lines = append(lines, "")
@@ -41,7 +47,12 @@ func RenderSidebar(active string, items []NavItem, width, height int, styles Sty
 	return strings.Join(lines, "\n")
 }
 
-func renderSidebarItem(active string, item NavItem, groupStart bool, width int, styles Styles) string {
+func renderSidebarGroup(group string, width int, styles Styles) string {
+	line := PadRight(Truncate(strings.ToUpper(strings.TrimSpace(group)), width), width)
+	return styles.Muted.Bold(true).Render(line)
+}
+
+func renderSidebarItem(active string, item NavItem, width int, styles Styles) string {
 	text := navItemText(item)
 	if !item.HideCount {
 		text += " " + fmt.Sprintf("%d", item.Count)
@@ -51,20 +62,9 @@ func renderSidebarItem(active string, item NavItem, groupStart bool, width int, 
 	if isActive {
 		marker = navSelectionMarker(item) + " "
 	}
-	group := ""
-	if groupStart {
-		group = strings.ToUpper(strings.TrimSpace(item.Group)) + "  "
-	}
-	line := group + marker + text
-	line = Truncate(line, width)
-	line = PadRight(line, width)
+	line := PadRight(Truncate(marker+text, width), width)
 	if isActive {
 		return styles.Selection.Width(width).Render(line)
-	}
-	if groupStart {
-		// Keep the group heading legible without introducing a separate hit
-		// row or consuming the compact rail's vertical budget.
-		return styles.Muted.Render(line)
 	}
 	return styles.Muted.Render(line)
 }
@@ -78,13 +78,56 @@ func navSelectionMarker(item NavItem) string {
 	}
 }
 
-// SidebarItemAt returns the item occupying y in the rendered rail. Group
-// labels are inline, therefore the result is stable regardless of grouping.
+// sidebarRows returns the shared render and hit-test geometry. Full-height
+// rails get standalone headings and a blank row between groups. Constrained
+// rails omit the blank row, then headings, before hiding navigation items.
+func sidebarRows(items []NavItem, height int) []sidebarRow {
+	if height <= 0 {
+		return nil
+	}
+	groupCount := 0
+	lastGroup := ""
+	for _, item := range items {
+		group := strings.TrimSpace(item.Group)
+		if group != "" && !strings.EqualFold(group, lastGroup) {
+			groupCount++
+		}
+		lastGroup = group
+	}
+	showHeadings := len(items)+groupCount <= height
+	showGaps := showHeadings && len(items)+groupCount+max(groupCount-1, 0) <= height
+
+	rows := make([]sidebarRow, 0, height)
+	lastGroup = ""
+	for index, item := range items {
+		group := strings.TrimSpace(item.Group)
+		groupStart := group != "" && !strings.EqualFold(group, lastGroup)
+		if showHeadings && groupStart {
+			if showGaps && len(rows) > 0 {
+				rows = append(rows, sidebarRow{itemIndex: -1})
+			}
+			rows = append(rows, sidebarRow{itemIndex: -1, group: group})
+		}
+		rows = append(rows, sidebarRow{itemIndex: index})
+		lastGroup = group
+	}
+	if len(rows) > height {
+		rows = rows[:height]
+	}
+	return rows
+}
+
+// SidebarItemAt returns the navigation item occupying y in the rendered rail.
+// Heading and separator rows deliberately have no click target.
 func SidebarItemAt(items []NavItem, height, y int) int {
-	if y < 0 || y >= height || y >= len(items) {
+	if y < 0 || y >= height {
 		return -1
 	}
-	return y
+	rows := sidebarRows(items, height)
+	if y >= len(rows) {
+		return -1
+	}
+	return rows[y].itemIndex
 }
 
 // RenderTabs renders the compact top navigation used below the wide

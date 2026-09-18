@@ -679,9 +679,12 @@ func (m *Model) SwitchView(view ViewName) {
 		}
 		return
 	}
-	if m.ActiveView == ViewSettings && (m.ProjectSaveRunning || m.ProjectSettings.Dirty()) {
-		m.Status = "Save or discard project changes before leaving Settings"
-		return
+	if m.ActiveView == ViewSettings {
+		if m.ProjectSaveRunning || m.ProjectSettings.Dirty() {
+			m.Status = "Save or discard project changes before leaving Settings"
+			return
+		}
+		m.ProjectSettings.Close()
 	}
 	m.ActiveView = view
 	m.Focus = FocusList
