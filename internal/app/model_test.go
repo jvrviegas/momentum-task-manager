@@ -12,6 +12,7 @@ import (
 	"github.com/jvrviegas/momentum/internal/config"
 	"github.com/jvrviegas/momentum/internal/domain"
 	"github.com/jvrviegas/momentum/internal/taskwarrior"
+	"github.com/jvrviegas/momentum/internal/ui"
 )
 
 type fakeClient struct {
@@ -141,6 +142,36 @@ func TestExplicitStartupViewOverridesAutomaticChoice(t *testing.T) {
 	model.Update(clientExportMessage(client))
 	if model.ActiveView != ViewInbox {
 		t.Fatalf("active=%s", model.ActiveView)
+	}
+}
+
+func TestRefreshKeepsViewBehindOpenModal(t *testing.T) {
+	due := time.Date(2026, 9, 8, 12, 0, 0, 0, time.UTC)
+	tasks := []domain.Task{
+		testTask("inbox", 1),
+		{UUID: "today", Description: "today", Status: "pending", Due: &due},
+	}
+
+	for _, tc := range []struct {
+		name string
+		open func(*Model)
+	}{
+		{name: "quick capture", open: func(model *Model) { model.OpenQuickAdd() }},
+		{name: "edit", open: func(model *Model) { model.OpenEditor(ui.FieldDescription) }},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			model := testModel(&fakeClient{})
+			model.applyTasks(TasksMsg{Tasks: tasks, Reason: "initial"})
+			model.SwitchView(ViewInbox)
+			tc.open(model)
+
+			model.applyTasks(TasksMsg{Tasks: tasks, Reason: "refresh"})
+			model.Update(key("esc"))
+
+			if model.ActiveView != ViewInbox {
+				t.Fatalf("active=%s, want inbox", model.ActiveView)
+			}
+		})
 	}
 }
 
