@@ -18,7 +18,7 @@ Momentum includes in-app catalog management and an explicit opt-in to migrate ch
 
 ## 2. Goals
 
-- Present pending tasks in two overlapping smart views: Inbox and Today.
+- Present pending tasks in two disjoint smart views: Inbox and Today.
 - Make task capture fast through a command bar and compact trigger syntax.
 - Make common field edits reachable with one key.
 - Provide a visually polished, responsive Bubble Tea interface.
@@ -46,7 +46,7 @@ Momentum includes in-app catalog management and an explicit opt-in to migrate ch
 
 ### Views
 
-- **VIEW-01:** Inbox contains every pending task visible in the active Taskwarrior context, regardless of project, due date, or scheduled date.
+- **VIEW-01:** Inbox contains pending tasks visible in the active Taskwarrior context that are not overdue, due today, or scheduled today.
 - **VIEW-02:** Today contains unique pending tasks that are overdue, due today, or scheduled today.
 - **VIEW-03:** Today groups tasks in this order: Overdue, Due Today, Scheduled Today.
 - **VIEW-04:** A task matching more than one Today group appears once in its highest-priority group.
@@ -414,7 +414,7 @@ Read path:
 task status:pending export
 ```
 
-Momentum computes overlapping views locally from one consistent export. Taskwarrior 3.x deliberately leaves machine-readable `export` unencumbered by the active context, so a context-scoped operation must explicitly read `_get rc.context` and `_get rc.context.<name>.read`, then add that filter to its export/modify argv. The existing generic export path must not be treated as context-safe for the pending-only migration; this correction is tracked in the [Settings → Projects plan](docs/plans/settings-projects.md#t00-feasibility-record--2026-09-16).
+Momentum computes disjoint Inbox/Today views locally from one consistent export. Taskwarrior 3.x deliberately leaves machine-readable `export` unencumbered by the active context, so a context-scoped operation must explicitly read `_get rc.context` and `_get rc.context.<name>.read`, then add that filter to its export/modify argv. The existing generic export path must not be treated as context-safe for the pending-only migration; this correction is tracked in the [Settings → Projects plan](docs/plans/settings-projects.md#t00-feasibility-record--2026-09-16).
 
 Mutation examples:
 
@@ -654,7 +654,7 @@ The project uses the MIT license and should include a README, CONTRIBUTING guide
 Momentum v1 is ready when:
 
 1. It launches against Taskwarrior 3.x on Linux and macOS.
-2. Inbox and Today exactly follow the agreed overlapping semantics.
+2. Inbox and Today exactly follow the agreed disjoint semantics.
 3. Today correctly groups overdue, due-today, and scheduled-today tasks without duplicates.
 4. Quick add safely creates tasks with all five trigger types and autocomplete.
 5. Structured edit can directly focus and change every supported field without altering unsupported fields.
