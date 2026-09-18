@@ -68,6 +68,7 @@ func fixtureComponentView(width, height int, state string) string {
 		return quick.View()
 	case "edit":
 		editor := NewEdit(styles, icons)
+		editor.Location = time.UTC
 		editor.SetSize(width, height)
 		editor.SetCatalog([]string{"personal.admin", "work"}, []string{"planning", "admin"})
 		editor.OpenTask(task, FieldProject)

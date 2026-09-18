@@ -62,8 +62,8 @@
 │  Description e the next billing window    │
 │▌ Project personal.admin                   │
 │  Priority H                               │
-│  Due 2026-09-08T17:00:00Z                 │
-│  Scheduled Scheduled                      │
+│  Due 2026-09-08 17:00                     │
+│  Scheduled YYYY-MM-DD HH:MM or tomorr     │
 │  Tags admin planning                      │
 │Tab next · Ctrl+S save · Esc cancel        │
 ╰───────────────────────────────────────────╯

@@ -53,6 +53,7 @@ type EditModel struct {
 	Tags            []string
 	Width           int
 	Height          int
+	Location        *time.Location
 	Styles          Styles
 	Icons           Icons
 	Err             error
@@ -60,12 +61,14 @@ type EditModel struct {
 
 // NewEdit creates a closed editor with initialized Bubbles inputs.
 func NewEdit(styles Styles, icons Icons) EditModel {
-	model := EditModel{Styles: styles, Icons: icons, Focused: FieldDescription}
+	model := EditModel{Styles: styles, Icons: icons, Focused: FieldDescription, Location: time.Local}
 	for index := range model.Inputs {
 		model.Inputs[index] = textinput.New()
 		model.Inputs[index].Prompt = ""
 		model.Inputs[index].Placeholder = editFieldNames[index]
 	}
+	model.Inputs[FieldDue].Placeholder = "YYYY-MM-DD HH:MM or tomorrow"
+	model.Inputs[FieldScheduled].Placeholder = "YYYY-MM-DD HH:MM or tomorrow"
 	return model
 }
 
@@ -76,6 +79,8 @@ func (e *EditModel) OpenTask(task domain.Task, initial EditField) tea.Cmd {
 	}
 	e.Task = task
 	e.Before = domain.Snapshot(task)
+	e.Before.Due = editableDate(task.Due, e.Before.Due, e.location())
+	e.Before.Scheduled = editableDate(task.Scheduled, e.Before.Scheduled, e.location())
 	e.Open = true
 	e.Err = nil
 	e.Scroll = 0
@@ -136,6 +141,26 @@ func (e *EditModel) Update(msg tea.Msg) (*EditModel, tea.Cmd) {
 	}
 	if keyMsg, ok := msg.(tea.KeyPressMsg); ok {
 		switch keyMsg.String() {
+		case "ctrl+left":
+			if e.dateFocused() {
+				e.adjustDate(-1, 0)
+				return e, nil
+			}
+		case "ctrl+right":
+			if e.dateFocused() {
+				e.adjustDate(1, 0)
+				return e, nil
+			}
+		case "ctrl+up":
+			if e.dateFocused() {
+				e.adjustDate(0, 30*time.Minute)
+				return e, nil
+			}
+		case "ctrl+down":
+			if e.dateFocused() {
+				e.adjustDate(0, -30*time.Minute)
+				return e, nil
+			}
 		case "esc", "escape":
 			e.Close()
 			return e, nil
@@ -333,6 +358,9 @@ func (e EditModel) View() string {
 	if e.SuggestionsOpen {
 		fieldBudget--
 	}
+	if e.dateFocused() {
+		fieldBudget--
+	}
 	if fieldBudget < 1 {
 		fieldBudget = 1
 	}
@@ -358,6 +386,10 @@ func (e EditModel) View() string {
 	}
 	if e.SuggestionsOpen {
 		lines = append(lines, e.renderSuggestions(contentWidth)...)
+	}
+	if e.dateFocused() {
+		guidance := "Date: YYYY-MM-DD HH:MM · Ctrl+←/→ day · Ctrl+↑/↓ 30m"
+		lines = append(lines, e.Styles.Metadata.Render(Truncate(guidance, contentWidth)))
 	}
 	if e.Err != nil {
 		lines = append(lines, e.Styles.Error.Render(Truncate(e.Err.Error(), contentWidth)))
@@ -429,6 +461,58 @@ func (e EditModel) fieldChanged(field EditField) bool {
 }
 
 func validField(field EditField) bool { return field >= FieldDescription && field <= FieldTags }
+
+func (e EditModel) dateFocused() bool {
+	return e.Focused == FieldDue || e.Focused == FieldScheduled
+}
+
+func (e EditModel) location() *time.Location {
+	if e.Location == nil {
+		return time.Local
+	}
+	return e.Location
+}
+
+func editableDate(value *time.Time, fallback string, location *time.Location) string {
+	if value == nil {
+		return fallback
+	}
+	return value.In(location).Format("2006-01-02 15:04")
+}
+
+func (e *EditModel) adjustDate(days int, duration time.Duration) {
+	text := strings.TrimSpace(e.Inputs[e.Focused].Value())
+	var value time.Time
+	var err error
+	if text == "" {
+		now := time.Now().In(e.location())
+		value = time.Date(now.Year(), now.Month(), now.Day(), now.Hour(), now.Minute(), 0, 0, now.Location())
+	} else {
+		value, err = parseEditableDate(text, e.location())
+		if err != nil {
+			e.Err = fmt.Errorf("use YYYY-MM-DD HH:MM before adjusting")
+			return
+		}
+	}
+	value = value.AddDate(0, 0, days).Add(duration)
+	e.Inputs[e.Focused].SetValue(value.Format("2006-01-02 15:04"))
+	e.Inputs[e.Focused].CursorEnd()
+	e.Err = nil
+	e.refreshSuggestions()
+}
+
+func parseEditableDate(value string, location *time.Location) (time.Time, error) {
+	for _, layout := range []string{"2006-01-02 15:04", "2006-01-02"} {
+		if parsed, err := time.ParseInLocation(layout, value, location); err == nil {
+			return parsed, nil
+		}
+	}
+	parsed, err := domain.ParseTaskwarriorTime(value)
+	if err != nil {
+		return time.Time{}, err
+	}
+	return parsed.In(location), nil
+}
 
 func normalizePriority(value string) string {
 	switch strings.ToLower(strings.TrimSpace(value)) {

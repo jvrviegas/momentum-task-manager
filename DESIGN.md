@@ -142,7 +142,7 @@ Fields and direct shortcuts:
 | `S` | Scheduled |
 | `t` | Tags |
 
-Editable fields are Description, Project, Priority, Due, Scheduled, and Tags. Project/tag fields autocomplete, priority uses a selection list, and date fields suggest values while accepting Taskwarrior expressions. Removing a field value clears it through a Taskwarrior `modify` command.
+Editable fields are Description, Project, Priority, Due, Scheduled, and Tags. Project/tag fields autocomplete, priority uses a selection list, and date fields show existing timestamps in local `YYYY-MM-DD HH:MM` form while still accepting Taskwarrior expressions. On a date field, `Ctrl+Left`/`Ctrl+Right` step one calendar day and `Ctrl+Up`/`Ctrl+Down` step 30 minutes. Removing a field value clears it through a Taskwarrior `modify` command.
 
 ### Details
 
