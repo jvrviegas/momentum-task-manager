@@ -391,7 +391,9 @@ func (m *Model) applyTasks(message TasksMsg) tea.Cmd {
 	m.Err = nil
 	m.Tasks = append([]domain.Task(nil), message.Tasks...)
 	m.Views = domain.BuildViews(m.Tasks, m.now())
-	if m.ActiveView != ViewSettings {
+	// Initial-view preference chooses the startup view once. Later refreshes
+	// must preserve the view the user navigated to, including behind overlays.
+	if message.Reason == "initial" && m.ActiveView != ViewSettings {
 		if m.RequestedView == ViewAuto {
 			if len(m.Views.Today) > 0 {
 				m.ActiveView = ViewToday
