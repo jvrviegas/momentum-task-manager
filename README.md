@@ -38,8 +38,8 @@ Momentum never writes Taskwarrior data files directly. It invokes `task` with an
 
 ## Views
 
-- **Inbox** contains every pending task in the active Taskwarrior context; context-scoped machine-readable exports must apply that context filter explicitly (see the [Settings → Projects feasibility record](docs/plans/settings-projects.md#t00-feasibility-record--2026-09-16)).
-- **Today** contains unique pending tasks classified as Overdue, Due Today, or Scheduled Today, in that order.
+- **Inbox** contains pending tasks in the active Taskwarrior context that are not currently classified into Today; context-scoped machine-readable exports must apply that context filter explicitly (see the [Settings → Projects feasibility record](docs/plans/settings-projects.md#t00-feasibility-record--2026-09-16)).
+- **Today** contains unique pending tasks classified as Overdue, Due Today, or Scheduled Today, in that order. Tasks in Today are excluded from Inbox.
 - Inbox groups tasks by project alphabetically, with oldest-created tasks first within each group. Unassigned tasks appear under **No project** at the end; missing creation dates sort last within a group.
 - Today rows sort by Taskwarrior urgency; raw urgency is not shown in the normal row.
 
