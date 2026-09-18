@@ -34,7 +34,9 @@ func (m *Model) render(layout ui.Layout) string {
 	case OverlayQuickAdd:
 		return lipgloss.Place(layout.Width, layout.Height, lipgloss.Center, lipgloss.Center, m.QuickAdd.View())
 	case OverlaySearch:
-		return fitLines(lipgloss.JoinVertical(lipgloss.Top, base, m.Search.View()), layout.Width, layout.Height)
+		// Search is part of renderBase's vertical contract. It is not appended
+		// after a fitted base, so opening it cannot clip the page header.
+		return fitLines(base, layout.Width, layout.Height)
 	case OverlayEdit:
 		return lipgloss.Place(layout.Width, layout.Height, lipgloss.Center, lipgloss.Center, m.Editor.View())
 	case OverlayDetails:
@@ -53,74 +55,132 @@ func (m *Model) render(layout ui.Layout) string {
 }
 
 func (m *Model) renderBase(layout ui.Layout) string {
-	nav := m.navigationItems()
-	mainWidth := layout.ContentWidth
+	mainWidth := layout.MainWidth
+	if mainWidth < 1 {
+		mainWidth = layout.ContentWidth
+	}
 	if mainWidth < 1 {
 		mainWidth = layout.Width
 	}
-	parts := make([]string, 0, 5)
-	parts = append(parts, m.Styles.Title.Render("Momentum"))
+	geometry := layout.Geometry(m.Overlay == OverlaySearch && m.Search.Open)
+	nav := m.navigationItems()
+
+	parts := make([]string, 0, 8)
+	header := m.Styles.PageTitle.Render(ui.Truncate(m.pageHeader(), mainWidth))
+	parts = append(parts, ui.PadRight(header, mainWidth))
 	if layout.ShowTabs {
-		parts = append(parts, ui.RenderTabs(string(m.ActiveView), nav, mainWidth, m.Styles))
+		parts = append(parts, ui.PadRight(ui.RenderTabs(string(m.ActiveView), nav, mainWidth, m.Styles), mainWidth))
 	}
-	title := strings.Title(string(m.ActiveView))
-	if title == "" {
-		title = "Inbox"
+	if geometry.ContentGap > 0 {
+		parts = append(parts, strings.Repeat(" ", mainWidth))
 	}
-	if m.Search.Active {
-		title += "  /" + m.Search.Query
+	if geometry.SearchHeight > 0 {
+		parts = append(parts, ui.PadRight(ui.Truncate(m.Search.ViewAt(mainWidth), mainWidth), mainWidth))
 	}
-	if m.ActiveView == ViewSettings {
-		parts = append(parts, m.Styles.Title.Render(title))
-	} else {
-		parts = append(parts, fmt.Sprintf("%s  %s", m.Styles.Title.Render(title), m.Styles.Muted.Render(fmt.Sprintf("%d tasks", len(m.tasksFor(m.ActiveView))))))
-	}
-	bodyHeight := layout.Height - len(parts) - 1
+
+	bodyHeight := geometry.BodyHeight
 	if bodyHeight < 1 {
 		bodyHeight = 1
 	}
+	var body string
 	if m.ActiveView == ViewSettings {
 		if m.ProjectRename.Open {
-			parts = append(parts, m.ProjectRename.ViewAt(mainWidth, bodyHeight))
+			body = m.ProjectRename.ViewAt(mainWidth, bodyHeight)
 		} else {
-			parts = append(parts, m.ProjectSettings.ViewAt(mainWidth, bodyHeight))
+			body = m.ProjectSettings.ViewAt(mainWidth, bodyHeight)
 		}
 	} else {
-		parts = append(parts, m.renderTaskBody(mainWidth, bodyHeight))
+		body = m.renderTaskBody(mainWidth, bodyHeight)
 	}
-	parts = append(parts, m.renderFooter(mainWidth))
+	parts = append(parts, padBlock(body, mainWidth, bodyHeight))
+	if geometry.FooterGap > 0 {
+		parts = append(parts, strings.Repeat(" ", mainWidth))
+	}
+	parts = append(parts, m.renderFooter(mainWidth, geometry.FooterHeight))
+
 	main := lipgloss.JoinVertical(lipgloss.Left, parts...)
 	if layout.ShowSidebar {
-		sidebarHeight := layout.Height - 2
-		if sidebarHeight < 1 {
-			sidebarHeight = 1
-		}
-		sidebar := ui.RenderSidebar(string(m.ActiveView), nav, layout.SidebarWidth, sidebarHeight, m.Styles)
-		return lipgloss.JoinHorizontal(lipgloss.Top, sidebar, " ", main)
+		sidebar := ui.RenderSidebar(string(m.ActiveView), nav, layout.SidebarWidth, layout.Height, m.Styles)
+		return lipgloss.JoinHorizontal(lipgloss.Top, sidebar, strings.Repeat(" ", layout.ContentGutter), main)
 	}
 	return main
 }
 
-type renderedTaskLine struct {
-	text string
-	uuid string
+func (m *Model) pageHeader() string {
+	label := viewLabel(m.ActiveView)
+	count := ""
+	if m.ActiveView != ViewSettings {
+		count = fmt.Sprintf(" · %d tasks", len(m.tasksFor(m.ActiveView)))
+	}
+	query := ""
+	if m.Search.Active {
+		query = " · /" + oneLine(m.Search.Query)
+	}
+	return "Momentum  ·  " + label + count + query
 }
 
-func (m *Model) renderTaskBody(width, height int) string {
+func viewLabel(view ViewName) string {
+	switch view {
+	case ViewToday:
+		return "Today"
+	case ViewSettings:
+		return "Settings"
+	default:
+		return "Inbox"
+	}
+}
+
+type renderedTaskBlock struct {
+	lines      []string
+	uuid       string
+	selectable bool
+}
+
+func (b renderedTaskBlock) height() int {
+	if len(b.lines) == 0 {
+		return 1
+	}
+	return len(b.lines)
+}
+
+func (m *Model) taskBlocks(width int) []renderedTaskBlock {
 	tasks := m.tasksFor(m.ActiveView)
 	if len(tasks) == 0 {
-		if m.Mode == ModeLoading {
-			return m.Styles.Muted.Render("Loading tasks…")
-		}
-		if m.Err != nil {
-			return m.Styles.Overdue.Render(ui.Truncate("Unable to load tasks: "+m.Err.Error(), width))
-		}
-		return ui.RenderEmpty(string(normalizeView(m.ActiveView)), width, m.Styles)
+		return nil
 	}
-	lines := make([]renderedTaskLine, 0, len(tasks)+3)
+	rowLayout := ui.ChooseLayout(width, ui.MinimumHeight)
 	selectedUUID := m.Selected[normalizeView(m.ActiveView)]
-	selectedLine := 0
-	if normalizeView(m.ActiveView) == ViewToday {
+	options := func(task domain.Task, selected bool, hideProject bool) renderedTaskBlock {
+		block := ui.RenderTaskBlock(task, ui.TaskRowOptions{
+			Width:           width,
+			ShowMetadata:    rowLayout.ShowRowMetadata,
+			HideProject:     hideProject,
+			CompactMetadata: rowLayout.RowDensity == ui.DensityCompact,
+			Density:         rowLayout.RowDensity,
+			Selected:        selected,
+			Now:             m.nowTime(),
+			Styles:          m.Styles,
+			Icons:           m.Icons,
+		})
+		return renderedTaskBlock{lines: block.Lines, uuid: task.UUID, selectable: true}
+	}
+
+	blocks := make([]renderedTaskBlock, 0, len(tasks)+3)
+	appendSectionGap := func() {
+		if len(blocks) == 0 {
+			return
+		}
+		gap := make([]string, ui.SectionGap)
+		blocks = append(blocks, renderedTaskBlock{lines: gap})
+	}
+	view := normalizeView(m.ActiveView)
+	if view == ViewToday {
+		if len(m.Views.Sections) == 0 {
+			for _, task := range tasks {
+				blocks = append(blocks, options(task, task.UUID == selectedUUID, false))
+			}
+			return blocks
+		}
 		for _, section := range m.Views.Sections {
 			sectionTasks := section.Tasks
 			if m.Search.Active {
@@ -129,60 +189,208 @@ func (m *Model) renderTaskBody(width, height int) string {
 			if len(sectionTasks) == 0 {
 				continue
 			}
-			lines = append(lines, renderedTaskLine{text: m.Styles.Muted.Render("  " + string(section.Group))})
+			appendSectionGap()
+			heading := fmt.Sprintf("%s · %d", section.Group, len(sectionTasks))
+			blocks = append(blocks, renderedTaskBlock{
+				lines: []string{m.Styles.SectionTitle.Render(ui.Truncate(heading, width))},
+			})
 			for _, task := range sectionTasks {
-				if task.UUID == selectedUUID {
-					selectedLine = len(lines)
-				}
-				lines = append(lines, renderedTaskLine{
-					text: ui.RenderTaskRow(task, ui.TaskRowOptions{Width: width, ShowMetadata: ui.ChooseLayout(width, 20).ShowRowMetadata, Selected: task.UUID == selectedUUID, Now: m.nowTime(), Styles: m.Styles, Icons: m.Icons}),
-					uuid: task.UUID,
-				})
+				blocks = append(blocks, options(task, task.UUID == selectedUUID, false))
 			}
 		}
-	} else {
-		for index, task := range tasks {
-			if index == 0 || task.Project != tasks[index-1].Project {
-				project := task.Project
-				if project == "" {
-					project = "No project"
-				}
-				lines = append(lines, renderedTaskLine{text: m.Styles.Muted.Render(ui.Truncate("  "+project, width))})
+		return blocks
+	}
+
+	for index, task := range tasks {
+		if index == 0 || task.Project != tasks[index-1].Project {
+			appendSectionGap()
+			project := task.Project
+			if project == "" {
+				project = "No project"
 			}
-			if task.UUID == selectedUUID {
-				selectedLine = len(lines)
-			}
-			lines = append(lines, renderedTaskLine{
-				text: ui.RenderTaskRow(task, ui.TaskRowOptions{Width: width, ShowMetadata: ui.ChooseLayout(width, 20).ShowRowMetadata, Selected: task.UUID == selectedUUID, Now: m.nowTime(), Styles: m.Styles, Icons: m.Icons}),
-				uuid: task.UUID,
+			// Project headings carry the project identity in Inbox, so the
+			// corresponding task metadata is deliberately omitted.
+			blocks = append(blocks, renderedTaskBlock{
+				lines: []string{m.Styles.SectionTitle.Render(ui.Truncate(project, width))},
 			})
 		}
+		blocks = append(blocks, options(task, task.UUID == selectedUUID, true))
 	}
-	if selectedLine >= len(lines) {
-		selectedLine = len(lines) - 1
-	}
-	start, end := ui.VisibleTaskRange(len(lines), selectedLine, height)
-	visible := make([]string, 0, end-start)
-	for _, line := range lines[start:end] {
-		visible = append(visible, line.text)
-	}
-	return strings.Join(visible, "\n")
+	return blocks
 }
 
-func (m *Model) renderFooter(width int) string {
-	parts := make([]string, 0, 3)
-	if m.Status != "" {
-		parts = append(parts, m.Status)
+func (m *Model) renderTaskBody(width, height int) string {
+	if width <= 0 || height <= 0 {
+		return ""
 	}
-	if m.TaskContext != "" {
-		parts = append(parts, "context: "+m.TaskContext)
+	tasks := m.tasksFor(m.ActiveView)
+	if len(tasks) == 0 {
+		if m.Mode == ModeLoading {
+			return m.Styles.Muted.Render("Loading tasks…")
+		}
+		if m.Err != nil {
+			return m.Styles.Error.Render(ui.Truncate("Unable to load tasks: "+oneLine(m.Err.Error()), width))
+		}
+		return ui.RenderEmpty(string(normalizeView(m.ActiveView)), width, m.Styles)
+	}
+
+	blocks := m.taskBlocks(width)
+	selectedUUID := m.Selected[normalizeView(m.ActiveView)]
+	start, end := visibleRenderedBlockRange(blocks, selectedUUID, height)
+	// Do not leave an unpaired section heading or spacing block at the
+	// viewport edge when the next task is just below the fold.
+	for end > start && !blocks[end-1].selectable {
+		end--
+	}
+	lines := make([]string, 0, height)
+	for _, block := range blocks[start:end] {
+		for _, line := range block.lines {
+			if len(lines) == height {
+				break
+			}
+			lines = append(lines, line)
+		}
+		if len(lines) == height {
+			break
+		}
+	}
+	return strings.Join(lines, "\n")
+}
+
+func visibleRenderedBlockRange(blocks []renderedTaskBlock, selectedUUID string, height int) (int, int) {
+	if len(blocks) == 0 || height <= 0 {
+		return 0, 0
+	}
+	tasks := make([]ui.TaskBlock, len(blocks))
+	for index, block := range blocks {
+		tasks[index] = ui.TaskBlock{UUID: block.uuid, Height: block.height(), Lines: block.lines}
+	}
+	start, end := ui.VisibleTaskBlockRange(tasks, selectedUUID, height)
+	if start == 0 || start >= end || blocks[start].selectable {
+		return start, end
+	}
+
+	// When the selected row is just after a section gap, include the heading
+	// context if the current viewport has room. This is still a block budget,
+	// and never sacrifices the selected task to show older context.
+	contextStart := start
+	for contextStart > 0 && !blocks[contextStart-1].selectable {
+		contextStart--
+	}
+	contextHeight := 0
+	for index := contextStart; index < start; index++ {
+		contextHeight += blocks[index].height()
+	}
+	if contextHeight+blockRangeHeight(blocks, start, end) <= height {
+		start = contextStart
+	}
+	return start, end
+}
+
+func blockRangeHeight(blocks []renderedTaskBlock, start, end int) int {
+	height := 0
+	for index := start; index < end && index < len(blocks); index++ {
+		height += blocks[index].height()
+	}
+	return height
+}
+
+func padBlock(value string, width, height int) string {
+	if width <= 0 || height <= 0 {
+		return ""
+	}
+	lines := strings.Split(value, "\n")
+	if len(lines) > height {
+		lines = lines[:height]
+	}
+	for index := range lines {
+		lines[index] = ui.PadRight(ui.Truncate(lines[index], width), width)
+	}
+	for len(lines) < height {
+		lines = append(lines, strings.Repeat(" ", width))
+	}
+	return strings.Join(lines, "\n")
+}
+
+func (m *Model) renderFooter(width int, requestedHeight ...int) string {
+	height := 1
+	if len(requestedHeight) > 0 {
+		height = requestedHeight[0]
+	}
+	if width <= 0 || height <= 0 {
+		return ""
+	}
+	statusParts := make([]string, 0, 5)
+	if m.Err != nil {
+		statusParts = append(statusParts, "Error: "+oneLine(conciseError(m.Err)))
+	} else if m.Status != "" {
+		statusParts = append(statusParts, oneLine(m.Status))
 	}
 	if m.Search.Active {
-		parts = append(parts, ui.SearchSummary(len(m.tasksForUnfiltered()), len(m.tasksFor(m.ActiveView)), m.Search.Query))
+		statusParts = append(statusParts, ui.SearchSummary(len(m.tasksForUnfiltered()), len(m.tasksFor(m.ActiveView)), m.Search.Query))
 	}
-	parts = append(parts, m.SyncStatus(m.nowTime()))
-	parts = append(parts, "? help · q quit")
-	return m.Styles.Muted.Render(ui.Truncate(strings.Join(parts, "  ·  "), width))
+	if m.TaskContext != "" {
+		statusParts = append(statusParts, "Context: "+oneLine(m.TaskContext))
+	}
+	statusParts = append(statusParts, m.SyncStatus(m.nowTime()))
+	status := footerStatus(statusParts, width)
+	actions := "[c] Create  [/] Search  [?] Help  [q] Quit"
+	if height == 1 {
+		separator := "  ·  "
+		available := width - lipgloss.Width(status) - lipgloss.Width(separator)
+		if available > 0 {
+			return ui.PadRight(ui.Truncate(status+separator+ui.Truncate(actions, available), width), width)
+		}
+		return ui.PadRight(ui.Truncate(status, width), width)
+	}
+	actionLine := m.Styles.KeyHint.Render(ui.Truncate(actions, width))
+	statusLine := m.Styles.Status.Render(status)
+	if m.Err != nil {
+		statusLine = m.Styles.Error.Render(status)
+	}
+	lines := []string{
+		ui.PadRight(actionLine, width),
+		ui.PadRight(statusLine, width),
+	}
+	return strings.Join(lines, "\n")
+}
+
+func footerStatus(parts []string, width int) string {
+	parts = nonEmpty(parts)
+	if len(parts) == 0 || width <= 0 {
+		return ""
+	}
+	if len(parts) == 1 {
+		return ui.Truncate(parts[0], width)
+	}
+	separator := "  ·  "
+	sync := ui.Truncate(parts[len(parts)-1], width)
+	if lipgloss.Width(sync) >= width {
+		return sync
+	}
+	prefixWidth := width - lipgloss.Width(sync) - lipgloss.Width(separator)
+	if prefixWidth <= 0 {
+		return sync
+	}
+	prefix := ui.Truncate(strings.Join(parts[:len(parts)-1], separator), prefixWidth)
+	if prefix == "" {
+		return sync
+	}
+	return prefix + separator + sync
+}
+
+func oneLine(value string) string {
+	return strings.Join(strings.Fields(value), " ")
+}
+
+func nonEmpty(values []string) []string {
+	result := values[:0]
+	for _, value := range values {
+		if strings.TrimSpace(value) != "" {
+			result = append(result, value)
+		}
+	}
+	return result
 }
 
 func (m *Model) tasksForUnfiltered() []domain.Task {
@@ -198,12 +406,17 @@ func fitLines(value string, width, height int) string {
 	}
 	lines := strings.Split(value, "\n")
 	if len(lines) > height {
-		lines = lines[len(lines)-height:]
+		// Keep the page header and the final status line if an unfamiliar
+		// component exceeds its budget. Normal shell components are already
+		// height-aware, so this is a final safety net rather than scrolling.
+		if height == 1 {
+			lines = lines[:1]
+		} else {
+			lines = append([]string{lines[0]}, lines[len(lines)-(height-1):]...)
+		}
 	}
 	for index := range lines {
-		if lipgloss.Width(lines[index]) > width {
-			lines[index] = ui.Truncate(lines[index], width)
-		}
+		lines[index] = ui.Truncate(lines[index], width)
 	}
 	return strings.Join(lines, "\n")
 }
