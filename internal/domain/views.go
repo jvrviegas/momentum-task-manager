@@ -23,7 +23,7 @@ type TodaySection struct {
 	Tasks []Task
 }
 
-// Views contains the two overlapping, locally-derived task views.
+// Views contains the two disjoint, locally-derived task views.
 type Views struct {
 	Inbox    []Task
 	Today    []Task
@@ -47,15 +47,17 @@ func BuildViews(tasks []Task, now time.Time) Views {
 		if !task.IsPending() {
 			continue
 		}
-		inbox = append(inbox, task)
-		if group := ClassifyToday(task, now); group != "" {
-			key := taskIdentity(task)
-			if _, seen := seenToday[key]; seen {
-				continue
-			}
-			seenToday[key] = struct{}{}
-			groups[group] = append(groups[group], task)
+		group := ClassifyToday(task, now)
+		if group == "" {
+			inbox = append(inbox, task)
+			continue
 		}
+		key := taskIdentity(task)
+		if _, seen := seenToday[key]; seen {
+			continue
+		}
+		seenToday[key] = struct{}{}
+		groups[group] = append(groups[group], task)
 	}
 
 	SortInboxTasks(inbox)
