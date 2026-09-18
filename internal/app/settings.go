@@ -119,9 +119,9 @@ func (m *Model) refreshProjectSuggestions() {
 
 func (m *Model) navigationItems() []ui.NavItem {
 	return []ui.NavItem{
-		{Key: string(ViewInbox), Label: "Inbox", Count: len(m.Views.Inbox), Icon: m.Icons.Inbox},
-		{Key: string(ViewToday), Label: "Today", Count: len(m.Views.Today), Icon: m.Icons.Today},
-		{Key: string(ViewSettings), Label: "Settings", Icon: m.Icons.Settings, HideCount: true},
+		{Key: string(ViewInbox), Label: "Inbox", Count: len(m.Views.Inbox), Icon: m.Icons.Inbox, Group: "Views"},
+		{Key: string(ViewToday), Label: "Today", Count: len(m.Views.Today), Icon: m.Icons.Today, Group: "Views"},
+		{Key: string(ViewSettings), Label: "Settings", Icon: m.Icons.Settings, HideCount: true, Group: "Manage"},
 	}
 }
 
