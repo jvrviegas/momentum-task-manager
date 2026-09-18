@@ -19,7 +19,7 @@ Scope: local-only, isolated Taskwarrior workflows, and Settings → Projects; no
 | Linux full/race gates | PASS | Prior Debian sid arm64 container UAT: format, unit, vet, build, race |
 | Real Taskwarrior integration (macOS) | PASS | `go test ./internal/taskwarrior -run Integration -v -count=1`: 11 isolated scenarios |
 | Real Taskwarrior integration (Linux) | PASS | Prior Debian sid arm64 container run: 8 isolated scenarios |
-| Final working-tree diff check | PASS | `git diff --check` after the documentation commit |
+| Final working-tree diff check | PASS | `git diff --check` in the working tree |
 
 ## Runtime workflows
 
@@ -109,6 +109,25 @@ Suggested maintainer smoke pass:
 
 The prior Linux checks ran in an ephemeral Debian sid arm64 container. The production Taskwarrior database was never mounted; each run created a disposable `TASKRC`/`TASKDATA` pair. The amd64 artifact was compiled separately as the release target; runtime UAT was executed on Linux arm64 because that was the available container architecture. Sync-network behavior is covered with pure state tests because no self-hosted sync server is provisioned for local UAT.
 
+## Readability implementation status (2026-09-17)
+
+The UI readability plan added deterministic ANSI-stripped render fixtures at `120×30`, `79×24`, `49×18`, and `28×8` under `internal/app/testdata/render/` and `internal/ui/testdata/render/`. The fixtures cover Today/Inbox composition, empty/loading/error/search states, task selection, details/help, capture/edit, confirmations, and Settings surfaces. They compare by default and require `MOMENTUM_UPDATE_GOLDENS=1` to rewrite.
+
+Automated evidence run in this workspace:
+
+```sh
+test -z "$(gofmt -l .)"
+go test ./... -count=1
+go test -race ./...
+go vet ./...
+go build ./cmd/momentum
+GOOS=linux GOARCH=amd64 go build ./cmd/momentum
+GOOS=darwin GOARCH=arm64 go build ./cmd/momentum
+git diff --check
+```
+
+All commands passed with Go 1.27.0 on Linux, including the Linux amd64 and macOS arm64 cross-builds. A human real-terminal pass for the redesigned spacing, dark/light contrast, Unicode/ASCII glyphs, and release screenshots remains pending; this record intentionally does not claim that visual check.
+
 ## Overall status
 
-Automated implementation and safety gates pass. Release readiness still requires the maintainer’s live visual/keyboard UAT for the new Settings flow; this document deliberately records that limitation instead of claiming an interactive pass that was not observed.
+Automated implementation and safety gates pass. Release readiness still requires the maintainer’s live visual/keyboard UAT for the readability redesign and new Settings flow; this document deliberately records that limitation instead of claiming an interactive pass that was not observed.
