@@ -1,0 +1,79 @@
+=== today ===
+Momentum  ·  Today · 3 tasks
+▱ Inbox 4   ◷ Today 3   ⚙ S…
+Overdue · 1
+▌ □ Overdue task  ·  Overdue
+
+
+
+Sync ready  ·  [c] Create  …
+
+=== inbox ===
+Momentum  ·  Inbox · 4 tasks
+▱ Inbox 4   ◷ Today 3   ⚙ S…
+work
+□ Inbox task
+
+
+
+Sync ready  ·  [c] Create  …
+
+=== empty ===
+Momentum  ·  Inbox · 0 tasks
+▱ Inbox 0   ◷ Today 0   ⚙ S…
+No pending tasks
+Ctrl+K to capture something
+
+
+
+Sync ready  ·  [c] Create  …
+
+=== loading ===
+Momentum  ·  Today · 0 tasks
+▱ Inbox 0   ◷ Today 0   ⚙ S…
+Loading tasks…
+
+
+
+
+Sync ready  ·  [c] Create  …
+
+=== error ===
+Momentum  ·  Today · 0 tasks
+▱ Inbox 0   ◷ Today 0   ⚙ S…
+Unable to load tasks: fixtu…
+
+
+
+
+Error: fixtu…  ·  Sync ready
+
+=== search ===
+Momentum  ·  Today · 1 task…
+▱ Inbox 4   ◷ Today 3   ⚙ S…
+Scheduled Today · 1
+□ Sched…  ·  Scheduled Today
+
+
+
+1/3 matches  ·  Sync ready
+
+=== settings-list ===
+Momentum  ·  Settings
+▱ Inbox 4   ◷ Today 3   ⚙ S…
+╭──────────────────────╮
+│Settings / Projects   │
+│▸ Work  (work)        │
+│Esc to close          │
+╰──────────────────────╯
+Sync ready  ·  [c] Create  …
+
+=== settings-editor ===
+Momentum  ·  Settings
+▱ Inbox 4   ◷ Today 3   ⚙ S…
+╭──────────────────────╮
+│Edit project          │
+│> Name k              │
+│Tab next   Ctrl+S sav…│
+╰──────────────────────╯
+Sync ready  ·  [c] Create  …
