@@ -5,16 +5,17 @@ import (
 	"time"
 )
 
-func TestInboxProjectAndCreationOrderLeavesTodayUnchanged(t *testing.T) {
+func TestInboxProjectAndCreationOrderWithoutMutatingInput(t *testing.T) {
 	now := time.Date(2026, 9, 8, 12, 0, 0, 0, time.UTC)
 	old := now.Add(-24 * time.Hour)
+	future := now.Add(24 * time.Hour)
 	tasks := []Task{
-		{UUID: "none", Status: "pending", Entry: &old, Due: &now},
-		{UUID: "beta", Status: "pending", Project: "beta", Entry: &old, Due: &now},
-		{UUID: "missing", Status: "pending", Project: "Alpha", Due: &now},
-		{UUID: "new", Status: "pending", Project: "Alpha", Entry: &now, Due: &now, Urgency: 100},
-		{UUID: "old-b", Status: "pending", Project: "Alpha", Entry: &old, Due: &now},
-		{UUID: "old-a", Status: "pending", Project: "Alpha", Entry: &old, Due: &now},
+		{UUID: "none", Status: "pending", Entry: &old, Due: &future},
+		{UUID: "beta", Status: "pending", Project: "beta", Entry: &old, Due: &future},
+		{UUID: "missing", Status: "pending", Project: "Alpha", Due: &future},
+		{UUID: "new", Status: "pending", Project: "Alpha", Entry: &now, Due: &future, Urgency: 100},
+		{UUID: "old-b", Status: "pending", Project: "Alpha", Entry: &old, Due: &future},
+		{UUID: "old-a", Status: "pending", Project: "Alpha", Entry: &old, Due: &future},
 	}
 	views := BuildViews(tasks, now)
 	want := []string{"old-a", "old-b", "new", "missing", "beta", "none"}
@@ -23,8 +24,8 @@ func TestInboxProjectAndCreationOrderLeavesTodayUnchanged(t *testing.T) {
 			t.Fatalf("inbox[%d]=%s, want %s", i, views.Inbox[i].UUID, uuid)
 		}
 	}
-	if views.Today[0].UUID != "new" {
-		t.Fatal("Today must still sort by urgency")
+	if len(views.Today) != 0 {
+		t.Fatalf("future tasks should remain outside Today: %#v", views.Today)
 	}
 	if tasks[0].UUID != "none" {
 		t.Fatal("BuildViews mutated input order")
