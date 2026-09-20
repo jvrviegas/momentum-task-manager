@@ -148,6 +148,7 @@ func (d DetailsModel) bodyLines(width int) []string {
 		label string
 		value string
 	}{
+		{"Completed", firstNonEmpty(d.Task.EndRaw, formatTaskTime(d.Task.End))},
 		{"Due", firstNonEmpty(d.Task.DueRaw, formatTaskTime(d.Task.Due))},
 		{"Scheduled", firstNonEmpty(d.Task.ScheduledRaw, formatTaskTime(d.Task.Scheduled))},
 		{"Start", firstNonEmpty(d.Task.StartRaw, formatTaskTime(d.Task.Start))},
