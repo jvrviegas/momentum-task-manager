@@ -25,6 +25,9 @@ func (m *Model) SelectedTask() (domain.Task, bool) {
 
 // CompleteSelected dispatches completion through the serialized mutation gate.
 func (m *Model) CompleteSelected() tea.Cmd {
+	if m.completedTasksReadOnly() {
+		return nil
+	}
 	task, ok := m.SelectedTask()
 	if !ok {
 		return nil
@@ -34,6 +37,9 @@ func (m *Model) CompleteSelected() tea.Cmd {
 
 // ToggleStartSelected starts an idle task or stops the active task.
 func (m *Model) ToggleStartSelected() tea.Cmd {
+	if m.completedTasksReadOnly() {
+		return nil
+	}
 	task, ok := m.SelectedTask()
 	if !ok {
 		return nil
@@ -48,6 +54,9 @@ func (m *Model) ToggleStartSelected() tea.Cmd {
 // DeleteSelected opens the app-owned confirmation overlay; it never invokes a
 // destructive process by itself.
 func (m *Model) DeleteSelected() {
+	if m.completedTasksReadOnly() {
+		return
+	}
 	task, ok := m.SelectedTask()
 	if !ok || m.MutationRunning {
 		return
@@ -116,6 +125,9 @@ func (m *Model) OpenSearch() tea.Cmd {
 
 // OpenEditor opens the structured editor for the selected task.
 func (m *Model) OpenEditor(field ui.EditField) tea.Cmd {
+	if m.completedTasksReadOnly() {
+		return nil
+	}
 	task, ok := m.SelectedTask()
 	if !ok || m.MutationRunning {
 		return nil
@@ -136,6 +148,14 @@ func (m *Model) OpenEditor(field ui.EditField) tea.Cmd {
 		commands = append(commands, TagsCommandWithID(m.ctx, reader, requestID))
 	}
 	return tea.Batch(commands...)
+}
+
+func (m *Model) completedTasksReadOnly() bool {
+	if m != nil && m.ActiveView == ViewCompleted {
+		m.Status = "Completed tasks are read-only"
+		return true
+	}
+	return false
 }
 
 // OpenDetails opens the read-only task details modal.
