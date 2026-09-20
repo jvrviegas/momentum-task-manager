@@ -145,7 +145,28 @@ func (c *CommandClient) Version(ctx context.Context) (string, error) {
 
 // ExportPending reads one context-respecting, machine-readable export.
 func (c *CommandClient) ExportPending(ctx context.Context) ([]domain.Task, error) {
-	result, err := c.run(ctx, "export", "status:pending", "export")
+	return c.exportFilteredTasks(ctx, "status:pending")
+}
+
+// ExportCompleted reads completed tasks after the exclusive local-date
+// boundary. Export ignores Taskwarrior contexts, so the active context's read
+// filter is captured and passed explicitly.
+func (c *CommandClient) ExportCompleted(ctx context.Context, after time.Time) ([]domain.Task, error) {
+	scope, err := c.projectMigrationScope(ctx)
+	if err != nil {
+		return nil, err
+	}
+	filters := make([]string, 0, 3)
+	if filter := contextFilterArg(scope.ReadFilter); filter != "" {
+		filters = append(filters, filter)
+	}
+	filters = append(filters, "status:completed", "end.after:"+after.Format("2006-01-02"))
+	return c.exportFilteredTasks(ctx, filters...)
+}
+
+func (c *CommandClient) exportFilteredTasks(ctx context.Context, filters ...string) ([]domain.Task, error) {
+	args := append(append([]string(nil), filters...), "export")
+	result, err := c.run(ctx, "export", args...)
 	if err != nil {
 		return nil, err
 	}
