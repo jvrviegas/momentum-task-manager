@@ -33,6 +33,7 @@ type TaskRowOptions struct {
 	ShowMetadata    bool
 	HideProject     bool
 	CompactMetadata bool
+	Completed       bool
 	Density         RowDensity
 	Selected        bool
 	Now             time.Time
@@ -279,6 +280,12 @@ func taskMetadata(task domain.Task, options TaskRowOptions) []string {
 	if !options.HideProject && task.Project != "" {
 		metadata = append(metadata, options.Styles.Project.Render("#"+task.Project))
 	}
+	if options.Completed {
+		if task.End != nil {
+			metadata = append(metadata, options.Styles.Metadata.Render("Completed "+formatDate(task.End.In(options.Now.Location()), options.Now)))
+		}
+		return metadata
+	}
 	if task.Due != nil {
 		date := "Due " + formatDate(task.Due.In(options.Now.Location()), options.Now)
 		if ClassifyOverdue(task, options.Now) {
@@ -304,7 +311,9 @@ func compactMetadata(task domain.Task, options TaskRowOptions) []string {
 	// full timestamps remain on the comfortable metadata line and details
 	// remain available through Enter.
 	candidate := ""
-	if ClassifyOverdue(task, options.Now) {
+	if options.Completed && task.End != nil {
+		candidate = "Completed " + formatDate(task.End.In(options.Now.Location()), options.Now)
+	} else if ClassifyOverdue(task, options.Now) {
 		candidate = "Overdue"
 	} else if task.Due != nil {
 		candidate = "Due " + compactDate(task.Due.In(options.Now.Location()), options.Now)
