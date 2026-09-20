@@ -40,7 +40,7 @@ type QuickAddModel struct {
 func NewQuickAdd(styles Styles, icons Icons) QuickAddModel {
 	input := textinput.New()
 	input.Prompt = "> "
-	input.Placeholder = "Capture a task…"
+	input.Placeholder = "What needs doing?"
 	return QuickAddModel{Input: input, Styles: styles, Icons: icons, Now: time.Now()}
 }
 
@@ -64,7 +64,9 @@ func (q *QuickAddModel) Close() {
 
 func (q *QuickAddModel) SetSize(width, height int) {
 	q.Width, q.Height = width, height
-	q.Input.SetWidth(max(1, quickAddContentWidth(width)-2))
+	// Bubbles reserves one additional cursor cell beyond the two-cell prompt.
+	// Budget it here so an idle input never gains a misleading trailing ellipsis.
+	q.Input.SetWidth(max(1, quickAddContentWidth(width)-3))
 }
 
 func (q *QuickAddModel) SetCatalog(projects, tags []string) {
@@ -211,43 +213,28 @@ func (q QuickAddModel) View() string {
 	}
 
 	title := q.Styles.ModalTitle.Render("Quick capture")
+	label := q.Styles.FieldLabel.Render(Truncate("Task", contentWidth))
 	bar := q.Styles.Panel.Render(Truncate(q.Input.View(), contentWidth))
-	syntax := []string{
-		q.Styles.Metadata.Render(Truncate("#project · !priority", contentWidth)),
-		q.Styles.Metadata.Render(Truncate("@due · >scheduled", contentWidth)),
-		q.Styles.Metadata.Render(Truncate("+tag", contentWidth)),
-	}
-	keys := q.Styles.ModalAction.Render(Truncate("Enter add · Esc cancel", contentWidth))
+	keys := q.Styles.ModalAction.Render(Truncate("Enter add task · Esc cancel", contentWidth))
 
-	// Title, input, error, and actions are protected first. Optional
-	// explanation, suggestions, syntax, and examples then consume the
-	// remaining rows in that priority order, so short terminals never lose
-	// the input or its submit/cancel controls.
-	mandatory := 3 // title, input, actions
+	// Keep the capture path visually singular: title, question, input, action.
+	// Contextual suggestions replace (rather than stack on top of) the syntax
+	// guide. This avoids turning the modal into a wall of equally weighted help.
+	mandatory := 4 // title, label, input, actions
 	if q.ParseErr != nil {
 		mandatory++
 	}
 	optional := max(0, contentHeight-mandatory)
-	showSubtitle := optional > 0
-	if showSubtitle {
-		optional--
+	lines := []string{title, label, bar}
+	if q.ParseErr != nil {
+		lines = append(lines, q.Styles.Error.Render(Truncate(q.ParseErr.Error(), contentWidth)))
 	}
-	maxSuggestions := min(5, min(len(q.Suggestions), optional))
-	optional -= maxSuggestions
-	maxSyntax := min(len(syntax), optional)
-	optional -= maxSyntax
-	showSuggestionKeys := optional > 0 && q.SuggestionsOpen
-	if showSuggestionKeys {
-		optional--
-	}
-	showExample := optional > 0
 
-	lines := []string{title}
-	if showSubtitle {
-		lines = append(lines, q.Styles.Metadata.Render(Truncate("Describe the task, then add optional metadata.", contentWidth)))
-	}
-	lines = append(lines, bar)
-	if q.SuggestionsOpen && maxSuggestions > 0 {
+	if q.ParseErr == nil && q.SuggestionsOpen && len(q.Suggestions) > 0 && optional > 0 {
+		heading := suggestionHeading(q.Suggestions[0].Kind) + "  ·  ↑/↓ select  ·  Tab use"
+		lines = append(lines, q.Styles.SectionTitle.Render(Truncate(heading, contentWidth)))
+		optional--
+		maxSuggestions := min(5, min(len(q.Suggestions), optional))
 		start := max(0, q.SuggestionIndex-maxSuggestions+1)
 		for index := start; index < min(len(q.Suggestions), start+maxSuggestions); index++ {
 			suggestion := q.Suggestions[index]
@@ -263,19 +250,34 @@ func (q QuickAddModel) View() string {
 			}
 			lines = append(lines, line)
 		}
+	} else if q.ParseErr == nil && optional >= 2 {
+		guide := []string{
+			q.Styles.SectionTitle.Render(Truncate("Optional details", contentWidth)),
+			q.Styles.Metadata.Render(Truncate("#project   !priority   @due date", contentWidth)),
+			q.Styles.Metadata.Render(Truncate(">scheduled   +tag", contentWidth)),
+		}
+		lines = append(lines, guide[:min(len(guide), optional)]...)
 	}
-	if q.ParseErr != nil {
-		lines = append(lines, q.Styles.Error.Render(Truncate(q.ParseErr.Error(), contentWidth)))
-	}
-	lines = append(lines, syntax[:maxSyntax]...)
-	if showExample {
-		lines = append(lines, q.Styles.Metadata.Render(Truncate("Example: Prepare proposal #work !high @tomorrow +planning", contentWidth)))
-	}
-	if showSuggestionKeys {
-		lines = append(lines, q.Styles.ModalAction.Render(Truncate("↑/↓ choose · Tab complete", contentWidth)))
-	}
+
 	lines = append(lines, keys)
 	return renderBoundedPanel(lines, contentWidth, contentHeight, q.Styles)
+}
+
+func suggestionHeading(kind quickadd.SuggestionKind) string {
+	switch kind {
+	case quickadd.SuggestionProject:
+		return "Projects"
+	case quickadd.SuggestionPriority:
+		return "Priorities"
+	case quickadd.SuggestionDue:
+		return "Due dates"
+	case quickadd.SuggestionScheduled:
+		return "Scheduled dates"
+	case quickadd.SuggestionTag:
+		return "Tags"
+	default:
+		return "Suggestions"
+	}
 }
 
 func quickAddContentWidth(terminalWidth int) int {
