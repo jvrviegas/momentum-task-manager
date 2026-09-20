@@ -11,9 +11,12 @@ import (
 
 // TasksMsg is returned by both initial load and refresh commands.
 type TasksMsg struct {
-	Tasks  []domain.Task
-	Err    error
-	Reason string
+	Tasks           []domain.Task
+	Err             error
+	Completed       []domain.Task
+	CompletedLoaded bool
+	CompletedErr    error
+	Reason          string
 }
 
 // MutationKind identifies a serialized task mutation.
