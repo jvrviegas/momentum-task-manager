@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"strings"
+	"time"
 
 	tea "charm.land/bubbletea/v2"
 
@@ -26,14 +27,31 @@ type MutationRequest struct {
 	Diff  domain.TaskDiff
 }
 
-// LoadTasksCommand returns a non-blocking Bubble Tea command for an export.
-func LoadTasksCommand(ctx context.Context, client taskwarrior.Client, reason string) tea.Cmd {
+// LoadTasksCommand returns a non-blocking Bubble Tea command for the pending
+// export and, when supported by the client, the recent completed export.
+func LoadTasksCommand(ctx context.Context, client taskwarrior.Client, reason string, at ...time.Time) tea.Cmd {
 	return func() tea.Msg {
 		if client == nil {
 			return TasksMsg{Err: errNilClient, Reason: reason}
 		}
-		tasks, err := client.ExportPending(commandContext(ctx))
-		return TasksMsg{Tasks: tasks, Err: err, Reason: reason}
+		commandCtx := commandContext(ctx)
+		tasks, err := client.ExportPending(commandCtx)
+		message := TasksMsg{Tasks: tasks, Err: err, Reason: reason}
+		reader, ok := client.(interface {
+			ExportCompleted(context.Context, time.Time) ([]domain.Task, error)
+		})
+		if !ok {
+			return message
+		}
+		message.CompletedLoaded = true
+		now := time.Now()
+		if len(at) > 0 && !at[0].IsZero() {
+			now = at[0]
+		}
+		loc := now.Location()
+		today := time.Date(now.In(loc).Year(), now.In(loc).Month(), now.In(loc).Day(), 0, 0, 0, 0, loc)
+		message.Completed, message.CompletedErr = reader.ExportCompleted(commandCtx, today.AddDate(0, 0, -30))
+		return message
 	}
 }
 
