@@ -36,13 +36,14 @@
 │                   focus/view         /                  search          │
 │g / G              first / last                          (project:name   │
 │                   task                                  filters project)│
-│1 / 2 / 3          Inbox / Today /    Application                        │
-│                   Settings           r                  refresh tasks   │
-│Tasks                                 Ctrl+R             synchronize now │
-│Enter              open details       ?                  show help       │
-│Space              complete task      q                  quit            │
-│e / p / ! / D / S / t edit field      Esc                close active    │
-│s                  start / stop                          overlay         │
+│1 / 2 / 3 / 4      Inbox / Today /    Application                        │
+│                   Completed /        r                  refresh tasks   │
+│                   Settings           Ctrl+R             synchronize now │
+│Tasks                                 ?                  show help       │
+│Enter              open details       q                  quit            │
+│Space              complete task      Esc                close active    │
+│e / p / ! / D / S / t edit field                         overlay         │
+│s                  start / stop                                          │
 │                   task                                                  │
 │d                  delete task                                           │
 │u                  undo last change                                      │
@@ -50,19 +51,15 @@
 ╰─────────────────────────────────────────────────────────────────────────╯
 
 === quick-capture ===
-╭─────────────────────────────────────────────────────────────────────────╮
-│Quick capture                                                            │
-│Describe the task, then add optional metadata.                           │
-│> Renew #                                                               …│
-│› #personal.admin                                                        │
-│› #work                                                                  │
-│#project · !priority                                                     │
-│@due · >scheduled                                                        │
-│+tag                                                                     │
-│Example: Prepare proposal #work !high @tomorrow +planning                │
-│↑/↓ choose · Tab complete                                                │
-│Enter add · Esc cancel                                                   │
-╰─────────────────────────────────────────────────────────────────────────╯
+╭────────────────────────────────────────────────────────────────╮
+│Quick capture                                                   │
+│Task                                                            │
+│> Renew #                                                       │
+│Projects  ·  ↑/↓ select  ·  Tab use                             │
+│› #personal.admin                                               │
+│› #work                                                         │
+│Enter add task · Esc cancel                                     │
+╰────────────────────────────────────────────────────────────────╯
 
 === edit ===
 ╭─────────────────────────────────────────────────────────────────────────╮
