@@ -18,7 +18,7 @@ Momentum includes in-app catalog management and an explicit opt-in to migrate ch
 
 ## 2. Goals
 
-- Present pending tasks in two disjoint smart views: Inbox and Today.
+- Present pending tasks in two disjoint smart views, Inbox and Today, plus a recent read-only Completed view.
 - Make task capture fast through a command bar and compact trigger syntax.
 - Make common field edits reachable with one key.
 - Provide a visually polished, responsive Bubble Tea interface.
@@ -56,6 +56,10 @@ Momentum includes in-app catalog management and an explicit opt-in to migrate ch
 - **VIEW-08:** Startup opens Today when it is non-empty and Inbox otherwise.
 - **VIEW-09:** Sidebar counts show the unique number of tasks in each view.
 - **VIEW-10:** Selection is preserved by task UUID across refreshes when possible.
+- **VIEW-11:** Completed contains context-scoped tasks completed in the last 30 local calendar days, including today.
+- **VIEW-12:** Completed groups tasks into Today, Yesterday, and Earlier, with newest completion first in each group.
+- **VIEW-13:** Completed tasks support navigation, search, details, refresh, and sync but not task-targeted mutations; quick capture and global undo remain available.
+- **VIEW-14:** Automatic startup never selects Completed.
 
 Today classification precedence:
 
@@ -111,7 +115,7 @@ Rules:
 
 Autocomplete:
 
-- Suggestions appear above the command bar.
+- Suggestions appear below the input and replace the idle syntax guide, keeping the capture path uncluttered.
 - `Up`/`Down` and `Ctrl+P`/`Ctrl+N` move through suggestions.
 - `Tab` accepts the highlighted suggestion.
 - `Enter` submits the whole task.
@@ -198,6 +202,14 @@ Your day is clear.
 Ctrl+K to add a task
 ```
 
+Completed:
+
+```text
+No recently completed tasks
+Tasks completed in the last 30 days appear here.
+Ctrl+K to add a task
+```
+
 ## 5. Keyboard and Mouse Map
 
 | Input | Action |
@@ -205,7 +217,7 @@ Ctrl+K to add a task
 | `j` / `k`, `Down` / `Up` | Move task selection |
 | `h` / `l`, `Tab` | Switch sidebar/list focus |
 | `g` / `G` | First/last task |
-| `1` / `2` / `3` | Inbox/Today/Settings → Projects |
+| `1` / `2` / `3` / `4` | Inbox/Today/Completed/Settings → Projects |
 | `Enter` | Open/close details as context permits |
 | `Ctrl+K` | Quick add |
 | `c` / `Ctrl+K` | Create a task with quick capture |
@@ -278,6 +290,7 @@ Exact breakpoints should be centralized constants and adjusted during manual UAT
 momentum                  Launch with automatic startup view
 momentum inbox            Launch in Inbox
 momentum today            Launch in Today
+momentum completed        Launch in Completed
 momentum doctor           Run diagnostics
 momentum --config PATH    Use another config file
 momentum --debug          Enable local diagnostic logging
@@ -354,7 +367,7 @@ User input
   -> Taskwarrior adapter executes `task` with argv (never a shell)
   -> typed result message
   -> refresh from `task ... export`
-  -> derive Inbox/Today in Go
+  -> derive Inbox/Today and recent Completed sections in Go
   -> render
 ```
 
