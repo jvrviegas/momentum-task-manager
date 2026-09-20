@@ -18,15 +18,15 @@
 │Keyboard shortcuts    │
 │Navigation            │
 │j / k / ↑ / ↓ move    │
-│↑/↓ scroll · 1/42 · E…│
+│↑/↓ scroll · 1/44 · E…│
 ╰──────────────────────╯
 
 === quick-capture ===
 ╭──────────────────────╮
 │Quick capture         │
-│Describe the task, th…│
-│> Renew #            …│
-│Enter add · Esc cancel│
+│Task                  │
+│> Renew #             │
+│Enter add task · Esc …│
 ╰──────────────────────╯
 
 === edit ===
