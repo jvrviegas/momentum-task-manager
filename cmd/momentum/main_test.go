@@ -55,7 +55,7 @@ func TestHelpCommandPrintsCLIContract(t *testing.T) {
 	if code := run([]string{"--help"}, &out, &errOut); code != 0 {
 		t.Fatalf("code=%d err=%q", code, errOut.String())
 	}
-	for _, want := range []string{"momentum doctor", "momentum [inbox|today]", "--config PATH", "--debug"} {
+	for _, want := range []string{"momentum doctor", "momentum [inbox|today|completed]", "--config PATH", "--debug"} {
 		if !strings.Contains(out.String(), want) {
 			t.Errorf("help missing %q", want)
 		}
@@ -70,6 +70,7 @@ func TestExtractCommandSupportsCommandBeforeAndAfterFlags(t *testing.T) {
 		{args: []string{"doctor"}, want: "doctor"},
 		{args: []string{"--debug", "today", "--config", "/tmp/c.toml"}, want: "today"},
 		{args: []string{"inbox", "--config=/tmp/c.toml"}, want: "inbox"},
+		{args: []string{"completed"}, want: "completed"},
 		{args: []string{"--config", "inbox", "--help"}, want: ""},
 	}
 	for _, tc := range cases {
