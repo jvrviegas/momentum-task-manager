@@ -34,8 +34,8 @@
 │j / k / ↑ / ↓      move selection           c / Ctrl+K         create task (quick     │
 │h / l / Tab        switch focus/view                           add)                   │
 │g / G              first / last task        /                  search (project:name   │
-│1 / 2 / 3          Inbox / Today /                             filters project)       │
-│                   Settings                 Application                               │
+│1 / 2 / 3 / 4      Inbox / Today /                             filters project)       │
+│                   Completed / Settings     Application                               │
 │Tasks                                       r                  refresh tasks          │
 │Enter              open details             Ctrl+R             synchronize now        │
 │Space              complete task            ?                  show help              │
@@ -47,19 +47,15 @@
 ╰──────────────────────────────────────────────────────────────────────────────────────╯
 
 === quick-capture ===
-╭──────────────────────────────────────────────────────────────────────────────╮
-│Quick capture                                                                 │
-│Describe the task, then add optional metadata.                                │
-│> Renew #                                                                    …│
-│› #personal.admin                                                             │
-│› #work                                                                       │
-│#project · !priority                                                          │
-│@due · >scheduled                                                             │
-│+tag                                                                          │
-│Example: Prepare proposal #work !high @tomorrow +planning                     │
-│↑/↓ choose · Tab complete                                                     │
-│Enter add · Esc cancel                                                        │
-╰──────────────────────────────────────────────────────────────────────────────╯
+╭────────────────────────────────────────────────────────────────╮
+│Quick capture                                                   │
+│Task                                                            │
+│> Renew #                                                       │
+│Projects  ·  ↑/↓ select  ·  Tab use                             │
+│› #personal.admin                                               │
+│› #work                                                         │
+│Enter add task · Esc cancel                                     │
+╰────────────────────────────────────────────────────────────────╯
 
 === edit ===
 ╭──────────────────────────────────────────────────────────────────────────────╮
