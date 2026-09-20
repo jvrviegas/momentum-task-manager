@@ -23,11 +23,28 @@ type TodaySection struct {
 	Tasks []Task
 }
 
-// Views contains the two disjoint, locally-derived task views.
+// CompletedGroup identifies the date sections in the Completed view.
+type CompletedGroup string
+
+const (
+	GroupCompletedToday     CompletedGroup = "Today"
+	GroupCompletedYesterday CompletedGroup = "Yesterday"
+	GroupCompletedEarlier   CompletedGroup = "Earlier"
+)
+
+// CompletedSection is one rendered section of the Completed view.
+type CompletedSection struct {
+	Group CompletedGroup
+	Tasks []Task
+}
+
+// Views contains Momentum's locally-derived task views.
 type Views struct {
-	Inbox    []Task
-	Today    []Task
-	Sections []TodaySection
+	Inbox             []Task
+	Today             []Task
+	Sections          []TodaySection
+	Completed         []Task
+	CompletedSections []CompletedSection
 }
 
 // BuildViews derives Inbox and Today from one consistent pending export.
@@ -79,6 +96,60 @@ func BuildViews(tasks []Task, now time.Time) Views {
 // DeriveViews is an explicit alias for callers that prefer the domain wording.
 func DeriveViews(tasks []Task, now time.Time) Views {
 	return BuildViews(tasks, now)
+}
+
+// BuildCompletedView derives the recent completed-task view using local
+// calendar days. days includes the current day.
+func BuildCompletedView(tasks []Task, now time.Time, days int) ([]Task, []CompletedSection) {
+	if now.IsZero() {
+		now = time.Now()
+	}
+	if days < 1 {
+		days = 1
+	}
+	loc := now.Location()
+	today := dateOnly(now.In(loc))
+	cutoff := today.AddDate(0, 0, -(days - 1))
+	yesterday := today.AddDate(0, 0, -1)
+	groups := map[CompletedGroup][]Task{
+		GroupCompletedToday: {}, GroupCompletedYesterday: {}, GroupCompletedEarlier: {},
+	}
+	for _, task := range tasks {
+		if !strings.EqualFold(task.Status, "completed") || task.End == nil {
+			continue
+		}
+		ended := task.End.In(loc)
+		day := dateOnly(ended)
+		if day.Before(cutoff) || day.After(today) {
+			continue
+		}
+		group := GroupCompletedEarlier
+		if day.Equal(today) {
+			group = GroupCompletedToday
+		} else if day.Equal(yesterday) {
+			group = GroupCompletedYesterday
+		}
+		groups[group] = append(groups[group], task)
+	}
+
+	sections := make([]CompletedSection, 0, 3)
+	completed := make([]Task, 0)
+	for _, group := range []CompletedGroup{GroupCompletedToday, GroupCompletedYesterday, GroupCompletedEarlier} {
+		groupTasks := groups[group]
+		sort.SliceStable(groupTasks, func(i, j int) bool {
+			if !groupTasks[i].End.Equal(*groupTasks[j].End) {
+				return groupTasks[i].End.After(*groupTasks[j].End)
+			}
+			return taskIdentity(groupTasks[i]) < taskIdentity(groupTasks[j])
+		})
+		if len(groupTasks) == 0 {
+			continue
+		}
+		groupTasks = slices.Clone(groupTasks)
+		sections = append(sections, CompletedSection{Group: group, Tasks: groupTasks})
+		completed = append(completed, groupTasks...)
+	}
+	return completed, sections
 }
 
 // ClassifyToday applies the approved due-before-scheduled precedence using the
