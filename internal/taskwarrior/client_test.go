@@ -47,6 +47,27 @@ func TestExportPendingUsesExpectedArgvAndDecodes(t *testing.T) {
 	}
 }
 
+func TestExportCompletedUsesContextStatusAndExclusiveDateBoundary(t *testing.T) {
+	runner := &fakeRunner{responses: []fakeResponse{
+		{result: CommandResult{ExitCode: 0, Stdout: "work\n"}},
+		{result: CommandResult{ExitCode: 0, Stdout: "project:work\n"}},
+		{result: CommandResult{ExitCode: 0, Stdout: `[]`}},
+	}}
+	client := NewClientWithRunner("task-test", runner)
+	_, err := client.ExportCompleted(context.Background(), time.Date(2026, 8, 9, 0, 0, 0, 0, time.Local))
+	if err != nil {
+		t.Fatal(err)
+	}
+	wantCalls := [][]string{
+		{"task-test", "_get", "rc.context"},
+		{"task-test", "_get", "rc.context.work.read"},
+		{"task-test", "(project:work)", "status:completed", "end.after:2026-08-09", "export"},
+	}
+	if !reflect.DeepEqual(runner.calls, wantCalls) {
+		t.Fatalf("calls=%#v want=%#v", runner.calls, wantCalls)
+	}
+}
+
 func TestExportPendingEmptyOutputReturnsEmptySlice(t *testing.T) {
 	runner := &fakeRunner{responses: []fakeResponse{{result: CommandResult{ExitCode: 0}}}}
 	got, err := NewClientWithRunner("task", runner).ExportPending(context.Background())
