@@ -135,13 +135,31 @@ func TestQuickAddModalRendersSuggestionsAndGuidanceWithinBounds(t *testing.T) {
 	if len(lines) > q.Height || len(lines) < 2 {
 		t.Fatalf("lines=%d view=%q", len(lines), got)
 	}
-	for _, want := range []string{"Quick capture", "#work.client", "#project", "!priority", "@due", ">scheduled", "+tag", "Enter add", "Esc cancel", "Tab complete"} {
+	for _, want := range []string{"Quick capture", "Task", "Projects", "#work.client", "Enter add task", "Esc cancel", "Tab use"} {
 		if !strings.Contains(got, want) {
 			t.Errorf("modal missing %q: %q", want, got)
 		}
 	}
+	for _, unwanted := range []string{"Optional details", "Example:", "!priority", "@due"} {
+		if strings.Contains(got, unwanted) {
+			t.Errorf("suggestions should replace static guidance; found %q: %q", unwanted, got)
+		}
+	}
 	if strings.Index(got, "#work.client") <= strings.Index(got, "> ") {
 		t.Fatalf("suggestion should render below input: %q", got)
+	}
+}
+
+func TestQuickAddIdleStateShowsCompactSyntaxGuide(t *testing.T) {
+	q := testQuickAdd()
+	got := q.View()
+	for _, want := range []string{"Optional details", "#project", "!priority", "@due date", ">scheduled", "+tag"} {
+		if !strings.Contains(got, want) {
+			t.Errorf("guide missing %q: %q", want, got)
+		}
+	}
+	if strings.Contains(got, "Example:") {
+		t.Fatalf("idle guide should stay compact: %q", got)
 	}
 }
 
