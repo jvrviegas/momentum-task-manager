@@ -18,10 +18,11 @@ import (
 type ViewName string
 
 const (
-	ViewAuto     ViewName = "auto"
-	ViewInbox    ViewName = "inbox"
-	ViewToday    ViewName = "today"
-	ViewSettings ViewName = "settings"
+	ViewAuto      ViewName = "auto"
+	ViewInbox     ViewName = "inbox"
+	ViewToday     ViewName = "today"
+	ViewCompleted ViewName = "completed"
+	ViewSettings  ViewName = "settings"
 )
 
 // AppMode describes the root state independently from overlays.
@@ -98,6 +99,7 @@ type Model struct {
 	Status        string
 	TaskContext   string
 	Err           error
+	CompletedErr  error
 
 	MutationRunning bool
 	PendingMutation *MutationRequest
@@ -181,8 +183,8 @@ func NewModel(options ModelOptions) *Model {
 		now:                  now,
 		RequestedView:        requested,
 		ActiveView:           normalizeView(requested),
-		Selections:           map[ViewName]int{ViewInbox: 0, ViewToday: 0},
-		Selected:             map[ViewName]string{ViewInbox: "", ViewToday: ""},
+		Selections:           map[ViewName]int{ViewInbox: 0, ViewToday: 0, ViewCompleted: 0},
+		Selected:             map[ViewName]string{ViewInbox: "", ViewToday: "", ViewCompleted: ""},
 		Focus:                FocusList,
 		Mode:                 ModeLoading,
 		Width:                options.Width,
@@ -222,7 +224,7 @@ func (m *Model) Init() tea.Cmd {
 		return nil
 	}
 	m.Mode = ModeLoading
-	return LoadTasksCommand(m.ctx, m.Client, "initial")
+	return LoadTasksCommand(m.ctx, m.Client, "initial", m.now())
 }
 
 // Update applies typed messages and delegates global input only when no overlay
@@ -365,8 +367,9 @@ func (m *Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 func (m *Model) applyTasks(message TasksMsg) tea.Cmd {
 	oldTasks := len(m.Tasks)
 	oldUUIDs := map[ViewName]string{
-		ViewInbox: m.Selected[ViewInbox],
-		ViewToday: m.Selected[ViewToday],
+		ViewInbox:     m.Selected[ViewInbox],
+		ViewToday:     m.Selected[ViewToday],
+		ViewCompleted: m.Selected[ViewCompleted],
 	}
 	migrationRefresh := m.MigrationRunning && m.MigrationRefreshPending && message.Reason == "migration"
 	if message.Err != nil {
@@ -390,7 +393,18 @@ func (m *Model) applyTasks(message TasksMsg) tea.Cmd {
 	}
 	m.Err = nil
 	m.Tasks = append([]domain.Task(nil), message.Tasks...)
-	m.Views = domain.BuildViews(m.Tasks, m.now())
+	pendingViews := domain.BuildViews(m.Tasks, m.now())
+	m.Views.Inbox = pendingViews.Inbox
+	m.Views.Today = pendingViews.Today
+	m.Views.Sections = pendingViews.Sections
+	if message.CompletedLoaded {
+		if message.CompletedErr == nil {
+			m.CompletedErr = nil
+			m.Views.Completed, m.Views.CompletedSections = domain.BuildCompletedView(message.Completed, m.now(), 30)
+		} else {
+			m.CompletedErr = message.CompletedErr
+		}
+	}
 	// Initial-view preference chooses the startup view once. Later refreshes
 	// must preserve the view the user navigated to, including behind overlays.
 	if message.Reason == "initial" && m.ActiveView != ViewSettings {
@@ -406,6 +420,7 @@ func (m *Model) applyTasks(message TasksMsg) tea.Cmd {
 	}
 	m.restoreSelection(ViewInbox, oldUUIDs[ViewInbox])
 	m.restoreSelection(ViewToday, oldUUIDs[ViewToday])
+	m.restoreSelection(ViewCompleted, oldUUIDs[ViewCompleted])
 	m.Mode = ModeReady
 	if migrationRefresh {
 		m.finishProjectMigration()
@@ -417,6 +432,9 @@ func (m *Model) applyTasks(message TasksMsg) tea.Cmd {
 		m.Status = fmt.Sprintf("Updated %d tasks", len(m.Tasks))
 	} else {
 		m.Status = ""
+	}
+	if message.CompletedErr != nil {
+		m.Status = "Completed refresh failed: " + conciseError(message.CompletedErr)
 	}
 	var commands []tea.Cmd
 	if message.Reason == "initial" {
@@ -451,7 +469,7 @@ func (m *Model) beginRefresh(reason string) tea.Cmd {
 		return nil
 	}
 	m.Mode = ModeRefreshing
-	return LoadTasksCommand(m.ctx, m.Client, reason)
+	return LoadTasksCommand(m.ctx, m.Client, reason, m.now())
 }
 
 func (m *Model) beginMutation(request MutationRequest) tea.Cmd {
@@ -531,9 +549,12 @@ func (m *Model) tasksFor(view ViewName) []domain.Task {
 		return nil
 	}
 	var tasks []domain.Task
-	if view == ViewToday {
+	switch view {
+	case ViewToday:
 		tasks = m.Views.Today
-	} else {
+	case ViewCompleted:
+		tasks = m.Views.Completed
+	default:
 		tasks = m.Views.Inbox
 	}
 	if m.Search.Active {
@@ -544,7 +565,7 @@ func (m *Model) tasksFor(view ViewName) []domain.Task {
 
 func normalizeView(view ViewName) ViewName {
 	switch view {
-	case ViewToday, ViewSettings:
+	case ViewToday, ViewCompleted, ViewSettings:
 		return view
 	default:
 		return ViewInbox
@@ -573,6 +594,12 @@ func (m *Model) updateKey(message tea.KeyPressMsg) tea.Cmd {
 			}
 			return cmd
 		case OverlayDetails:
+			if m.ActiveView == ViewCompleted && message.String() == "e" {
+				m.Details.Close()
+				m.Overlay = OverlayNone
+				m.Status = "Completed tasks are read-only"
+				return nil
+			}
 			switch m.Details.Update(message) {
 			case ui.DetailsEdit:
 				m.Overlay = OverlayEdit
@@ -608,6 +635,8 @@ func (m *Model) updateKey(message tea.KeyPressMsg) tea.Cmd {
 	case "2":
 		m.SwitchView(ViewToday)
 	case "3":
+		m.SwitchView(ViewCompleted)
+	case "4":
 		m.SwitchView(ViewSettings)
 	case "h":
 		m.Focus = FocusSidebar
