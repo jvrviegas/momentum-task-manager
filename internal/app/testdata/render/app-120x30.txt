@@ -2,10 +2,10 @@
 VIEWS                     Momentum  ·  Today · 3 tasks
   ▱ Inbox 1
 ▌ ◷ Today 3               Overdue · 1
-                          ▌ □ Overdue task
-MANAGE                    ▌   Overdue · Due Sep 7 10:00
+  ✓ Completed 0           ▌ □ Overdue task
+                          ▌   Overdue · Due Sep 7 10:00
+MANAGE
   ⚙ Settings
-
                           Due Today · 1
                           □ Due task
                             Due Today 17:00
@@ -34,10 +34,10 @@ MANAGE                    ▌   Overdue · Due Sep 7 10:00
 VIEWS                     Momentum  ·  Inbox · 1 tasks
 ▌ ▱ Inbox 1
   ◷ Today 3               work
-                          □ Inbox task
+  ✓ Completed 0           □ Inbox task
+
 MANAGE
   ⚙ Settings
-
 
 
 
@@ -66,10 +66,10 @@ MANAGE
 VIEWS                     Momentum  ·  Inbox · 0 tasks
 ▌ ▱ Inbox 0
   ◷ Today 0               No pending tasks
-                          Ctrl+K to capture something
+  ✓ Completed 0           Ctrl+K to capture something
+
 MANAGE
   ⚙ Settings
-
 
 
 
@@ -98,10 +98,10 @@ MANAGE
 VIEWS                     Momentum  ·  Today · 0 tasks
   ▱ Inbox 0
 ▌ ◷ Today 0               Loading tasks…
+  ✓ Completed 0
 
 MANAGE
   ⚙ Settings
-
 
 
 
@@ -130,10 +130,10 @@ MANAGE
 VIEWS                     Momentum  ·  Today · 0 tasks
   ▱ Inbox 0
 ▌ ◷ Today 0               Unable to load tasks: fixture Taskwarrior unavailable
+  ✓ Completed 0
 
 MANAGE
   ⚙ Settings
-
 
 
 
@@ -162,10 +162,10 @@ MANAGE
 VIEWS                     Momentum  ·  Today · 1 tasks · /scheduled
   ▱ Inbox 1
 ▌ ◷ Today 3               Scheduled Today · 1
-                          □ Scheduled task
-MANAGE                      Scheduled Today 09:00
+  ✓ Completed 0           □ Scheduled task
+                            Scheduled Today 09:00
+MANAGE
   ⚙ Settings
-
 
 
 
@@ -194,10 +194,10 @@ MANAGE                      Scheduled Today 09:00
 VIEWS                     Momentum  ·  Settings
   ▱ Inbox 1
   ◷ Today 3               ╭──────────────────────────────────────────────────────────────────────────────╮
-                          │Settings / Projects                                                           │
-MANAGE                    │[a] add   [e] edit   [d] remove   [Enter] edit                                │
-▌ ⚙ Settings              │▸ Work  (work)                                                                │
-                          │  Work → Client  (work.client)                                                │
+  ✓ Completed 0           │Settings / Projects                                                           │
+                          │[a] add   [e] edit   [d] remove   [Enter] edit                                │
+MANAGE                    │▸ Work  (work)                                                                │
+▌ ⚙ Settings              │  Work → Client  (work.client)                                                │
                           │Esc to close                                                                  │
                           ╰──────────────────────────────────────────────────────────────────────────────╯
 
@@ -226,10 +226,10 @@ MANAGE                    │[a] add   [e] edit   [d] remove   [Enter] edit     
 VIEWS                     Momentum  ·  Settings
   ▱ Inbox 1
   ◷ Today 3               ╭──────────────────────────────────────────────────────────────────────────────╮
-                          │Edit project                                                                  │
-MANAGE                    │> Name Work                                                                   │
-▌ ⚙ Settings              │  Value work                                                                  │
-                          │  Parent Parent                                                               │
+  ✓ Completed 0           │Edit project                                                                  │
+                          │> Name Work                                                                   │
+MANAGE                    │  Value work                                                                  │
+▌ ⚙ Settings              │  Parent Parent                                                               │
                           │Full value: work                                                              │
                           │Tab next   Ctrl+S save   Esc cancel                                           │
                           ╰──────────────────────────────────────────────────────────────────────────────╯
