@@ -19,7 +19,7 @@ var keyBindings = []KeyBinding{
 	{Category: "Navigation", Keys: "j / k / ↑ / ↓", Description: "move selection"},
 	{Category: "Navigation", Keys: "h / l / Tab", Description: "switch focus/view"},
 	{Category: "Navigation", Keys: "g / G", Description: "first / last task"},
-	{Category: "Navigation", Keys: "1 / 2 / 3", Description: "Inbox / Today / Settings"},
+	{Category: "Navigation", Keys: "1 / 2 / 3 / 4", Description: "Inbox / Today / Completed / Settings"},
 	{Category: "Tasks", Keys: "Enter", Description: "open details"},
 	{Category: "Tasks", Keys: "Space", Description: "complete task"},
 	{Category: "Tasks", Keys: "e / p / ! / D / S / t", Description: "edit field"},
