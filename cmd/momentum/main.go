@@ -54,7 +54,7 @@ func run(args []string, stdout, stderr io.Writer) int {
 		return 0
 	}
 	if remaining := flags.Args(); len(remaining) > 0 {
-		fmt.Fprintf(stderr, "momentum: unsupported argument %q; use inbox, today, or doctor\n", remaining[0])
+		fmt.Fprintf(stderr, "momentum: unsupported argument %q; use inbox, today, completed, or doctor\n", remaining[0])
 		return 2
 	}
 
@@ -97,6 +97,8 @@ func run(args []string, stdout, stderr io.Writer) int {
 		initial = app.ViewInbox
 	case "today":
 		initial = app.ViewToday
+	case "completed":
+		initial = app.ViewCompleted
 	case "":
 		// automatic view selection happens after the first export
 	default:
@@ -134,7 +136,7 @@ func extractCommand(args []string) (string, []string, error) {
 	for index := 0; index < len(args); index++ {
 		arg := args[index]
 		switch arg {
-		case "inbox", "today", "doctor":
+		case "inbox", "today", "completed", "doctor":
 			if command != "" {
 				return "", nil, fmt.Errorf("multiple commands: %s and %s", command, arg)
 			}
@@ -163,7 +165,7 @@ func printUsage(w io.Writer) {
 	fmt.Fprintln(w, "Momentum — a keyboard-first Taskwarrior frontend")
 	fmt.Fprintln(w)
 	fmt.Fprintln(w, "Usage:")
-	fmt.Fprintln(w, "  momentum [inbox|today]")
+	fmt.Fprintln(w, "  momentum [inbox|today|completed]")
 	fmt.Fprintln(w, "  momentum doctor")
 	fmt.Fprintln(w)
 	fmt.Fprintln(w, "Options:")
