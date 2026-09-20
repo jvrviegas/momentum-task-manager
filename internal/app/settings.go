@@ -8,10 +8,12 @@ import (
 )
 
 func normalizeTaskView(view ViewName) ViewName {
-	if view == ViewToday {
-		return ViewToday
+	switch view {
+	case ViewToday, ViewCompleted:
+		return view
+	default:
+		return ViewInbox
 	}
-	return ViewInbox
 }
 
 func (m *Model) updateSettingsKey(message tea.KeyPressMsg) tea.Cmd {
@@ -29,6 +31,9 @@ func (m *Model) updateSettingsKey(message tea.KeyPressMsg) tea.Cmd {
 			return nil
 		case "2":
 			m.SwitchView(ViewToday)
+			return nil
+		case "3":
+			m.SwitchView(ViewCompleted)
 			return nil
 		}
 	}
@@ -131,6 +136,7 @@ func (m *Model) navigationItems() []ui.NavItem {
 	return []ui.NavItem{
 		{Key: string(ViewInbox), Label: "Inbox", Count: len(m.Views.Inbox), Icon: m.Icons.Inbox, Group: "Views"},
 		{Key: string(ViewToday), Label: "Today", Count: len(m.Views.Today), Icon: m.Icons.Today, Group: "Views"},
+		{Key: string(ViewCompleted), Label: "Completed", Count: len(m.Views.Completed), Icon: m.Icons.Completed, Group: "Views"},
 		{Key: string(ViewSettings), Label: "Settings", Icon: m.Icons.Settings, HideCount: true, Group: "Manage"},
 	}
 }
