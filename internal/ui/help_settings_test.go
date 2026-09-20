@@ -6,7 +6,7 @@ import (
 )
 
 func TestHelpIncludesSettingsShortcut(t *testing.T) {
-	if !strings.Contains(HelpText(), "1 / 2 / 3 — Inbox / Today / Settings") {
+	if !strings.Contains(HelpText(), "1 / 2 / 3 / 4 — Inbox / Today / Completed / Settings") {
 		t.Fatalf("help=%q", HelpText())
 	}
 }
