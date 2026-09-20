@@ -69,7 +69,7 @@ func TestSettingsRouteIsExplicitAndCannotMutateHiddenTask(t *testing.T) {
 	client := &fakeClient{}
 	model := actionModel(client)
 	model.Width, model.Height = 79, 20
-	model.Update(key("3"))
+	model.Update(key("4"))
 	if model.ActiveView != ViewSettings || !model.ProjectSettings.Open {
 		t.Fatalf("settings route model=%#v", model)
 	}
@@ -97,7 +97,7 @@ func TestSettingsNumberShortcutsReturnToTaskViews(t *testing.T) {
 	} {
 		t.Run(test.key, func(t *testing.T) {
 			model := actionModel(&fakeClient{})
-			model.Update(key("3"))
+			model.Update(key("4"))
 			model.Update(key(test.key))
 			if model.ActiveView != test.view || model.ProjectSettings.Open {
 				t.Fatalf("shortcut %s left active=%s settings_open=%t", test.key, model.ActiveView, model.ProjectSettings.Open)
@@ -112,7 +112,7 @@ func TestSettingsMouseNavigationUsesActualCompactTabBoundary(t *testing.T) {
 	nav := model.navigationItems()
 	settingsX := -1
 	for x := 0; x < model.Width; x++ {
-		if ui.TabIndexAt(nav, model.Width, x) == 2 {
+		if ui.TabIndexAt(nav, model.Width, x) == 3 {
 			settingsX = x
 			break
 		}
@@ -141,7 +141,7 @@ func TestSettingsRoundTripPreservesTaskSelection(t *testing.T) {
 	model := actionModel(&fakeClient{})
 	model.Selected[ViewInbox] = "two"
 	model.Selections[ViewInbox] = 1
-	model.Update(key("3"))
+	model.Update(key("4"))
 	_, closeCmd := model.Update(key("esc"))
 	if closeCmd == nil {
 		t.Fatal("settings close did not emit cancel intent")
