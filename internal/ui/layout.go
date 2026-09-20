@@ -38,7 +38,7 @@ const (
 	ModalMaxWidth    = 78
 	DetailsMaxWidth  = 86
 	HelpMaxWidth     = 86
-	QuickAddMaxWidth = 78
+	QuickAddMaxWidth = 64
 )
 
 // RowDensity identifies the two supported task-list presentations.
