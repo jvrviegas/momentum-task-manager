@@ -123,6 +123,8 @@ func viewLabel(view ViewName) string {
 	switch view {
 	case ViewToday:
 		return "Today"
+	case ViewCompleted:
+		return "Completed"
 	case ViewSettings:
 		return "Settings"
 	default:
@@ -161,6 +163,7 @@ func (m *Model) taskBlocks(width int) []renderedTaskBlock {
 			Now:             m.nowTime(),
 			Styles:          m.Styles,
 			Icons:           m.Icons,
+			Completed:       m.ActiveView == ViewCompleted,
 		})
 		return renderedTaskBlock{lines: block.Lines, uuid: task.UUID, selectable: true}
 	}
@@ -200,6 +203,24 @@ func (m *Model) taskBlocks(width int) []renderedTaskBlock {
 		}
 		return blocks
 	}
+	if view == ViewCompleted {
+		for _, section := range m.Views.CompletedSections {
+			sectionTasks := section.Tasks
+			if m.Search.Active {
+				sectionTasks = ui.FilterTasks(sectionTasks, m.Search.Query)
+			}
+			if len(sectionTasks) == 0 {
+				continue
+			}
+			appendSectionGap()
+			heading := fmt.Sprintf("%s · %d", section.Group, len(sectionTasks))
+			blocks = append(blocks, renderedTaskBlock{lines: []string{m.Styles.SectionTitle.Render(ui.Truncate(heading, width))}})
+			for _, task := range sectionTasks {
+				blocks = append(blocks, options(task, task.UUID == selectedUUID, false))
+			}
+		}
+		return blocks
+	}
 
 	for index, task := range tasks {
 		if index == 0 || task.Project != tasks[index-1].Project {
@@ -230,6 +251,9 @@ func (m *Model) renderTaskBody(width, height int) string {
 		}
 		if m.Err != nil {
 			return m.Styles.Error.Render(ui.Truncate("Unable to load tasks: "+oneLine(m.Err.Error()), width))
+		}
+		if m.ActiveView == ViewCompleted && m.CompletedErr != nil {
+			return m.Styles.Error.Render(ui.Truncate("Unable to load completed tasks: "+oneLine(m.CompletedErr.Error()), width))
 		}
 		return ui.RenderEmpty(string(normalizeView(m.ActiveView)), width, m.Styles)
 	}
@@ -394,10 +418,14 @@ func nonEmpty(values []string) []string {
 }
 
 func (m *Model) tasksForUnfiltered() []domain.Task {
-	if normalizeView(m.ActiveView) == ViewToday {
+	switch normalizeView(m.ActiveView) {
+	case ViewToday:
 		return m.Views.Today
+	case ViewCompleted:
+		return m.Views.Completed
+	default:
+		return m.Views.Inbox
 	}
-	return m.Views.Inbox
 }
 
 func fitLines(value string, width, height int) string {
