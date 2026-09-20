@@ -30,30 +30,26 @@
 │j / k / ↑ / ↓      move selection          │
 │h / l / Tab        switch focus/view       │
 │g / G              first / last task       │
-│1 / 2 / 3          Inbox / Today / Settings│
+│1 / 2 / 3 / 4      Inbox / Today /         │
+│                   Completed / Settings    │
 │Tasks                                      │
 │Enter              open details            │
 │Space              complete task           │
 │e / p / ! / D / S / t edit field           │
 │s                  start / stop task       │
 │d                  delete task             │
-│u                  undo last change        │
-│↑/↓ scroll · 1/11 · Esc close              │
+│↑/↓ scroll · 1/12 · Esc close              │
 ╰───────────────────────────────────────────╯
 
 === quick-capture ===
 ╭───────────────────────────────────────────╮
 │Quick capture                              │
-│Describe the task, then add optional metad…│
-│> Renew #                                 …│
+│Task                                       │
+│> Renew #                                  │
+│Projects  ·  ↑/↓ select  ·  Tab use        │
 │› #personal.admin                          │
 │› #work                                    │
-│#project · !priority                       │
-│@due · >scheduled                          │
-│+tag                                       │
-│Example: Prepare proposal #work !high @tom…│
-│↑/↓ choose · Tab complete                  │
-│Enter add · Esc cancel                     │
+│Enter add task · Esc cancel                │
 ╰───────────────────────────────────────────╯
 
 === edit ===
