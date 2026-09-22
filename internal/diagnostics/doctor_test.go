@@ -52,6 +52,7 @@ func TestDoctorPassesReadOnlyChecks(t *testing.T) {
 		taskwarrior.CommandResult{Stdout: "https://sync.example"},
 		taskwarrior.CommandResult{Stdout: "client"},
 		taskwarrior.CommandResult{Stdout: "secret"},
+		taskwarrior.CommandResult{Stdout: "duration"},
 	)
 	stateDir := t.TempDir()
 	settings := config.Defaults()
@@ -97,12 +98,35 @@ func TestDoctorDoesNotPrintSyncSecret(t *testing.T) {
 		taskwarrior.CommandResult{Stdout: "url"},
 		taskwarrior.CommandResult{Stdout: "client"},
 		taskwarrior.CommandResult{Stdout: "super-secret"},
+		taskwarrior.CommandResult{Stdout: "duration"},
 	)
 	var output bytes.Buffer
 	report := Run(context.Background(), DoctorOptions{Client: client, Config: config.Defaults(), StateDir: t.TempDir(), Terminal: "xterm", LookPath: func(string) (string, error) { return "task", nil }})
 	report.Print(&output)
 	if strings.Contains(output.String(), "super-secret") {
 		t.Fatalf("secret leaked: %s", output.String())
+	}
+}
+
+func TestDoctorReportsEstimateUDASetupWithoutMutating(t *testing.T) {
+	client, runner := doctorClient(
+		taskwarrior.CommandResult{Stdout: "Taskwarrior 3.5.0"},
+		taskwarrior.CommandResult{Stdout: "[]"},
+		taskwarrior.CommandResult{Stdout: ""},
+	)
+	settings := config.Defaults()
+	settings.Sync.Enabled = false
+	report := Run(context.Background(), DoctorOptions{Client: client, Config: settings, StateDir: t.TempDir(), Terminal: "xterm", LookPath: func(string) (string, error) { return "task", nil }})
+	var output bytes.Buffer
+	report.Print(&output)
+	text := output.String()
+	if !strings.Contains(text, "Estimate UDA") || !strings.Contains(text, "uda.estimate.type=duration") || !strings.Contains(text, "uda.estimate.label=Estimate") {
+		t.Fatalf("output=%q", text)
+	}
+	for _, call := range runner.calls {
+		if len(call) > 1 && (call[1] == "add" || call[1] == "modify" || call[1] == "sync") {
+			t.Fatalf("doctor attempted mutation: %#v", call)
+		}
 	}
 }
 
