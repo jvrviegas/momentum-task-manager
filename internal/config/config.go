@@ -39,6 +39,8 @@ type Config struct {
 	Theme           string                `toml:"theme"`
 	Icons           string                `toml:"icons"`
 	Sync            SyncConfig            `toml:"sync"`
+	Planning        PlanningConfig        `toml:"planning"`
+	Calendar        CalendarConfig        `toml:"calendar"`
 	Projects        domain.ProjectCatalog `toml:"projects"`
 }
 
@@ -64,6 +66,8 @@ func Defaults() Config {
 			Startup:       true,
 			Shutdown:      true,
 		},
+		Planning: defaultPlanningConfig(),
+		Calendar: defaultCalendarConfig(),
 	}
 }
 
@@ -184,12 +188,21 @@ func (c Config) Validate() error {
 	if c.Sync.MutationDelay < 0 {
 		return fmt.Errorf("config key %q must be zero or a positive duration", "sync.mutation_delay")
 	}
+	if err := c.Planning.Validate(); err != nil {
+		return err
+	}
+	if err := c.Calendar.Validate(); err != nil {
+		return err
+	}
 	return c.Projects.Validate()
 }
 
 // IsZero identifies omitted settings without requiring Config to be comparable.
 func (c Config) IsZero() bool {
-	return c.RefreshInterval == 0 && c.Theme == "" && c.Icons == "" && c.Sync == (SyncConfig{}) && c.Projects == nil
+	return c.RefreshInterval == 0 && c.Theme == "" && c.Icons == "" && c.Sync == (SyncConfig{}) &&
+		!c.Planning.Enabled && c.Planning.DailyCapacity == 0 && c.Planning.Buffer == 0 && len(c.Planning.WeekdayCapacity) == 0 &&
+		!c.Calendar.Enabled && len(c.Calendar.Paths) == 0 && c.Calendar.WorkingStart == "" && c.Calendar.WorkingEnd == "" && c.Calendar.StaleAfter == 0 &&
+		c.Projects == nil
 }
 
 func lookup(values map[string]string, key string) string {
