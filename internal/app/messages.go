@@ -23,20 +23,25 @@ type TasksMsg struct {
 type MutationKind string
 
 const (
-	MutationAdd      MutationKind = "add"
-	MutationModify   MutationKind = "modify"
-	MutationComplete MutationKind = "complete"
-	MutationDelete   MutationKind = "delete"
-	MutationStart    MutationKind = "start"
-	MutationStop     MutationKind = "stop"
-	MutationUndo     MutationKind = "undo"
+	MutationAdd            MutationKind = "add"
+	MutationModify         MutationKind = "modify"
+	MutationComplete       MutationKind = "complete"
+	MutationDelete         MutationKind = "delete"
+	MutationStart          MutationKind = "start"
+	MutationStop           MutationKind = "stop"
+	MutationUndo           MutationKind = "undo"
+	MutationPlan           MutationKind = "daily_plan"
+	MutationStopRecurrence MutationKind = "stop_recurrence"
 )
 
 // MutationMsg is returned by a mutation command.
 type MutationMsg struct {
-	Kind MutationKind
-	UUID string
-	Err  error
+	Kind        MutationKind
+	UUID        string
+	Err         error
+	Revision    uint64
+	PlanApplied int
+	PlanTotal   int
 }
 
 // SyncMsg is returned by a native Taskwarrior sync command.
@@ -87,6 +92,13 @@ type TagsMsg struct {
 	Values    []string
 	Err       error
 	RequestID uint64
+}
+
+// CalendarMsg contains the ephemeral read-only calendar projection used by
+// the open planner. Event details never reach Taskwarrior or disk.
+type CalendarMsg struct {
+	ID     uint64
+	Result CalendarState
 }
 
 // ProjectCatalogSnapshotMsg is the typed result of the async config revision read.
