@@ -10,7 +10,7 @@
 │Task details          │
 │CORE                  │
 │Description: Renew the│
-│↑/↓ scroll · 1/31 · e…│
+│↑/↓ scroll · 1/37 · e…│
 ╰──────────────────────╯
 
 === help ===
@@ -18,7 +18,7 @@
 │Keyboard shortcuts    │
 │Navigation            │
 │j / k / ↑ / ↓ move    │
-│↑/↓ scroll · 1/44 · E…│
+│↑/↓ scroll · 1/49 · E…│
 ╰──────────────────────╯
 
 === quick-capture ===
