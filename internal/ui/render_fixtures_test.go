@@ -40,7 +40,7 @@ func fixtureComponentView(width, height int, state string) string {
 	due := now.Add(7 * time.Hour)
 	task := domain.Task{
 		UUID: "fixture-task", Description: "Renew the domain registration before the next billing window", Status: "pending",
-		Project: "personal.admin", Priority: "H", Due: &due, Tags: []string{"planning", "admin"},
+		Project: "personal.admin", Priority: "H", Due: &due, Estimate: &domain.Estimate{Minutes: 90}, Tags: []string{"planning", "admin"},
 		Annotations: []domain.Annotation{{Description: "Check registrar account and confirm receipt"}}, Dependencies: []string{"fixture-dependency"},
 		Recurrence: "yearly", Urgency: 8.25, RawFields: map[string]json.RawMessage{"custom": json.RawMessage(`"fixture value"`)},
 	}
