@@ -20,9 +20,9 @@ func renderOptions(width, height, selected int) TaskListOptions {
 
 func TestRenderTaskRowIncludesSupportedDefaultMetadata(t *testing.T) {
 	due := time.Date(2026, 9, 8, 17, 0, 0, 0, time.UTC)
-	task := domain.Task{Description: "Finish API proposal", Status: "pending", Project: "work.client", Priority: "H", Due: &due}
+	task := domain.Task{Description: "Finish API proposal", Status: "pending", Project: "work.client", Priority: "H", Due: &due, Estimate: &domain.Estimate{Minutes: 90}}
 	got := RenderTaskRow(task, TaskRowOptions{Width: 80, ShowMetadata: true, Now: time.Date(2026, 9, 8, 10, 0, 0, 0, time.UTC), Styles: NewStyles(ResolveTheme("dark", true)), Icons: IconsFor("unicode")})
-	for _, want := range []string{"Finish API proposal", "#work.client", "Today 17:00", "H"} {
+	for _, want := range []string{"Finish API proposal", "#work.client", "Today 17:00", "Estimate 1h 30m", "H"} {
 		if !strings.Contains(got, want) {
 			t.Errorf("row %q missing %q", got, want)
 		}
@@ -48,13 +48,23 @@ func TestRenderTaskRowUsesActiveAndCompletedIndicators(t *testing.T) {
 
 func TestRenderTaskRowHidesMetadataAtNarrowWidth(t *testing.T) {
 	due := time.Date(2026, 9, 8, 17, 0, 0, 0, time.UTC)
-	task := domain.Task{Description: "Keep description visible", Status: "pending", Project: "work", Priority: "H", Due: &due}
+	task := domain.Task{Description: "Keep description visible", Status: "pending", Project: "work", Priority: "H", Due: &due, Estimate: &domain.Estimate{Minutes: 90}}
 	got := RenderTaskRow(task, TaskRowOptions{Width: 35, ShowMetadata: false, Now: time.Now(), Styles: NewStyles(ResolveTheme("dark", true)), Icons: IconsFor("unicode")})
-	if strings.Contains(got, "#work") || strings.Contains(got, "Today") || strings.Contains(got, " H") {
+	if strings.Contains(got, "#work") || strings.Contains(got, "Today") || strings.Contains(got, "Estimate") || strings.Contains(got, " H") {
 		t.Fatalf("metadata leaked into narrow row=%q", got)
 	}
 	if lipgloss.Width(got) != 35 {
 		t.Fatalf("width=%d", lipgloss.Width(got))
+	}
+}
+
+func TestCompletedRowsKeepCompletionMetadataWithoutEstimate(t *testing.T) {
+	end := time.Date(2026, 9, 8, 9, 0, 0, 0, time.UTC)
+	got := RenderTaskRow(domain.Task{Description: "done", Status: "completed", End: &end, Estimate: &domain.Estimate{Minutes: 90}}, TaskRowOptions{
+		Width: 80, ShowMetadata: true, Completed: true, Now: end, Styles: NewStyles(ResolveTheme("dark", true)), Icons: IconsFor("unicode"),
+	})
+	if !strings.Contains(got, "Completed") || strings.Contains(got, "Estimate") {
+		t.Fatalf("completed row=%q", got)
 	}
 }
 
