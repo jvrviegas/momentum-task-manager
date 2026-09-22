@@ -148,6 +148,22 @@ func (c *CommandClient) ExportPending(ctx context.Context) ([]domain.Task, error
 	return c.exportFilteredTasks(ctx, "status:pending")
 }
 
+// ExportRecurring reads recurrence templates for diagnostics and future
+// template-aware surfaces. Pending exports intentionally contain generated
+// instances only.
+func (c *CommandClient) ExportRecurring(ctx context.Context) ([]domain.Task, error) {
+	return c.exportFilteredTasks(ctx, "status:recurring")
+}
+
+// RecurrenceGeneration reads the local generation toggle without changing it.
+func (c *CommandClient) RecurrenceGeneration(ctx context.Context) (string, error) {
+	result, err := c.run(ctx, "recurrence", "_get", "recurrence")
+	if err != nil {
+		return "", err
+	}
+	return strings.TrimSpace(result.Stdout), nil
+}
+
 // ExportCompleted reads completed tasks after the exclusive local-date
 // boundary. Export ignores Taskwarrior contexts, so the active context's read
 // filter is captured and passed explicitly.
