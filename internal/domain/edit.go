@@ -32,6 +32,19 @@ func (c FieldChange) Empty() bool {
 	return c.Kind == Unchanged
 }
 
+// EstimateChange is the typed equivalent of FieldChange for the optional
+// estimate. Value is populated only for Set; Clear is represented by a nil
+// Value and an explicit Kind.
+type EstimateChange struct {
+	Kind  ChangeKind
+	Value *Estimate
+}
+
+// Empty reports whether the estimate carries no value change.
+func (c EstimateChange) Empty() bool {
+	return c.Kind == Unchanged
+}
+
 // TagChange is a deterministic set difference for Taskwarrior +tag/-tag args.
 type TagChange struct {
 	Changed bool
@@ -46,6 +59,8 @@ type TaskDiff struct {
 	Priority    FieldChange
 	Due         FieldChange
 	Scheduled   FieldChange
+	Recurrence  FieldChange
+	Estimate    EstimateChange
 	Tags        TagChange
 }
 
@@ -56,6 +71,8 @@ func (d TaskDiff) Empty() bool {
 		d.Priority.Kind == Unchanged &&
 		d.Due.Kind == Unchanged &&
 		d.Scheduled.Kind == Unchanged &&
+		d.Recurrence.Kind == Unchanged &&
+		d.Estimate.Empty() &&
 		!d.Tags.Changed
 }
 
@@ -66,6 +83,8 @@ type EditSnapshot struct {
 	Priority    string
 	Due         string
 	Scheduled   string
+	Recurrence  string
+	Estimate    *Estimate
 	Tags        []string
 }
 
@@ -78,6 +97,8 @@ func Snapshot(task Task) EditSnapshot {
 		Priority:    task.Priority,
 		Due:         snapshotDate(task.Due, task.DueRaw),
 		Scheduled:   snapshotDate(task.Scheduled, task.ScheduledRaw),
+		Recurrence:  task.Recurrence,
+		Estimate:    cloneEstimate(task.Estimate),
 		Tags:        uniqueTags(task.Tags),
 	}
 }
@@ -100,6 +121,8 @@ func Diff(before, after EditSnapshot) TaskDiff {
 		Priority:    scalarChange(before.Priority, after.Priority),
 		Due:         scalarChange(before.Due, after.Due),
 		Scheduled:   scalarChange(before.Scheduled, after.Scheduled),
+		Recurrence:  scalarChange(before.Recurrence, after.Recurrence),
+		Estimate:    estimateChange(before.Estimate, after.Estimate),
 		Tags:        tagDiff(before.Tags, after.Tags),
 	}
 }
@@ -115,6 +138,31 @@ func scalarChange(before, after string) FieldChange {
 		return clearChange()
 	}
 	return setChange(after)
+}
+
+func estimateChange(before, after *Estimate) EstimateChange {
+	if sameEstimate(before, after) {
+		return EstimateChange{}
+	}
+	if after == nil {
+		return EstimateChange{Kind: Clear}
+	}
+	return EstimateChange{Kind: Set, Value: cloneEstimate(after)}
+}
+
+func sameEstimate(left, right *Estimate) bool {
+	if left == nil || right == nil {
+		return left == right
+	}
+	return left.Minutes == right.Minutes
+}
+
+func cloneEstimate(value *Estimate) *Estimate {
+	if value == nil {
+		return nil
+	}
+	copy := *value
+	return &copy
 }
 
 func tagDiff(before, after []string) TagChange {
