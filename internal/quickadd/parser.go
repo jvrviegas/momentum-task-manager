@@ -12,10 +12,12 @@ import (
 type ErrorKind string
 
 const (
-	ErrEmptyDescription ErrorKind = "empty_description"
-	ErrDuplicateField   ErrorKind = "duplicate_field"
-	ErrEmptyValue       ErrorKind = "empty_value"
-	ErrInvalidPriority  ErrorKind = "invalid_priority"
+	ErrEmptyDescription  ErrorKind = "empty_description"
+	ErrDuplicateField    ErrorKind = "duplicate_field"
+	ErrEmptyValue        ErrorKind = "empty_value"
+	ErrInvalidPriority   ErrorKind = "invalid_priority"
+	ErrInvalidEstimate   ErrorKind = "invalid_estimate"
+	ErrInvalidRecurrence ErrorKind = "invalid_recurrence"
 )
 
 // ParseError reports the token that made quick-add invalid.
@@ -40,11 +42,13 @@ func (e *ParseError) Error() string {
 type Trigger rune
 
 const (
-	TriggerProject   Trigger = '#'
-	TriggerPriority  Trigger = '!'
-	TriggerDue       Trigger = '@'
-	TriggerScheduled Trigger = '>'
-	TriggerTag       Trigger = '+'
+	TriggerProject    Trigger = '#'
+	TriggerPriority   Trigger = '!'
+	TriggerDue        Trigger = '@'
+	TriggerScheduled  Trigger = '>'
+	TriggerTag        Trigger = '+'
+	TriggerEstimate   Trigger = '~'
+	TriggerRecurrence Trigger = '^'
 )
 
 func (t Trigger) String() string { return string(rune(t)) }
@@ -57,6 +61,7 @@ func Parse(input string) (domain.NewTask, error) {
 	var description []string
 	seenScalar := make(map[Trigger]string)
 	seenTags := make(map[string]struct{})
+	recurrenceAnchor := ""
 
 	for _, token := range tokens {
 		if escaped, ok := unescapeTrigger(token.text); ok {
@@ -87,12 +92,41 @@ func Parse(input string) (domain.NewTask, error) {
 			result.Priority = priority
 			continue
 		}
+		if first == TriggerEstimate {
+			estimate, err := domain.ParseEstimate(value)
+			if err != nil {
+				return domain.NewTask{}, &ParseError{Kind: ErrInvalidEstimate, Field: "estimate", Token: token.text, Msg: err.Error()}
+			}
+			if _, exists := seenScalar[first]; exists {
+				return domain.NewTask{}, duplicateError(first, token.text)
+			}
+			seenScalar[first] = value
+			result.Estimate = &estimate
+			continue
+		}
 		if first == TriggerTag {
 			if _, exists := seenTags[value]; exists {
 				continue
 			}
 			seenTags[value] = struct{}{}
 			result.Tags = append(result.Tags, value)
+			continue
+		}
+		if first == TriggerRecurrence {
+			if _, exists := seenScalar[first]; exists {
+				return domain.NewTask{}, duplicateError(first, token.text)
+			}
+			recurrence, err := domain.ParseRecurrence(value)
+			if err != nil {
+				if weekday, ok := parseWeekdayValue(value); ok {
+					recurrence = "weekly"
+					recurrenceAnchor = weekday
+				} else {
+					return domain.NewTask{}, &ParseError{Kind: ErrInvalidRecurrence, Field: "recurrence", Token: token.text, Msg: err.Error()}
+				}
+			}
+			seenScalar[first] = value
+			result.Recurrence = recurrence
 			continue
 		}
 		if _, exists := seenScalar[first]; exists {
@@ -109,6 +143,13 @@ func Parse(input string) (domain.NewTask, error) {
 		}
 	}
 
+	if result.Recurrence != "" && result.Due == "" {
+		if recurrenceAnchor != "" {
+			result.Due = recurrenceAnchor
+		} else {
+			result.Due = "today"
+		}
+	}
 	result.Description = strings.Join(description, " ")
 	if strings.TrimSpace(result.Description) == "" {
 		return domain.NewTask{}, &ParseError{Kind: ErrEmptyDescription, Msg: "task description cannot be empty after metadata extraction"}
@@ -156,7 +197,7 @@ func unescapeTrigger(value string) (string, bool) {
 
 func isTrigger(value Trigger) bool {
 	switch value {
-	case TriggerProject, TriggerPriority, TriggerDue, TriggerScheduled, TriggerTag:
+	case TriggerProject, TriggerPriority, TriggerDue, TriggerScheduled, TriggerTag, TriggerEstimate, TriggerRecurrence:
 		return true
 	default:
 		return false
@@ -175,6 +216,10 @@ func triggerField(trigger Trigger) string {
 		return "scheduled"
 	case TriggerTag:
 		return "tag"
+	case TriggerEstimate:
+		return "estimate"
+	case TriggerRecurrence:
+		return "recurrence"
 	default:
 		return "metadata"
 	}
@@ -186,6 +231,15 @@ func duplicateError(trigger Trigger, token string) error {
 		Field: triggerField(trigger),
 		Token: token,
 		Msg:   fmt.Sprintf("duplicate %s metadata; keep only one %s token", triggerField(trigger), trigger),
+	}
+}
+
+func parseWeekdayValue(value string) (string, bool) {
+	switch strings.ToLower(strings.TrimSpace(value)) {
+	case "sunday", "monday", "tuesday", "wednesday", "thursday", "friday", "saturday":
+		return strings.ToLower(strings.TrimSpace(value)), true
+	default:
+		return "", false
 	}
 }
 
