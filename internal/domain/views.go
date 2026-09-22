@@ -15,6 +15,7 @@ const (
 	GroupOverdue        TodayGroup = "Overdue"
 	GroupDueToday       TodayGroup = "Due Today"
 	GroupScheduledToday TodayGroup = "Scheduled Today"
+	GroupPlannedToday   TodayGroup = "Planned Today"
 )
 
 // TodaySection is one rendered section of the Today view.
@@ -65,6 +66,9 @@ func BuildViews(tasks []Task, now time.Time) Views {
 			continue
 		}
 		group := ClassifyToday(task, now)
+		if group == "" && IsPlannedFor(task, now) {
+			group = GroupPlannedToday
+		}
 		if group == "" {
 			inbox = append(inbox, task)
 			continue
@@ -80,7 +84,7 @@ func BuildViews(tasks []Task, now time.Time) Views {
 	SortInboxTasks(inbox)
 	sections := make([]TodaySection, 0, 3)
 	today := make([]Task, 0)
-	for _, group := range []TodayGroup{GroupOverdue, GroupDueToday, GroupScheduledToday} {
+	for _, group := range []TodayGroup{GroupOverdue, GroupDueToday, GroupScheduledToday, GroupPlannedToday} {
 		sectionTasks := groups[group]
 		SortTasks(sectionTasks)
 		if len(sectionTasks) == 0 {
