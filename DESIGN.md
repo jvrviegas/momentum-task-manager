@@ -34,7 +34,7 @@ Momentum includes in-app catalog management and an explicit opt-in to migrate ch
 - Custom or user-defined views.
 - A Kanban board.
 - General bulk task operations. The explicit Settings → Projects pending-only value migration is the narrow documented exception; it is not a general bulk editor.
-- Editing annotations, dependencies, recurrence, or arbitrary UDAs.
+- Editing annotations, dependencies, or arbitrary UDAs. Native recurrence presets and daily-plan tags are supported extensions documented below.
 - Changing Taskwarrior contexts from Momentum.
 - Desktop notifications or background execution while Momentum is closed.
 - Native Windows support.
@@ -47,8 +47,8 @@ Momentum includes in-app catalog management and an explicit opt-in to migrate ch
 ### Views
 
 - **VIEW-01:** Inbox contains pending tasks visible in the active Taskwarrior context that are not overdue, due today, or scheduled today.
-- **VIEW-02:** Today contains unique pending tasks that are overdue, due today, or scheduled today.
-- **VIEW-03:** Today groups tasks in this order: Overdue, Due Today, Scheduled Today.
+- **VIEW-02:** Today contains unique pending tasks that are overdue, due today, scheduled today, or explicitly planned for today.
+- **VIEW-03:** Today groups tasks in this order: Overdue, Due Today, Scheduled Today, Planned Today.
 - **VIEW-04:** A task matching more than one Today group appears once in its highest-priority group.
 - **VIEW-05:** Inbox sorts by Taskwarrior urgency descending.
 - **VIEW-06:** Today sorts by group and then Taskwarrior urgency descending within each group.
@@ -72,9 +72,10 @@ A scheduled date before today does not make a task overdue. Overdue is based on 
 
 ### Task rows
 
-- **ROW-01:** A row shows completion state, description, project badge, relevant due/scheduled value, priority badge, and active-task indicator.
+- **ROW-01:** A row shows completion state, description, project badge, relevant due/scheduled value, priority badge, and active-task indicator; comfortable/wide pending rows also show an optional Estimate metadata value.
 - **ROW-02:** UUID, numeric ID, tags, raw urgency, recurrence, dependencies, and annotations are hidden from the default row.
 - **ROW-03:** Color is never the only indication of state.
+- **ROW-05:** Daily-plan tags remain ordinary Taskwarrior data and are not a Momentum-owned task store.
 - **ROW-04:** Selected rows use a full-row background treatment.
 
 Example:
@@ -102,16 +103,19 @@ Trigger grammar:
 | `@` | Due | `@today`, `@tomorrow`, `@2026-09-20` | `due:<value>` |
 | `>` | Scheduled | `>today`, `>monday` | `scheduled:<value>` |
 | `+` | Tag | `+planning` | `+planning` |
+| `~` | Estimate | `~15m`, `~1h30m` | `estimate:<minutes>min` |
+| `^` | Recurrence | `^daily`, `^weekly`, `^2wks` | `recur:<validated expression>` |
 
 Rules:
 
 - One project token is permitted.
 - One priority, due, and scheduled token is permitted; the parser rejects duplicate scalar metadata with a useful error.
 - Multiple unique tags are permitted.
+- One estimate token is permitted. It accepts positive whole minutes from 1 minute through 24 hours (`15m`, `90m`, `1h`, `1.5h`, or `1h30m`) and is removed from the final description.
 - Unknown project and tag values are accepted, allowing inline creation.
 - The description must not be empty after metadata extraction.
 - Email addresses such as `bob@example.com` remain description text because `@` is not at a token boundary.
-- `\#launch` becomes literal description text `#launch`.
+- `\#launch` and `\~1h` become literal description text `#launch` and `~1h`.
 
 Autocomplete:
 
@@ -140,18 +144,20 @@ Fields and direct shortcuts:
 | Key | Initial field |
 |---|---|
 | `e` | Description |
+| `E` | Estimate |
+| `R` | Recurrence |
 | `p` | Project |
 | `!` | Priority |
 | `D` | Due |
 | `S` | Scheduled |
 | `t` | Tags |
 
-Editable fields are Description, Project, Priority, Due, Scheduled, and Tags. Project/tag fields autocomplete, priority uses a selection list, and date fields show existing timestamps in local `YYYY-MM-DD HH:MM` form while still accepting Taskwarrior expressions. On a date field, `Ctrl+Left`/`Ctrl+Right` step one calendar day and `Ctrl+Up`/`Ctrl+Down` step 30 minutes. Removing a field value clears it through a Taskwarrior `modify` command.
+Editable fields are Description, Project, Priority, Due, Scheduled, Tags, Estimate, and Recurrence. Project/tag/estimate fields autocomplete, priority uses a selection list, and date fields show existing timestamps in local `YYYY-MM-DD HH:MM` form while still accepting Taskwarrior expressions. Estimate values use the shared positive whole-minute parser and display compactly (`15m`, `1h`, `1h 30m`); `E` focuses Estimate while lowercase `e` remains Description. Momentum serializes minutes as `<minutes>min` because Taskwarrior interprets `m` as months. On a date field, `Ctrl+Left`/`Ctrl+Right` step one calendar day and `Ctrl+Up`/`Ctrl+Down` step 30 minutes. Removing a field value clears it through a Taskwarrior `modify` command.
 
 ### Details
 
 - **DETAIL-01:** `Enter` opens a centered, primarily read-only details modal.
-- **DETAIL-02:** Details include all available supported information: description, status, project, priority, dates, tags, annotations, dependencies, recurrence, urgency, UUID, and unknown exported properties where practical.
+- **DETAIL-02:** Details include all available supported information: description, status, project, priority, Estimate, dates, tags, annotations, dependencies, recurrence, urgency, UUID, and unknown exported properties where practical.
 - **DETAIL-03:** `e` moves from details to the structured edit modal.
 - **DETAIL-04:** `Esc` or `Enter` closes details.
 
@@ -223,7 +229,9 @@ Ctrl+K to add a task
 | `c` / `Ctrl+K` | Create a task with quick capture |
 | `/` | Search current view |
 | `Space` | Complete task |
-| `e`, `p`, `!`, `D`, `S`, `t` | Structured edit with initial field |
+| `e`, `E`, `R`, `p`, `!`, `D`, `S`, `t` | Structured edit with initial field |
+| `P` | Open the daily planning ritual |
+| `X` | Stop the selected recurrence template |
 | `s` | Start/stop task |
 | `d` | Delete confirmation |
 | `u` | Taskwarrior undo |
@@ -321,7 +329,25 @@ interval = "5m"
 mutation_delay = "15s"
 startup = true
 shutdown = true
+
+[planning]
+enabled = true
+daily_capacity = "8h"
+buffer = "1h"
+# Optional: [planning.weekday_capacity] friday = "4h"
+
+[calendar]
+enabled = false
+# paths = ["~/Calendars/work.ics"]
+include_all_day = false
+include_transparent = false
+working_start = "09:00"
+working_end = "17:00"
+stale_after = "24h"
 ```
+
+Calendar paths are local ICS files. Momentum does not fetch remote URLs; an
+external calendar client may refresh a subscription before Momentum reads it.
 
 Environment overrides in v1:
 
@@ -344,6 +370,7 @@ internal/config/       TOML loading, XDG paths, defaults, validation
 internal/domain/       Task, view, grouping, sorting, edit-diff models
 internal/quickadd/     Trigger parser and autocomplete context
 internal/diagnostics/  Doctor checks and debug logging
+internal/calendar/     Read-only local ICS parsing and busy-interval merging
 ```
 
 Recommended dependencies:
@@ -397,9 +424,9 @@ The UI depends on this interface and uses a fake implementation in tests. The ex
 The domain task should include at least:
 
 ```text
-UUID, ID, Description, Status, Project, Priority,
-Due, Scheduled, Start, Wait, Tags, Annotations,
-Dependencies, Recurrence, Urgency, RawFields
+UUID, ID, Description, Status, Project, Priority, Estimate,
+Due, Scheduled, Start, Wait, Until, Tags, Annotations,
+Dependencies, Recurrence, recurrence parent/mask metadata, Urgency, RawFields
 ```
 
 - UUID is the stable selection and mutation identity.
@@ -407,6 +434,8 @@ Dependencies, Recurrence, Urgency, RawFields
 - Export timestamps are parsed and converted to local time for classification/display.
 - Unknown JSON properties are retained when useful for details/debugging but never rewritten.
 - Numeric task IDs are display-only and never used for mutations.
+- A daily commitment is the inspectable tag `momentum-plan-YYYY-MM-DD`; planned tasks appear in a distinct Planned Today group without changing due dates.
+- Recurrence is delegated to Taskwarrior templates and generated instances. Momentum expires a template with `until:today` when the user stops a series; it does not run a recurrence scheduler.
 
 ### Asynchronous execution
 
@@ -443,6 +472,8 @@ task sync
 ```
 
 Actual invocation uses `exec.CommandContext` with separate arguments. It must never use `sh -c` or interpolate user text into a command string.
+
+Optional estimates use the Taskwarrior UDA `estimate` with `type=duration` and `label=Estimate`. The same definition must exist in every synchronized client's `.taskrc`; the UDA value is task data, while its definition is local configuration. Momentum checks `_get rc.uda.estimate.type` immediately before estimate-bearing add/modify commands and refuses the mutation when the type is missing, wrong, or unavailable.
 
 The adapter must:
 
@@ -620,6 +651,7 @@ Logs include command kind, duration, exit status, state transitions, and redacte
 - export command and JSON decoding
 - config path, syntax, and values
 - sync setting presence without printing values
+- Estimate UDA readiness (`uda.estimate.type=duration`) without changing Taskwarrior configuration
 - a safe sync readiness check where possible
 - terminal capabilities
 - writable state/log directories
@@ -631,11 +663,12 @@ Doctor must not mutate tasks or run an irreversible sync unless explicitly docum
 - No telemetry.
 - No crash reporting.
 - No automatic update checks.
-- No application network traffic except Taskwarrior sync initiated through `task sync`.
+- No application network traffic except Taskwarrior sync initiated through `task sync`; calendar awareness reads configured local ICS files only.
 
 ## 15. Testing Strategy
 
-- Unit tests for task JSON decoding, date conversion, Today classification, grouping, deterministic sorting, edit diffs, configuration, quick-add parsing, and autocomplete context.
+- Unit tests for task JSON decoding, date conversion, Today/planned classification, grouping, deterministic sorting, edit diffs, recurrence/plan projections, configuration, quick-add interpretation, and autocomplete context.
+- Calendar tests use fixture ICS files and assert overlap merging, recurrence expansion, all-day/transparency policy, stale/missing degradation, and no event persistence.
 - Update-loop tests use typed messages and a fake Taskwarrior client.
 - Rendering tests cover normal, narrow, very narrow, empty, loading, modal, suggestion, offline, and error states.
 - Integration tests use isolated temporary Taskwarrior configuration/data and never touch the user's `~/.task` or `~/.taskrc`.
@@ -669,7 +702,7 @@ Momentum v1 is ready when:
 1. It launches against Taskwarrior 3.x on Linux and macOS.
 2. Inbox and Today exactly follow the agreed disjoint semantics.
 3. Today correctly groups overdue, due-today, and scheduled-today tasks without duplicates.
-4. Quick add safely creates tasks with all five trigger types and autocomplete.
+4. Quick add safely creates tasks with all supported explicit trigger types and autocomplete, including optional estimates and native recurrence.
 5. Structured edit can directly focus and change every supported field without altering unsupported fields.
 6. Complete, start/stop, delete, and undo work through UUID-based Taskwarrior commands.
 7. Search, keyboard navigation, limited mouse interaction, details, help, and responsive layouts work.
@@ -680,3 +713,7 @@ Momentum v1 is ready when:
 12. Debug logs and doctor checks do not disclose secrets.
 13. Automated tests never access real user task data and `go test ./...` plus `go vet ./...` pass.
 14. Documentation explains installation, configuration, controls, and manual Cloud Run/Neon synchronization setup.
+15. The daily ritual can be canceled/reopened, records selected commitments as inspectable Taskwarrior tags, distinguishes obligations/rollover/candidates, reports capacity and unestimated work, and warns without blocking over-capacity plans.
+16. Native recurring tasks support the approved presets and interval, show template/instance metadata, use Taskwarrior generation, and stop by expiring the template without rewriting history.
+17. Natural-language capture supports the documented local date/time/effort/priority/recurrence whitelist, opens review before inferred mutation, preserves prose, and retains explicit-trigger precedence.
+18. Optional local ICS awareness merges overlapping in-hours events, treats all-day/transparent events by configuration, and degrades to task-only planning when unavailable or stale.
