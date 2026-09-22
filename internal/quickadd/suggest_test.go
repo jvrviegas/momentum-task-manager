@@ -53,6 +53,21 @@ func TestSuggestionsForTagsDeduplicateCandidates(t *testing.T) {
 	}
 }
 
+func TestEstimateSuggestionsAreFixed(t *testing.T) {
+	ctx := ContextAt("~", 1)
+	got := SuggestionsFor(ctx, nil, nil, time.Now())
+	values := make([]string, 0, len(got))
+	for _, suggestion := range got {
+		values = append(values, suggestion.Value)
+	}
+	if !reflect.DeepEqual(values, []string{"15m", "30m", "45m", "1h", "2h", "4h"}) {
+		t.Fatalf("values=%#v", values)
+	}
+	if got[0].Kind != SuggestionEstimate || got[0].Text != "~15m" {
+		t.Fatalf("suggestions=%#v", got)
+	}
+}
+
 func TestPrioritySuggestionsAreFixed(t *testing.T) {
 	ctx := ContextAt("!", 1)
 	got := SuggestionsFor(ctx, nil, nil, time.Now())
@@ -105,5 +120,8 @@ func TestApplySuggestionNoopWhenContextInactive(t *testing.T) {
 func TestSuggestionContextAlias(t *testing.T) {
 	if got := SuggestionContextAt("+tag", 4); !got.Active || got.Kind != SuggestionTag {
 		t.Fatalf("unexpected context: %#v", got)
+	}
+	if got := SuggestionContextAt("~1h", 3); !got.Active || got.Kind != SuggestionEstimate {
+		t.Fatalf("unexpected estimate context: %#v", got)
 	}
 }
