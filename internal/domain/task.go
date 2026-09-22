@@ -18,32 +18,43 @@ type Annotation struct {
 // Task is the supported, export-facing representation of a Taskwarrior task.
 // Date pointers preserve the difference between an absent date and a zero time.
 type Task struct {
-	UUID         string
-	ID           int
-	Description  string
-	Status       string
-	Project      string
-	Priority     string
-	Entry        *time.Time
-	End          *time.Time
-	Modified     *time.Time
-	Due          *time.Time
-	Scheduled    *time.Time
-	Start        *time.Time
-	Wait         *time.Time
-	EntryRaw     string
-	EndRaw       string
-	ModifiedRaw  string
-	DueRaw       string
-	ScheduledRaw string
-	StartRaw     string
-	WaitRaw      string
-	Tags         []string
-	Annotations  []Annotation
-	Dependencies []string
-	Recurrence   string
-	Urgency      float64
-	RawFields    map[string]json.RawMessage
+	UUID        string
+	ID          int
+	Description string
+	Status      string
+	Project     string
+	Priority    string
+	Estimate    *Estimate
+	// EstimateWarning is non-empty when Taskwarrior exported an estimate value
+	// that cannot be represented as positive whole minutes. The task remains
+	// usable and the original JSON stays in RawFields for read-only details.
+	EstimateWarning string
+	Entry           *time.Time
+	End             *time.Time
+	Modified        *time.Time
+	Due             *time.Time
+	Scheduled       *time.Time
+	Start           *time.Time
+	Wait            *time.Time
+	Until           *time.Time
+	EntryRaw        string
+	EndRaw          string
+	ModifiedRaw     string
+	DueRaw          string
+	ScheduledRaw    string
+	StartRaw        string
+	WaitRaw         string
+	UntilRaw        string
+	Tags            []string
+	Annotations     []Annotation
+	Dependencies    []string
+	Recurrence      string
+	Parent          string
+	Mask            string
+	MaskIndex       *int
+	RecurrenceType  string
+	Urgency         float64
+	RawFields       map[string]json.RawMessage
 }
 
 // IsPending reports whether Taskwarrior considers the task pending.
@@ -55,24 +66,29 @@ func (t Task) IsPending() bool {
 // property for read-only details and diagnostics.
 func (t *Task) UnmarshalJSON(data []byte) error {
 	type wire struct {
-		UUID         string           `json:"uuid"`
-		ID           int              `json:"id"`
-		Description  string           `json:"description"`
-		Status       string           `json:"status"`
-		Project      string           `json:"project"`
-		Priority     string           `json:"priority"`
-		Entry        json.RawMessage  `json:"entry"`
-		End          json.RawMessage  `json:"end"`
-		Modified     json.RawMessage  `json:"modified"`
-		Due          json.RawMessage  `json:"due"`
-		Scheduled    json.RawMessage  `json:"scheduled"`
-		Start        json.RawMessage  `json:"start"`
-		Wait         json.RawMessage  `json:"wait"`
-		Tags         []string         `json:"tags"`
-		Annotations  []AnnotationWire `json:"annotations"`
-		Dependencies []string         `json:"depends"`
-		Recurrence   string           `json:"recur"`
-		Urgency      float64          `json:"urgency"`
+		UUID           string           `json:"uuid"`
+		ID             int              `json:"id"`
+		Description    string           `json:"description"`
+		Status         string           `json:"status"`
+		Project        string           `json:"project"`
+		Priority       string           `json:"priority"`
+		Entry          json.RawMessage  `json:"entry"`
+		End            json.RawMessage  `json:"end"`
+		Modified       json.RawMessage  `json:"modified"`
+		Due            json.RawMessage  `json:"due"`
+		Scheduled      json.RawMessage  `json:"scheduled"`
+		Start          json.RawMessage  `json:"start"`
+		Wait           json.RawMessage  `json:"wait"`
+		Until          json.RawMessage  `json:"until"`
+		Tags           []string         `json:"tags"`
+		Annotations    []AnnotationWire `json:"annotations"`
+		Dependencies   []string         `json:"depends"`
+		Recurrence     string           `json:"recur"`
+		Parent         string           `json:"parent"`
+		Mask           string           `json:"mask"`
+		MaskIndex      *int             `json:"imask"`
+		RecurrenceType string           `json:"rtype"`
+		Urgency        float64          `json:"urgency"`
 	}
 
 	var value wire
@@ -85,6 +101,7 @@ func (t *Task) UnmarshalJSON(data []byte) error {
 		return fmt.Errorf("retain task fields: %w", err)
 	}
 
+	estimate, estimateWarning := decodeTaskwarriorEstimate(raw["estimate"])
 	entry, entryRaw, err := optionalTime(value.Entry, "entry")
 	if err != nil {
 		return err
@@ -113,6 +130,10 @@ func (t *Task) UnmarshalJSON(data []byte) error {
 	if err != nil {
 		return err
 	}
+	until, untilRaw, err := optionalTime(value.Until, "until")
+	if err != nil {
+		return err
+	}
 
 	annotations := make([]Annotation, 0, len(value.Annotations))
 	for _, annotation := range value.Annotations {
@@ -128,31 +149,39 @@ func (t *Task) UnmarshalJSON(data []byte) error {
 	}
 
 	*t = Task{
-		UUID:         value.UUID,
-		ID:           value.ID,
-		Description:  value.Description,
-		Status:       value.Status,
-		Project:      value.Project,
-		Priority:     value.Priority,
-		Entry:        entry,
-		End:          end,
-		Modified:     modified,
-		Due:          due,
-		Scheduled:    scheduled,
-		Start:        start,
-		Wait:         wait,
-		EntryRaw:     entryRaw,
-		EndRaw:       endRaw,
-		ModifiedRaw:  modifiedRaw,
-		DueRaw:       dueRaw,
-		ScheduledRaw: scheduledRaw,
-		StartRaw:     startRaw,
-		WaitRaw:      waitRaw,
-		Tags:         append([]string(nil), value.Tags...),
-		Dependencies: append([]string(nil), value.Dependencies...),
-		Recurrence:   value.Recurrence,
-		Urgency:      value.Urgency,
-		RawFields:    raw,
+		UUID:            value.UUID,
+		ID:              value.ID,
+		Description:     value.Description,
+		Status:          value.Status,
+		Project:         value.Project,
+		Priority:        value.Priority,
+		Estimate:        estimate,
+		EstimateWarning: estimateWarning,
+		Entry:           entry,
+		End:             end,
+		Modified:        modified,
+		Due:             due,
+		Scheduled:       scheduled,
+		Start:           start,
+		Wait:            wait,
+		Until:           until,
+		EntryRaw:        entryRaw,
+		EndRaw:          endRaw,
+		ModifiedRaw:     modifiedRaw,
+		DueRaw:          dueRaw,
+		ScheduledRaw:    scheduledRaw,
+		StartRaw:        startRaw,
+		WaitRaw:         waitRaw,
+		UntilRaw:        untilRaw,
+		Tags:            append([]string(nil), value.Tags...),
+		Dependencies:    append([]string(nil), value.Dependencies...),
+		Recurrence:      value.Recurrence,
+		Parent:          value.Parent,
+		Mask:            value.Mask,
+		MaskIndex:       value.MaskIndex,
+		RecurrenceType:  value.RecurrenceType,
+		Urgency:         value.Urgency,
+		RawFields:       raw,
 	}
 	for _, annotation := range annotations {
 		t.Annotations = append(t.Annotations, annotation)
@@ -163,6 +192,25 @@ func (t *Task) UnmarshalJSON(data []byte) error {
 type AnnotationWire struct {
 	Description string          `json:"description"`
 	Entry       json.RawMessage `json:"entry"`
+}
+
+func decodeTaskwarriorEstimate(raw json.RawMessage) (*Estimate, string) {
+	trimmed := bytes.TrimSpace(raw)
+	if len(trimmed) == 0 || bytes.Equal(trimmed, []byte("null")) {
+		return nil, ""
+	}
+	var text string
+	if err := json.Unmarshal(raw, &text); err != nil {
+		return nil, "exported estimate is not a string"
+	}
+	if strings.TrimSpace(text) == "" {
+		return nil, "exported estimate is empty"
+	}
+	estimate, err := ParseTaskwarriorEstimate(text)
+	if err != nil {
+		return nil, "unsupported exported estimate: " + err.Error()
+	}
+	return &estimate, ""
 }
 
 func optionalTime(raw json.RawMessage, field string) (*time.Time, string, error) {
