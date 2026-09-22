@@ -47,6 +47,18 @@ func TestAddArgsOmitsNonePriorityAndEmptyOptionalFields(t *testing.T) {
 	}
 }
 
+func TestAddArgsSerializesEstimateAsWholeMinutes(t *testing.T) {
+	estimate := domain.Estimate{Minutes: 90}
+	got, err := AddArgs(domain.NewTask{Description: "task", Estimate: &estimate})
+	want := []string{"add", "task", "estimate:90min"}
+	if err != nil || !reflect.DeepEqual(got, want) {
+		t.Fatalf("got %#v err=%v want %#v", got, err, want)
+	}
+	if _, err := AddArgs(domain.NewTask{Description: "task", Estimate: &domain.Estimate{Minutes: 0}}); err == nil {
+		t.Fatal("invalid estimate was accepted")
+	}
+}
+
 func TestAddArgsRejectsEmptyDescription(t *testing.T) {
 	if _, err := AddArgs(domain.NewTask{Description: "  "}); err == nil {
 		t.Fatal("expected empty description error")
@@ -81,6 +93,23 @@ func TestModifyArgsIncludesAllScalarClearForms(t *testing.T) {
 	want := []string{"uuid", "modify", "description:", "project:", "priority:", "due:", "scheduled:"}
 	if err != nil || !reflect.DeepEqual(got, want) {
 		t.Fatalf("got %#v err=%v want %#v", got, err, want)
+	}
+}
+
+func TestModifyArgsSerializesEstimateSetAndClear(t *testing.T) {
+	estimate := &domain.Estimate{Minutes: 45}
+	set, err := ModifyArgs("uuid", domain.TaskDiff{Estimate: domain.EstimateChange{Kind: domain.Set, Value: estimate}})
+	if err != nil || !reflect.DeepEqual(set, []string{"uuid", "modify", "estimate:45min"}) {
+		t.Fatalf("set=%#v err=%v", set, err)
+	}
+	clear, err := ModifyArgs("uuid", domain.TaskDiff{Estimate: domain.EstimateChange{Kind: domain.Clear}})
+	if err != nil || !reflect.DeepEqual(clear, []string{"uuid", "modify", "estimate:"}) {
+		t.Fatalf("clear=%#v err=%v", clear, err)
+	}
+	for _, arg := range set {
+		if arg == "estimate:45m" {
+			t.Fatal("ambiguous Taskwarrior minute suffix was emitted")
+		}
 	}
 }
 
@@ -139,6 +168,112 @@ func TestMutationErrorPropagatesHookFailure(t *testing.T) {
 	var commandErr *CommandError
 	if !errors.As(err, &commandErr) || !strings.Contains(err.Error(), "hook failed") {
 		t.Fatalf("got %T %v", err, err)
+	}
+}
+
+func TestOrdinaryAddSkipsEstimateUDAReadiness(t *testing.T) {
+	runner := &fakeRunner{responses: []fakeResponse{{result: CommandResult{ExitCode: 0}}}}
+	client := NewClientWithRunner("task", runner)
+	if err := client.Add(context.Background(), domain.NewTask{Description: "ordinary task"}); err != nil {
+		t.Fatal(err)
+	}
+	want := [][]string{{"task", "add", "ordinary task"}}
+	if !reflect.DeepEqual(runner.calls, want) {
+		t.Fatalf("calls=%#v want=%#v", runner.calls, want)
+	}
+}
+
+func TestEstimateMutationChecksUDAImmediatelyBeforeAdd(t *testing.T) {
+	estimate := domain.Estimate{Minutes: 60}
+	runner := &fakeRunner{responses: []fakeResponse{
+		{result: CommandResult{ExitCode: 0, Stdout: "duration"}},
+		{result: CommandResult{ExitCode: 0}},
+	}}
+	client := NewClientWithRunner("task", runner)
+	if err := client.Add(context.Background(), domain.NewTask{Description: "task", Estimate: &estimate}); err != nil {
+		t.Fatal(err)
+	}
+	want := [][]string{
+		{"task", "_get", "rc.uda.estimate.type"},
+		{"task", "add", "task", "estimate:60min"},
+	}
+	if !reflect.DeepEqual(runner.calls, want) {
+		t.Fatalf("calls=%#v want=%#v", runner.calls, want)
+	}
+}
+
+func TestEstimateMutationRefusesWrongUDAAndReadinessFailure(t *testing.T) {
+	estimate := domain.Estimate{Minutes: 60}
+	wrongRunner := &fakeRunner{responses: []fakeResponse{{result: CommandResult{ExitCode: 0, Stdout: "string"}}}}
+	wrongErr := NewClientWithRunner("task", wrongRunner).Add(context.Background(), domain.NewTask{Description: "task", Estimate: &estimate})
+	var wrongUDAErr *EstimateUDAError
+	if !errors.As(wrongErr, &wrongUDAErr) || wrongUDAErr.State != EstimateUDAWrongType || len(wrongRunner.calls) != 1 {
+		t.Fatalf("wrong err=%T %v calls=%#v", wrongErr, wrongErr, wrongRunner.calls)
+	}
+
+	failureRunner := &fakeRunner{responses: []fakeResponse{{result: CommandResult{ExitCode: 9, Stderr: "probe failed"}, err: errors.New("exit status 9")}}}
+	failureErr := NewClientWithRunner("task", failureRunner).Modify(context.Background(), "uuid", domain.TaskDiff{Estimate: domain.EstimateChange{Kind: domain.Set, Value: &estimate}})
+	var unavailableErr *EstimateUDAError
+	if !errors.As(failureErr, &unavailableErr) || unavailableErr.State != EstimateUDAUnavailable || len(failureRunner.calls) != 1 {
+		t.Fatalf("failure err=%T %v calls=%#v", failureErr, failureErr, failureRunner.calls)
+	}
+
+	mutationRunner := &fakeRunner{responses: []fakeResponse{
+		{result: CommandResult{ExitCode: 0, Stdout: "duration"}},
+		{result: CommandResult{ExitCode: 7, Stderr: "hook rejected"}, err: errors.New("exit status 7")},
+	}}
+	mutationErr := NewClientWithRunner("task", mutationRunner).Add(context.Background(), domain.NewTask{Description: "task", Estimate: &estimate})
+	var commandErr *CommandError
+	if !errors.As(mutationErr, &commandErr) || !strings.Contains(mutationErr.Error(), "hook rejected") || len(mutationRunner.calls) != 2 {
+		t.Fatalf("mutation err=%T %v calls=%#v", mutationErr, mutationErr, mutationRunner.calls)
+	}
+}
+
+func TestEstimateMutationRefusesBeforeAddWhenUDAIsMissing(t *testing.T) {
+	estimate := domain.Estimate{Minutes: 60}
+	runner := &fakeRunner{responses: []fakeResponse{{result: CommandResult{ExitCode: 0}}}}
+	client := NewClientWithRunner("task", runner)
+	err := client.Add(context.Background(), domain.NewTask{Description: "task", Estimate: &estimate})
+	var readinessErr *EstimateUDAError
+	if !errors.As(err, &readinessErr) || readinessErr.State != EstimateUDAMissing {
+		t.Fatalf("err=%T %v", err, err)
+	}
+	if len(runner.calls) != 1 || !reflect.DeepEqual(runner.calls[0], []string{"task", "_get", "rc.uda.estimate.type"}) {
+		t.Fatalf("calls=%#v", runner.calls)
+	}
+	if !strings.Contains(err.Error(), "uda.estimate.type=duration") {
+		t.Fatalf("error lacks setup guidance: %v", err)
+	}
+}
+
+func TestEstimateModifyChecksUDAForSetAndClearButNotOrdinaryChanges(t *testing.T) {
+	estimate := &domain.Estimate{Minutes: 90}
+	runner := &fakeRunner{responses: []fakeResponse{
+		{result: CommandResult{ExitCode: 0, Stdout: "duration"}},
+		{result: CommandResult{ExitCode: 0}},
+		{result: CommandResult{ExitCode: 0, Stdout: "duration"}},
+		{result: CommandResult{ExitCode: 0}},
+		{result: CommandResult{ExitCode: 0}},
+	}}
+	client := NewClientWithRunner("task", runner)
+	if err := client.Modify(context.Background(), "uuid", domain.TaskDiff{Estimate: domain.EstimateChange{Kind: domain.Set, Value: estimate}}); err != nil {
+		t.Fatal(err)
+	}
+	if err := client.Modify(context.Background(), "uuid", domain.TaskDiff{Estimate: domain.EstimateChange{Kind: domain.Clear}}); err != nil {
+		t.Fatal(err)
+	}
+	if err := client.Modify(context.Background(), "uuid", domain.TaskDiff{Project: domain.FieldChange{Kind: domain.Set, Value: "work"}}); err != nil {
+		t.Fatal(err)
+	}
+	want := [][]string{
+		{"task", "_get", "rc.uda.estimate.type"},
+		{"task", "uuid", "modify", "estimate:90min"},
+		{"task", "_get", "rc.uda.estimate.type"},
+		{"task", "uuid", "modify", "estimate:"},
+		{"task", "uuid", "modify", "project:work"},
+	}
+	if !reflect.DeepEqual(runner.calls, want) {
+		t.Fatalf("calls=%#v want=%#v", runner.calls, want)
 	}
 }
 
