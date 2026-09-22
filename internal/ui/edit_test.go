@@ -39,7 +39,7 @@ func TestEditOpensWithDescriptionFocus(t *testing.T) {
 }
 
 func TestDirectOpenFocusesRequestedField(t *testing.T) {
-	for _, field := range []EditField{FieldProject, FieldPriority, FieldDue, FieldScheduled, FieldTags} {
+	for _, field := range []EditField{FieldProject, FieldPriority, FieldDue, FieldScheduled, FieldTags, FieldEstimate, FieldRecurrence} {
 		e := NewEdit(Styles{}, Icons{})
 		e.OpenTask(editableTask(), field)
 		if e.Focused != field || !e.Input(field).Focused() {
@@ -91,13 +91,17 @@ func TestDateFieldViewShowsKeyboardGuidance(t *testing.T) {
 
 func TestTabAndShiftTabTraverseFields(t *testing.T) {
 	e := testEdit()
-	e.Update(editSpecial(tea.KeyTab, 0))
-	if e.Focused != FieldProject {
-		t.Fatalf("tab focused=%d", e.Focused)
+	for _, want := range []EditField{FieldProject, FieldPriority, FieldDue, FieldScheduled, FieldTags, FieldEstimate, FieldRecurrence, FieldDescription} {
+		e.Update(editSpecial(tea.KeyTab, 0))
+		if e.Focused != want {
+			t.Fatalf("tab focused=%d want=%d", e.Focused, want)
+		}
 	}
-	e.Update(editSpecial(tea.KeyTab, tea.ModShift))
-	if e.Focused != FieldDescription {
-		t.Fatalf("shift tab focused=%d", e.Focused)
+	for _, want := range []EditField{FieldRecurrence, FieldEstimate, FieldTags, FieldScheduled, FieldDue, FieldPriority, FieldProject, FieldDescription} {
+		e.Update(editSpecial(tea.KeyTab, tea.ModShift))
+		if e.Focused != want {
+			t.Fatalf("shift tab focused=%d want=%d", e.Focused, want)
+		}
 	}
 }
 
@@ -148,6 +152,21 @@ func TestTabLeavesProjectWithoutAcceptingSuggestion(t *testing.T) {
 	}
 	if e.Input(FieldProject).Value() != "" {
 		t.Fatalf("tab accepted project suggestion %q", e.Input(FieldProject).Value())
+	}
+}
+
+func TestEstimateFieldSuggestionsUseApprovedPresets(t *testing.T) {
+	e := testEdit()
+	e.OpenTask(editableTask(), FieldEstimate)
+	e.Inputs[FieldEstimate].SetValue("")
+	e.refreshSuggestions()
+	if strings.Join(e.Suggestions, ",") != "15m,30m,45m,1h,2h,4h" {
+		t.Fatalf("suggestions=%v", e.Suggestions)
+	}
+	e.Update(editSpecial(tea.KeyDown, 0))
+	e.Update(editSpecial(tea.KeyEnter, 0))
+	if e.Input(FieldEstimate).Value() != "30m" {
+		t.Fatalf("estimate=%q", e.Input(FieldEstimate).Value())
 	}
 }
 
@@ -214,6 +233,42 @@ func TestEscapeDiscardsChanges(t *testing.T) {
 	e.Update(editSpecial(tea.KeyEscape, 0))
 	if e.Open || e.Task.Description != "Original" {
 		t.Fatalf("editor=%#v", e)
+	}
+}
+
+func TestEstimateSubmitSetsAndClearsTypedValue(t *testing.T) {
+	e := testEdit()
+	e.OpenTask(editableTask(), FieldEstimate)
+	e.Inputs[FieldEstimate].SetValue("45m")
+	message := e.submit()().(EditSubmitMsg)
+	if message.Diff.Estimate.Kind != domain.Set || message.Diff.Estimate.Value == nil || message.Diff.Estimate.Value.Minutes != 45 {
+		t.Fatalf("set message=%#v", message)
+	}
+	e.OpenTask(domain.Task{UUID: "uuid", Description: "Original", Status: "pending", Estimate: &domain.Estimate{Minutes: 45}}, FieldEstimate)
+	e.Inputs[FieldEstimate].SetValue("")
+	message = e.submit()().(EditSubmitMsg)
+	if message.Diff.Estimate.Kind != domain.Clear {
+		t.Fatalf("clear message=%#v", message)
+	}
+}
+
+func TestEstimateInvalidInputRemainsEditable(t *testing.T) {
+	e := testEdit()
+	e.OpenTask(editableTask(), FieldEstimate)
+	e.Inputs[FieldEstimate].SetValue("25h")
+	message := e.submit()().(EditErrorMsg)
+	e.ApplyMessage(message)
+	if !e.Open || e.Input(FieldEstimate).Value() != "25h" || e.Err == nil {
+		t.Fatalf("editor=%#v", e)
+	}
+}
+
+func TestExternalOverLimitEstimateCanRemainUnchanged(t *testing.T) {
+	e := testEdit()
+	e.OpenTask(domain.Task{UUID: "uuid", Description: "Original", Status: "pending", Estimate: &domain.Estimate{Minutes: 1500}}, FieldEstimate)
+	message := e.submit()().(EditSubmitMsg)
+	if !message.Diff.Empty() {
+		t.Fatalf("unchanged external estimate changed: %#v", message.Diff)
 	}
 }
 
