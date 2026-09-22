@@ -10,7 +10,7 @@ import (
 )
 
 func TestEditShortcutFieldMap(t *testing.T) {
-	cases := map[string]ui.EditField{"e": ui.FieldDescription, "p": ui.FieldProject, "!": ui.FieldPriority, "D": ui.FieldDue, "S": ui.FieldScheduled, "t": ui.FieldTags}
+	cases := map[string]ui.EditField{"e": ui.FieldDescription, "E": ui.FieldEstimate, "p": ui.FieldProject, "!": ui.FieldPriority, "D": ui.FieldDue, "S": ui.FieldScheduled, "t": ui.FieldTags}
 	for key, want := range cases {
 		got, ok := EditShortcutField(key)
 		if !ok || got != want {
@@ -24,7 +24,7 @@ func TestEditShortcutFieldMap(t *testing.T) {
 
 func TestOpenEditShortcutTargetsSelectedTask(t *testing.T) {
 	model := actionModel(&fakeClient{})
-	for _, key := range []string{"e", "p", "!", "D", "S", "t"} {
+	for _, key := range []string{"e", "E", "p", "!", "D", "S", "t"} {
 		model.Overlay = OverlayNone
 		model.MutationRunning = false
 		model.OpenEditShortcut(key)
