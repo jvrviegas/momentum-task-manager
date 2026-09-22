@@ -299,6 +299,9 @@ func taskMetadata(task domain.Task, options TaskRowOptions) []string {
 		date := "Scheduled " + formatDate(task.Scheduled.In(options.Now.Location()), options.Now)
 		metadata = append(metadata, options.Styles.Metadata.Render(date))
 	}
+	if task.Estimate != nil {
+		metadata = append(metadata, options.Styles.Metadata.Render("Estimate "+task.Estimate.String()))
+	}
 	if task.Priority != "" {
 		metadata = append(metadata, priorityStyle(task.Priority, options.Styles).Render(PriorityLabel(task.Priority)))
 	}
