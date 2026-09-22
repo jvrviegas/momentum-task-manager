@@ -110,6 +110,39 @@ func Run(ctx context.Context, options DoctorOptions) Report {
 		report.Checks = append(report.Checks, Check{Name: "Sync settings", Detail: "sync readiness check unavailable", Skipped: true, OK: true})
 	}
 
+	if options.Config.Calendar.Enabled {
+		home := options.HomeDir
+		if home == "" {
+			home, _ = os.UserHomeDir()
+		}
+		paths := options.Config.Calendar.PathsFor(home)
+		calendarDetail := "calendar source unavailable"
+		calendarOK := len(paths) > 0
+		for _, path := range paths {
+			if _, err := os.Stat(path); err != nil {
+				calendarOK = false
+				calendarDetail = "cannot read configured local ICS source"
+				break
+			}
+		}
+		if calendarOK {
+			calendarDetail = fmt.Sprintf("%d local ICS source(s); read-only", len(paths))
+		}
+		report.Checks = append(report.Checks, Check{Name: "Calendar source", Detail: calendarDetail, OK: calendarOK})
+	} else {
+		report.Checks = append(report.Checks, Check{Name: "Calendar source", Detail: "disabled; task-only planning remains available", Skipped: true, OK: true})
+	}
+
+	if reader, ok := options.Client.(interface {
+		EstimateUDAReadiness(context.Context) (taskwarrior.EstimateUDAState, error)
+	}); ok {
+		state, estimateErr := reader.EstimateUDAReadiness(ctx)
+		detail := taskwarrior.Redact(estimateErrDetail(state, estimateErr))
+		report.Checks = append(report.Checks, Check{Name: "Estimate UDA", Detail: detail, OK: state == taskwarrior.EstimateUDAConfigured && estimateErr == nil})
+	} else {
+		report.Checks = append(report.Checks, Check{Name: "Estimate UDA", Detail: "estimate readiness check unavailable", Skipped: true, OK: true})
+	}
+
 	terminal := options.Terminal
 	if terminal == "" {
 		terminal = os.Getenv("TERM")
@@ -190,6 +223,16 @@ func errorDetail(err error, success string) string {
 		return success
 	}
 	return taskwarrior.Redact(err.Error())
+}
+
+func estimateErrDetail(state taskwarrior.EstimateUDAState, err error) string {
+	if err != nil {
+		return err.Error()
+	}
+	if state == taskwarrior.EstimateUDAConfigured {
+		return "configured as duration"
+	}
+	return "estimate UDA is not ready"
 }
 
 func firstError(errors ...error) error {
