@@ -16,17 +16,33 @@ func modalKey(text string) tea.KeyPressMsg {
 
 func TestDetailsShowsSupportedAndUnknownFields(t *testing.T) {
 	details := NewDetails(NewStyles(ResolveTheme("dark", true)))
-	details.SetSize(70, 20)
+	details.SetSize(70, 25)
 	details.OpenTask(domain.Task{
-		UUID: "uuid", ID: 7, Description: "Task", Status: "pending", Project: "work", Priority: "H",
+		UUID: "uuid", ID: 7, Description: "Task", Status: "pending", Project: "work", Priority: "H", Estimate: &domain.Estimate{Minutes: 90},
 		Tags: []string{"one"}, Dependencies: []string{"other"}, Recurrence: "weekly", Urgency: 4.25,
-		RawFields: map[string]json.RawMessage{"description": json.RawMessage(`"Task"`), "custom": json.RawMessage(`"value"`)},
+		RawFields: map[string]json.RawMessage{"description": json.RawMessage(`"Task"`), "estimate": json.RawMessage(`"PT1H30M"`), "custom": json.RawMessage(`"value"`)},
 	})
 	view := details.View()
-	for _, want := range []string{"Task details", "Description", "Task", "work", "weekly", "uuid", "custom", "value"} {
+	for _, want := range []string{"Task details", "Description", "Task", "work", "weekly", "uuid", "Estimate", "1h 30m", "custom", "value"} {
 		if !strings.Contains(view, want) {
 			t.Errorf("view missing %q: %q", want, view)
 		}
+	}
+	if strings.Contains(view, "PT1H30M") || strings.Count(view, "Estimate") != 1 {
+		t.Fatalf("estimate was duplicated or raw value leaked: %q", view)
+	}
+}
+
+func TestDetailsShowsUnsupportedEstimateWarningOnce(t *testing.T) {
+	details := NewDetails(NewStyles(ResolveTheme("dark", true)))
+	details.SetSize(70, 20)
+	details.OpenTask(domain.Task{
+		Description: "Task", Status: "pending", EstimateWarning: "unsupported exported estimate: calendar months and years are not supported for focused estimates",
+		RawFields: map[string]json.RawMessage{"estimate": json.RawMessage(`"P1M"`)},
+	})
+	view := details.View()
+	if !strings.Contains(view, "Estimate") || !strings.Contains(view, "Unavailable") || strings.Contains(view, "P1M") || strings.Count(view, "Estimate") != 1 {
+		t.Fatalf("warning view=%q", view)
 	}
 }
 
