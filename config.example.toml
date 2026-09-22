@@ -1,4 +1,8 @@
 # Momentum works without this file. Copy to ~/.config/momentum/config.toml.
+# Estimate storage is a Taskwarrior UDA, not a Momentum setting. Add these
+# lines to every synchronized client's ~/.taskrc before creating/editing one:
+# uda.estimate.type=duration
+# uda.estimate.label=Estimate
 refresh_interval = "60s" # set to "0s" to disable background refresh
 theme = "auto"           # auto, dark, light
 icons = "unicode"        # unicode, nerd, ascii
@@ -9,6 +13,25 @@ interval = "5m"
 mutation_delay = "15s"
 startup = true
 shutdown = true
+
+[planning]
+enabled = true
+daily_capacity = "8h"
+buffer = "1h"
+# Optional per-weekday overrides:
+# [planning.weekday_capacity]
+# friday = "4h"
+
+# Calendar awareness is opt-in and reads local ICS files only. Download or
+# synchronize subscriptions outside Momentum; the app never writes events.
+[calendar]
+enabled = false
+# paths = ["~/Calendars/work.ics", "~/Calendars/personal.ics"]
+include_all_day = false
+include_transparent = false
+working_start = "09:00"
+working_end = "17:00"
+stale_after = "24h"
 
 # Optional suggestion catalog; no tasks are created or modified.
 # Values are lowercase dotted paths; names label each final path segment.
