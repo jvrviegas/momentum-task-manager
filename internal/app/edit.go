@@ -13,6 +13,8 @@ func EditShortcutField(key string) (ui.EditField, bool) {
 	switch key {
 	case "e":
 		return ui.FieldDescription, true
+	case "E":
+		return ui.FieldEstimate, true
 	case "p":
 		return ui.FieldProject, true
 	case "!":
