@@ -4,6 +4,8 @@
 **Baseline:** current uncommitted working tree over `36b80bb`.  
 **Verdict:** **CHANGES REQUESTED for full G1 — R5 below.** Prior R1–R4 remain resolved. This is a new interoperability finding from comparing the review preview with actual Taskwarrior-generated occurrences, not a reopening of the narrow-layout repair.
 
+**Resolution (2026-09-22):** R5 is fixed in `internal/domain/recurrence.go`. Permanent domain, review-rendering, and isolated differential integration tests now cover preserved time-of-day, month-end/leap-year clamping, interval semantics, and DST transitions against Taskwarrior 3.5 generated occurrences. README guidance now correctly distinguishes natural-language review from explicit `^` fast capture. Automated gates pass; T10 live keyboard/visual UAT remains pending.
+
 ## Fresh validation
 
 | Check | Result |
