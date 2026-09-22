@@ -9,5 +9,7 @@ type NewTask struct {
 	Priority    string
 	Due         string
 	Scheduled   string
+	Recurrence  string
+	Estimate    *Estimate
 	Tags        []string
 }
