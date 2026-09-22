@@ -1,23 +1,23 @@
 # Momentum UAT
 
-Date: 2026-09-16  
+Date: 2026-09-21
 Host: macOS arm64 (`Darwin Mac.lan`), Go 1.27.1, Taskwarrior 3.5.0  
 Linux runtime: Debian sid arm64 container, Go 1.27.1, Taskwarrior 3.5.0 (baseline v1 UAT)  
-Scope: local-only, isolated Taskwarrior workflows, and Settings → Projects; no sync server was configured.
+Scope: local-only, isolated Taskwarrior workflows, task-first planner/recurrence/capture workflows, local ICS fixtures, and Settings → Projects; no sync server was configured.
 
 ## Automated gates
 
 | Gate | Result | Evidence |
 |---|---|---|
 | Format | PASS | `test -z "$(gofmt -l .)"` |
-| Unit | PASS | `go test ./... -count=1`: 8 packages, 377 top-level tests / 423 passing actions, 0 skips |
+| Unit | PASS | `go test ./... -count=1`: 9 packages, 544 passing test actions, 0 skips |
 | Vet | PASS | `go vet ./...` |
 | Build | PASS | `go build ./cmd/momentum` |
 | Race | PASS | `go test -race ./...` |
 | Linux amd64 build | PASS | `GOOS=linux GOARCH=amd64 go build ./cmd/momentum` |
 | macOS arm64 build | PASS | `GOOS=darwin GOARCH=arm64 go build ./cmd/momentum` |
 | Linux full/race gates | PASS | Prior Debian sid arm64 container UAT: format, unit, vet, build, race |
-| Real Taskwarrior integration (macOS) | PASS | `go test ./internal/taskwarrior -run Integration -v -count=1`: 11 isolated scenarios |
+| Real Taskwarrior integration (macOS) | PASS | `go test ./internal/taskwarrior -run Integration -v -count=1`: 16 isolated scenarios, including estimates, interpreted dates, native recurrence template/stop, and project migration |
 | Real Taskwarrior integration (Linux) | PASS | Prior Debian sid arm64 container run: 8 isolated scenarios |
 | Final working-tree diff check | PASS | `git diff --check` in the working tree |
 
@@ -64,7 +64,7 @@ All real Taskwarrior checks create a temporary `TASKRC` and `TASKDATA` directory
 
 ## Settings test counts and named evidence
 
-The pre-feature baseline at `b5c567a` was 8 packages, 285 top-level tests / 308 passing actions, and 0 skips. The final repository has 8 packages, 377 top-level tests / 423 passing actions, and 0 skips: a delta of +92 top-level tests / +115 passing actions. The final command output used `-count=1`; the race gate also passed.
+The pre-G0 baseline at `36b80bb` was 8 packages, 409 top-level tests / 467 passing actions, and 0 skips. The current repository has 9 packages, 544 passing test actions, and 0 skips; the new package is the isolated local-ICS calendar parser. The final command output used `-count=1`; the race gate also passed, with estimate, capture, recurrence, planner, calendar, adapter, UI, app, and diagnostics coverage listed below.
 
 Key added suites:
 
@@ -72,7 +72,7 @@ Key added suites:
 - Config: `TestProjectCatalogStorePreservesUnrelatedTOMLAndArrayTableComments`, `TestProjectCatalogStorePreservesCRLFForNewArrayTables`, external-edit/read-only/symlink cases, and missing/array/array-table round trips.
 - UI: Project Settings and rename preview interaction/rendering tests at supported widths.
 - App: Settings routing/save/discovery tests, coordinator fault injection, migration gate/sync/undo lifecycle, and end-to-end Catalog-only/pending/stale/partial/zero-match workflows.
-- Taskwarrior: 45 adapter tests and 11 isolated `Integration` tests passed against Taskwarrior 3.5.0, including active-context, pending exact/descendant, hook rejection, and stale-completion cases.
+- Taskwarrior: adapter readiness/argv tests and 16 isolated `Integration` tests passed against Taskwarrior 3.5.0, including interpreted-date round trip, native recurrence template/stop, active-context, pending exact/descendant, hook rejection, stale-completion, and estimate-UDA lifecycle/refusal cases.
 
 ## Acceptance evidence for the original v1 surface
 
@@ -81,7 +81,7 @@ Key added suites:
 | 1 | Taskwarrior 3.x launch | PASS on macOS and prior Linux runtime |
 | 2 | Inbox/Today disjoint semantics | PASS — domain table tests |
 | 3 | Today grouping and no duplicates | PASS — domain and composition tests |
-| 4 | Safe quick add and five triggers | PASS — parser, adapter, and runtime smoke tests |
+| 4 | Safe quick add and six triggers, including optional estimates | PASS — parser, adapter, and runtime smoke tests |
 | 5 | Structured edit and unsupported-field preservation | PASS — domain/UI/app/integration tests |
 | 6 | UUID mutations and undo | PASS — exact argv and isolated integration tests |
 | 7 | Search, navigation, mouse, details, help, responsive layouts | PASS — app/UI tests |
@@ -128,6 +128,75 @@ git diff --check
 
 All commands passed with Go 1.27.0 on Linux, including the Linux amd64 and macOS arm64 cross-builds. A human real-terminal pass for the redesigned spacing, dark/light contrast, Unicode/ASCII glyphs, and release screenshots remains pending; this record intentionally does not claim that visual check.
 
+## G0 estimate implementation evidence (2026-09-21)
+
+The optional estimate slice uses the Taskwarrior `estimate` duration UDA. Automated tests use temporary `TASKRC`/`TASKDATA` paths; no sync server or production task database is used.
+
+| Area | Evidence | Result |
+|---|---|---|
+| Typed domain and export compatibility | `internal/domain/estimate_test.go`; valid `PT1H30M`, `P1D`, whole-minute seconds, over-limit external values, raw retention, calendar-month rejection, null/malformed handling | PASS |
+| Quick capture | `~` token-boundary/escape/duplicate/error tests, deterministic presets, Tab acceptance, root app routing | PASS |
+| Structured editing | Seventh-field traversal, `E` routing, presets, canonical values, clear/cancel, invalid-input retention, over-limit external preservation | PASS |
+| Adapter safety | Exact `estimate:<minutes>min` argv, readiness states, guard-before-mutation, no guard for ordinary mutations, timeout/failure coverage | PASS |
+| Isolated Taskwarrior integration | `TestIntegrationEstimateAddModifyClearAndUndo`, `TestIntegrationEstimateMutationRefusesMissingUDAWithoutChangingTaskData` against Taskwarrior 3.5.0 | PASS |
+| Presentation | Details shows typed Estimate once; unsupported raw values show one warning; comfortable rows show Estimate; compact/narrow rows retain description/date priority | PASS |
+| Diagnostics and docs | Doctor readiness check plus setup guidance; README, DESIGN, config example, and estimate plan updated | PASS |
+
+Required setup on each client that edits or synchronizes estimate-bearing tasks:
+
+```text
+uda.estimate.type=duration
+uda.estimate.label=Estimate
+```
+
+The live keyboard/visual pass remains maintainer work: capture `~1h30m`, inspect comfortable/compact/narrow rows and Details, edit with `E`, clear, exercise undo during sync grace, and verify missing-UDA refusal with a disposable profile. G0 is recorded as **Implemented**, not **Validated**, until that pass is observed.
+
+## G1–G4 task-first planner automated evidence (2026-09-21)
+
+| Goal | Automated evidence | Result |
+|---|---|---|
+| G1 natural-language capture | R1–R4 resolved; existing gates and 16-case date matrix pass; native recurrence comparisons fail; see [final review](reviews/g1-natural-language-capture-final-review.md) | CHANGES REQUESTED — R5 preview mismatch; live UAT pending |
+| G2 recurring tasks | Domain recurrence presets, quick-add review, recurrence editor/details, `integration_recurrence_test.go` template/instance/`until` lifecycle | PASS; live keyboard UAT pending |
+| G3 daily ritual | `domain/planner_test.go`, planner UI/app tests, idempotent namespaced tag diffs, capacity warning, config weekday overrides | PASS; live keyboard/visual UAT pending |
+| G4 calendar awareness | `internal/calendar/calendar_test.go` overlap merge, recurrence expansion, all-day/transparency policy, dedup/missing source; local-only config validation | PASS; live fixture/terminal UAT pending |
+| G5 integration | Full package, race, vet, native/cross build, isolated Taskwarrior gates; README/DESIGN/help/config/doctor/docs updated | PASS automated; no live UAT claim |
+
+Final automated commands on this working tree:
+
+```sh
+test -z "$(gofmt -l .)"
+go test ./... -count=1
+go test -race ./... -count=1
+go vet ./...
+go build ./cmd/momentum
+GOOS=linux GOARCH=amd64 go build ./cmd/momentum
+GOOS=darwin GOARCH=arm64 go build ./cmd/momentum
+go test ./internal/taskwarrior -run Integration -v -count=1
+git diff --check
+```
+
+All listed commands passed on macOS arm64 with Go 1.27.1 and Taskwarrior 3.5.0. Integration tests use temporary `TASKRC`/`TASKDATA`; no calendar account, sync server, or production task database was accessed.
+
+## G1 independent acceptance validation (2026-09-21)
+
+**CHANGES REQUESTED:** [Detailed report and repair tasks](reviews/g1-natural-language-capture-validation.md). Fresh runs passed 9 packages, 473 top-level tests, 544 passing test actions, no skips, race/vet/native and cross-build gates, and 16 isolated Taskwarrior scenarios. Targeted probes nevertheless reproduced broken explicit-only submission, stale capture acceptance, invalid-draft confirmation, silent scalar overwrites, prose corruption, missed DST ambiguity, and incomplete review/correction behavior. The report also identifies failed-add recovery and evidence gaps. Temporary probes were removed; implementation code was not changed. No live UAT was performed.
+
+## G1 follow-up acceptance validation (2026-09-21)
+
+**CHANGES REQUESTED:** [Re-review and R1–R4 repair requirements](reviews/g1-natural-language-capture-rereview.md). Fresh validation passed 9 packages, 485 top-level test/fuzz entries, 573 test actions, no skips, race/vet/build checks, 16 isolated integration scenarios, and a 30-second interpreter fuzz run. Original fallback, stale-message, scalar-duplicate, protected-prose, DST, estimate-correction, and recovery reproductions are corrected. Remaining failures: no-op editing bypasses an unresolved recurrence conflict, narrow review hides actual field values, supported plural recurrence intervals are ignored, and valid 24-hour times fail before another token. The prior section is historical; use the re-review for current dispositions. No live UAT was performed.
+
+## G1 second follow-up acceptance validation (2026-09-21)
+
+**CHANGES REQUESTED — one remaining R2 issue:** [Latest report](reviews/g1-natural-language-capture-rereview-2.md). Fresh full suite passed 9 packages, 489 top-level test/fuzz entries, 588 actions, no skips; race/vet/format/build checks, 16 isolated integration scenarios, and 30-second fuzzing passed. Independent reproductions confirm R1/R3/R4 corrections. Short narrow-review values are visible, but a new end-of-value editing probe fails for long Description and Project fields: typed characters and cursor are clipped while confirmation remains enabled. Previous review sections are historical. No live UAT was performed.
+
+## G1 R2 repair validation (2026-09-21)
+
+**R2 fixed:** [Repair and regression evidence](reviews/g1-natural-language-capture-rereview-2.md#r2-repair-evidence). Per-field width budgeting now shares actual prefixes/suffixes with rendering and refreshes horizontal scrolling. Long ASCII/Unicode Home/End editing tests assert the full input/cursor viewport remains visible at narrow, compact, wide, and short sizes; the test failed before the fix and passes afterward. Final suite: 9 packages, 491 top-level test/fuzz entries, 640 passing actions, no skips; race/vet/format/native and cross-build gates plus 16 isolated integration scenarios pass. R1–R4 are resolved. Prior failure sections are historical. Broader dateformat/timezone feasibility evidence and human UAT remain pending; neither is claimed by this focused repair.
+
+## G1 final review (2026-09-22)
+
+**CHANGES REQUESTED — R5:** [Final review and exact reproductions](reviews/g1-natural-language-capture-final-review.md). Fresh existing suite/gates remain green (9 packages, 491 top-level test/fuzz entries, 640 passing actions, no skips; race/vet/build/format; 16 isolated integration scenarios; 30-second fuzz run). An additional 16-profile dateformat/timezone matrix passed interpreter-to-export instant comparisons. Separate real Taskwarrior preview comparisons failed: the helper predicts midnight instead of preserving 15:00, and March 3 instead of Taskwarrior's February 28 for a January 31 monthly anchor. Prior R1–R4 remain resolved. Temporary probes were removed; no implementation changes or live UAT were performed.
+
 ## Overall status
 
-Automated implementation and safety gates pass. Release readiness still requires the maintainer’s live visual/keyboard UAT for the readability redesign and new Settings flow; this document deliberately records that limitation instead of claiming an interactive pass that was not observed.
+Existing automated implementation and safety gates pass, but full G1 acceptance requires R5 recurrence-preview correction and documentation/checklist reconciliation. Release readiness also requires the maintainer’s live visual/keyboard UAT for the readability redesign, Settings flow, G0 estimate workflow, natural-language review, recurrence/template stop, daily planning, and local-ICS degradation. This document deliberately records that limitation instead of claiming an interactive pass that was not observed.
