@@ -48,6 +48,7 @@ const (
 	OverlayConfirm  Overlay = "confirm"
 	OverlayHelp     Overlay = "help"
 	OverlayQuit     Overlay = "quit"
+	OverlayPlanner  Overlay = "planner"
 	OverlayMinimum  Overlay = "minimum"
 )
 
@@ -103,6 +104,7 @@ type Model struct {
 
 	MutationRunning bool
 	PendingMutation *MutationRequest
+	FailedQuickAdd  *MutationRequest
 	Sync            SyncState
 	SyncReady       bool
 	SyncConfigured  bool
@@ -118,6 +120,10 @@ type Model struct {
 	Quit            ui.QuitModel
 	ProjectSettings ui.ProjectSettingsModel
 	ProjectRename   ui.ProjectRenameModel
+	Planner         ui.PlannerModel
+	DailyPlan       domain.DailyPlan
+	CalendarID      uint64
+	CalendarResult  CalendarState
 
 	DiscoveredProjects       []string
 	ProjectDiscoveryID       uint64
@@ -139,6 +145,7 @@ type Model struct {
 	SyncDeferred             bool
 	QuitAfterProjectSettings bool
 	DeleteTarget             string
+	RecurrenceTarget         string
 }
 
 // NewModel builds an application model with deterministic defaults.
@@ -203,12 +210,14 @@ func NewModel(options ModelOptions) *Model {
 		Quit:                 ui.NewQuit(styles),
 		ProjectSettings:      ui.NewProjectSettings(styles),
 		ProjectRename:        ui.NewProjectRename(styles),
+		Planner:              ui.NewPlanner(styles, icons),
 	}
 	model.ProjectSettings.SetProjects(settings.Projects)
 	if model.ActiveView == ViewSettings {
 		model.ProjectSettings.OpenProjects(settings.Projects)
 	}
 	model.QuickAdd.SetProjectCatalog(settings.Projects)
+	model.QuickAdd.NowProvider = model.now
 	model.Editor.SetProjectCatalog(settings.Projects)
 	return model
 }
@@ -245,17 +254,56 @@ func (m *Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		m.Quit.SetSize(message.Width, message.Height)
 		m.ProjectSettings.SetSize(message.Width, message.Height)
 		m.ProjectRename.SetSize(message.Width, message.Height)
+		m.Planner.SetSize(message.Width, message.Height)
 		return m, nil
 	case ui.QuickAddErrorMsg:
+		if !m.quickAddMessageCurrent(message.Revision) || !m.quickAddSourceCurrent(message.Source) {
+			return m, nil
+		}
+		m.QuickAdd.ApplyMessage(message)
+		return m, nil
+	case ui.QuickAddReviewMsg:
+		if !m.quickAddMessageCurrent(message.Revision) || message.Interpretation.Source != m.QuickAdd.Input.Value() {
+			return m, nil
+		}
 		m.QuickAdd.ApplyMessage(message)
 		return m, nil
 	case ui.QuickAddSubmitMsg:
-		if m.Overlay != OverlayQuickAdd || !m.QuickAdd.Open {
+		if !m.quickAddMessageCurrent(message.Revision) || !m.quickAddSourceCurrent(message.Source) {
+			return m, nil
+		}
+		request := MutationRequest{
+			Kind:            MutationAdd,
+			Input:           cloneNewTask(message.Task),
+			CaptureRevision: message.Revision,
+			CaptureSource:   message.Source,
+			CaptureReview:   message.Review,
+		}
+		// Ownership and the busy guard are checked before closing the draft. A
+		// repeated confirmation or a concurrent mutation therefore leaves the
+		// reviewed capture recoverable instead of silently discarding it.
+		cmd := m.beginMutation(request)
+		if cmd == nil {
+			m.QuickAdd.ParseErr = fmt.Errorf("another mutation is already running")
 			return m, nil
 		}
 		m.QuickAdd.ApplyMessage(message)
 		m.Overlay = OverlayNone
-		return m, m.beginMutation(MutationRequest{Kind: MutationAdd, Input: message.Task})
+		return m, cmd
+	case ui.PlannerSubmitMsg:
+		if m.Overlay != OverlayPlanner || !m.Planner.Open {
+			return m, nil
+		}
+		return m, m.handlePlannerSubmit(message.UUIDs)
+	case ui.PlannerCancelMsg:
+		if m.Overlay == OverlayPlanner {
+			m.Planner.Close()
+			m.CalendarResult = CalendarState{}
+			m.Overlay = OverlayNone
+		}
+		return m, nil
+	case CalendarMsg:
+		return m, m.applyCalendar(message)
 	case ui.EditErrorMsg:
 		m.Editor.ApplyMessage(message)
 		return m, nil
@@ -397,6 +445,9 @@ func (m *Model) applyTasks(message TasksMsg) tea.Cmd {
 	m.Views.Inbox = pendingViews.Inbox
 	m.Views.Today = pendingViews.Today
 	m.Views.Sections = pendingViews.Sections
+	if m.Planner.Open && message.Reason == "plan" {
+		m.refreshDailyPlanView()
+	}
 	if message.CompletedLoaded {
 		if message.CompletedErr == nil {
 			m.CompletedErr = nil
@@ -430,6 +481,10 @@ func (m *Model) applyTasks(message TasksMsg) tea.Cmd {
 		m.Status = fmt.Sprintf("Migration: %d changed, %d skipped, %d failed, %d ambiguous; refreshed %d tasks", result.ChangedCount(), result.SkippedCount(), result.FailedCount(), result.AmbiguousCount(), len(m.Tasks))
 	} else if message.Reason == "refresh" || message.Reason == "sync" || message.Reason == "mutation" || message.Reason == "migration" {
 		m.Status = fmt.Sprintf("Updated %d tasks", len(m.Tasks))
+	} else if message.Reason == "plan" {
+		if !strings.HasPrefix(m.Status, "Daily plan partially") {
+			m.Status = fmt.Sprintf("Plan refreshed · %d tasks", len(m.Tasks))
+		}
 	} else {
 		m.Status = ""
 	}
@@ -472,9 +527,20 @@ func (m *Model) beginRefresh(reason string) tea.Cmd {
 	return LoadTasksCommand(m.ctx, m.Client, reason, m.now())
 }
 
+func (m *Model) quickAddMessageCurrent(revision uint64) bool {
+	return m.Overlay == OverlayQuickAdd && m.QuickAdd.Open && revision == m.QuickAdd.CaptureRevision
+}
+
+func (m *Model) quickAddSourceCurrent(source string) bool {
+	return source == "" || source == m.QuickAdd.Input.Value()
+}
+
 func (m *Model) beginMutation(request MutationRequest) tea.Cmd {
 	if m.MutationRunning || m.MigrationRunning {
 		return nil
+	}
+	if request.Kind == MutationAdd {
+		request.Input = cloneNewTask(request.Input)
 	}
 	m.MutationRunning = true
 	m.Mode = ModeMutating
@@ -484,18 +550,58 @@ func (m *Model) beginMutation(request MutationRequest) tea.Cmd {
 
 func (m *Model) applyMutation(message MutationMsg) tea.Cmd {
 	pendingKind := MutationKind("")
+	var pending *MutationRequest
 	if m.PendingMutation != nil {
-		pendingKind = m.PendingMutation.Kind
+		pending = m.PendingMutation
+		pendingKind = pending.Kind
+	}
+	if pending != nil && pending.CaptureRevision != 0 && message.Revision != 0 && pending.CaptureRevision != message.Revision {
+		// A delayed result from an obsolete capture must not close or reopen the
+		// current overlay. Keep the active mutation gate until its owner reports.
+		return nil
 	}
 	m.MutationRunning = false
 	if message.Err != nil {
 		if pendingKind == MutationModify {
 			m.Editor.Err = message.Err
 		}
+		if pendingKind == MutationAdd && pending != nil {
+			failed := *pending
+			failed.Input = cloneNewTask(pending.Input)
+			m.FailedQuickAdd = &failed
+		}
 		m.PendingMutation = nil
 		m.Err = message.Err
 		m.Mode = ModeReady
 		m.Status = "Action failed: " + conciseError(message.Err)
+		if pendingKind == MutationAdd && pending != nil {
+			// Do not overwrite a new capture opened while the mutation was in
+			// flight. Otherwise restore the exact confirmed draft for deliberate
+			// correction/retry.
+			if m.Overlay != OverlayQuickAdd || !m.QuickAdd.Open {
+				source := pending.CaptureSource
+				if source == "" {
+					source = m.QuickAdd.LastSubmittedSource
+				}
+				if source == "" {
+					source = m.QuickAdd.OriginalInput
+				}
+				if source == "" {
+					source = m.QuickAdd.Input.Value()
+				}
+				m.QuickAdd.RestoreFailedTask(pending.Input, source, pending.CaptureReview, message.Err)
+				m.Overlay = OverlayQuickAdd
+			}
+		}
+
+		if pendingKind == MutationPlan && message.PlanApplied > 0 {
+			m.Sync, _ = m.Sync.Mutation(m.now())
+		}
+		if pendingKind == MutationPlan && m.Planner.Open {
+			m.Status = fmt.Sprintf("Daily plan partially applied (%d/%d): %s", message.PlanApplied, message.PlanTotal, conciseError(message.Err))
+			m.Mode = ModeRefreshing
+			return LoadTasksCommand(m.ctx, m.Client, "plan", m.now())
+		}
 		return nil
 	}
 	m.Err = nil
@@ -503,6 +609,14 @@ func (m *Model) applyMutation(message MutationMsg) tea.Cmd {
 	if pendingKind == MutationModify {
 		m.Editor.Close()
 		m.Overlay = OverlayNone
+	}
+	if pendingKind == MutationPlan {
+		m.Planner.Close()
+		m.CalendarResult = CalendarState{}
+		m.Overlay = OverlayNone
+	}
+	if pendingKind == MutationAdd {
+		m.FailedQuickAdd = nil
 	}
 	m.PendingMutation = nil
 	if message.Kind == MutationUndo {
@@ -514,13 +628,32 @@ func (m *Model) applyMutation(message MutationMsg) tea.Cmd {
 	if kind == "" {
 		kind = "action"
 	}
-	m.Status = strings.ToUpper(kind[:1]) + kind[1:] + " succeeded"
+	switch message.Kind {
+	case MutationPlan:
+		m.Status = "Daily plan saved"
+	case MutationStopRecurrence:
+		m.Status = "Recurrence stopped"
+	default:
+		m.Status = strings.ToUpper(kind[:1]) + kind[1:] + " succeeded"
+	}
 	// Every successful mutation has one and only one follow-up export. Sync
 	// bookkeeping is attached by the feature-integration layer.
 	return m.beginRefresh("mutation")
 }
 
 func (m *Model) handleEditSubmit(message ui.EditSubmitMsg) tea.Cmd {
+	selectedTask, selectedOK := m.SelectedTask()
+	if message.Diff.Recurrence.Kind != domain.Unchanged && selectedOK && selectedTask.IsRecurrenceInstance() {
+		if !recurrenceOnlyDiff(message.Diff) {
+			m.Editor.Err = fmt.Errorf("edit recurrence separately from other fields on a generated instance")
+			return nil
+		}
+		if message.Diff.Recurrence.Kind == domain.Clear {
+			m.Editor.Close()
+			m.Overlay = OverlayNone
+			return m.beginMutation(MutationRequest{Kind: MutationStopRecurrence, UUID: selectedTask.RecurrenceTargetUUID()})
+		}
+	}
 	if message.Diff.Empty() {
 		m.Editor.Close()
 		m.Overlay = OverlayNone
@@ -528,7 +661,17 @@ func (m *Model) handleEditSubmit(message ui.EditSubmitMsg) tea.Cmd {
 		return nil
 	}
 	uuid := m.Selected[normalizeView(m.ActiveView)]
+	if message.Diff.Recurrence.Kind != domain.Unchanged && selectedOK && selectedTask.IsRecurrenceInstance() {
+		uuid = selectedTask.RecurrenceTargetUUID()
+		m.Status = "Updating recurrence template"
+	}
 	return m.beginMutation(MutationRequest{Kind: MutationModify, UUID: uuid, Diff: message.Diff})
+}
+
+func recurrenceOnlyDiff(diff domain.TaskDiff) bool {
+	return diff.Description.Kind == domain.Unchanged && diff.Project.Kind == domain.Unchanged &&
+		diff.Priority.Kind == domain.Unchanged && diff.Due.Kind == domain.Unchanged &&
+		diff.Scheduled.Kind == domain.Unchanged && diff.Estimate.Kind == domain.Unchanged && !diff.Tags.Changed
 }
 
 func (m *Model) restoreSelection(view ViewName, previousUUID string) {
@@ -563,6 +706,15 @@ func (m *Model) tasksFor(view ViewName) []domain.Task {
 	return tasks
 }
 
+func cloneNewTask(value domain.NewTask) domain.NewTask {
+	result := value
+	result.Tags = append([]string(nil), value.Tags...)
+	if value.Estimate != nil {
+		result.Estimate = &domain.Estimate{Minutes: value.Estimate.Minutes}
+	}
+	return result
+}
+
 func normalizeView(view ViewName) ViewName {
 	switch view {
 	case ViewToday, ViewCompleted, ViewSettings:
@@ -594,7 +746,7 @@ func (m *Model) updateKey(message tea.KeyPressMsg) tea.Cmd {
 			}
 			return cmd
 		case OverlayDetails:
-			if m.ActiveView == ViewCompleted && message.String() == "e" {
+			if m.ActiveView == ViewCompleted && (message.String() == "e" || message.String() == "x" || message.String() == "X") {
 				m.Details.Close()
 				m.Overlay = OverlayNone
 				m.Status = "Completed tasks are read-only"
@@ -605,6 +757,11 @@ func (m *Model) updateKey(message tea.KeyPressMsg) tea.Cmd {
 				m.Overlay = OverlayEdit
 				m.Editor.SetSize(m.Width, m.Height)
 				return m.Editor.OpenTask(m.Details.Task, ui.FieldDescription)
+			case ui.DetailsStopRecurrence:
+				m.RecurrenceTarget = m.Details.Task.RecurrenceTargetUUID()
+				m.Confirm.OpenFor("Stop recurrence", "Stop the recurrence template for this task? Existing completed occurrences stay unchanged.")
+				m.Overlay = OverlayConfirm
+				return nil
 			case ui.DetailsClose:
 				m.Overlay = OverlayNone
 			}
@@ -618,6 +775,8 @@ func (m *Model) updateKey(message tea.KeyPressMsg) tea.Cmd {
 			return nil
 		case OverlayQuit:
 			return m.handleQuitChoice(m.Quit.Update(message))
+		case OverlayPlanner:
+			return m.Planner.Update(message)
 		default:
 			return nil
 		}
@@ -658,6 +817,8 @@ func (m *Model) updateKey(message tea.KeyPressMsg) tea.Cmd {
 		m.MoveSelection(len(m.tasksFor(m.ActiveView)))
 	case "c", "ctrl+k":
 		return m.OpenQuickAdd()
+	case "P":
+		return m.OpenPlanner()
 	case "/":
 		return m.OpenSearch()
 	case "esc", "escape":
@@ -671,6 +832,10 @@ func (m *Model) updateKey(message tea.KeyPressMsg) tea.Cmd {
 		return m.CompleteSelected()
 	case "e":
 		return m.OpenEditor(ui.FieldDescription)
+	case "E":
+		return m.OpenEditor(ui.FieldEstimate)
+	case "R":
+		return m.OpenEditor(ui.FieldRecurrence)
 	case "p":
 		return m.OpenEditor(ui.FieldProject)
 	case "!":
@@ -683,6 +848,8 @@ func (m *Model) updateKey(message tea.KeyPressMsg) tea.Cmd {
 		return m.OpenEditor(ui.FieldTags)
 	case "s":
 		return m.ToggleStartSelected()
+	case "X":
+		return m.StopRecurrenceSelected()
 	case "d":
 		m.DeleteSelected()
 	case "u":
