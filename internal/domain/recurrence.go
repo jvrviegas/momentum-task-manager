@@ -106,32 +106,29 @@ func nextWeekday(from time.Time, wanted time.Weekday) time.Time {
 }
 
 // RecurrenceNext returns the next anchor after value for the supported
-// expressions. Taskwarrior remains authoritative; this is only a preview.
+// expressions. Its calendar and duration rules mirror Taskwarrior 3.x so the
+// preview does not claim a different occurrence from the native recurrence
+// engine.
 func RecurrenceNext(value time.Time, expression string) (time.Time, bool) {
 	canonical, err := ParseRecurrence(expression)
 	if err != nil || value.IsZero() {
 		return time.Time{}, false
 	}
-	value = midnight(value)
 	switch canonical {
 	case "daily":
-		return value.AddDate(0, 0, 1), true
+		return value.Add(24 * time.Hour), true
 	case "weekdays":
-		candidate := value.AddDate(0, 0, 1)
+		candidate := value.Add(24 * time.Hour)
 		for candidate.Weekday() == time.Saturday || candidate.Weekday() == time.Sunday {
-			candidate = candidate.AddDate(0, 0, 1)
+			candidate = candidate.Add(24 * time.Hour)
 		}
 		return candidate, true
 	case "weekly":
-		return value.AddDate(0, 0, 7), true
+		return value.Add(7 * 24 * time.Hour), true
 	case "monthly":
-		return value.AddDate(0, 1, 0), true
-	case "3mo":
-		return value.AddDate(0, 3, 0), true
-	case "6mo":
-		return value.AddDate(0, 6, 0), true
+		return addCalendarMonthsClamped(value, 1), true
 	case "1yr":
-		return value.AddDate(1, 0, 0), true
+		return addCalendarMonthsClamped(value, 12), true
 	}
 	match := recurrenceIntervalPattern.FindStringSubmatch(canonical)
 	if match == nil {
@@ -141,16 +138,32 @@ func RecurrenceNext(value time.Time, expression string) (time.Time, bool) {
 	if err != nil || count < 1 {
 		return time.Time{}, false
 	}
+	var unit time.Duration
 	switch {
 	case strings.HasPrefix(match[2], "day"):
-		return value.AddDate(0, 0, count), true
+		unit = 24 * time.Hour
 	case strings.HasPrefix(match[2], "wk"), strings.HasPrefix(match[2], "week"):
-		return value.AddDate(0, 0, 7*count), true
+		unit = 7 * 24 * time.Hour
 	case strings.HasPrefix(match[2], "mo"), strings.HasPrefix(match[2], "month"):
-		return value.AddDate(0, count, 0), true
+		unit = 30 * 24 * time.Hour
 	default:
 		return time.Time{}, false
 	}
+	const maxDuration = time.Duration(1<<63 - 1)
+	if int64(count) > int64(maxDuration/unit) {
+		return time.Time{}, false
+	}
+	return value.Add(time.Duration(count) * unit), true
+}
+
+func addCalendarMonthsClamped(value time.Time, months int) time.Time {
+	year, month, day := value.Date()
+	target := time.Date(year, month, 1, value.Hour(), value.Minute(), value.Second(), value.Nanosecond(), value.Location()).AddDate(0, months, 0)
+	lastDay := time.Date(target.Year(), target.Month()+1, 0, 0, 0, 0, 0, value.Location()).Day()
+	if day > lastDay {
+		day = lastDay
+	}
+	return time.Date(target.Year(), target.Month(), day, value.Hour(), value.Minute(), value.Second(), value.Nanosecond(), value.Location())
 }
 
 func midnight(value time.Time) time.Time {
