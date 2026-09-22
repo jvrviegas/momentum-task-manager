@@ -47,6 +47,8 @@ func (m *Model) render(layout ui.Layout) string {
 		return lipgloss.Place(layout.Width, layout.Height, lipgloss.Center, lipgloss.Center, m.Help.View())
 	case OverlayQuit:
 		return lipgloss.Place(layout.Width, layout.Height, lipgloss.Center, lipgloss.Center, m.Quit.View())
+	case OverlayPlanner:
+		return lipgloss.Place(layout.Width, layout.Height, lipgloss.Center, lipgloss.Center, m.Planner.View())
 	case OverlayMinimum:
 		return ui.MinimumSizeMessage(layout.Width, layout.Height)
 	default:
