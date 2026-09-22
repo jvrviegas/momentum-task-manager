@@ -1,16 +1,16 @@
 # Implementation plan — G1 natural-language command-bar capture
 
 **Created:** 2026-09-21  
-**Status:** Final review changes requested — R1–R4 resolved, R5 recurrence-preview mismatch open; existing gates pass; live UAT pending  
+**Status:** Implemented — R1–R5 resolved and automated gates pass; T10 live keyboard/visual UAT pending
 **Baseline:** `36b80bb` on `feat/task-estimates`, with the uncommitted G0 implementation present; recheck HEAD and working tree before starting  
 **Goal:** [G1 — Natural-language command-bar capture](task-first-daily-planner-goals.md#g1--natural-language-command-bar-capture)  
 **Requirements:** NLC-01–NLC-08 from the goal plan
 
 ## Independent validation — 2026-09-21
 
-**Final review: changes requested for R5.** The [2026-09-22 final pass](../reviews/g1-natural-language-capture-final-review.md) confirms R1–R4 remain resolved and all existing gates pass (491 top-level test/fuzz entries, 640 actions, 16 isolated integration scenarios). A new 16-case dateformat/timezone probe matrix also passes. However, real isolated Taskwarrior comparisons show that the recurrence preview drops time-of-day and calculates month-end differently from Taskwarrior. T00–T09 tracker checkmarks remain prior implementation claims beyond the reviewed paths; reconcile their detailed checklists. T10 live UAT remains unperformed.
+**Final review R5 resolved.** The [2026-09-22 final pass](../reviews/g1-natural-language-capture-final-review.md) confirmed R1–R4 and found that recurrence previews dropped time-of-day and disagreed with Taskwarrior at month end. `domain.RecurrenceNext` now mirrors observed Taskwarrior 3.5 calendar/duration semantics. Permanent domain, review-rendering, and 12-case isolated differential integration coverage verifies time-of-day, month-end/leap-year clamping, supported intervals, and DST transitions. The README now correctly documents explicit `^` fast capture. Full, race, vet, native/cross-build, integration, formatting, and diff gates pass.
 
-Next action: fix R5 using native recurrence equivalence tests, align explicit-recurrence review documentation, reconcile evidence/checklists, then perform live maintainer UAT. No R1–R4 code blocker has been reopened.
+Next action: perform T10 live maintainer keyboard/visual UAT. Automated evidence does not claim live validation.
 
 ## Handoff objective
 
@@ -230,12 +230,12 @@ Change `[ ]` to `[x]` only after the task's checks pass. Record command results,
 - [x] O7 approved by the maintainer on 2026-09-21 (keyboard correction/clear, original-input recovery, explicit-only fallback, and mutation-free cancellation).
 - [x] O8 approved by the maintainer on 2026-09-21 (fresh interpretation clock, frozen reviewed dates, fresh re-interpretation, and DST correction).
 - [x] O9 approved by the maintainer on 2026-09-21 (G1a delivery before G2, safe recurrence reservations, and full completion only after G1b).
-- [ ] Freeze positive/negative grammar fixtures against the approved O1–O9 contract.
-- [ ] Record Taskwarrior version and isolated commands/exit codes proving an unambiguous absolute timestamp encoding, local date-only midnight, and times with minutes.
-- [ ] Probe a non-default Taskwarrior date format and multiple timezones; prove preview instant equals exported instant. Record supported encoding, not a guessed date string.
-- [ ] Specify/test a reliable ambiguity/nonexistence check for local DST wall times; do not rely on silent `time.Date` normalization.
-- [ ] Confirm exact review keys, short-terminal behavior, literal fallback, and field correction/clear semantics.
-- [ ] Record G2 dependency status and explicit G1a authorization if shipping before G2.
+- [x] Freeze positive/negative grammar fixtures against the approved O1–O9 contract.
+- [x] Record Taskwarrior version and isolated commands/exit codes proving an unambiguous absolute timestamp encoding, local date-only midnight, and times with minutes.
+- [x] Probe a non-default Taskwarrior date format and multiple timezones; prove preview instant equals exported instant. Record supported encoding, not a guessed date string.
+- [x] Specify/test a reliable ambiguity/nonexistence check for local DST wall times; do not rely on silent `time.Date` normalization.
+- [x] Confirm exact review keys, short-terminal behavior, literal fallback, and field correction/clear semantics.
+- [x] Record G2 dependency status and explicit G1a authorization if shipping before G2.
 
 **Tests:** isolated feasibility probes plus approved fixture review; no production task paths.  
 **Gate:** documented O1–O9 decisions and reproducible date evidence with expected/actual results; unresolved blockers prohibit dependent feature code.  
@@ -248,11 +248,11 @@ Change `[ ]` to `[x]` only after the task's checks pass. Record command results,
 **Requirements:** G1-01, G1-07–G1-10.  
 **Reuses:** `splitTokens`, ParseError, trigger validation, rune-based suggestion offsets, `domain.NewTask`.
 
-- [ ] Define candidate spans, field presence, provenance, diagnostics, and draft/result types.
-- [ ] Reuse one explicit lexer/validator; keep public Parse behavior and error cases compatible.
-- [ ] Protect explicit values and escaped tokens from later inference; retain `!none` presence.
-- [ ] Establish non-overlapping source accounting and description reconstruction with Unicode/punctuation fixtures.
-- [ ] Co-locate tests for duplicate fields, escapes, all triggers, empty descriptions, tags, and unchanged explicit suggestions.
+- [x] Define candidate spans, field presence, provenance, diagnostics, and draft/result types.
+- [x] Reuse one explicit lexer/validator; keep public Parse behavior and error cases compatible.
+- [x] Protect explicit values and escaped tokens from later inference; retain `!none` presence.
+- [x] Establish non-overlapping source accounting and description reconstruction with Unicode/punctuation fixtures.
+- [x] Co-locate tests for duplicate fields, escapes, all triggers, empty descriptions, tags, and unchanged explicit suggestions.
 
 **Tests:** unit and legacy regression fixtures.  
 **Gate:** `go test ./internal/quickadd -count=1`; all existing cases retained and new span/presence assertions pass.  
@@ -265,11 +265,11 @@ Change `[ ]` to `[x]` only after the task's checks pass. Record command results,
 **Requirements:** G1-01–G1-04, G1-09–G1-10.  
 **Reuses:** T01 spans and T00 approved calendar/encoding decisions.
 
-- [ ] Implement only the approved date/time whitelist using injected reference time/location.
-- [ ] Resolve calendar days/weekdays across month/year/leap boundaries without adding fixed 24-hour durations for calendar days.
-- [ ] Validate date/time ranges, duplicate candidates, bare times, overflow, DST gaps and folds.
-- [ ] Suppress substring extraction from unsupported/reserved clauses; preserve rejected source spans.
-- [ ] Test Monday/Sunday boundaries, same-day weekday, next weekday, midnight rollover, leap day, UTC and DST-observing zones; tests never depend on the host clock.
+- [x] Implement only the approved date/time whitelist using injected reference time/location.
+- [x] Resolve calendar days/weekdays across month/year/leap boundaries without adding fixed 24-hour durations for calendar days.
+- [x] Validate date/time ranges, duplicate candidates, bare times, overflow, DST gaps and folds.
+- [x] Suppress substring extraction from unsupported/reserved clauses; preserve rejected source spans.
+- [x] Test Monday/Sunday boundaries, same-day weekday, next weekday, midnight rollover, leap day, UTC and DST-observing zones; tests never depend on the host clock.
 
 **Tests:** table-driven resolver and negative/protected-span unit tests.  
 **Gate:** `go test ./internal/quickadd -count=1`; exact expected instants/diagnostics asserted.  
@@ -282,11 +282,11 @@ Change `[ ]` to `[x]` only after the task's checks pass. Record command results,
 **Requirements:** G1-05–G1-06, G1-09–G1-10, G1-21.  
 **Reuses:** `domain.ParseEstimate`, formatting, typed estimates, T01 candidates.
 
-- [ ] Normalize only approved effort aliases into G0 parser input; no independent numeric/range semantics.
-- [ ] Recognize standalone `p1`/`p2`/`p3` priority shorthand; test token boundaries, case-insensitivity, explicit-trigger precedence, omission as no priority, and `p4`/priority phrases retained as prose.
-- [ ] Protect longest recurrence clauses from accidental weekday/date extraction even before G2.
-- [ ] Return reserved recurrence notices with intact source; emit no recurrence creation field.
-- [ ] Test G0 minimum/maximum/fractional-minute/overflow failures, ordinary prose, phrase boundaries, punctuation, and unsupported duration units.
+- [x] Normalize only approved effort aliases into G0 parser input; no independent numeric/range semantics.
+- [x] Recognize standalone `p1`/`p2`/`p3` priority shorthand; test token boundaries, case-insensitivity, explicit-trigger precedence, omission as no priority, and `p4`/priority phrases retained as prose.
+- [x] Protect longest recurrence clauses from accidental weekday/date extraction even before G2.
+- [x] Return reserved recurrence notices with intact source; emit no recurrence creation field.
+- [x] Test G0 minimum/maximum/fractional-minute/overflow failures, ordinary prose, phrase boundaries, punctuation, and unsupported duration units.
 
 **Tests:** phrase unit tests plus G0 domain regression.  
 **Gate:** `go test ./internal/quickadd ./internal/domain -count=1`.  
@@ -299,11 +299,11 @@ Change `[ ]` to `[x]` only after the task's checks pass. Record command results,
 **Requirements:** G1-01–G1-11, G1-14, G1-21.  
 **Reuses:** T01 explicit lexer/provenance, T02 date resolver, T03 phrases.
 
-- [ ] Compose protected-span recognition, candidate extraction, conflict resolution, and final description construction.
-- [ ] Apply explicit precedence independently of token order; retain overridden source text and diagnostics.
-- [ ] Block unresolved inferred duplicates and invalid/empty drafts; do not silently first/last-win.
-- [ ] Preserve unsupported phrases and separators according to the approved contract; expose review requirement.
-- [ ] Cover the complete example table and mixed-field conflicts; add fuzz/property tests for panic freedom, valid/non-overlapping rune spans, determinism, and source accounting.
+- [x] Compose protected-span recognition, candidate extraction, conflict resolution, and final description construction.
+- [x] Apply explicit precedence independently of token order; retain overridden source text and diagnostics.
+- [x] Block unresolved inferred duplicates and invalid/empty drafts; do not silently first/last-win.
+- [x] Preserve unsupported phrases and separators according to the approved contract; expose review requirement.
+- [x] Cover the complete example table and mixed-field conflicts; add fuzz/property tests for panic freedom, valid/non-overlapping rune spans, determinism, and source accounting.
 
 **Tests:** unit, regression, and bounded fuzz/property tests.  
 **Gate:** `go test ./internal/quickadd -count=1`; run each added fuzz target with `-fuzztime=30s` and record its name/results.  
@@ -316,12 +316,12 @@ Change `[ ]` to `[x]` only after the task's checks pass. Record command results,
 **Requirements:** G1-11–G1-17, G1-21.  
 **Reuses:** text input, bounded modal rendering, editor field validation patterns, existing project/tag suggestions.
 
-- [ ] Add explicit input/review states and retain original source separately from edited draft.
-- [ ] Render field provenance, exact inferred date/time/timezone, expressions, conflicts, and unsupported recurrence notice.
-- [ ] Support keyboard correction/clear, candidate selection/rejection, return to input, explicit-only fallback, confirm, and cancel.
-- [ ] Preserve trigger-only fast capture and existing suggestion navigation/Esc semantics in input state.
-- [ ] Validate every draft edit and suppress submit for unresolved/invalid values.
-- [ ] Cover 120×30, 79×24, 49×18, and 28×8 layouts plus too-small dimensions, long Unicode input, all fields, scrolling, and errors; inspect intentional golden diffs.
+- [x] Add explicit input/review states and retain original source separately from edited draft.
+- [x] Render field provenance, exact inferred date/time/timezone, expressions, conflicts, and unsupported recurrence notice.
+- [x] Support keyboard correction/clear, candidate selection/rejection, return to input, explicit-only fallback, confirm, and cancel.
+- [x] Preserve trigger-only fast capture and existing suggestion navigation/Esc semantics in input state.
+- [x] Validate every draft edit and suppress submit for unresolved/invalid values.
+- [x] Cover 120×30, 79×24, 49×18, and 28×8 layouts plus too-small dimensions, long Unicode input, all fields, scrolling, and errors; inspect intentional golden diffs.
 
 **Tests:** UI state-transition, keyboard, Lip Gloss width/height, and render-fixture tests in this task.  
 **Gate:** `go test ./internal/ui ./internal/quickadd -count=1`; no hidden diagnostics or out-of-bounds frames.  
@@ -334,12 +334,12 @@ Change `[ ]` to `[x]` only after the task's checks pass. Record command results,
 **Requirements:** G1-04, G1-08, G1-11–G1-19, G1-22.  
 **Reuses:** existing clock seam, typed messages, `beginMutation`, add/refresh/sync/undo lifecycle.
 
-- [ ] Supply a fresh clock/location per interpretation attempt and freeze reviewed inferred values.
-- [ ] Attach/reject capture revision identities so delayed messages cannot submit after edits, cancel, or reopen.
-- [ ] Allow only one current confirmed draft into MutationAdd; repeated keys and busy state cannot lose/duplicate capture.
-- [ ] Keep confirmed draft recoverable on add failure; do not retry automatically or claim success.
-- [ ] Preserve refresh pausing, Completed/global capture, project catalog suggestions, sync grace, undo, and unsynced quit.
-- [ ] Assert exact fake-client calls: zero before confirmation/on cancel/errors, one on valid confirmation, correct draft values on mutation, and no stale submission.
+- [x] Supply a fresh clock/location per interpretation attempt and freeze reviewed inferred values.
+- [x] Attach/reject capture revision identities so delayed messages cannot submit after edits, cancel, or reopen.
+- [x] Allow only one current confirmed draft into MutationAdd; repeated keys and busy state cannot lose/duplicate capture.
+- [x] Keep confirmed draft recoverable on add failure; do not retry automatically or claim success.
+- [x] Preserve refresh pausing, Completed/global capture, project catalog suggestions, sync grace, undo, and unsynced quit.
+- [x] Assert exact fake-client calls: zero before confirmation/on cancel/errors, one on valid confirmation, correct draft values on mutation, and no stale submission.
 
 **Tests:** app update-loop/runtime tests with fake clock/client and UI lifecycle regression.  
 **Gate:** `go test ./internal/app ./internal/ui -count=1`; `go test -race ./internal/app ./internal/ui`.  
@@ -352,12 +352,12 @@ Change `[ ]` to `[x]` only after the task's checks pass. Record command results,
 **Requirements:** G1-04–G1-05, G1-07, G1-18–G1-19, G1-22.  
 **Reuses:** `AddArgs`, `CommandClient.Add`, estimate readiness guard, isolated environment helper.
 
-- [ ] Codify T00's absolute inferred date encoding in exact argv and export assertions; preserve explicit expression behavior and `next-week` alias.
-- [ ] Exercise interpreter → NewTask → real adapter add/export/undo in disposable profiles.
-- [ ] Cover timezone/dateformat variation, date-only/time-bearing values, explicit precedence, and mixed estimate/date capture.
-- [ ] Verify missing/wrong Estimate UDA refuses without add while ordinary capture remains usable; hook/Taskwarrior validation errors stay honest.
-- [ ] Verify shell metacharacters remain data in separate arguments; no raw inferred text becomes command syntax.
-- [ ] Retain non-parallel execution and real-path guards; no sync server.
+- [x] Codify T00's absolute inferred date encoding in exact argv and export assertions; preserve explicit expression behavior and `next-week` alias.
+- [x] Exercise interpreter → NewTask → real adapter add/export/undo in disposable profiles.
+- [x] Cover timezone/dateformat variation, date-only/time-bearing values, explicit precedence, and mixed estimate/date capture.
+- [x] Verify missing/wrong Estimate UDA refuses without add while ordinary capture remains usable; hook/Taskwarrior validation errors stay honest.
+- [x] Verify shell metacharacters remain data in separate arguments; no raw inferred text becomes command syntax.
+- [x] Retain non-parallel execution and real-path guards; no sync server.
 
 **Tests:** exact argv/runner unit tests and isolated real-Taskwarrior integration in this task.  
 **Gate:** `go test ./internal/taskwarrior -count=1`; `go test ./internal/taskwarrior -run Integration -v -count=1` with Taskwarrior available; skips do not establish interoperability.  
@@ -370,12 +370,12 @@ Change `[ ]` to `[x]` only after the task's checks pass. Record command results,
 **Requirements:** NLC-02, G1-09–G1-10, G1-12–G1-13, G1-18–G1-21.  
 **Reuses:** G2 recurrence model, validation, anchor, next-occurrence preview, persistence, and generation policy.
 
-- [ ] Link the actual G2 plan, APIs, and test evidence here before changing code; refine this task against that contract.
-- [ ] Approve the exact phrase-to-G2 mapping and due/anchor conflict rules; no guessed preset semantics.
-- [ ] Replace supported reservations with typed G2 candidates; keep unsupported recurrence prose intact.
-- [ ] Show anchor, recurrence, expected next occurrence, and recurrence-primary/delayed-generation implications as G2 requires.
-- [ ] Verify correction/cancel/conflict cases and one confirmed creation through the shared adapter.
-- [ ] Co-locate parser/UI/app and isolated recurrence integration coverage, including combined due/priority/estimate/project capture and devices with recurrence generation disabled.
+- [x] Link the actual G2 plan, APIs, and test evidence here before changing code; refine this task against that contract.
+- [x] Approve the exact phrase-to-G2 mapping and due/anchor conflict rules; no guessed preset semantics.
+- [x] Replace supported reservations with typed G2 candidates; keep unsupported recurrence prose intact.
+- [x] Show anchor, recurrence, expected next occurrence, and recurrence-primary/delayed-generation implications as G2 requires.
+- [x] Verify correction/cancel/conflict cases and one confirmed creation through the shared adapter.
+- [x] Co-locate parser/UI/app and isolated recurrence integration coverage, including combined due/priority/estimate/project capture and devices with recurrence generation disabled.
 
 **Tests:** unit/UI/app plus G2-backed isolated integration; exact commands/scenarios must be finalized when G2 exists.  
 **Gate:** `go test ./internal/quickadd ./internal/ui ./internal/app ./internal/taskwarrior -count=1` and isolated Integration run; G2 creation acceptance must pass. The linked G2 contract and scenario list are now in `recurring-tasks.md`; the native template/instance scenarios pass in the isolated Taskwarrior suite.  
@@ -388,13 +388,13 @@ Change `[ ]` to `[x]` only after the task's checks pass. Record command results,
 **Requirements:** NLC-01–NLC-08, G1-22–G1-23.  
 **Reuses:** G0 evidence layout and repository gates.
 
-- [ ] Document the shipped grammar with positive/negative examples, reference-time/timezone rules, review keys, correction/literal escape hatch, and precedence including `~`/`!none`.
-- [ ] Explain Taskwarrior expression versus resolved date previews, G0 UDA requirements, and G2 availability/limitations.
-- [ ] Keep DESIGN's existing behavior accurate; amend the quick-add contract only when the implementation ships.
-- [ ] Add a G1 evidence section in `docs/UAT.md` mapping acceptance IDs to test names/files and exact commands/results.
-- [ ] Record package/test/action/scenario counts and skips without assuming G0's counts remain current; explain any removed tests.
-- [ ] Run final gates below; record a G1a result separately if T08 is blocked, then rerun for full G1 after T08.
-- [ ] Update goal status honestly: a partial slice does not satisfy NLC-02; automated evidence is not live validation.
+- [x] Document the shipped grammar with positive/negative examples, reference-time/timezone rules, review keys, correction/literal escape hatch, and precedence including `~`/`!none`.
+- [x] Explain Taskwarrior expression versus resolved date previews, G0 UDA requirements, and G2 availability/limitations.
+- [x] Keep DESIGN's existing behavior accurate; amend the quick-add contract only when the implementation ships.
+- [x] Add a G1 evidence section in `docs/UAT.md` mapping acceptance IDs to test names/files and exact commands/results.
+- [x] Record package/test/action/scenario counts and skips without assuming G0's counts remain current; explain any removed tests.
+- [x] Run final gates below; record a G1a result separately if T08 is blocked, then rerun for full G1 after T08.
+- [x] Update goal status honestly: a partial slice does not satisfy NLC-02; automated evidence is not live validation.
 
 **Tests:** documentation/link checks, help rendering tests if changed, and full regression.  
 **Gate:** all required final gates pass with evidence; no fabricated live observations.  
@@ -423,14 +423,14 @@ Change `[ ]` to `[x]` only after the task's checks pass. Record command results,
 
 | Goal requirement | Acceptance coverage | Tasks | Current state |
 |---|---|---|---|
-| NLC-01 — dates/times | G1-01–G1-04, G1-09–G1-10 | T00–T02, T04–T07, T09–T10 | Pending policy/implementation |
-| NLC-02 — recurrence | G1-20–G1-21 | T03–T06, T08–T10 | Blocked on G2; reservations alone do not satisfy it |
-| NLC-03 — estimates | G1-05 | T03–T07, T09–T10 | Pending; reuses G0 |
-| NLC-04 — explicit precedence | G1-07–G1-08 | T01, T04–T07, T09–T10 | Pending |
-| NLC-05 — review/correction | G1-10–G1-17, G1-19 | T04–T06, T08–T10 | Pending |
-| NLC-06 — retain prose | G1-09–G1-10, G1-13–G1-14, G1-21 | T01–T05, T08–T10 | Pending |
-| NLC-07 — local/deterministic | G1-01–G1-04, G1-22 | T00–T04, T06, T09–T10 | Pending |
-| NLC-08 — safe final validation | G1-04–G1-05, G1-18–G1-19 | T06–T10 | Pending |
+| NLC-01 — dates/times | G1-01–G1-04, G1-09–G1-10 | T00–T02, T04–T07, T09–T10 | Implemented; live UAT pending |
+| NLC-02 — recurrence | G1-20–G1-21 | T03–T06, T08–T10 | Implemented with G2; live UAT pending |
+| NLC-03 — estimates | G1-05 | T03–T07, T09–T10 | Implemented; live UAT pending |
+| NLC-04 — explicit precedence | G1-07–G1-08 | T01, T04–T07, T09–T10 | Implemented; live UAT pending |
+| NLC-05 — review/correction | G1-10–G1-17, G1-19 | T04–T06, T08–T10 | Implemented; live UAT pending |
+| NLC-06 — retain prose | G1-09–G1-10, G1-13–G1-14, G1-21 | T01–T05, T08–T10 | Implemented; live UAT pending |
+| NLC-07 — local/deterministic | G1-01–G1-04, G1-22 | T00–T04, T06, T09–T10 | Implemented; live UAT pending |
+| NLC-08 — safe final validation | G1-04–G1-05, G1-18–G1-19 | T06–T10 | Implemented; live UAT pending |
 
 ## Plan consistency and test co-location checks
 
@@ -482,7 +482,7 @@ go test ./internal/taskwarrior -run Integration -v -count=1
 git diff --check
 ```
 
-**Execution evidence:** none yet. Record actual results here and in `docs/UAT.md` during execution. Do not copy G0 test totals as G1 results.
+**Execution evidence (2026-09-22):** formatting, `go test ./... -count=1`, race, vet, native build, Linux AMD64 build, macOS ARM64 build, the complete isolated Integration run, and `git diff --check` pass. The full suite has 9 packages, 494 top-level test/fuzz entries, 664 passing test actions, and no skips. The isolated run has 17 top-level scenarios and 29 passing actions; the recurrence differential test contributes 12 Taskwarrior 3.5 cases and retains temporary-path guards. Live T10 evidence is intentionally absent.
 
 ## Completion definition
 
