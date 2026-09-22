@@ -167,6 +167,15 @@ func TestReviewRequiresConflictCorrectionAndAcceptsEditedEstimate(t *testing.T) 
 	}
 }
 
+func TestReviewRendersTaskwarriorEquivalentNextOccurrence(t *testing.T) {
+	q := reviewedQuickAdd(t, "Review every month")
+	q.ReviewInputs[quickAddReviewDue].SetValue("20270131T150000")
+	view := q.View()
+	if !strings.Contains(view, "Next occurrence: 2027-02-28 15:00 UTC") {
+		t.Fatalf("review has incorrect recurrence preview: %q", view)
+	}
+}
+
 func TestShortReviewDiagnosticsCanBeScrolled(t *testing.T) {
 	q := reviewedQuickAdd(t, "Call tomorrow at 3pm at 4pm")
 	q.SetSize(28, 8)
