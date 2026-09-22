@@ -17,9 +17,10 @@ import (
 type DetailsAction string
 
 const (
-	DetailsNone  DetailsAction = "none"
-	DetailsClose DetailsAction = "close"
-	DetailsEdit  DetailsAction = "edit"
+	DetailsNone           DetailsAction = "none"
+	DetailsClose          DetailsAction = "close"
+	DetailsEdit           DetailsAction = "edit"
+	DetailsStopRecurrence DetailsAction = "stop_recurrence"
 )
 
 // DetailsModel is primarily read-only and deliberately retains the full task
@@ -65,6 +66,11 @@ func (d *DetailsModel) Update(msg tea.Msg) DetailsAction {
 	case "e":
 		d.Open = false
 		return DetailsEdit
+	case "x", "X":
+		if d.Task.Recurrence != "" {
+			d.Open = false
+			return DetailsStopRecurrence
+		}
 	case "esc", "escape", "enter":
 		d.Close()
 		return DetailsClose
@@ -123,9 +129,9 @@ func (d DetailsModel) View() string {
 		lines = append(lines, body[scroll:end]...)
 	}
 	if maximum > 0 {
-		lines = append(lines, d.Styles.ModalAction.Render(fmt.Sprintf("↑/↓ scroll · %d/%d · e edit · Esc close", scroll+1, maximum+1)))
+		lines = append(lines, d.Styles.ModalAction.Render(fmt.Sprintf("↑/↓ scroll · %d/%d · e edit · x stop recurrence · Esc close", scroll+1, maximum+1)))
 	} else {
-		lines = append(lines, d.Styles.ModalAction.Render("e edit · Esc close"))
+		lines = append(lines, d.Styles.ModalAction.Render("e edit · x stop recurrence · Esc close"))
 	}
 	return renderBoundedPanel(lines, contentWidth, contentHeight, d.Styles)
 }
@@ -143,6 +149,13 @@ func (d DetailsModel) bodyLines(width int) []string {
 	appendValue("Description", d.Task.Description)
 	appendValue("Status", d.Task.Status)
 	appendValue("Priority", PriorityLabel(d.Task.Priority))
+	estimateValue := ""
+	if d.Task.Estimate != nil {
+		estimateValue = d.Task.Estimate.String()
+	} else if d.Task.EstimateWarning != "" {
+		estimateValue = "Unavailable: " + d.Task.EstimateWarning
+	}
+	appendValue("Estimate", estimateValue)
 
 	schedule := []struct {
 		label string
@@ -153,6 +166,7 @@ func (d DetailsModel) bodyLines(width int) []string {
 		{"Scheduled", firstNonEmpty(d.Task.ScheduledRaw, formatTaskTime(d.Task.Scheduled))},
 		{"Start", firstNonEmpty(d.Task.StartRaw, formatTaskTime(d.Task.Start))},
 		{"Wait", firstNonEmpty(d.Task.WaitRaw, formatTaskTime(d.Task.Wait))},
+		{"Until", firstNonEmpty(d.Task.UntilRaw, formatTaskTime(d.Task.Until))},
 	}
 	hasSchedule := false
 	for _, field := range schedule {
@@ -176,7 +190,8 @@ func (d DetailsModel) bodyLines(width int) []string {
 		{"Tags", strings.Join(d.Task.Tags, ", ")},
 		{"Annotations", formatAnnotations(d.Task.Annotations)},
 		{"Depends", strings.Join(d.Task.Dependencies, ", ")},
-		{"Recurrence", d.Task.Recurrence},
+		{"Recurrence", recurrenceDetail(d.Task)},
+		{"Next occurrence", recurrenceNextDetail(d.Task)},
 	}
 	hasOrganization := false
 	for _, field := range organizationValues {
@@ -229,8 +244,8 @@ func wrapLabeled(label, value string, width int) []string {
 func unknownRawKeys(fields map[string]json.RawMessage) []string {
 	known := map[string]bool{
 		"uuid": true, "id": true, "description": true, "status": true, "project": true, "priority": true,
-		"entry": true, "end": true, "modified": true, "due": true, "scheduled": true, "start": true, "wait": true,
-		"tags": true, "annotations": true, "depends": true, "recur": true, "urgency": true,
+		"entry": true, "end": true, "modified": true, "due": true, "scheduled": true, "start": true, "wait": true, "until": true,
+		"tags": true, "annotations": true, "depends": true, "recur": true, "parent": true, "mask": true, "imask": true, "rtype": true, "urgency": true, "estimate": true,
 	}
 	keys := make([]string, 0)
 	for key := range fields {
@@ -247,6 +262,30 @@ func formatTaskTime(value *time.Time) string {
 		return ""
 	}
 	return value.Format(time.RFC3339)
+}
+
+func recurrenceNextDetail(task domain.Task) string {
+	if task.Recurrence == "" || task.Due == nil {
+		return ""
+	}
+	if next, ok := domain.RecurrenceNext(*task.Due, task.Recurrence); ok {
+		return next.Format(time.RFC3339)
+	}
+	return ""
+}
+
+func recurrenceDetail(task domain.Task) string {
+	if task.Recurrence == "" {
+		return ""
+	}
+	value := domain.RecurrenceDisplay(task.Recurrence) + " [" + task.Recurrence + "]"
+	if task.IsRecurrenceTemplate() {
+		return value + " (template)"
+	}
+	if task.IsRecurrenceInstance() {
+		return value + " (generated instance; parent " + task.Parent + ")"
+	}
+	return value
 }
 
 func formatAnnotations(values []domain.Annotation) string {
