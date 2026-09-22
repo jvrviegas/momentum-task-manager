@@ -61,6 +61,21 @@ func isolatedClient(t *testing.T) (*CommandClient, isolatedEnvironment) {
 	return NewClient("task"), env
 }
 
+func enableEstimateUDA(t *testing.T, env isolatedEnvironment) {
+	t.Helper()
+	file, err := os.OpenFile(env.TaskRC, os.O_APPEND|os.O_WRONLY, 0o600)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if _, err := file.WriteString("uda.estimate.type=duration\nuda.estimate.label=Estimate\n"); err != nil {
+		file.Close()
+		t.Fatal(err)
+	}
+	if err := file.Close(); err != nil {
+		t.Fatal(err)
+	}
+}
+
 func integrationTask(t *testing.T, client *CommandClient, input domain.NewTask) domain.Task {
 	t.Helper()
 	if err := client.Add(context.Background(), input); err != nil {
@@ -101,6 +116,53 @@ func TestIntegrationNextWeekAliasSchedulesFridayOfNextCalendarWeek(t *testing.T)
 	got := task.Scheduled.In(time.Local)
 	if got.Year() != want.Year() || got.YearDay() != want.YearDay() || got.Weekday() != time.Friday {
 		t.Fatalf("scheduled=%v want next-week Friday %v", got, want)
+	}
+}
+
+func TestIntegrationEstimateAddModifyClearAndUndo(t *testing.T) {
+	client, env := isolatedClient(t)
+	enableEstimateUDA(t, env)
+	oneHour := domain.Estimate{Minutes: 60}
+	task := integrationTask(t, client, domain.NewTask{Description: "estimate lifecycle", Estimate: &oneHour})
+	if task.Estimate == nil || task.Estimate.Minutes != 60 {
+		t.Fatalf("initial estimate=%#v raw=%#v", task.Estimate, task.RawFields["estimate"])
+	}
+
+	ninetyMinutes := &domain.Estimate{Minutes: 90}
+	if err := client.Modify(context.Background(), task.UUID, domain.TaskDiff{Estimate: domain.EstimateChange{Kind: domain.Set, Value: ninetyMinutes}}); err != nil {
+		t.Fatal(err)
+	}
+	modified, err := client.ExportPending(context.Background())
+	if err != nil || len(modified) != 1 || modified[0].Estimate == nil || modified[0].Estimate.Minutes != 90 {
+		t.Fatalf("modified=%#v err=%v", modified, err)
+	}
+	if err := client.Modify(context.Background(), task.UUID, domain.TaskDiff{Estimate: domain.EstimateChange{Kind: domain.Clear}}); err != nil {
+		t.Fatal(err)
+	}
+	cleared, err := client.ExportPending(context.Background())
+	if err != nil || len(cleared) != 1 || cleared[0].Estimate != nil {
+		t.Fatalf("cleared=%#v err=%v", cleared, err)
+	}
+	if err := client.Undo(context.Background()); err != nil {
+		t.Fatal(err)
+	}
+	restored, err := client.ExportPending(context.Background())
+	if err != nil || len(restored) != 1 || restored[0].Estimate == nil || restored[0].Estimate.Minutes != 90 {
+		t.Fatalf("restored=%#v err=%v", restored, err)
+	}
+}
+
+func TestIntegrationEstimateMutationRefusesMissingUDAWithoutChangingTaskData(t *testing.T) {
+	client, _ := isolatedClient(t)
+	estimate := domain.Estimate{Minutes: 60}
+	err := client.Add(context.Background(), domain.NewTask{Description: "must not be created", Estimate: &estimate})
+	var readinessErr *EstimateUDAError
+	if !errors.As(err, &readinessErr) || readinessErr.State != EstimateUDAMissing {
+		t.Fatalf("err=%T %v", err, err)
+	}
+	tasks, exportErr := client.ExportPending(context.Background())
+	if exportErr != nil || len(tasks) != 0 {
+		t.Fatalf("tasks=%#v exportErr=%v", tasks, exportErr)
 	}
 }
 
