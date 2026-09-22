@@ -13,14 +13,14 @@
 │             before the next billing window│
 │Status: pending                            │
 │Priority: High                             │
+│Estimate: 1h 30m                           │
 │SCHEDULE                                   │
 │Due: 2026-09-08T17:00:00Z                  │
 │ORGANIZATION                               │
 │Project: personal.admin                    │
 │Tags: planning, admin                      │
 │Annotations: Check registrar account and   │
-│             confirm receipt               │
-│↑/↓ scroll · 1/7 · e edit · Esc close      │
+│↑/↓ scroll · 1/9 · e edit · x stop recurre…│
 ╰───────────────────────────────────────────╯
 
 === help ===
@@ -35,10 +35,10 @@
 │Tasks                                      │
 │Enter              open details            │
 │Space              complete task           │
-│e / p / ! / D / S / t edit field           │
+│e / E / R / p / ! / D / S / t edit field   │
+│X                  stop selected recurrence│
 │s                  start / stop task       │
-│d                  delete task             │
-│↑/↓ scroll · 1/12 · Esc close              │
+│↑/↓ scroll · 1/15 · Esc close              │
 ╰───────────────────────────────────────────╯
 
 === quick-capture ===
@@ -61,6 +61,8 @@
 │  Due 2026-09-08 17:00                     │
 │  Scheduled YYYY-MM-DD HH:MM or tomorr     │
 │  Tags admin planning                      │
+│* Estimate 1h 30m                          │
+│  Recurrence yearly                        │
 │Tab next · Ctrl+S save · Esc cancel        │
 ╰───────────────────────────────────────────╯
 
