@@ -13,27 +13,53 @@ import (
 )
 
 // QuickAddSubmitMsg is emitted after a successful parse; it contains no
-// process execution and can be routed to the app command layer.
+// process execution and can be routed to the app command layer. Revision ties
+// the immutable task to the capture that produced it.
 type QuickAddSubmitMsg struct {
-	Task domain.NewTask
+	Task     domain.NewTask
+	Revision uint64
+	Source   string
+	Review   bool
+}
+
+// QuickAddReviewMsg asks the app to keep the capture overlay open while the
+// user reviews inferred metadata.
+type QuickAddReviewMsg struct {
+	Interpretation quickadd.Interpretation
+	Revision       uint64
 }
 
 // QuickAddModel owns the centered capture modal and its contextual suggestions.
 type QuickAddModel struct {
-	Input           textinput.Model
-	Suggestions     []quickadd.Suggestion
-	SuggestionIndex int
-	SuggestionsOpen bool
-	Open            bool
-	ParseErr        error
-	Projects        []string
-	ProjectLabels   map[string]string
-	Tags            []string
-	Width           int
-	Height          int
-	Now             time.Time
-	Styles          Styles
-	Icons           Icons
+	Input                 textinput.Model
+	Suggestions           []quickadd.Suggestion
+	SuggestionIndex       int
+	SuggestionsOpen       bool
+	Open                  bool
+	ParseErr              error
+	Projects              []string
+	ProjectLabels         map[string]string
+	Tags                  []string
+	Width                 int
+	Height                int
+	Now                   time.Time
+	NowProvider           func() time.Time
+	OriginalInput         string
+	Review                quickadd.Interpretation
+	ReviewOpen            bool
+	ReviewField           int
+	ReviewScroll          int
+	ReviewDetailScroll    int
+	ReviewTouched         [quickAddReviewFieldCount]bool
+	ReviewDecisions       [quickAddReviewFieldCount]bool
+	ReviewInputs          [quickAddReviewFieldCount]textinput.Model
+	CaptureRevision       uint64
+	ReviewRevision        uint64
+	LastSubmittedRevision uint64
+	LastSubmittedSource   string
+	LastSubmittedReview   bool
+	Styles                Styles
+	Icons                 Icons
 }
 
 // NewQuickAdd creates a focused quick-capture model.
@@ -41,12 +67,26 @@ func NewQuickAdd(styles Styles, icons Icons) QuickAddModel {
 	input := textinput.New()
 	input.Prompt = "> "
 	input.Placeholder = "What needs doing?"
-	return QuickAddModel{Input: input, Styles: styles, Icons: icons, Now: time.Now()}
+	model := QuickAddModel{Input: input, Styles: styles, Icons: icons, Now: time.Now()}
+	for index := range model.ReviewInputs {
+		model.ReviewInputs[index] = textinput.New()
+		model.ReviewInputs[index].Prompt = ""
+	}
+	return model
 }
 
 // OpenQuickAdd resets parse state and focuses the command bar.
 func (q *QuickAddModel) OpenQuickAdd(value string) tea.Cmd {
+	q.CaptureRevision++
 	q.Open = true
+	q.ReviewOpen = false
+	q.Review = quickadd.Interpretation{}
+	q.ReviewField = 0
+	q.ReviewScroll = 0
+	q.ReviewDetailScroll = 0
+	q.ReviewTouched = [quickAddReviewFieldCount]bool{}
+	q.ReviewDecisions = [quickAddReviewFieldCount]bool{}
+	q.OriginalInput = value
 	q.ParseErr = nil
 	q.Input.SetValue(value)
 	q.Input.CursorEnd()
@@ -56,17 +96,26 @@ func (q *QuickAddModel) OpenQuickAdd(value string) tea.Cmd {
 
 // Close closes the bar without touching the underlying Taskwarrior client.
 func (q *QuickAddModel) Close() {
+	// Closing invalidates every command that was scheduled for this capture.
+	q.CaptureRevision++
 	q.Open = false
+	q.ReviewOpen = false
 	q.SuggestionsOpen = false
 	q.Suggestions = nil
 	q.Input.Blur()
+	for index := range q.ReviewInputs {
+		q.ReviewInputs[index].Blur()
+	}
 }
 
 func (q *QuickAddModel) SetSize(width, height int) {
 	q.Width, q.Height = width, height
 	// Bubbles reserves one additional cursor cell beyond the two-cell prompt.
 	// Budget it here so an idle input never gains a misleading trailing ellipsis.
-	q.Input.SetWidth(max(1, quickAddContentWidth(width)-3))
+	contentWidth := quickAddContentWidth(width)
+	q.Input.SetWidth(max(1, contentWidth-3))
+	q.resizeReviewInputs()
+	q.ensureReviewFieldVisible()
 }
 
 func (q *QuickAddModel) SetCatalog(projects, tags []string) {
@@ -86,6 +135,9 @@ func (q *QuickAddModel) Update(msg tea.Msg) (*QuickAddModel, tea.Cmd) {
 	if !q.Open {
 		return q, nil
 	}
+	if q.ReviewOpen {
+		return q, q.updateReview(msg)
+	}
 	if keyMsg, ok := msg.(tea.KeyPressMsg); ok {
 		switch keyMsg.String() {
 		case "esc", "escape":
@@ -98,6 +150,7 @@ func (q *QuickAddModel) Update(msg tea.Msg) (*QuickAddModel, tea.Cmd) {
 		case "tab":
 			if q.SuggestionsOpen && len(q.Suggestions) > 0 {
 				q.acceptSuggestion()
+				q.CaptureRevision++
 				return q, nil
 			}
 		case "up", "ctrl+p":
@@ -118,8 +171,12 @@ func (q *QuickAddModel) Update(msg tea.Msg) (*QuickAddModel, tea.Cmd) {
 			return q, nil
 		}
 	}
+	before := q.Input.Value()
 	var cmd tea.Cmd
 	q.Input, cmd = q.Input.Update(msg)
+	if before != q.Input.Value() {
+		q.CaptureRevision++
+	}
 	q.ParseErr = nil
 	q.refreshSuggestions()
 	return q, cmd
@@ -140,6 +197,11 @@ func (q *QuickAddModel) refreshSuggestions() {
 }
 
 func (q *QuickAddModel) currentTime() time.Time {
+	if q.NowProvider != nil {
+		if value := q.NowProvider(); !value.IsZero() {
+			return value
+		}
+	}
 	if q.Now.IsZero() {
 		return time.Now()
 	}
@@ -164,23 +226,31 @@ func (q *QuickAddModel) acceptSuggestion() {
 	value, cursor := quickadd.ApplySuggestion(q.Input.Value(), ctx, q.Suggestions[q.SuggestionIndex])
 	q.Input.SetValue(value)
 	q.Input.SetCursor(cursor)
+	q.CaptureRevision++
 	q.refreshSuggestions()
 }
 
 func (q *QuickAddModel) submit() tea.Cmd {
 	input := q.Input.Value()
+	now := q.currentTime()
+	revision := q.CaptureRevision
 	return func() tea.Msg {
-		task, err := quickadd.Parse(input)
+		interpretation, err := quickadd.Interpret(input, now)
 		if err != nil {
-			return QuickAddErrorMsg{Err: err}
+			return QuickAddErrorMsg{Err: err, Revision: revision, Source: input}
 		}
-		return QuickAddSubmitMsg{Task: task}
+		if interpretation.RequiresReview {
+			return QuickAddReviewMsg{Interpretation: interpretation, Revision: revision}
+		}
+		return QuickAddSubmitMsg{Task: cloneNewTask(interpretation.Task), Revision: revision, Source: input}
 	}
 }
 
 // QuickAddErrorMsg keeps the input visible while reporting a parse failure.
 type QuickAddErrorMsg struct {
-	Err error
+	Err      error
+	Revision uint64
+	Source   string
 }
 
 // ApplyMessage consumes the typed parse result and keeps errors local to the
@@ -188,9 +258,24 @@ type QuickAddErrorMsg struct {
 func (q *QuickAddModel) ApplyMessage(msg tea.Msg) (tea.Msg, bool) {
 	switch message := msg.(type) {
 	case QuickAddErrorMsg:
+		if !q.currentRevision(message.Revision) || !q.currentSource(message.Source) {
+			return nil, false
+		}
 		q.ParseErr = message.Err
 		return nil, true
+	case QuickAddReviewMsg:
+		if !q.currentRevision(message.Revision) || message.Interpretation.Source != q.Input.Value() {
+			return nil, false
+		}
+		q.openReview(message.Interpretation)
+		return nil, true
 	case QuickAddSubmitMsg:
+		if !q.currentRevision(message.Revision) || !q.currentSource(message.Source) {
+			return nil, false
+		}
+		q.LastSubmittedRevision = message.Revision
+		q.LastSubmittedSource = message.Source
+		q.LastSubmittedReview = message.Review
 		q.Close()
 		return message, true
 	default:
@@ -202,6 +287,9 @@ func (q *QuickAddModel) ApplyMessage(msg tea.Msg) (tea.Msg, bool) {
 func (q QuickAddModel) View() string {
 	if !q.Open || q.Width <= 0 || q.Height <= 0 {
 		return ""
+	}
+	if q.ReviewOpen {
+		return q.reviewView()
 	}
 	contentWidth := quickAddContentWidth(q.Width)
 	if q.Height <= 2 {
@@ -254,7 +342,7 @@ func (q QuickAddModel) View() string {
 		guide := []string{
 			q.Styles.SectionTitle.Render(Truncate("Optional details", contentWidth)),
 			q.Styles.Metadata.Render(Truncate("#project   !priority   @due date", contentWidth)),
-			q.Styles.Metadata.Render(Truncate(">scheduled   +tag", contentWidth)),
+			q.Styles.Metadata.Render(Truncate(">scheduled   +tag   ~estimate", contentWidth)),
 		}
 		lines = append(lines, guide[:min(len(guide), optional)]...)
 	}
@@ -275,6 +363,10 @@ func suggestionHeading(kind quickadd.SuggestionKind) string {
 		return "Scheduled dates"
 	case quickadd.SuggestionTag:
 		return "Tags"
+	case quickadd.SuggestionEstimate:
+		return "Estimates"
+	case quickadd.SuggestionRecurrence:
+		return "Recurrence"
 	default:
 		return "Suggestions"
 	}
@@ -290,6 +382,14 @@ func (q QuickAddModel) ErrorText() string {
 		return ""
 	}
 	return strings.TrimSpace(q.ParseErr.Error())
+}
+
+func (q QuickAddModel) currentRevision(revision uint64) bool {
+	return q.Open && revision == q.CaptureRevision
+}
+
+func (q QuickAddModel) currentSource(source string) bool {
+	return source == "" || source == q.Input.Value()
 }
 
 func max(a, b int) int {
