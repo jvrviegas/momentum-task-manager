@@ -15,7 +15,7 @@
 
 ## Acceptance evidence
 
-- `internal/domain/recurrence.go` validates presets, interval aliases, anchors, and next-occurrence previews.
+- `internal/domain/recurrence.go` validates presets, interval aliases, anchors, and Taskwarrior-equivalent next-occurrence previews; isolated differential tests cover time-of-day, month-end/leap-year clamping, intervals, and DST transitions.
 - `internal/quickadd/interpret.go` recognizes `every day`, `every weekday`, `every week`, selected weekdays, monthly, and positive intervals.
 - `internal/ui/edit.go` adds the Recurrence field and `R` focus shortcut; Details offers `x` to stop a series.
 - `internal/taskwarrior/mutations.go` builds recurrence-safe add/modify/stop argv.
