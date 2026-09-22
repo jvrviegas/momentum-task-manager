@@ -12,7 +12,7 @@ import (
 	"github.com/jvrviegas/momentum/internal/domain"
 )
 
-// EditField identifies one of the six supported editable fields.
+// EditField identifies one of the eight supported editable fields.
 type EditField int
 
 const (
@@ -22,9 +22,13 @@ const (
 	FieldDue
 	FieldScheduled
 	FieldTags
+	FieldEstimate
+	FieldRecurrence
 )
 
-var editFieldNames = [...]string{"Description", "Project", "Priority", "Due", "Scheduled", "Tags"}
+const editFieldCount = 8
+
+var editFieldNames = [...]string{"Description", "Project", "Priority", "Due", "Scheduled", "Tags", "Estimate", "Recurrence"}
 
 // EditSubmitMsg is emitted only after local validation and contains a minimal
 // domain diff. The app layer decides when to invoke Taskwarrior.
@@ -37,9 +41,9 @@ type EditSubmitMsg struct {
 // EditErrorMsg reports validation without discarding field input.
 type EditErrorMsg struct{ Err error }
 
-// EditModel is a structured six-field task editor.
+// EditModel is a structured eight-field task editor.
 type EditModel struct {
-	Inputs          [6]textinput.Model
+	Inputs          [editFieldCount]textinput.Model
 	Task            domain.Task
 	Before          domain.EditSnapshot
 	Focused         EditField
@@ -69,6 +73,8 @@ func NewEdit(styles Styles, icons Icons) EditModel {
 	}
 	model.Inputs[FieldDue].Placeholder = "YYYY-MM-DD HH:MM or tomorrow"
 	model.Inputs[FieldScheduled].Placeholder = "YYYY-MM-DD HH:MM or tomorrow"
+	model.Inputs[FieldEstimate].Placeholder = "15m, 1h, or 1h30m"
+	model.Inputs[FieldRecurrence].Placeholder = "daily, weekdays, weekly, monthly"
 	return model
 }
 
@@ -85,7 +91,11 @@ func (e *EditModel) OpenTask(task domain.Task, initial EditField) tea.Cmd {
 	e.Err = nil
 	e.Scroll = 0
 	e.Focused = initial
-	values := []string{e.Before.Description, e.Before.Project, e.Before.Priority, e.Before.Due, e.Before.Scheduled, strings.Join(e.Before.Tags, " ")}
+	estimateValue := ""
+	if e.Before.Estimate != nil {
+		estimateValue = e.Before.Estimate.String()
+	}
+	values := [...]string{e.Before.Description, e.Before.Project, e.Before.Priority, e.Before.Due, e.Before.Scheduled, strings.Join(e.Before.Tags, " "), estimateValue, e.Before.Recurrence}
 	for index, value := range values {
 		e.Inputs[index].SetValue(value)
 		e.Inputs[index].Blur()
@@ -235,6 +245,10 @@ func (e *EditModel) refreshSuggestions() {
 		candidates = e.Projects
 	case FieldTags:
 		candidates = e.Tags
+	case FieldEstimate:
+		candidates = domain.EstimateSuggestions()
+	case FieldRecurrence:
+		candidates = []string{"daily", "weekdays", "weekly", "monday", "tuesday", "wednesday", "thursday", "friday", "monthly", "2wks"}
 	case FieldPriority:
 		candidates = []string{"H", "M", "L", "none"}
 	case FieldDue, FieldScheduled:
@@ -295,9 +309,11 @@ func (e *EditModel) acceptSuggestion() {
 
 func (e *EditModel) submit() tea.Cmd {
 	before := e.Before
+	description := strings.TrimSpace(e.Inputs[FieldDescription].Value())
 	after := e.CurrentSnapshot()
+	estimateErr := e.validateEstimateInput()
 	return func() tea.Msg {
-		if strings.TrimSpace(after.Description) == "" {
+		if description == "" {
 			return EditErrorMsg{Err: fmt.Errorf("description cannot be empty")}
 		}
 		switch normalizePriority(after.Priority) {
@@ -305,12 +321,27 @@ func (e *EditModel) submit() tea.Cmd {
 		default:
 			return EditErrorMsg{Err: fmt.Errorf("priority must be H, M, L, or empty")}
 		}
+		if estimateErr != nil {
+			return EditErrorMsg{Err: estimateErr}
+		}
+		if after.Recurrence != "" {
+			if recurrence, err := domain.ParseRecurrence(after.Recurrence); err != nil {
+				return EditErrorMsg{Err: err}
+			} else {
+				after.Recurrence = recurrence
+				if after.Due == "" {
+					return EditErrorMsg{Err: fmt.Errorf("recurring tasks need a first due date")}
+				}
+			}
+		}
 		diff := domain.Diff(before, after)
 		return EditSubmitMsg{Before: before, After: after, Diff: diff}
 	}
 }
 
-// CurrentSnapshot returns the current six field values.
+// CurrentSnapshot returns the current seven field values. Estimate parsing is
+// centralized in domain; invalid input is rejected by submit while remaining
+// visible in the input control.
 func (e EditModel) CurrentSnapshot() domain.EditSnapshot {
 	return domain.EditSnapshot{
 		Description: e.Inputs[FieldDescription].Value(),
@@ -318,7 +349,41 @@ func (e EditModel) CurrentSnapshot() domain.EditSnapshot {
 		Priority:    normalizePriority(e.Inputs[FieldPriority].Value()),
 		Due:         e.Inputs[FieldDue].Value(),
 		Scheduled:   e.Inputs[FieldScheduled].Value(),
+		Recurrence:  strings.TrimSpace(e.Inputs[FieldRecurrence].Value()),
+		Estimate:    e.currentEstimate(),
 		Tags:        splitTags(e.Inputs[FieldTags].Value()),
+	}
+}
+
+func (e EditModel) currentEstimate() *domain.Estimate {
+	value := strings.TrimSpace(e.Inputs[FieldEstimate].Value())
+	if value == "" {
+		return nil
+	}
+	estimate, err := domain.ParseEstimateValue(value)
+	if err != nil {
+		return nil
+	}
+	return &estimate
+}
+
+func (e EditModel) validateEstimateInput() error {
+	value := strings.TrimSpace(e.Inputs[FieldEstimate].Value())
+	if value == "" {
+		return nil
+	}
+	if _, err := domain.ParseEstimate(value); err == nil {
+		return nil
+	} else if e.Before.Estimate != nil {
+		// Values over 24 hours can arrive from another Taskwarrior client. They
+		// may remain unchanged or be replaced with a valid Momentum value, but
+		// cannot be newly introduced through this editor.
+		if parsed, parseErr := domain.ParseEstimateValue(value); parseErr == nil && parsed.Minutes == e.Before.Estimate.Minutes {
+			return nil
+		}
+		return err
+	} else {
+		return err
 	}
 }
 
@@ -412,8 +477,8 @@ func (e *EditModel) ensureFieldVisible() {
 	if e.Focused < FieldDescription {
 		e.Focused = FieldDescription
 	}
-	if e.Focused > FieldTags {
-		e.Focused = FieldTags
+	if e.Focused >= EditField(editFieldCount) {
+		e.Focused = FieldDescription
 	}
 	// The view derives a window from Focused; Scroll is retained as a small
 	// compatibility hint for embedders that inspect editor state.
@@ -454,7 +519,9 @@ func (e EditModel) fieldChanged(field EditField) bool {
 	return diffFieldChanged(domain.Diff(before, after), field)
 }
 
-func validField(field EditField) bool { return field >= FieldDescription && field <= FieldTags }
+func validField(field EditField) bool {
+	return field >= FieldDescription && field < EditField(editFieldCount)
+}
 
 func (e EditModel) dateFocused() bool {
 	return e.Focused == FieldDue || e.Focused == FieldScheduled
@@ -567,6 +634,10 @@ func diffFieldChanged(d domain.TaskDiff, field EditField) bool {
 		return !d.Scheduled.Empty()
 	case FieldTags:
 		return d.Tags.Changed
+	case FieldEstimate:
+		return !d.Estimate.Empty()
+	case FieldRecurrence:
+		return !d.Recurrence.Empty()
 	default:
 		return false
 	}
