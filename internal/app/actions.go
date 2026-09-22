@@ -71,9 +71,16 @@ func (m *Model) ConfirmDelete(action ui.ConfirmAction) tea.Cmd {
 	if action != ui.ConfirmYes {
 		if action == ui.ConfirmNo || action == ui.ConfirmCancel {
 			m.DeleteTarget = ""
+			m.RecurrenceTarget = ""
 			m.Overlay = OverlayNone
 		}
 		return nil
+	}
+	if m.RecurrenceTarget != "" {
+		uuid := m.RecurrenceTarget
+		m.RecurrenceTarget = ""
+		m.Overlay = OverlayNone
+		return m.beginMutation(MutationRequest{Kind: MutationStopRecurrence, UUID: uuid})
 	}
 	uuid := m.DeleteTarget
 	m.DeleteTarget = ""
@@ -82,6 +89,23 @@ func (m *Model) ConfirmDelete(action ui.ConfirmAction) tea.Cmd {
 }
 
 // UndoLast invokes native Taskwarrior undo only inside the local grace window.
+// StopRecurrenceSelected explains and confirms a native recurrence-template
+// change. Generated instances target their parent template; history is never
+// rewritten.
+func (m *Model) StopRecurrenceSelected() tea.Cmd {
+	if m.completedTasksReadOnly() {
+		return nil
+	}
+	task, ok := m.SelectedTask()
+	if !ok || task.Recurrence == "" || m.MutationRunning {
+		return nil
+	}
+	m.RecurrenceTarget = task.RecurrenceTargetUUID()
+	m.Confirm.OpenFor("Stop recurrence", "Stop the recurrence template for this task? Existing completed occurrences stay unchanged.")
+	m.Overlay = OverlayConfirm
+	return nil
+}
+
 func (m *Model) UndoLast() tea.Cmd {
 	if !m.Sync.UndoAvailable || m.MutationRunning || m.MigrationRunning {
 		return nil
@@ -96,6 +120,7 @@ func (m *Model) OpenQuickAdd() tea.Cmd {
 		return nil
 	}
 	m.Overlay = OverlayQuickAdd
+	m.FailedQuickAdd = nil
 	m.QuickAdd.SetSize(m.Width, m.Height)
 	commands := []tea.Cmd{m.QuickAdd.OpenQuickAdd("")}
 	m.ProjectDiscoveryID++
