@@ -19,7 +19,7 @@ func TestSnapshotIncludesOnlyEditableFields(t *testing.T) {
 		Urgency:     4,
 	}
 	got := Snapshot(task)
-	want := EditSnapshot{Description: "Task", Project: "work", Priority: "H", Due: "20260908T170000Z", Tags: []string{"a", "b"}}
+	want := EditSnapshot{Description: "Task", Project: "work", Priority: "H", Due: "20260908T170000Z", Recurrence: "weekly", Tags: []string{"a", "b"}}
 	if !reflect.DeepEqual(got, want) {
 		t.Fatalf("got %#v want %#v", got, want)
 	}
