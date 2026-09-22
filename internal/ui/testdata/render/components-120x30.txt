@@ -1,6 +1,6 @@
 === task-comfortable ===
 ▌ □ Renew the domain registration before the next billing window
-▌   #personal.admin  ·  Due Today 17:00  ·  High
+▌   #personal.admin  ·  Due Today 17:00  ·  Estimate 1h 30m  ·  High
 
 === task-compact ===
 [ ] Renew the domain registration before the next billing window
@@ -12,6 +12,7 @@
 │Description: Renew the domain registration before the next billing window             │
 │Status: pending                                                                       │
 │Priority: High                                                                        │
+│Estimate: 1h 30m                                                                      │
 │SCHEDULE                                                                              │
 │Due: 2026-09-08T17:00:00Z                                                             │
 │ORGANIZATION                                                                          │
@@ -19,12 +20,13 @@
 │Tags: planning, admin                                                                 │
 │Annotations: Check registrar account and confirm receipt                              │
 │Depends: fixture-dependency                                                           │
-│Recurrence: yearly                                                                    │
+│Recurrence: Annual [yearly]                                                           │
+│Next occurrence: 2027-09-08T00:00:00Z                                                 │
 │TECHNICAL                                                                             │
 │Urgency: 8.25                                                                         │
 │UUID: fixture-task                                                                    │
 │custom: "fixture value"                                                               │
-│e edit · Esc close                                                                    │
+│e edit · x stop recurrence · Esc close                                                │
 ╰──────────────────────────────────────────────────────────────────────────────────────╯
 
 === help ===
@@ -33,13 +35,15 @@
 │Navigation                                  Search / Create / Edit                    │
 │j / k / ↑ / ↓      move selection           c / Ctrl+K         create task (quick     │
 │h / l / Tab        switch focus/view                           add)                   │
-│g / G              first / last task        /                  search (project:name   │
-│1 / 2 / 3 / 4      Inbox / Today /                             filters project)       │
-│                   Completed / Settings     Application                               │
-│Tasks                                       r                  refresh tasks          │
-│Enter              open details             Ctrl+R             synchronize now        │
-│Space              complete task            ?                  show help              │
-│e / p / ! / D / S / t edit field            q                  quit                   │
+│g / G              first / last task        P                  open today's daily     │
+│1 / 2 / 3 / 4      Inbox / Today /                             planning ritual        │
+│                   Completed / Settings     /                  search (project:name   │
+│Tasks                                                          filters project)       │
+│Enter              open details             Application                               │
+│Space              complete task            r                  refresh tasks          │
+│e / E / R / p / ! / D / S / t edit field    Ctrl+R             synchronize now        │
+│X                  stop selected            ?                  show help              │
+│                   recurrence               q                  quit                   │
 │s                  start / stop task        Esc                close active overlay   │
 │d                  delete task                                                        │
 │u                  undo last change                                                   │
@@ -66,6 +70,8 @@
 │  Due 2026-09-08 17:00                                                        │
 │  Scheduled YYYY-MM-DD HH:MM or tomorrow                                      │
 │  Tags admin planning                                                         │
+│* Estimate 1h 30m                                                             │
+│  Recurrence yearly                                                           │
 │Tab next · Ctrl+S save · Esc cancel                                           │
 ╰──────────────────────────────────────────────────────────────────────────────╯
 
