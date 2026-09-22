@@ -155,7 +155,7 @@ The live keyboard/visual pass remains maintainer work: capture `~1h30m`, inspect
 
 | Goal | Automated evidence | Result |
 |---|---|---|
-| G1 natural-language capture | R1–R4 resolved; existing gates and 16-case date matrix pass; native recurrence comparisons fail; see [final review](reviews/g1-natural-language-capture-final-review.md) | CHANGES REQUESTED — R5 preview mismatch; live UAT pending |
+| G1 natural-language capture | R1–R5 resolved; date matrix and 12-case native recurrence differential matrix pass; see [final review and resolution](reviews/g1-natural-language-capture-final-review.md) | PASS automated; live keyboard/visual UAT pending |
 | G2 recurring tasks | Domain recurrence presets, quick-add review, recurrence editor/details, `integration_recurrence_test.go` template/instance/`until` lifecycle | PASS; live keyboard UAT pending |
 | G3 daily ritual | `domain/planner_test.go`, planner UI/app tests, idempotent namespaced tag diffs, capacity warning, config weekday overrides | PASS; live keyboard/visual UAT pending |
 | G4 calendar awareness | `internal/calendar/calendar_test.go` overlap merge, recurrence expansion, all-day/transparency policy, dedup/missing source; local-only config validation | PASS; live fixture/terminal UAT pending |
@@ -197,6 +197,12 @@ All listed commands passed on macOS arm64 with Go 1.27.1 and Taskwarrior 3.5.0. 
 
 **CHANGES REQUESTED — R5:** [Final review and exact reproductions](reviews/g1-natural-language-capture-final-review.md). Fresh existing suite/gates remain green (9 packages, 491 top-level test/fuzz entries, 640 passing actions, no skips; race/vet/build/format; 16 isolated integration scenarios; 30-second fuzz run). An additional 16-profile dateformat/timezone matrix passed interpreter-to-export instant comparisons. Separate real Taskwarrior preview comparisons failed: the helper predicts midnight instead of preserving 15:00, and March 3 instead of Taskwarrior's February 28 for a January 31 monthly anchor. Prior R1–R4 remain resolved. Temporary probes were removed; no implementation changes or live UAT were performed.
 
+## G1 R5 recurrence-preview repair (2026-09-22)
+
+**R5 fixed:** `domain.RecurrenceNext` no longer truncates anchors to midnight and now matches observed Taskwarrior 3.5 calendar/duration behavior. Monthly and annual previews preserve local wall-clock time and clamp month-end/leap-day dates; fixed daily/weekly and numeric day/week/month intervals preserve instants, including across DST (`mo` is Taskwarrior's 30-day duration). Domain regressions, quick-capture review rendering, details goldens, and a permanent 12-case isolated preview-vs-generated-occurrence matrix pass. README explicit-recurrence guidance and the G1 tracker/checklists are reconciled.
+
+Formatting, full tests, race tests, vet, native/Linux AMD64/macOS ARM64 builds, all isolated Integration tests, and `git diff --check` pass. The full suite has 9 packages, 494 top-level test/fuzz entries, 664 passing actions, and no skips; the isolated run has 17 top-level scenarios and 29 passing actions. Tests used disposable `TASKRC`/`TASKDATA`; no production task data or sync server was accessed. Live keyboard/visual UAT was not performed.
+
 ## Overall status
 
-Existing automated implementation and safety gates pass, but full G1 acceptance requires R5 recurrence-preview correction and documentation/checklist reconciliation. Release readiness also requires the maintainer’s live visual/keyboard UAT for the readability redesign, Settings flow, G0 estimate workflow, natural-language review, recurrence/template stop, daily planning, and local-ICS degradation. This document deliberately records that limitation instead of claiming an interactive pass that was not observed.
+Existing automated implementation and safety gates pass. Release readiness still requires the maintainer’s live visual/keyboard UAT for the readability redesign, Settings flow, G0 estimate workflow, natural-language review, recurrence/template stop, daily planning, and local-ICS degradation. This document deliberately records that limitation instead of claiming an interactive pass that was not observed.
