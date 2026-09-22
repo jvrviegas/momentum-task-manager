@@ -67,6 +67,27 @@ func TestQuickAddTabAcceptsHighlightedSuggestion(t *testing.T) {
 	}
 }
 
+func TestQuickAddEstimateSuggestionAndSubmission(t *testing.T) {
+	q := testQuickAdd()
+	q.Input.SetValue("write docs ~")
+	q.Input.CursorEnd()
+	q.refreshSuggestions()
+	if !q.SuggestionsOpen || len(q.Suggestions) != 6 || q.Suggestions[0].Text != "~15m" {
+		t.Fatalf("suggestions=%#v", q.Suggestions)
+	}
+	q.Update(specialQuickKey(tea.KeyTab, 0))
+	if q.Input.Value() != "write docs ~15m" {
+		t.Fatalf("input=%q", q.Input.Value())
+	}
+	q.Input.SetValue("write docs ~1h30m")
+	q.Input.CursorEnd()
+	_, cmd := q.Update(specialQuickKey(tea.KeyEnter, 0))
+	message, ok := cmd().(QuickAddSubmitMsg)
+	if !ok || message.Task.Estimate == nil || message.Task.Estimate.Minutes != 90 {
+		t.Fatalf("message=%#v", message)
+	}
+}
+
 func TestQuickAddEnterEmitsParsedSubmission(t *testing.T) {
 	q := testQuickAdd()
 	q.Input.SetValue("write docs #work +planning")
@@ -153,7 +174,7 @@ func TestQuickAddModalRendersSuggestionsAndGuidanceWithinBounds(t *testing.T) {
 func TestQuickAddIdleStateShowsCompactSyntaxGuide(t *testing.T) {
 	q := testQuickAdd()
 	got := q.View()
-	for _, want := range []string{"Optional details", "#project", "!priority", "@due date", ">scheduled", "+tag"} {
+	for _, want := range []string{"Optional details", "#project", "!priority", "@due date", ">scheduled", "+tag", "~estimate"} {
 		if !strings.Contains(got, want) {
 			t.Errorf("guide missing %q: %q", want, got)
 		}
