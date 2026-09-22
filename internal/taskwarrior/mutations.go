@@ -30,6 +30,22 @@ func AddArgs(input domain.NewTask) ([]string, error) {
 	if input.Scheduled != "" {
 		args = append(args, "scheduled:"+normalizeDateAlias(input.Scheduled))
 	}
+	if input.Recurrence != "" {
+		recurrence, err := domain.ParseRecurrence(input.Recurrence)
+		if err != nil {
+			return nil, err
+		}
+		if input.Due == "" {
+			return nil, errors.New("recurring tasks require a due date anchor")
+		}
+		args = append(args, "recur:"+recurrence)
+	}
+	if err := validateNewEstimate(input.Estimate); err != nil {
+		return nil, err
+	}
+	if input.Estimate != nil {
+		args = append(args, "estimate:"+input.Estimate.TaskwarriorValue())
+	}
 	tags := append([]string(nil), input.Tags...)
 	sort.Strings(tags)
 	for _, tag := range tags {
@@ -67,6 +83,27 @@ func ModifyArgs(uuid string, diff domain.TaskDiff) ([]string, error) {
 	diff.Scheduled.Value = normalizeDateAlias(diff.Scheduled.Value)
 	appendChange("due", diff.Due)
 	appendChange("scheduled", diff.Scheduled)
+	if diff.Recurrence.Kind == domain.Set {
+		recurrence, err := domain.ParseRecurrence(diff.Recurrence.Value)
+		if err != nil {
+			return nil, err
+		}
+		args = append(args, "recur:"+recurrence)
+	} else if diff.Recurrence.Kind == domain.Clear {
+		args = append(args, "recur:")
+	}
+	if err := validateEstimateChange(diff.Estimate); err != nil {
+		return nil, err
+	}
+	switch diff.Estimate.Kind {
+	case domain.Set:
+		args = append(args, "estimate:"+diff.Estimate.Value.TaskwarriorValue())
+	case domain.Clear:
+		args = append(args, "estimate:")
+	case domain.Unchanged:
+	default:
+		return nil, errors.New("invalid estimate change kind")
+	}
 	if diff.Tags.Changed {
 		removals := append([]string(nil), diff.Tags.Remove...)
 		additions := append([]string(nil), diff.Tags.Add...)
@@ -113,6 +150,11 @@ func (c *CommandClient) Add(ctx context.Context, input domain.NewTask) error {
 	if err != nil {
 		return err
 	}
+	if input.Estimate != nil {
+		if _, err := c.EstimateUDAReadiness(ctx); err != nil {
+			return err
+		}
+	}
 	_, err = c.run(ctx, "add", args...)
 	return err
 }
@@ -122,6 +164,14 @@ func (c *CommandClient) Modify(ctx context.Context, uuid string, diff domain.Tas
 	args, err := ModifyArgs(uuid, diff)
 	if err != nil {
 		return err
+	}
+	if diff.Estimate.Kind != domain.Unchanged {
+		if _, err := c.EstimateUDAReadiness(ctx); err != nil {
+			return err
+		}
+	}
+	if diff.Recurrence.Kind != domain.Unchanged {
+		args = append(args, "rc.recurrence.confirmation=no")
 	}
 	_, err = c.run(ctx, "modify", args...)
 	return err
@@ -165,6 +215,27 @@ func (c *CommandClient) Stop(ctx context.Context, uuid string) error {
 		return err
 	}
 	_, err = c.run(ctx, "stop", args...)
+	return err
+}
+
+// StopRecurrenceArgs targets the recurrence template and expires it before
+// the next occurrence. Clearing recur directly is rejected by Taskwarrior 3.x
+// for templates; until preserves existing generated/completed history.
+func StopRecurrenceArgs(uuid string) ([]string, error) {
+	if err := validateUUID(uuid); err != nil {
+		return nil, err
+	}
+	return []string{uuid, "modify", "until:today", "rc.recurrence.confirmation=no"}, nil
+}
+
+// StopRecurrence expires a native Taskwarrior recurrence without rewriting
+// completed history or deleting generated instances.
+func (c *CommandClient) StopRecurrence(ctx context.Context, uuid string) error {
+	args, err := StopRecurrenceArgs(uuid)
+	if err != nil {
+		return err
+	}
+	_, err = c.run(ctx, "stop-recurrence", args...)
 	return err
 }
 
