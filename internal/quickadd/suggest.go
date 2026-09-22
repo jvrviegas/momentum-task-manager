@@ -5,17 +5,21 @@ import (
 	"strings"
 	"time"
 	"unicode"
+
+	"github.com/jvrviegas/momentum/internal/domain"
 )
 
 // SuggestionKind identifies the source field for a completion.
 type SuggestionKind string
 
 const (
-	SuggestionProject   SuggestionKind = "project"
-	SuggestionPriority  SuggestionKind = "priority"
-	SuggestionDue       SuggestionKind = "due"
-	SuggestionScheduled SuggestionKind = "scheduled"
-	SuggestionTag       SuggestionKind = "tag"
+	SuggestionProject    SuggestionKind = "project"
+	SuggestionPriority   SuggestionKind = "priority"
+	SuggestionDue        SuggestionKind = "due"
+	SuggestionScheduled  SuggestionKind = "scheduled"
+	SuggestionTag        SuggestionKind = "tag"
+	SuggestionEstimate   SuggestionKind = "estimate"
+	SuggestionRecurrence SuggestionKind = "recurrence"
 )
 
 // SuggestionContext describes the token under a cursor when it is a known
@@ -116,6 +120,10 @@ func SuggestionsWithProjectLabels(ctx SuggestionContext, projects, tags []string
 		values = []string{"high", "medium", "low", "none"}
 	case SuggestionDue, SuggestionScheduled:
 		values = dateSuggestions(now)
+	case SuggestionEstimate:
+		values = domain.EstimateSuggestions()
+	case SuggestionRecurrence:
+		values = []string{"daily", "weekdays", "weekly", "monday", "tuesday", "wednesday", "thursday", "friday", "monthly", "2wks"}
 	}
 	seen := make(map[string]struct{}, len(values))
 	result := make([]Suggestion, 0, len(values))
@@ -194,6 +202,10 @@ func kindForTrigger(trigger Trigger) SuggestionKind {
 		return SuggestionScheduled
 	case TriggerTag:
 		return SuggestionTag
+	case TriggerEstimate:
+		return SuggestionEstimate
+	case TriggerRecurrence:
+		return SuggestionRecurrence
 	default:
 		return ""
 	}
