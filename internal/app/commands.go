@@ -3,6 +3,7 @@ package app
 import (
 	"context"
 	"errors"
+	"fmt"
 	"strings"
 	"time"
 
@@ -21,10 +22,18 @@ var (
 
 // MutationRequest contains one operation for the serialized mutation queue.
 type MutationRequest struct {
-	Kind  MutationKind
-	UUID  string
-	Input domain.NewTask
-	Diff  domain.TaskDiff
+	Kind          MutationKind
+	UUID          string
+	Input         domain.NewTask
+	Diff          domain.TaskDiff
+	PlanMutations []domain.PlanMutation
+
+	// Capture fields are populated only for quick-add mutations. They let a
+	// failed add restore the exact reviewed draft without coupling the generic
+	// mutation queue to UI state.
+	CaptureRevision uint64
+	CaptureSource   string
+	CaptureReview   bool
 }
 
 // LoadTasksCommand returns a non-blocking Bubble Tea command for the pending
@@ -64,7 +73,7 @@ func RefreshTasksCommand(ctx context.Context, client taskwarrior.Client) tea.Cmd
 func MutationCommand(ctx context.Context, client taskwarrior.Client, request MutationRequest) tea.Cmd {
 	return func() tea.Msg {
 		if client == nil {
-			return MutationMsg{Kind: request.Kind, UUID: request.UUID, Err: errNilClient}
+			return MutationMsg{Kind: request.Kind, UUID: request.UUID, Err: errNilClient, Revision: request.CaptureRevision}
 		}
 		ctx := commandContext(ctx)
 		var err error
@@ -83,10 +92,30 @@ func MutationCommand(ctx context.Context, client taskwarrior.Client, request Mut
 			err = client.Stop(ctx, request.UUID)
 		case MutationUndo:
 			err = client.Undo(ctx)
+		case MutationStopRecurrence:
+			if stopper, ok := client.(interface {
+				StopRecurrence(context.Context, string) error
+			}); ok {
+				err = stopper.StopRecurrence(ctx, request.UUID)
+			} else {
+				// Keep lightweight fakes and alternate adapters testable while
+				// the real CommandClient uses Taskwarrior's until semantics.
+				err = client.Modify(ctx, request.UUID, domain.TaskDiff{Recurrence: domain.FieldChange{Kind: domain.Clear}})
+			}
+		case MutationPlan:
+			applied := 0
+			for _, mutation := range request.PlanMutations {
+				err = client.Modify(ctx, mutation.UUID, mutation.Diff)
+				if err != nil {
+					return MutationMsg{Kind: request.Kind, UUID: mutation.UUID, Err: fmt.Errorf("daily plan applied %d of %d changes; retry is safe: %w", applied, len(request.PlanMutations), err), Revision: request.CaptureRevision, PlanApplied: applied, PlanTotal: len(request.PlanMutations)}
+				}
+				applied++
+			}
+			return MutationMsg{Kind: request.Kind, UUID: request.UUID, Revision: request.CaptureRevision, PlanApplied: applied, PlanTotal: len(request.PlanMutations)}
 		default:
 			err = errors.New("unknown mutation")
 		}
-		return MutationMsg{Kind: request.Kind, UUID: request.UUID, Err: err}
+		return MutationMsg{Kind: request.Kind, UUID: request.UUID, Err: err, Revision: request.CaptureRevision}
 	}
 }
 
