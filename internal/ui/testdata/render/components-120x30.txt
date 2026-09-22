@@ -21,7 +21,7 @@
 │Annotations: Check registrar account and confirm receipt                              │
 │Depends: fixture-dependency                                                           │
 │Recurrence: Annual [yearly]                                                           │
-│Next occurrence: 2027-09-08T00:00:00Z                                                 │
+│Next occurrence: 2027-09-08T17:00:00Z                                                 │
 │TECHNICAL                                                                             │
 │Urgency: 8.25                                                                         │
 │UUID: fixture-task                                                                    │
