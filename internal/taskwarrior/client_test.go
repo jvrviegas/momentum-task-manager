@@ -111,6 +111,56 @@ func TestContextReadsWithoutChangingTaskwarriorContext(t *testing.T) {
 	}
 }
 
+func TestEstimateUDAReadinessDistinguishesConfigurationStates(t *testing.T) {
+	cases := []struct {
+		name  string
+		value string
+		state EstimateUDAState
+	}{
+		{name: "configured", value: "duration", state: EstimateUDAConfigured},
+		{name: "missing", value: "", state: EstimateUDAMissing},
+		{name: "wrong type", value: "string", state: EstimateUDAWrongType},
+	}
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			runner := &fakeRunner{responses: []fakeResponse{{result: CommandResult{ExitCode: 0, Stdout: tc.value}}}}
+			state, err := NewClientWithRunner("task", runner).EstimateUDAReadiness(context.Background())
+			if state != tc.state {
+				t.Fatalf("state=%q want=%q err=%v", state, tc.state, err)
+			}
+			if tc.state == EstimateUDAConfigured && err != nil {
+				t.Fatalf("configured returned error: %v", err)
+			}
+			if tc.state != EstimateUDAConfigured {
+				var readinessErr *EstimateUDAError
+				if !errors.As(err, &readinessErr) || readinessErr.State != tc.state {
+					t.Fatalf("err=%T %v", err, err)
+				}
+			}
+			if !reflect.DeepEqual(runner.calls, [][]string{{"task", "_get", "rc.uda.estimate.type"}}) {
+				t.Fatalf("calls=%#v", runner.calls)
+			}
+		})
+	}
+}
+
+func TestEstimateUDAReadinessClassifiesCommandFailureAndTimeout(t *testing.T) {
+	failureRunner := &fakeRunner{responses: []fakeResponse{{result: CommandResult{ExitCode: 9, Stderr: "unavailable"}, err: errors.New("exit status 9")}}}
+	state, err := NewClientWithRunner("task", failureRunner).EstimateUDAReadiness(context.Background())
+	var readinessErr *EstimateUDAError
+	if state != EstimateUDAUnavailable || !errors.As(err, &readinessErr) || readinessErr.State != EstimateUDAUnavailable {
+		t.Fatalf("state=%q err=%T %v", state, err, err)
+	}
+
+	timeoutRunner := RunnerFunc(func(ctx context.Context, _ string, _ ...string) (CommandResult, error) {
+		return CommandResult{ExitCode: -1}, context.DeadlineExceeded
+	})
+	state, err = NewClientWithRunner("task", timeoutRunner).EstimateUDAReadiness(context.Background())
+	if state != EstimateUDAUnavailable || !errors.Is(err, context.DeadlineExceeded) {
+		t.Fatalf("timeout state=%q err=%T %v", state, err, err)
+	}
+}
+
 func TestProjectsCombinesScriptOutputAndExport(t *testing.T) {
 	runner := &fakeRunner{responses: []fakeResponse{
 		{result: CommandResult{ExitCode: 0, Stdout: "zeta\nalpha\n"}},
