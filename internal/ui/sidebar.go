@@ -131,38 +131,36 @@ func SidebarItemAt(items []NavItem, height, y int) int {
 }
 
 // RenderTabs renders the compact top navigation used below the wide
-// breakpoint. Active tabs retain their configured icon/text width and add a
-// non-color underline/bold cue through the shared style.
+// breakpoint. Every tab reserves a two-cell marker slot so the active tab can
+// retain its configured icon while adding a non-color cue. Keeping that slot
+// in inactive tabs makes the hit-test geometry identical to the rendered row.
 func RenderTabs(active string, items []NavItem, width int, styles Styles) string {
 	if width <= 0 {
 		return ""
 	}
 	parts := make([]string, 0, len(items))
 	for _, item := range items {
-		if strings.EqualFold(active, item.Key) || strings.EqualFold(active, item.Label) {
-			// Underline the configured icon as the non-color active cue,
-			// while keeping the label as one contiguous styled string for
-			// terminals and semantic render assertions.
-			rest := " " + item.Label
-			if !item.HideCount {
-				rest += fmt.Sprintf(" %d", item.Count)
-			}
-			parts = append(parts, styles.Selection.Underline(true).Render(item.Icon)+styles.Selection.Bold(true).Render(rest))
-			continue
-		}
 		label := navItemText(item)
 		if !item.HideCount {
 			label = fmt.Sprintf("%s %d", label, item.Count)
 		}
-		parts = append(parts, styles.Muted.Render(label))
+		if strings.EqualFold(active, item.Key) || strings.EqualFold(active, item.Label) {
+			// The marker remains after ANSI is stripped, unlike underline or
+			// color, so an active view is still identifiable in plain output.
+			marker := navSelectionMarker(item)
+			parts = append(parts, styles.Selection.Underline(true).Render(marker)+styles.Selection.Bold(true).Render(" "+label))
+			continue
+		}
+		parts = append(parts, styles.Muted.Render("  "+label))
 	}
 	line := strings.Join(parts, "   ")
 	return Truncate(line, width)
 }
 
 // TabIndexAt returns the navigation item occupying x in the rendered compact
-// tab row, or -1 for gaps and truncated-away space. Tab styling does not alter
-// display width, so the same geometry is used by rendering and mouse input.
+// tab row, or -1 for gaps and truncated-away space. The two-cell marker slot
+// is included for every item, so the same geometry is used by rendering and
+// mouse input regardless of which tab is active.
 func TabIndexAt(items []NavItem, width, x int) int {
 	if width <= 0 || x < 0 || x >= width {
 		return -1
@@ -190,7 +188,9 @@ func navItemText(item NavItem) string {
 }
 
 func navItemWidth(item NavItem) int {
-	width := lipgloss.Width(navItemText(item))
+	// Two cells are reserved for the active-view marker: one marker cell and
+	// one separator cell. Inactive tabs render the same space as padding.
+	width := 2 + lipgloss.Width(navItemText(item))
 	if !item.HideCount {
 		width += lipgloss.Width(fmt.Sprintf(" %d", item.Count))
 	}
