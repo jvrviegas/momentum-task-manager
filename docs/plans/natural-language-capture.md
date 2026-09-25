@@ -1,7 +1,7 @@
 # Implementation plan — G1 natural-language command-bar capture
 
 **Created:** 2026-09-21  
-**Status:** Implemented — R1–R5 resolved and automated gates pass; T10 live keyboard/visual UAT pending
+**Status:** Validated — T00–T10 complete; maintainer-reported live keyboard/visual UAT recorded in `docs/UAT.md`
 **Baseline:** `36b80bb` on `feat/task-estimates`, with the uncommitted G0 implementation present; recheck HEAD and working tree before starting  
 **Goal:** [G1 — Natural-language command-bar capture](task-first-daily-planner-goals.md#g1--natural-language-command-bar-capture)  
 **Requirements:** NLC-01–NLC-08 from the goal plan
@@ -10,13 +10,13 @@
 
 **Final review R5 resolved.** The [2026-09-22 final pass](../reviews/g1-natural-language-capture-final-review.md) confirmed R1–R4 and found that recurrence previews dropped time-of-day and disagreed with Taskwarrior at month end. `domain.RecurrenceNext` now mirrors observed Taskwarrior 3.5 calendar/duration semantics. Permanent domain, review-rendering, and 12-case isolated differential integration coverage verifies time-of-day, month-end/leap-year clamping, supported intervals, and DST transitions. The README now correctly documents explicit `^` fast capture. Full, race, vet, native/cross-build, integration, formatting, and diff gates pass.
 
-Next action: perform T10 live maintainer keyboard/visual UAT. Automated evidence does not claim live validation.
+T10 live maintainer acceptance was recorded on 2026-09-25 in `docs/UAT.md`. Earlier automated evidence remains distinct from the maintainer's real-terminal observations.
 
 ## Handoff objective
 
 Extend quick capture with a small, local, deterministic English grammar. Present inferred fields separately from the remaining description and require review before inferred metadata reaches Taskwarrior. Preserve the explicit-trigger fast path, reuse G0 estimates, and consume—not invent—the G2 recurrence contract.
 
-This file combines the feature specification and trackable implementation plan, following the G0 tracker. O1–O9 approvals are recorded below; they are not implementation evidence. Implementation tasks remain unchecked, and T00 feasibility must pass before feature code begins.
+This file combines the feature specification and trackable implementation plan, following the G0 tracker. O1–O9 approvals and the completed T00–T10 evidence are recorded below; the historical prerequisites are retained for traceability.
 
 ## Before starting
 
@@ -210,7 +210,7 @@ Change `[ ]` to `[x]` only after the task's checks pass. Record command results,
 | [x] | T07 | Verified interpreted-date adapter interoperability | T04 | Isolated absolute-date and recurrence Taskwarrior tests |
 | [x] | T08 | G2-backed recurrence phrase integration | T06, T07, external G2 contract and creation path | G2 contract in `recurring-tasks.md`; native template/stop integration passes |
 | [x] | T09 | Shipped documentation and automated release evidence | T06, T07; T08 for full G1 | README/DESIGN/help/UAT updates and automated gates |
-| [ ] | T10 | Live keyboard/visual UAT | T09 | Maintainer observation pending |
+| [x] | T10 | Live keyboard/visual UAT | T09 | Maintainer-reported checks and isolated profile evidence in `docs/UAT.md`; local-only undo fixed and retested |
 
 ## Task details
 
@@ -407,14 +407,14 @@ Change `[ ]` to `[x]` only after the task's checks pass. Record command results,
 **Requirements:** G1-11–G1-23 and goal-level NLC-01–NLC-08.  
 **Reuses:** documented disposable Taskwarrior profiles and supported terminal layouts.
 
-- [ ] Capture `Prepare proposal tomorrow at 3pm #work`; inspect exact date/time and correct it before confirmation.
-- [ ] Capture effort phrases and priority shorthand; prove `~30m` and `!none` override conflicting inference visibly.
-- [ ] Capture a literal title containing Friday using explicit-only mode; verify no word disappears.
-- [ ] Exercise duplicate/invalid/bare-time cases, back/edit/reparse, cancel, and repeated confirmation.
-- [ ] Verify all review content at wide/compact/narrow/short dimensions and mouse-free correction/confirmation.
-- [ ] Verify missing-UDA refusal in a disposable profile, ordinary capture without UDA, offline add, and undo during the grace period. Do not run production sync.
-- [ ] After G2, capture the full roadmap example and verify the actual recurrence/anchor outcome against G2 rather than assuming the mixed dates are compatible.
-- [ ] Record platform, terminal size, Taskwarrior version, observed outcomes, failures, and maintainer verdict; rerun failures after fixes.
+- [x] Capture `Prepare proposal tomorrow at 3pm #work`; inspect exact date/time and correct it before confirmation.
+- [x] Capture effort phrases and priority shorthand; prove `~30m` and `!none` override conflicting inference visibly.
+- [x] Capture a literal title containing Friday using explicit-only mode; verify no word disappears.
+- [x] Exercise duplicate/invalid/bare-time cases, back/edit/reparse, cancel, and repeated confirmation.
+- [x] Verify all review content at wide/compact/narrow/short dimensions and mouse-free correction/confirmation.
+- [x] Verify missing-UDA refusal in a disposable profile, ordinary capture without UDA, offline add, and undo during the grace period. Do not run production sync.
+- [x] After G2, capture the full roadmap example and verify the actual recurrence/anchor outcome against G2 rather than assuming the mixed dates are compatible.
+- [x] Record platform, terminal size, Taskwarrior version, observed outcomes, failures, and maintainer verdict; rerun failures after fixes.
 
 **Tests:** human-observed keyboard/visual UAT; automated simulation does not check this box.  
 **Gate:** maintainer-approved recorded observations for every shipped slice; mark full G1 Validated only after G1b passes too.
@@ -423,14 +423,14 @@ Change `[ ]` to `[x]` only after the task's checks pass. Record command results,
 
 | Goal requirement | Acceptance coverage | Tasks | Current state |
 |---|---|---|---|
-| NLC-01 — dates/times | G1-01–G1-04, G1-09–G1-10 | T00–T02, T04–T07, T09–T10 | Implemented; live UAT pending |
-| NLC-02 — recurrence | G1-20–G1-21 | T03–T06, T08–T10 | Implemented with G2; live UAT pending |
-| NLC-03 — estimates | G1-05 | T03–T07, T09–T10 | Implemented; live UAT pending |
-| NLC-04 — explicit precedence | G1-07–G1-08 | T01, T04–T07, T09–T10 | Implemented; live UAT pending |
-| NLC-05 — review/correction | G1-10–G1-17, G1-19 | T04–T06, T08–T10 | Implemented; live UAT pending |
-| NLC-06 — retain prose | G1-09–G1-10, G1-13–G1-14, G1-21 | T01–T05, T08–T10 | Implemented; live UAT pending |
-| NLC-07 — local/deterministic | G1-01–G1-04, G1-22 | T00–T04, T06, T09–T10 | Implemented; live UAT pending |
-| NLC-08 — safe final validation | G1-04–G1-05, G1-18–G1-19 | T06–T10 | Implemented; live UAT pending |
+| NLC-01 — dates/times | G1-01–G1-04, G1-09–G1-10 | T00–T02, T04–T07, T09–T10 | Validated in maintainer UAT |
+| NLC-02 — recurrence | G1-20–G1-21 | T03–T06, T08–T10 | Validated with G2 capture in maintainer UAT |
+| NLC-03 — estimates | G1-05 | T03–T07, T09–T10 | Validated in maintainer UAT |
+| NLC-04 — explicit precedence | G1-07–G1-08 | T01, T04–T07, T09–T10 | Validated in maintainer UAT |
+| NLC-05 — review/correction | G1-10–G1-17, G1-19 | T04–T06, T08–T10 | Validated in maintainer UAT |
+| NLC-06 — retain prose | G1-09–G1-10, G1-13–G1-14, G1-21 | T01–T05, T08–T10 | Validated in maintainer UAT |
+| NLC-07 — local/deterministic | G1-01–G1-04, G1-22 | T00–T04, T06, T09–T10 | Validated in maintainer UAT |
+| NLC-08 — safe final validation | G1-04–G1-05, G1-18–G1-19 | T06–T10 | Validated in maintainer UAT |
 
 ## Plan consistency and test co-location checks
 
@@ -482,7 +482,7 @@ go test ./internal/taskwarrior -run Integration -v -count=1
 git diff --check
 ```
 
-**Execution evidence (2026-09-22):** formatting, `go test ./... -count=1`, race, vet, native build, Linux AMD64 build, macOS ARM64 build, the complete isolated Integration run, and `git diff --check` pass. The full suite has 9 packages, 494 top-level test/fuzz entries, 664 passing test actions, and no skips. The isolated run has 17 top-level scenarios and 29 passing actions; the recurrence differential test contributes 12 Taskwarrior 3.5 cases and retains temporary-path guards. Live T10 evidence is intentionally absent.
+**Automated execution evidence (2026-09-22):** formatting, `go test ./... -count=1`, race, vet, native build, Linux AMD64 build, macOS ARM64 build, the complete isolated Integration run, and `git diff --check` pass. The full suite had 9 packages, 494 top-level test/fuzz entries, 664 passing test actions, and no skips. The isolated run had 17 top-level scenarios and 29 passing actions; the recurrence differential test contributed 12 Taskwarrior 3.5 cases and retained temporary-path guards. Subsequent local-only undo regression and full gates passed; maintainer-reported T10 UAT and the corrected undo retest are recorded separately in `docs/UAT.md`.
 
 ## Completion definition
 
