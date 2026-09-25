@@ -1,0 +1,24 @@
+Momentum  ·  Today · 3 tasks
+  ▱ Inbox 1   ▌ ◷ Today 3     ✓ Completed 0     ⚙ Settings
+
+Overdue · 1
+▌ □ Overdue task
+▌   Overdue · Due Sep 7 10:00
+
+
+Due Today · 1
+□ Due task
+  Due Today 17:00
+
+
+Scheduled Today · 1
+□ Scheduled task
+  Scheduled Today 09:00
+
+
+
+
+
+
+[c] Create  [/] Search  [?] Help  [q] Quit
+Sync ready
