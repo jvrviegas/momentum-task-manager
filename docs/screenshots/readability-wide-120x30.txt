@@ -1,0 +1,30 @@
+VIEWS                     Momentum  ·  Today · 3 tasks
+  ▱ Inbox 1
+▌ ◷ Today 3               Overdue · 1
+  ✓ Completed 0           ▌ □ Overdue task
+                          ▌   Overdue · Due Sep 7 10:00
+MANAGE
+  ⚙ Settings
+                          Due Today · 1
+                          □ Due task
+                            Due Today 17:00
+
+
+                          Scheduled Today · 1
+                          □ Scheduled task
+                            Scheduled Today 09:00
+
+
+
+
+
+
+
+
+
+
+
+
+
+                          [c] Create  [/] Search  [?] Help  [q] Quit
+                          Sync ready
