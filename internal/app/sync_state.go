@@ -126,7 +126,22 @@ func (s SyncState) Apply(event SyncEvent) (SyncState, SyncEffect) {
 		at = time.Now()
 	}
 	if !s.Enabled {
+		// Taskwarrior's native undo still works in local-only mode. With no
+		// sync to close the window, the latest app mutation remains undoable
+		// until another mutation replaces it or Momentum exits.
 		s.Phase = SyncDisabled
+		s.NextAt = time.Time{}
+		s.Unsynced = false
+		s.UndoUntil = time.Time{}
+		switch event.Kind {
+		case SyncMutation:
+			s.UndoAvailable = true
+		case SyncUndo:
+			if s.UndoAvailable {
+				s.UndoAvailable = false
+				return s, SyncEffect{Action: SyncRefresh, Message: "Last change undone"}
+			}
+		}
 		return s, SyncEffect{}
 	}
 
