@@ -109,9 +109,9 @@ Suggested maintainer smoke pass:
 
 The prior Linux checks ran in an ephemeral Debian sid arm64 container. The production Taskwarrior database was never mounted; each run created a disposable `TASKRC`/`TASKDATA` pair. The amd64 artifact was compiled separately as the release target; runtime UAT was executed on Linux arm64 because that was the available container architecture. Sync-network behavior is covered with pure state tests because no self-hosted sync server is provisioned for local UAT.
 
-## Readability implementation status (2026-09-17)
+## Readability implementation status (2026-09-25)
 
-The UI readability plan added deterministic ANSI-stripped render fixtures at `120×30`, `79×24`, `49×18`, and `28×8` under `internal/app/testdata/render/` and `internal/ui/testdata/render/`. The fixtures cover Today/Inbox composition, empty/loading/error/search states, task selection, details/help, capture/edit, confirmations, and Settings surfaces. They compare by default and require `MOMENTUM_UPDATE_GOLDENS=1` to rewrite.
+The UI readability plan added deterministic ANSI-stripped render fixtures at `120×30`, `79×24`, `49×18`, and `28×8` under `internal/app/testdata/render/` and `internal/ui/testdata/render/`. The fixtures cover Today/Inbox composition, empty/loading/error/search states, task selection, details/help, capture/edit, confirmations, and Settings surfaces. They compare by default and require `MOMENTUM_UPDATE_GOLDENS=1` to rewrite. Sanitized Today-state text captures for wide/compact/narrow review are checked in under `docs/screenshots/`; they are fixture-derived, not a substitute for real-terminal image screenshots.
 
 Automated evidence run in this workspace:
 
@@ -126,7 +126,7 @@ GOOS=darwin GOARCH=arm64 go build ./cmd/momentum
 git diff --check
 ```
 
-All commands passed with Go 1.27.0 on Linux, including the Linux amd64 and macOS arm64 cross-builds. A human real-terminal pass for the redesigned spacing, dark/light contrast, Unicode/ASCII glyphs, and release screenshots remains pending; this record intentionally does not claim that visual check.
+All commands passed with Go 1.27.1 on macOS arm64, including the Linux amd64 and macOS arm64 cross-builds. Color-stripped tests now assert active navigation, selected/active/overdue/priority task cues, errors, and sync status; compact tab hit testing uses the same marker-slot geometry as rendering. A human real-terminal pass for the redesigned spacing, dark/light contrast, Unicode/ASCII glyphs, and release screenshots remains pending; this record intentionally does not claim that visual check.
 
 ## G0 estimate implementation evidence (2026-09-21)
 
