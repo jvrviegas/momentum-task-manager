@@ -45,6 +45,36 @@ func TestConfiguredCheckDisablesSyncForLocalOnlyMode(t *testing.T) {
 	}
 }
 
+func TestLocalOnlyAddCanBeUndoneWithoutStartingSync(t *testing.T) {
+	settings := config.Defaults()
+	settings.Sync.Enabled = false
+	client := &fakeClient{}
+	model := NewModel(ModelOptions{Client: client, Config: settings, Now: modelNow})
+	model.Update(TasksMsg{Reason: "initial"})
+
+	add := model.beginMutation(MutationRequest{Kind: MutationAdd, Input: domain.NewTask{Description: "local-only add"}})
+	if add == nil {
+		t.Fatal("local-only add was not dispatched")
+	}
+	_, refresh := model.Update(add())
+	if refresh == nil || model.Sync.Phase != SyncDisabled || !model.Sync.UndoAvailable || model.SyncConfigured || model.SyncStatus(model.now()) != "Local only · u to undo" {
+		t.Fatalf("local-only add did not enable native undo: sync=%#v configured=%v status=%q", model.Sync, model.SyncConfigured, model.SyncStatus(model.now()))
+	}
+	model.Update(refresh())
+	_, undo := model.Update(key("u"))
+	if undo == nil {
+		t.Fatal("u did not dispatch native undo after a local-only add")
+	}
+	message, ok := undo().(MutationMsg)
+	if !ok || message.Kind != MutationUndo || len(client.mutations) != 2 || client.mutations[1].Kind != MutationUndo {
+		t.Fatalf("undo=%#v mutations=%#v", message, client.mutations)
+	}
+	model.Update(message)
+	if model.Sync.UndoAvailable || model.Sync.Unsynced || model.Sync.Phase != SyncDisabled || client.syncs != 0 || model.SyncStatus(model.now()) != "Local only" {
+		t.Fatalf("undo left sync/undo state dirty: sync=%#v sync calls=%d", model.Sync, client.syncs)
+	}
+}
+
 func TestConfiguredCheckStartsStartupSyncAfterLocalLoad(t *testing.T) {
 	model := testModel(configuredFakeClient{fakeClient: &fakeClient{}, configured: true})
 	model.Mode = ModeReady
