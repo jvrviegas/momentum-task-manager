@@ -144,7 +144,7 @@ Settings → Projects is a catalog-management screen, not a separate project dat
 
 Momentum does not implement or provision synchronization. It runs Taskwarrior's native `task sync` when Taskwarrior sync settings are present. Local work remains available when sync is unavailable. After a mutation, sync waits 15 seconds and shows an undo grace countdown. Daily-plan tags and native recurrence data participate in the same refresh/sync/undo lifecycle. See [`docs/sync.md`](./docs/sync.md) for the manual TaskChampion/Cloud Run/Neon setup.
 
-For local-only use, set `[sync].enabled = false`.
+For local-only use, set `[sync].enabled = false`. Local-only tasks still support `u` to undo the latest in-app mutation; with no sync timer, that undo remains available until another mutation or exit.
 
 ## Dotfiles and privacy
 
