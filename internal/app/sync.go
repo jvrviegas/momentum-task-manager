@@ -150,6 +150,9 @@ func (m *Model) SyncStatus(now time.Time) string {
 		return "Project migration in progress · undo unavailable"
 	}
 	if !m.SyncConfigured || m.Sync.Phase == SyncDisabled {
+		if m.Sync.UndoAvailable {
+			return "Local only · u to undo"
+		}
 		return "Local only"
 	}
 	if countdown := m.SyncCountdown(now); countdown != "" {
