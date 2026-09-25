@@ -88,7 +88,8 @@ func (m *Model) ConfirmDelete(action ui.ConfirmAction) tea.Cmd {
 	return m.beginMutation(MutationRequest{Kind: MutationDelete, UUID: uuid})
 }
 
-// UndoLast invokes native Taskwarrior undo only inside the local grace window.
+// UndoLast invokes native Taskwarrior undo while the last app mutation is
+// undoable. In local-only mode no sync can close the undo window.
 // StopRecurrenceSelected explains and confirms a native recurrence-template
 // change. Generated instances target their parent template; history is never
 // rewritten.
