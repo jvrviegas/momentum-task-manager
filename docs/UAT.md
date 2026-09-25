@@ -155,7 +155,7 @@ The live keyboard/visual pass remains maintainer work: capture `~1h30m`, inspect
 
 | Goal | Automated evidence | Result |
 |---|---|---|
-| G1 natural-language capture | R1–R5 resolved; date matrix and 12-case native recurrence differential matrix pass; see [final review and resolution](reviews/g1-natural-language-capture-final-review.md) | PASS automated; live keyboard/visual UAT pending |
+| G1 natural-language capture | R1–R5 resolved; date matrix and 12-case native recurrence differential matrix pass; see [final review and resolution](reviews/g1-natural-language-capture-final-review.md) | PASS automated; subsequent [T10 maintainer UAT](#g1-t10-live-maintainer-uat-2026-09-25) validated |
 | G2 recurring tasks | Domain recurrence presets, quick-add review, recurrence editor/details, `integration_recurrence_test.go` template/instance/`until` lifecycle | PASS; live keyboard UAT pending |
 | G3 daily ritual | `domain/planner_test.go`, planner UI/app tests, idempotent namespaced tag diffs, capacity warning, config weekday overrides | PASS; live keyboard/visual UAT pending |
 | G4 calendar awareness | `internal/calendar/calendar_test.go` overlap merge, recurrence expansion, all-day/transparency policy, dedup/missing source; local-only config validation | PASS; live fixture/terminal UAT pending |
@@ -203,6 +203,26 @@ All listed commands passed on macOS arm64 with Go 1.27.1 and Taskwarrior 3.5.0. 
 
 Formatting, full tests, race tests, vet, native/Linux AMD64/macOS ARM64 builds, all isolated Integration tests, and `git diff --check` pass. The full suite has 9 packages, 494 top-level test/fuzz entries, 664 passing actions, and no skips; the isolated run has 17 top-level scenarios and 29 passing actions. Tests used disposable `TASKRC`/`TASKDATA`; no production task data or sync server was accessed. Live keyboard/visual UAT was not performed.
 
+## G1 local-only undo follow-up (2026-09-23)
+
+The maintainer reported the earlier live checklist checks as passing but reported that `u` did not undo a newly added task in the disposable local-only profile. The app-level regression `TestLocalOnlyAddCanBeUndoneWithoutStartingSync` reproduced the failure: disabled sync prevented the mutation state from enabling native undo. The local-only state now offers undo for the latest in-app mutation without scheduling sync; the focused regression passes, and isolated native Taskwarrior undo tests pass. **The maintainer reports that `u` now works in the live local-only retest.** The reported observations are not yet a complete T10 record of dimensions, platform, per-criterion outcomes (including the separate missing-UDA profile), and maintainer verdict; T10 remains unchecked.
+
+## G1 T10 live maintainer UAT (2026-09-25)
+
+**Maintainer verdict: PASS; T10 complete.** The maintainer ran the development build in real terminals against disposable local-only Taskwarrior profiles under `/private/tmp/momentum-uat.iizqSt`, explicitly asked to mark T10 done, and reported the capture/review checks passing. This is a maintainer report, not an agent-observed interactive session. The host used for the development build is macOS arm64; the isolated Taskwarrior binary reports 3.5.0. The maintainer reported exercising all requested wide (~120×30), compact (~79×24), narrow (~49×18), and short (~28×8) layouts; exact measured terminal dimensions were not supplied.
+
+| T10 check | Live outcome / evidence |
+|---|---|
+| Natural due date/time review and correction; explicit priority/estimate precedence | PASS, maintainer-reported; ready-profile export includes captured proposal and a 30-minute estimate overriding an hour phrase. |
+| Literal-Friday fallback, invalid/duplicate/bare-time correction, back/cancel and repeated confirmation | PASS, maintainer-reported. Ready-profile export includes the literal-Friday capture; no claim that every negative path is reconstructable from export alone. |
+| Wide/compact/narrow/short keyboard review and scrolling | PASS, maintainer-reported at the four requested layout classes; no automated render is substituted for this observation. |
+| Recurrence anchor and mixed-field review against generated Taskwarrior instances | PASS, maintainer-reported; ready-profile export includes native recurring templates and instances. |
+| Local-only undo | Initially FAIL. App regression reproduced the disabled-sync gate, `SyncState` was corrected, full format/test/race/vet/native/cross-build gates passed, and the maintainer reported `u` working on live retest. No production sync was invoked. |
+| Missing Estimate UDA refuses estimate-bearing add | PASS. In the no-UDA profile (`task _get rc.uda.estimate.type` empty), the maintainer supplied a live review screenshot displaying the actionable UDA error and “no estimate mutation was attempted”; the subsequent pending export contains no `Write report` task. The identically named estimate-bearing task found earlier belonged to the separate UDA-ready profile. |
+| Ordinary capture without Estimate UDA | PASS. The maintainer supplied no-UDA `status:pending export` showing `Just a test` (UUID `8bbbc650-c320-402e-b842-a7daaf913abf`) in addition to the original seed. |
+
+The automated evidence above remains historical and distinct from these live reports. The temporary-profile wrappers checked `rc.data.location` before launch; neither profile had sync credentials, and Momentum's `[sync].enabled` was false. The remaining readability, Settings, G0, G2, G3, G4, and integrated-flow live UAT work is not marked complete by this G1 verdict.
+
 ## Overall status
 
-Existing automated implementation and safety gates pass. Release readiness still requires the maintainer’s live visual/keyboard UAT for the readability redesign, Settings flow, G0 estimate workflow, natural-language review, recurrence/template stop, daily planning, and local-ICS degradation. This document deliberately records that limitation instead of claiming an interactive pass that was not observed.
+G1 natural-language capture has automated evidence and maintainer-reported live T10 validation. Release readiness still requires separate live visual/keyboard UAT for the readability redesign, Settings flow, G0 estimate workflow, broader recurrence/template stop, daily planning, and local-ICS degradation. This G1 sign-off does not imply those other goals passed live UAT.
