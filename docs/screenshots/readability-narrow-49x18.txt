@@ -1,0 +1,18 @@
+Momentum  ·  Today · 3 tasks
+  ▱ Inbox 1   ▌ ◷ Today 3     ✓ Completed 0     …
+
+Overdue · 1
+▌ □ Overdue task  ·  Overdue
+
+
+Due Today · 1
+□ Due task  ·  Due Today
+
+
+Scheduled Today · 1
+□ Scheduled task  ·  Scheduled Today
+
+
+
+[c] Create  [/] Search  [?] Help  [q] Quit
+Sync ready
