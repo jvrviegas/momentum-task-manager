@@ -1,7 +1,7 @@
 # Implementation plan — UI readability and comfortable layout
 
 **Created:** 2026-09-17  
-**Status:** T07 in progress; 7 / 8 tasks complete (automated implementation/regression evidence and sanitized text captures complete; maintainer real-terminal visual UAT remains)
+**Status:** Validated; 8 / 8 tasks complete (automated gates and maintainer-reported live T07 visual/interaction UAT pass; evidence in `docs/UAT.md`)
 **Baseline:** `1605293` on `main`; recheck HEAD and the working tree before starting.  
 **Design input:** [Momentum Design §6](../../DESIGN.md#6-visual-design) and [UI readability audit](../../.notebook/ui-readability-audit.md)  
 **Primary scope:** `internal/ui`, `internal/app/view.go`, `internal/app/update.go`, rendering tests, screenshots, and UAT evidence
@@ -127,7 +127,7 @@ Official Charm documentation remains authoritative for Bubble Tea, Bubbles, and 
 | [x] | T04 | Responsive reflow and geometry-correct mouse input | T03 | shared `ShellGeometry`, `internal/app/update.go`; boundary and second-line mouse tests |
 | [x] | T05 | Readable, scrollable details and help surfaces | T01, T04 | wrapped/scrollable `details.go` and `help.go`; routing and trailing-field tests |
 | [x] | T06 | Consistent capture, edit, confirmation, and Settings surfaces | T01, T04 | shared bounded panel plus updated form/confirmation components; existing workflow tests and component fixtures |
-| [~] | T07 | Accessibility, screenshots, UAT, and final regression gate | T02–T06 | Color-stripped checks, automated gates, and sanitized deterministic text captures pass; maintainer real-terminal visual UAT remains |
+| [x] | T07 | Accessibility, screenshots, UAT, and final regression gate | T02–T06 | Color-stripped tests and full gates pass; maintainer-approved dark/light, Unicode/ASCII, mouse and keyboard UAT; four synthetic real-terminal images in `docs/screenshots/` |
 
 
 **Suggested sequence:** T00 → T01 → T02 → T03 → T04 → T05 → T06 → T07. T05 and T06 may be developed in parallel only after T04 if they do not edit shared style/composition files concurrently.
@@ -264,14 +264,14 @@ Official Charm documentation remains authoritative for Bubble Tea, Bubbles, and 
 **Requirements:** UI-01–UI-13.
 
 - [x] Verify critical state remains understandable with colors stripped: active view, selected/focused row, overdue, priority, error, active task, and sync state.
-- [ ] Verify dark and light themes in a real terminal; correct only demonstrated contrast/readability problems and retain semantic token roles.
-- [ ] Verify Unicode and ASCII modes live. Nerd mode may be automated unless the required font is available; record the limitation honestly.
-- [~] Capture deterministic wide (`>=120`), compact (`79–90`), and narrow (`49`) sanitized text captures using fixture data. Real-terminal image screenshots still require maintainer capture; no personal tasks, paths, usernames, sync identifiers, or secrets are included.
-- [ ] Run keyboard/mouse smoke flows: switch views, scroll/select, search, details scroll/edit, quick capture suggestions, edit/save/cancel, complete/start/delete confirmation, Settings list/editor, help, sync/local-only status, resize, and quit.
+- [x] Verify dark and light themes in a real terminal; correct only demonstrated contrast/readability problems and retain semantic token roles. The maintainer accepted the light mode over a translucent dark terminal backdrop; see the recorded contrast limitation.
+- [x] Verify Unicode and ASCII modes live. Nerd mode was not checked live; it remains optional with automated coverage only.
+- [x] Capture wide, compact, and narrow sanitized text fixtures and maintainer-supplied real-terminal images using synthetic tasks. Exact terminal-cell dimensions for the images were not recorded; no personal tasks, paths, usernames, sync identifiers, or secrets are visible.
+- [x] Run keyboard/mouse smoke flows: switch views, scroll/select, search, details scroll/edit, quick capture suggestions, edit/save/cancel, complete/start/delete confirmation, Settings list/editor, help, sync/local-only status, resize, and quit. A reported mouse-selection failure was retested and the maintainer confirmed it works.
 - [x] Run the full gate, race gate, cross-platform builds, and `git diff --check`.
 - [x] Update `docs/UAT.md` with exact commands, environment, automated evidence, manual results, and any limitations. Do not mark visual checks passed if they were not performed by a human in a real terminal.
 - [x] Update `.notebook/ui-flow.md` and the readability audit with durable implementation decisions and file pointers.
-- [ ] Mark this plan complete only when all requirements have evidence and no unchecked task remains.
+- [x] Mark this plan complete only when all requirements have evidence and no unchecked task remains.
 
 **Gate:** format, unit, race, vet, build, cross-platform, diff hygiene, and documented manual visual UAT pass.  
 **Commit:** suggested `docs(ui): record readability redesign evidence`
@@ -311,7 +311,7 @@ Fill this section as work progresses.
 |---|---|---|---|---|
 | 2026-09-17 | T00–T06 | Implemented | `go test ./... -count=1`, fixture comparison twice, `git diff --check` | — |
 | 2026-09-25 | T00 baseline recheck | Preserved | Existing Taskwarrior sync edits and notebook/UAT changes were present before this mission and were not overwritten | — |
-| 2026-09-25 | T07 | In progress | Color-stripped accessibility tests, fixture-derived wide/compact/narrow text captures, `go test ./... -count=1`, `go test -race ./...`, vet, native/cross builds, format, and `git diff --check` pass; real-terminal visual UAT and image screenshots remain maintainer work | — |
+| 2026-09-25 | T07 | Validated | Automated accessibility/fixture gates and native/cross builds pass; maintainer reported real-terminal dark/light, Unicode/ASCII, navigation/interaction, mouse retest and Settings/quit pass. Four synthetic UAT images checked in under `docs/screenshots/`; terminal-cell sizes not independently measured and transparent wallpaper visible. See `docs/UAT.md`. | — |
 
 ## Deviations and decisions
 
