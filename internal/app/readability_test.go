@@ -1,12 +1,35 @@
 package app
 
 import (
+	"errors"
+	"strings"
 	"testing"
 
 	tea "charm.land/bubbletea/v2"
+	"github.com/charmbracelet/x/ansi"
 
+	"github.com/jvrviegas/momentum/internal/domain"
 	"github.com/jvrviegas/momentum/internal/ui"
 )
+
+func TestColorStrippedShellRetainsActiveAndErrorStatus(t *testing.T) {
+	model := readyCompositionModel(79, 24)
+	plain := ansi.Strip(model.View().Content)
+	if !strings.Contains(plain, "▌ ◷ Today") {
+		t.Fatalf("active view lost its non-color cue: %q", plain)
+	}
+	if !strings.Contains(plain, "Sync ready") {
+		t.Fatalf("sync status lost from color-stripped footer: %q", plain)
+	}
+
+	model.Tasks = nil
+	model.Views = domain.Views{}
+	model.Err = errors.New("fixture Taskwarrior unavailable")
+	plain = ansi.Strip(model.View().Content)
+	if !strings.Contains(plain, "Error: fixture Taskwarrior unavailable") {
+		t.Fatalf("error status lost from color-stripped footer: %q", plain)
+	}
+}
 
 func TestMouseSelectsBothLinesOfComfortableTaskBlock(t *testing.T) {
 	model := readyCompositionModel(79, 24)
