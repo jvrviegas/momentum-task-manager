@@ -22,10 +22,11 @@ The original audit found:
 - `internal/ui/tasklist.go` renders `TaskBlock` values. Comfortable rows put description/state on line one and labeled metadata on line two; Inbox task blocks omit project metadata because `internal/app/view.go:taskBlocks()` renders project headings. Selected blocks use a left gutter marker on every line in both Unicode and ASCII modes.
 - `internal/app/view.go` composes one page header, grouped shell navigation, explicit Today counts, section gaps, and a two-line footer when height permits. Search occupies a real shell row rather than being appended after a clipped base view.
 - `internal/ui/details.go` and `help.go` wrap content and retain body scroll state. `theme.go` supplies shared bounded modal rendering for details, help, capture, edit, confirmations, and Settings surfaces.
-- Deterministic ANSI-stripped fixtures live in `internal/app/testdata/render/` and `internal/ui/testdata/render/`. They are compared by default and updated only with `MOMENTUM_UPDATE_GOLDENS=1`.
+- Deterministic ANSI-stripped fixtures live in `internal/app/testdata/render/` and `internal/ui/testdata/render/`. They are compared by default and updated only with `MOMENTUM_UPDATE_GOLDENS=1`; sanitized Today captures for wide/compact/narrow review live in `docs/screenshots/`.
+- Compact active tabs reserve a visible marker slot in `internal/ui/sidebar.go:RenderTabs()` so active navigation remains identifiable after ANSI/color stripping, and `TabIndexAt()` uses the same reserved geometry.
 
 ## Remaining validation
 
-Automated width, height, color-stripped content, block-selection, mouse, workflow, race, vet, and build checks pass. A maintainer still needs to inspect real terminal output for dark/light contrast, Unicode/ASCII glyph widths, and production-like screenshots. No personal Taskwarrior data should be used for that check.
+Automated width, height, color-stripped content, block-selection, mouse, workflow, race, vet, cross-build, and fixture checks pass. A maintainer still needs to inspect real terminal output for dark/light contrast, Unicode/ASCII glyph widths, and production-like image screenshots. No personal Taskwarrior data should be used for that check.
 
-Updated: 2026-09-17
+Updated: 2026-09-25
