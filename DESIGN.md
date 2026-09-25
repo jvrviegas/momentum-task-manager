@@ -541,8 +541,8 @@ Sync-and-quit has a finite timeout. Quitting without sync leaves changes in Task
 
 When Taskwarrior sync is not configured:
 
-- Momentum remains fully functional.
-- Footer shows `Local only`.
+- Momentum remains fully functional, including native undo of the latest in-app mutation until another mutation or exit; no sync timer closes local-only undo.
+- Footer shows `Local only`, with an undo hint when the last mutation is undoable.
 - `momentum doctor` reports missing settings without printing secret values.
 - `[sync].enabled = false` disables checks and suppresses the status warning.
 
