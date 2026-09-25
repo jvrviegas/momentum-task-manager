@@ -11,4 +11,4 @@ MOMENTUM_UPDATE_GOLDENS=1 go test ./internal/ui ./internal/app -run 'RenderFixtu
 go test ./internal/ui ./internal/app -run 'RenderFixtures|ComponentRenderFixtures' -count=1
 ```
 
-Normal test runs compare fixtures and never rewrite them. A maintainer must still capture and review real-terminal screenshots for dark/light themes and Unicode/ASCII icon modes before release; the checked-in text captures are not a substitute for that human check.
+Normal test runs compare fixtures and never rewrite them. The `uat-*.png` images are maintainer-supplied real-terminal UAT captures from the isolated synthetic Taskwarrior profile (2026-09-25): wide dark ASCII/light Unicode, compact dark Unicode, and narrow dark Unicode. They contain no personal tasks, paths, usernames, sync identifiers, or secrets; terminal wallpaper remains visible through the transparent background. Terminal cell dimensions were not measured, so these are qualitative visual evidence, not exact-size golden fixtures. See `docs/UAT.md` for the maintainer's review and limitations.
