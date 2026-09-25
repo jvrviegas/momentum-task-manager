@@ -5,6 +5,7 @@ import (
 	"testing"
 
 	"charm.land/lipgloss/v2"
+	"github.com/charmbracelet/x/ansi"
 )
 
 func navItems() []NavItem {
@@ -63,5 +64,15 @@ func TestRenderTabsShowsCompactNavigation(t *testing.T) {
 	}
 	if lipgloss.Width(got) > 80 {
 		t.Fatalf("tabs width=%d", lipgloss.Width(got))
+	}
+}
+
+func TestRenderTabsKeepsActiveCueWhenColorsAreStripped(t *testing.T) {
+	got := ansi.Strip(RenderTabs("today", navItems(), 80, NewStyles(ResolveTheme("dark", true))))
+	if !strings.Contains(got, "> D Today 2") {
+		t.Fatalf("active tab lost its non-color cue: %q", got)
+	}
+	if !strings.Contains(got, "  I Inbox 4") {
+		t.Fatalf("inactive tab did not retain marker slot: %q", got)
 	}
 }
