@@ -8,6 +8,7 @@ import (
 
 	tea "charm.land/bubbletea/v2"
 	"charm.land/lipgloss/v2"
+	"github.com/charmbracelet/x/ansi"
 
 	"github.com/jvrviegas/momentum/internal/domain"
 )
@@ -78,6 +79,29 @@ func TestSelectedTaskBlockUsesNonColorGutterOnEveryLine(t *testing.T) {
 		for _, line := range lines {
 			if !strings.Contains(line, marker) {
 				t.Fatalf("mode=%s missing marker in %q", mode, line)
+			}
+		}
+	}
+}
+
+func TestColorStrippedTaskStateRetainsNonColorCues(t *testing.T) {
+	now := time.Date(2026, 9, 8, 10, 0, 0, 0, time.UTC)
+	due := now.Add(-24 * time.Hour)
+	started := now.Add(-time.Hour)
+	for _, mode := range []string{"unicode", "ascii"} {
+		row := ansi.Strip(RenderTaskRow(domain.Task{
+			Description: "Active overdue task", Status: "pending", Priority: "H", Due: &due, Start: &started,
+		}, TaskRowOptions{
+			Width: 70, ShowMetadata: true, Density: DensityComfortable, Selected: true, Now: now,
+			Styles: NewStyles(ResolveTheme("dark", true)), Icons: IconsFor(mode),
+		}))
+		marker := "▌"
+		if mode == "ascii" {
+			marker = ">"
+		}
+		for _, want := range []string{IconsFor(mode).Active, "Overdue", "Due", "High", marker} {
+			if !strings.Contains(row, want) {
+				t.Fatalf("mode=%s missing %q from color-stripped row=%q", mode, want, row)
 			}
 		}
 	}
