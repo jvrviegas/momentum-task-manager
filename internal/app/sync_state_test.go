@@ -39,6 +39,25 @@ func TestDisabledSyncSchedulesNoWork(t *testing.T) {
 	}
 }
 
+func TestLocalOnlyMutationKeepsNativeUndoWithoutSchedulingSync(t *testing.T) {
+	settings := syncSettings()
+	settings.Enabled = false
+	at := time.Date(2026, 9, 8, 10, 0, 0, 0, time.UTC)
+	state := NewSyncState(settings, at)
+	state, effect := state.Mutation(at)
+	if !state.UndoAvailable || state.Unsynced || state.Phase != SyncDisabled || !state.NextAt.IsZero() || !state.UndoUntil.IsZero() || effect.Action != SyncNoAction {
+		t.Fatalf("local-only mutation=%#v effect=%#v", state, effect)
+	}
+	state, effect = state.Timer(at.Add(time.Hour))
+	if !state.UndoAvailable || effect.Action != SyncNoAction {
+		t.Fatalf("timer closed local undo or ran sync: state=%#v effect=%#v", state, effect)
+	}
+	state, effect = state.Apply(SyncEvent{Kind: SyncUndo, At: at.Add(time.Hour)})
+	if state.UndoAvailable || state.Phase != SyncDisabled || !state.NextAt.IsZero() || effect.Action != SyncRefresh {
+		t.Fatalf("local-only undo=%#v effect=%#v", state, effect)
+	}
+}
+
 func TestStartupTransitionRunsSync(t *testing.T) {
 	now := time.Now()
 	state := NewSyncState(syncSettings(), now)
