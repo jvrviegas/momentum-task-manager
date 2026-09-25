@@ -1,6 +1,6 @@
 === today ===
 Momentum  ·  Today · 3 tasks
-▱ Inbox 1   ◷ Today 3   ✓ Completed 0   ⚙ Settings
+  ▱ Inbox 1   ▌ ◷ Today 3     ✓ Completed 0     ⚙ Settings
 
 Overdue · 1
 ▌ □ Overdue task
@@ -26,7 +26,7 @@ Sync ready
 
 === inbox ===
 Momentum  ·  Inbox · 1 tasks
-▱ Inbox 1   ◷ Today 3   ✓ Completed 0   ⚙ Settings
+▌ ▱ Inbox 1     ◷ Today 3     ✓ Completed 0     ⚙ Settings
 
 work
 □ Inbox task
@@ -52,7 +52,7 @@ Sync ready
 
 === empty ===
 Momentum  ·  Inbox · 0 tasks
-▱ Inbox 0   ◷ Today 0   ✓ Completed 0   ⚙ Settings
+▌ ▱ Inbox 0     ◷ Today 0     ✓ Completed 0     ⚙ Settings
 
 No pending tasks
 Ctrl+K to capture something
@@ -78,7 +78,7 @@ Sync ready
 
 === loading ===
 Momentum  ·  Today · 0 tasks
-▱ Inbox 0   ◷ Today 0   ✓ Completed 0   ⚙ Settings
+  ▱ Inbox 0   ▌ ◷ Today 0     ✓ Completed 0     ⚙ Settings
 
 Loading tasks…
 
@@ -104,7 +104,7 @@ Sync ready
 
 === error ===
 Momentum  ·  Today · 0 tasks
-▱ Inbox 0   ◷ Today 0   ✓ Completed 0   ⚙ Settings
+  ▱ Inbox 0   ▌ ◷ Today 0     ✓ Completed 0     ⚙ Settings
 
 Unable to load tasks: fixture Taskwarrior unavailable
 
@@ -130,7 +130,7 @@ Error: fixture Taskwarrior unavailable  ·  Sync ready
 
 === search ===
 Momentum  ·  Today · 1 tasks · /scheduled
-▱ Inbox 1   ◷ Today 3   ✓ Completed 0   ⚙ Settings
+  ▱ Inbox 1   ▌ ◷ Today 3     ✓ Completed 0     ⚙ Settings
 
 Scheduled Today · 1
 □ Scheduled task
@@ -156,7 +156,7 @@ Scheduled Today · 1
 
 === settings-list ===
 Momentum  ·  Settings
-▱ Inbox 1   ◷ Today 3   ✓ Completed 0   ⚙ Settings
+  ▱ Inbox 1     ◷ Today 3     ✓ Completed 0   ▌ ⚙ Settings
 
 ╭─────────────────────────────────────────────────────────────────────────╮
 │Settings / Projects                                                      │
@@ -182,7 +182,7 @@ Sync ready
 
 === settings-editor ===
 Momentum  ·  Settings
-▱ Inbox 1   ◷ Today 3   ✓ Completed 0   ⚙ Settings
+  ▱ Inbox 1     ◷ Today 3     ✓ Completed 0   ▌ ⚙ Settings
 
 ╭─────────────────────────────────────────────────────────────────────────╮
 │Edit project                                                             │
