@@ -29,7 +29,7 @@ func TestSyncConfiguredReturnsOnlyPresence(t *testing.T) {
 	if err != nil || !configured {
 		t.Fatalf("configured=%v err=%v", configured, err)
 	}
-	for index, key := range []string{"sync.server.url", "sync.server.client_id", "sync.encryption_secret"} {
+	for index, key := range []string{"rc.sync.server.url", "rc.sync.server.client_id", "rc.sync.encryption_secret"} {
 		if !reflect.DeepEqual(runner.calls[index], []string{"task", "_get", key}) {
 			t.Fatalf("call %d=%#v", index, runner.calls[index])
 		}
