@@ -204,6 +204,9 @@ func NewModel(options ModelOptions) *Model {
 		ProjectSettings:      ui.NewProjectSettings(styles),
 		ProjectRename:        ui.NewProjectRename(styles),
 	}
+	model.Details.Icons = icons
+	model.Confirm.Icons = icons
+	model.Quit.Icons = icons
 	model.ProjectSettings.SetProjects(settings.Projects)
 	if model.ActiveView == ViewSettings {
 		model.ProjectSettings.OpenProjects(settings.Projects)
@@ -484,8 +487,10 @@ func (m *Model) beginMutation(request MutationRequest) tea.Cmd {
 
 func (m *Model) applyMutation(message MutationMsg) tea.Cmd {
 	pendingKind := MutationKind("")
+	var pending MutationRequest
 	if m.PendingMutation != nil {
-		pendingKind = m.PendingMutation.Kind
+		pending = *m.PendingMutation
+		pendingKind = pending.Kind
 	}
 	m.MutationRunning = false
 	if message.Err != nil {
@@ -510,14 +515,43 @@ func (m *Model) applyMutation(message MutationMsg) tea.Cmd {
 	} else {
 		m.Sync, _ = m.Sync.Mutation(m.now())
 	}
-	kind := string(message.Kind)
-	if kind == "" {
-		kind = "action"
-	}
-	m.Status = strings.ToUpper(kind[:1]) + kind[1:] + " succeeded"
+	m.Status = m.mutationStatus(message.Kind, pending)
 	// Every successful mutation has one and only one follow-up export. Sync
 	// bookkeeping is attached by the feature-integration layer.
 	return m.beginRefresh("mutation")
+}
+
+// mutationStatus names what changed, e.g. Completed "Send Q3 invoice".
+func (m *Model) mutationStatus(kind MutationKind, request MutationRequest) string {
+	subject := request.Input.Description
+	for _, task := range m.Tasks {
+		if request.UUID != "" && task.UUID == request.UUID {
+			subject = task.Description
+			break
+		}
+	}
+	quoted := ""
+	if subject = oneLine(subject); subject != "" {
+		quoted = fmt.Sprintf(" %q", subject)
+	}
+	switch kind {
+	case MutationAdd:
+		return "Added" + quoted
+	case MutationModify:
+		return "Saved" + quoted
+	case MutationComplete:
+		return "Completed" + quoted
+	case MutationDelete:
+		return "Deleted" + quoted
+	case MutationStart:
+		return "Started" + quoted
+	case MutationStop:
+		return "Stopped" + quoted
+	case MutationUndo:
+		return "Undid the last change"
+	default:
+		return "Done"
+	}
 }
 
 func (m *Model) handleEditSubmit(message ui.EditSubmitMsg) tea.Cmd {
