@@ -203,6 +203,14 @@ All listed commands passed on macOS arm64 with Go 1.27.1 and Taskwarrior 3.5.0. 
 
 Formatting, full tests, race tests, vet, native/Linux AMD64/macOS ARM64 builds, all isolated Integration tests, and `git diff --check` pass. The full suite has 9 packages, 494 top-level test/fuzz entries, 664 passing actions, and no skips; the isolated run has 17 top-level scenarios and 29 passing actions. Tests used disposable `TASKRC`/`TASKDATA`; no production task data or sync server was accessed. Live keyboard/visual UAT was not performed.
 
+## Taskwarrior sync-readiness automated follow-up (2026-09-23)
+
+**PASS automated; not live UAT.** On macOS 27.0.0 arm64 with Go 1.27.1 and Taskwarrior 3.5.0, an isolated profile exposed that `task _get sync.server.url` is not a Taskwarrior DOM reference, while `task _get rc.sync.server.url` is. `SyncConfigured` now checks the `rc.sync.*` references. `TestIntegrationSyncConfiguredReadsTaskwarriorDOMReferences` verifies missing and present settings through temporary `TASKRC`/`TASKDATA`; `momentum doctor` reports the isolated profile configured afterward.
+
+The regression profile uses only `http://127.0.0.1:1`, disables startup sync, and the test performs readiness queries only; it never invokes `task sync` or contacts a real sync server. Format, full tests (9 packages, 495 top-level test/fuzz entries, 665 passing actions, 0 skips), race, vet, native/Linux AMD64/macOS ARM64 builds, the isolated Integration run (18 top-level scenarios, 30 passing actions, 0 skips), and `git diff --check` all pass.
+
+The coding harness has no TTY, so terminal dimensions and human keyboard/visual observations are unavailable. T10 remains unchecked; no live UAT or maintainer verdict is claimed.
+
 ## G1 local-only undo follow-up (2026-09-23)
 
 The maintainer reported the earlier live checklist checks as passing but reported that `u` did not undo a newly added task in the disposable local-only profile. The app-level regression `TestLocalOnlyAddCanBeUndoneWithoutStartingSync` reproduced the failure: disabled sync prevented the mutation state from enabling native undo. The local-only state now offers undo for the latest in-app mutation without scheduling sync; the focused regression passes, and isolated native Taskwarrior undo tests pass. **The maintainer reports that `u` now works in the live local-only retest.** The reported observations are not yet a complete T10 record of dimensions, platform, per-criterion outcomes (including the separate missing-UDA profile), and maintainer verdict; T10 remains unchecked.
