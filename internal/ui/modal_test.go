@@ -23,7 +23,11 @@ func TestDetailsShowsSupportedAndUnknownFields(t *testing.T) {
 		RawFields: map[string]json.RawMessage{"description": json.RawMessage(`"Task"`), "custom": json.RawMessage(`"value"`)},
 	})
 	view := details.View()
-	for _, want := range []string{"Task details", "Description", "Task", "work", "weekly", "uuid", "custom", "value"} {
+	for i := 0; i < 40; i++ {
+		details.Update(modalKey("down"))
+	}
+	view += details.View()
+	for _, want := range []string{"Task details", "OVERVIEW", "SCHEDULE", "RECORD", "Task", "#work", "weekly", "uuid", "custom", "value"} {
 		if !strings.Contains(view, want) {
 			t.Errorf("view missing %q: %q", want, view)
 		}
@@ -79,7 +83,7 @@ func TestConfirmEscapeCancels(t *testing.T) {
 
 func TestHelpDerivesTextFromBindings(t *testing.T) {
 	text := HelpText()
-	for _, want := range []string{"Ctrl+K", "quick add", "Ctrl+R", "synchronize now"} {
+	for _, want := range []string{"ctrl+k — capture", "ctrl+r — sync now", "space — complete", "click — select"} {
 		if !strings.Contains(text, want) {
 			t.Errorf("help missing %q", want)
 		}
@@ -93,7 +97,7 @@ func TestHelpOpensRendersAndCloses(t *testing.T) {
 	help := NewHelp(NewStyles(ResolveTheme("dark", true)))
 	help.SetSize(70, 20)
 	help.OpenHelp()
-	if view := help.View(); !strings.Contains(view, "Keyboard shortcuts") {
+	if view := help.View(); !strings.Contains(view, "Keys") || !strings.Contains(view, "NAVIGATE") {
 		t.Fatalf("view=%q", view)
 	}
 	if action := help.Update(modalKey("?")); action != HelpClose || help.Open {
@@ -113,7 +117,7 @@ func TestQuitChoicesMatchShutdownCopy(t *testing.T) {
 	quit.SetSize(50, 10)
 	quit.OpenQuit()
 	view := quit.View()
-	for _, want := range []string{"Unsynced changes", "Sync and quit", "Quit without syncing", "Cancel"} {
+	for _, want := range []string{"Quit Momentum?", "Unsynced changes", "Sync and quit", "Quit without syncing", "Cancel"} {
 		if !strings.Contains(view, want) {
 			t.Errorf("quit view missing %q", want)
 		}
@@ -132,10 +136,10 @@ func TestQuitChoicesMatchShutdownCopy(t *testing.T) {
 }
 
 func TestMinimumSizeWarningIsSafe(t *testing.T) {
-	if got := MinimumSizeMessage(20, 5); got == "" || !strings.Contains(got, "Terminal") {
+	if got := MinimumSizeMessage(20, 5, Styles{}); got == "" || !strings.Contains(got, "Terminal") {
 		t.Fatalf("warning=%q", got)
 	}
-	if got := MinimumSizeMessage(0, 0); got != "" {
+	if got := MinimumSizeMessage(0, 0, Styles{}); got != "" {
 		t.Fatalf("warning=%q", got)
 	}
 }
