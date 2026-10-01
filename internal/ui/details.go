@@ -8,7 +8,6 @@ import (
 	"time"
 
 	tea "charm.land/bubbletea/v2"
-	"charm.land/lipgloss/v2"
 
 	"github.com/jvrviegas/momentum/internal/domain"
 )
@@ -30,7 +29,9 @@ type DetailsModel struct {
 	Width  int
 	Height int
 	Scroll int
+	Now    time.Time
 	Styles Styles
+	Icons  Icons
 }
 
 func NewDetails(styles Styles) DetailsModel { return DetailsModel{Styles: styles} }
@@ -86,9 +87,8 @@ func (d *DetailsModel) maxScroll() int {
 	if !d.Open || d.Width <= 0 || d.Height <= 0 {
 		return 0
 	}
-	body := d.bodyLines(max(1, ModalContentWidth(d.Width, DetailsMaxWidth)))
-	viewport := max(1, ModalContentHeight(d.Height, 0)-2)
-	return max(0, len(body)-viewport)
+	width := ModalWidth(DetailsWidth, d.Width)
+	return MaxOffset(len(d.bodyRows(FrameContentWidth(width))), ModalMaxRows(d.Height))
 }
 
 func (d *DetailsModel) clampScroll() {
@@ -104,126 +104,229 @@ func (d DetailsModel) View() string {
 	if !d.Open || d.Width <= 0 || d.Height <= 0 {
 		return ""
 	}
-	contentWidth := ModalContentWidth(d.Width, DetailsMaxWidth)
-	contentHeight := ModalContentHeight(d.Height, 0)
-	body := d.bodyLines(contentWidth)
-	viewport := max(1, contentHeight-2) // title and action footer
-	scroll := d.Scroll
-	maximum := max(0, len(body)-viewport)
-	if scroll > maximum {
-		scroll = maximum
+	width := ModalWidth(DetailsWidth, d.Width)
+	frame := Frame{
+		Title: "Task details", Context: []Span{muted("read-only")},
+		Rows: d.bodyRows(FrameContentWidth(width)), Offset: d.Scroll, Width: width, MaxRows: ModalMaxRows(d.Height),
+		Keys: []Hint{{"↑↓", "scroll"}, {"e", "edit"}, {"esc", "close"}},
 	}
-	if scroll < 0 {
-		scroll = 0
-	}
-
-	lines := []string{d.Styles.ModalTitle.Render("Task details")}
-	end := min(len(body), scroll+viewport)
-	if scroll < end {
-		lines = append(lines, body[scroll:end]...)
-	}
-	if maximum > 0 {
-		lines = append(lines, d.Styles.ModalAction.Render(fmt.Sprintf("↑/↓ scroll · %d/%d · e edit · Esc close", scroll+1, maximum+1)))
-	} else {
-		lines = append(lines, d.Styles.ModalAction.Render("e edit · Esc close"))
-	}
-	return renderBoundedPanel(lines, contentWidth, contentHeight, d.Styles)
+	return strings.Join(d.Styles.RenderFrame(frame, d.Icons), "\n")
 }
 
-func (d DetailsModel) bodyLines(width int) []string {
-	lines := make([]string, 0, 24)
-	section := func(name string) { lines = append(lines, d.Styles.SectionTitle.Render(name)) }
-	appendValue := func(label, value string) {
+func (d DetailsModel) now() time.Time {
+	if d.Now.IsZero() {
+		return time.Now()
+	}
+	return d.Now
+}
+
+// bodyRows groups the record as Overview, Schedule, Notes and Record. ID,
+// UUID, urgency and raw properties appear only here.
+func (d DetailsModel) bodyRows(width int) []FrameRow {
+	icons := d.Icons.orUnicode()
+	task := d.Task
+	now := d.now()
+	rows := []FrameRow{{}}
+	for _, line := range WrapText(task.Description, width) {
+		rows = append(rows, row(txt(line).bold()))
+	}
+	if state := taskStateLine(task, now, icons); len(state) > 0 {
+		rows = append(rows, row(state...))
+	}
+	field := func(label string, value ...Span) {
+		rows = append(rows, labeledRows(label, value, width)...)
+	}
+	text := func(value string) []Span {
 		if value == "" {
-			return
+			return []Span{muted("none")}
 		}
-		lines = append(lines, wrapLabeled(label, value, width)...)
+		return []Span{txt(value)}
 	}
-	section("CORE")
-	appendValue("Description", d.Task.Description)
-	appendValue("Status", d.Task.Status)
-	appendValue("Priority", PriorityLabel(d.Task.Priority))
-
-	schedule := []struct {
-		label string
-		value string
-	}{
-		{"Completed", firstNonEmpty(d.Task.EndRaw, formatTaskTime(d.Task.End))},
-		{"Due", firstNonEmpty(d.Task.DueRaw, formatTaskTime(d.Task.Due))},
-		{"Scheduled", firstNonEmpty(d.Task.ScheduledRaw, formatTaskTime(d.Task.Scheduled))},
-		{"Start", firstNonEmpty(d.Task.StartRaw, formatTaskTime(d.Task.Start))},
-		{"Wait", firstNonEmpty(d.Task.WaitRaw, formatTaskTime(d.Task.Wait))},
-	}
-	hasSchedule := false
-	for _, field := range schedule {
-		if field.value != "" {
-			hasSchedule = true
-			break
+	date := func(value *time.Time, raw string) string {
+		if value != nil && !value.IsZero() {
+			return formatDate(value.In(now.Location()), now)
 		}
-	}
-	if hasSchedule {
-		section("SCHEDULE")
-		for _, field := range schedule {
-			appendValue(field.label, field.value)
-		}
+		return raw
 	}
 
-	organizationValues := []struct {
-		label string
-		value string
-	}{
-		{"Project", d.Task.Project},
-		{"Tags", strings.Join(d.Task.Tags, ", ")},
-		{"Annotations", formatAnnotations(d.Task.Annotations)},
-		{"Depends", strings.Join(d.Task.Dependencies, ", ")},
-		{"Recurrence", d.Task.Recurrence},
+	rows = append(rows, FrameRow{}, sectionRow("Overview", -1, icons))
+	if task.Project != "" {
+		field("Project", sp("#"+task.Project, ToneCyan))
+	} else {
+		field("Project", muted("none"))
 	}
-	hasOrganization := false
-	for _, field := range organizationValues {
-		if field.value != "" {
-			hasOrganization = true
-			break
-		}
+	if label, tone, ok := prioritySlot(task.Priority, icons); ok {
+		field("Priority", sp(strings.Replace(label, " Med", " Medium", 1), tone))
+	} else {
+		field("Priority", text(strings.TrimSpace(task.Priority))...)
 	}
-	if hasOrganization {
-		section("ORGANIZATION")
-		for _, field := range organizationValues {
-			appendValue(field.label, field.value)
+	field("Tags", text(formatTags(task.Tags))...)
+
+	rows = append(rows, FrameRow{}, sectionRow("Schedule", -1, icons))
+	due := text(date(task.Due, task.DueRaw))
+	if task.IsPending() && ClassifyOverdue(task, now) {
+		due = []Span{sp(icons.Overdue+" Overdue", ToneRed), muted(" " + icons.Dot + " "), sp(date(task.Due, task.DueRaw), ToneRed)}
+	}
+	field("Due", due...)
+	field("Scheduled", text(date(task.Scheduled, task.ScheduledRaw))...)
+	if value := date(task.Wait, task.WaitRaw); value != "" {
+		field("Wait", txt(value))
+	}
+	if value := date(task.Start, task.StartRaw); value != "" {
+		field("Started", txt(value))
+	}
+	if value := date(task.End, task.EndRaw); value != "" {
+		field("Completed", txt(value))
+	}
+	field("Recurrence", text(task.Recurrence)...)
+
+	if len(task.Annotations) > 0 {
+		rows = append(rows, FrameRow{}, sectionRow("Notes", len(task.Annotations), icons))
+		for index, note := range task.Annotations {
+			if index > 0 {
+				rows = append(rows, FrameRow{})
+			}
+			for _, line := range WrapText(note.Description, width) {
+				rows = append(rows, row(txt(line)))
+			}
+			if note.Entry != nil {
+				rows = append(rows, row(muted(formatDate(note.Entry.In(now.Location()), now))))
+			}
 		}
 	}
 
-	section("TECHNICAL")
-	appendValue("Urgency", fmt.Sprintf("%.2f", d.Task.Urgency))
-	appendValue("UUID", d.Task.UUID)
-	if d.Task.ID != 0 {
-		appendValue("ID", fmt.Sprintf("%d", d.Task.ID))
+	rows = append(rows, FrameRow{}, sectionRow("Record", -1, icons))
+	if task.ID != 0 {
+		field("ID", txt(fmt.Sprintf("%d", task.ID)))
 	}
-	for _, key := range unknownRawKeys(d.Task.RawFields) {
-		appendValue(key, string(d.Task.RawFields[key]))
+	field("UUID", text(task.UUID)...)
+	field("Status", text(task.Status)...)
+	field("Urgency", txt(fmt.Sprintf("%.2f", task.Urgency)))
+	if value := date(task.Entry, task.EntryRaw); value != "" {
+		field("Entered", txt(value))
 	}
-	return lines
+	if value := date(task.Modified, task.ModifiedRaw); value != "" {
+		field("Modified", txt(value))
+	}
+	if len(task.Dependencies) > 0 {
+		field("Depends", txt(strings.Join(task.Dependencies, ", ")))
+	}
+	for _, key := range unknownRawKeys(task.RawFields) {
+		field(key, txt(string(task.RawFields[key])))
+	}
+	return append(rows, FrameRow{})
 }
 
-func wrapLabeled(label, value string, width int) []string {
-	if width <= 0 {
-		return []string{""}
+// RenderDetailsPane is the Wide+ read-only preview of the selected task.
+func RenderDetailsPane(task *domain.Task, width, height int, now time.Time, styles Styles, icons Icons) string {
+	if width <= 0 || height <= 0 {
+		return ""
 	}
-	prefix := label + ": "
-	if lipgloss.Width(prefix) >= width {
-		return WrapText(prefix+value, width)
+	icons = icons.orUnicode()
+	lines := []string{
+		styles.Line(width, FillNone, txt("Details").bold(), grow(), muted("enter expands")),
+		styles.Line(width, FillNone, rule(icons.Rule)),
+		"",
 	}
-	valueWidth := width - lipgloss.Width(prefix)
-	wrapped := WrapText(value, valueWidth)
-	lines := make([]string, 0, len(wrapped))
-	continuation := strings.Repeat(" ", lipgloss.Width(prefix))
-	for index, line := range wrapped {
-		if index == 0 {
-			lines = append(lines, prefix+line)
-		} else {
-			lines = append(lines, continuation+line)
+	if task == nil {
+		lines = append(lines, styles.Line(width, FillNone, muted("No task selected")))
+	} else {
+		for _, line := range WrapText(task.Description, width) {
+			lines = append(lines, styles.Line(width, FillNone, txt(line).bold()))
+		}
+		if state := taskStateLine(*task, now, icons); len(state) > 0 {
+			lines = append(lines, styles.Line(width, FillNone, state...))
+		}
+		lines = append(lines, "")
+		field := func(label string, value ...Span) {
+			for _, r := range labeledRows(label, value, width) {
+				lines = append(lines, styles.Line(width, FillNone, r.Spans...))
+			}
+		}
+		if task.Project != "" {
+			field("Project", sp("#"+task.Project, ToneCyan))
+		}
+		if task.Due != nil {
+			field("Due", txt(formatDate(task.Due.In(now.Location()), now)))
+		}
+		if task.Scheduled != nil {
+			field("Scheduled", txt(formatDate(task.Scheduled.In(now.Location()), now)))
+		}
+		if label, tone, ok := prioritySlot(task.Priority, icons); ok {
+			field("Priority", sp(strings.Replace(label, " Med", " Medium", 1), tone))
+		}
+		if len(task.Tags) > 0 {
+			field("Tags", txt(formatTags(task.Tags)))
+		}
+		if len(task.Annotations) > 0 {
+			lines = append(lines, "", styles.Line(width, FillNone, sectionRow("Notes", len(task.Annotations), icons).Spans...))
+			for index, note := range task.Annotations {
+				if index > 0 {
+					lines = append(lines, "")
+				}
+				for _, line := range WrapText(note.Description, width) {
+					lines = append(lines, styles.Line(width, FillNone, txt(line)))
+				}
+				if note.Entry != nil {
+					lines = append(lines, styles.Line(width, FillNone, muted(formatDate(note.Entry.In(now.Location()), now))))
+				}
+			}
 		}
 	}
-	return lines
+	if len(lines) > height {
+		lines = lines[:height]
+	}
+	return strings.Join(lines, "\n")
+}
+
+func taskStateLine(task domain.Task, now time.Time, icons Icons) []Span {
+	switch {
+	case !task.IsPending() && task.End != nil:
+		return []Span{muted(icons.Completed), muted(" Completed " + formatDate(task.End.In(now.Location()), now))}
+	case task.Start != nil:
+		return []Span{sp(icons.Active, ToneCyan).bold(), txt(" "), sp("Active", ToneCyan), muted(" " + icons.Dot + " started " + task.Start.In(now.Location()).Format("15:04"))}
+	default:
+		return nil
+	}
+}
+
+// sectionRow is a Muted caps label, an optional count and a rule.
+func sectionRow(title string, count int, icons Icons) FrameRow {
+	spans := []Span{muted(strings.ToUpper(title))}
+	if count >= 0 {
+		spans = append(spans, gap(2), muted(fmt.Sprintf("%d", count)))
+	}
+	return row(append(spans, gap(2), rule(icons.Rule))...)
+}
+
+// labeledRows renders a 12-cell Muted label and a value that wraps under the
+// value column.
+func labeledRows(label string, value []Span, width int) []FrameRow {
+	const labelWidth = 12
+	head := muted(fmt.Sprintf("%-*s", labelWidth, Truncate(label, labelWidth-1)))
+	if len(value) != 1 || spansWidth(value) <= width-labelWidth || width <= labelWidth {
+		return []FrameRow{row(append([]Span{head}, value...)...)}
+	}
+	lines := WrapText(value[0].Text, width-labelWidth)
+	rows := make([]FrameRow, 0, len(lines))
+	for index, line := range lines {
+		part := value[0]
+		part.Text = line
+		if index == 0 {
+			rows = append(rows, row(head, part))
+		} else {
+			rows = append(rows, row(gap(labelWidth), part))
+		}
+	}
+	return rows
+}
+
+func formatTags(tags []string) string {
+	parts := make([]string, 0, len(tags))
+	for _, tag := range tags {
+		parts = append(parts, "+"+tag)
+	}
+	return strings.Join(parts, "  ")
 }
 
 func unknownRawKeys(fields map[string]json.RawMessage) []string {
@@ -240,30 +343,4 @@ func unknownRawKeys(fields map[string]json.RawMessage) []string {
 	}
 	sort.Strings(keys)
 	return keys
-}
-
-func formatTaskTime(value *time.Time) string {
-	if value == nil || value.IsZero() {
-		return ""
-	}
-	return value.Format(time.RFC3339)
-}
-
-func formatAnnotations(values []domain.Annotation) string {
-	result := make([]string, 0, len(values))
-	for _, value := range values {
-		if value.Description != "" {
-			result = append(result, value.Description)
-		}
-	}
-	return strings.Join(result, "; ")
-}
-
-func firstNonEmpty(values ...string) string {
-	for _, value := range values {
-		if value != "" {
-			return value
-		}
-	}
-	return ""
 }
