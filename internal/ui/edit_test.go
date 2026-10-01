@@ -81,8 +81,8 @@ func TestDateFieldKeyboardStepsDayAndTime(t *testing.T) {
 func TestDateFieldViewShowsKeyboardGuidance(t *testing.T) {
 	e := testEdit()
 	e.OpenTask(editableTask(), FieldDue)
-	view := e.View()
-	for _, want := range []string{"YYYY-MM-DD HH:MM", "Ctrl+←/→ day", "Ctrl+↑/↓ 30m"} {
+	view := sanitizeComponentRender(e.View())
+	for _, want := range []string{"YYYY-MM-DD HH:MM", "ctrl+←/→ day", "ctrl+↑/↓ 30m"} {
 		if !strings.Contains(view, want) {
 			t.Errorf("view missing %q: %q", want, view)
 		}
@@ -237,8 +237,8 @@ func TestEditTagValuesAreUniqueInSubmission(t *testing.T) {
 func TestEditViewShowsLabelsAndChangedMarker(t *testing.T) {
 	e := testEdit()
 	e.Inputs[FieldProject].SetValue("personal")
-	view := e.View()
-	for _, want := range []string{"Edit task", "Description", "Project", "*"} {
+	view := sanitizeComponentRender(e.View())
+	for _, want := range []string{"Edit task", "Description", "Project", "•", "was work", "1 changed"} {
 		if !strings.Contains(view, want) {
 			t.Errorf("view missing %q: %q", want, view)
 		}
