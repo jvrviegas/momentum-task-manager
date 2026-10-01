@@ -8,8 +8,8 @@ import (
 )
 
 func TestInboxEmptyCopy(t *testing.T) {
-	got := RenderInboxEmpty(40, NewStyles(ResolveTheme("dark", true)))
-	for _, want := range []string{InboxEmptyTitle, InboxEmptyHint} {
+	got := sanitizeComponentRender(RenderInboxEmpty(40, NewStyles(ResolveTheme("dark", true))))
+	for _, want := range []string{InboxEmptyTitle, "land here.", "c  capture a task"} {
 		if !strings.Contains(got, want) {
 			t.Errorf("empty=%q missing %q", got, want)
 		}
@@ -17,8 +17,8 @@ func TestInboxEmptyCopy(t *testing.T) {
 }
 
 func TestTodayEmptyCopy(t *testing.T) {
-	got := RenderTodayEmpty(40, NewStyles(ResolveTheme("dark", true)))
-	for _, want := range []string{TodayEmptyTitle, TodayEmptyBody, TodayEmptyHint} {
+	got := sanitizeComponentRender(RenderTodayEmpty(60, NewStyles(ResolveTheme("dark", true))))
+	for _, want := range []string{TodayEmptyTitle, TodayEmptyBody, "1  open Inbox · 0 waiting"} {
 		if !strings.Contains(got, want) {
 			t.Errorf("empty=%q missing %q", got, want)
 		}
