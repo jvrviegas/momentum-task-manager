@@ -31,7 +31,7 @@ type SearchModel struct {
 
 func NewSearch(styles Styles, icons Icons) SearchModel {
 	input := textinput.New()
-	input.Prompt = "/ "
+	input.Prompt = ""
 	input.Placeholder = "Filter current view (project:name)"
 	return SearchModel{Input: input, Styles: styles, Icons: icons}
 }
@@ -82,16 +82,23 @@ func (s *SearchModel) Update(msg tea.Msg) (*SearchModel, tea.Cmd) {
 }
 
 func (s SearchModel) View() string {
-	return s.ViewAt(s.Width)
+	return s.ViewAt(s.Width, "")
 }
 
-// ViewAt renders the active search input at a composition-specific width
-// without mutating the text input or its terminal-sized state.
-func (s SearchModel) ViewAt(width int) string {
+// ViewAt renders the active search row at a composition-specific width
+// without mutating the text input: ⌕, the query with a cursor cell, and the
+// match count on the right, all on a Panel fill.
+func (s SearchModel) ViewAt(width int, matches string) string {
 	if !s.Open || width <= 0 || s.Height <= 0 {
 		return ""
 	}
-	return s.Styles.Panel.Width(width).Render(Truncate(s.Input.View(), width))
+	icons := s.Icons.orUnicode()
+	right := []Span{muted(matches), txt(" ")}
+	lead := []Span{txt(" "), sp(icons.Search, ToneAccent), txt(" ")}
+	room := width - spansWidth(lead) - spansWidth(right) - 1
+	spans := append(lead, inputSpans(s.Input.Value(), s.Input.Position(), room, true, s.Input.Placeholder, nil)...)
+	spans = append(append(spans, grow()), right...)
+	return s.Styles.Line(width, FillPanel, spans...)
 }
 
 // FilterTasks applies an optional exact project qualifier plus a fuzzy match
@@ -188,10 +195,10 @@ func fuzzyMatchScore(query, value string) (int, bool) {
 	return score - (len(valueRunes) - len(queryRunes)), true
 }
 
-// SearchSummary is the footer value shown while filtering.
+// SearchSummary is the status-bar value shown while filtering.
 func SearchSummary(total, matches int, query string) string {
 	if strings.TrimSpace(query) == "" {
 		return ""
 	}
-	return fmt.Sprintf("%d/%d matches", matches, total)
+	return fmt.Sprintf("%d of %d match", matches, total)
 }
