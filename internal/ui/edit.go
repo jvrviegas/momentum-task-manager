@@ -8,6 +8,7 @@ import (
 
 	"charm.land/bubbles/v2/textinput"
 	tea "charm.land/bubbletea/v2"
+	"charm.land/lipgloss/v2"
 
 	"github.com/jvrviegas/momentum/internal/domain"
 )
@@ -34,8 +35,13 @@ type EditSubmitMsg struct {
 	Diff   domain.TaskDiff
 }
 
-// EditErrorMsg reports validation without discarding field input.
-type EditErrorMsg struct{ Err error }
+// EditErrorMsg reports validation without discarding field input. Field
+// names the invalid field when HasField is set.
+type EditErrorMsg struct {
+	Err      error
+	Field    EditField
+	HasField bool
+}
 
 // EditModel is a structured six-field task editor.
 type EditModel struct {
@@ -57,6 +63,8 @@ type EditModel struct {
 	Styles          Styles
 	Icons           Icons
 	Err             error
+	ErrField        EditField
+	ErrHasField     bool
 }
 
 // NewEdit creates a closed editor with initialized Bubbles inputs.
@@ -107,10 +115,6 @@ func (e *EditModel) Close() {
 
 func (e *EditModel) SetSize(width, height int) {
 	e.Width, e.Height = width, height
-	contentWidth := ModalContentWidth(width, ModalMaxWidth)
-	for index := range e.Inputs {
-		e.Inputs[index].SetWidth(max(1, contentWidth-18))
-	}
 	e.ensureFieldVisible()
 }
 
@@ -193,6 +197,7 @@ func (e *EditModel) Update(msg tea.Msg) (*EditModel, tea.Cmd) {
 	var cmd tea.Cmd
 	e.Inputs[e.Focused], cmd = e.Inputs[e.Focused].Update(msg)
 	e.Err = nil
+	e.ErrHasField = false
 	e.refreshSuggestions()
 	return e, cmd
 }
@@ -298,12 +303,12 @@ func (e *EditModel) submit() tea.Cmd {
 	after := e.CurrentSnapshot()
 	return func() tea.Msg {
 		if strings.TrimSpace(after.Description) == "" {
-			return EditErrorMsg{Err: fmt.Errorf("description cannot be empty")}
+			return EditErrorMsg{Err: fmt.Errorf("description cannot be empty"), Field: FieldDescription, HasField: true}
 		}
 		switch normalizePriority(after.Priority) {
 		case "", "H", "M", "L":
 		default:
-			return EditErrorMsg{Err: fmt.Errorf("priority must be H, M, L, or empty")}
+			return EditErrorMsg{Err: fmt.Errorf("priority must be H, M, L, or empty"), Field: FieldPriority, HasField: true}
 		}
 		diff := domain.Diff(before, after)
 		return EditSubmitMsg{Before: before, After: after, Diff: diff}
@@ -327,6 +332,7 @@ func (e *EditModel) ApplyMessage(msg tea.Msg) (tea.Msg, bool) {
 	switch message := msg.(type) {
 	case EditErrorMsg:
 		e.Err = message.Err
+		e.ErrField, e.ErrHasField = message.Field, message.HasField
 		return nil, true
 	case EditSubmitMsg:
 		e.Close()
@@ -334,78 +340,6 @@ func (e *EditModel) ApplyMessage(msg tea.Msg) (tea.Msg, bool) {
 	default:
 		return nil, false
 	}
-}
-
-// View renders the modal fields, focused field, changed indicators, and
-// contextual suggestions.
-func (e EditModel) View() string {
-	if !e.Open || e.Width <= 0 || e.Height <= 0 {
-		return ""
-	}
-	contentWidth := ModalContentWidth(e.Width, ModalMaxWidth)
-	contentHeight := ModalContentHeight(e.Height, 0)
-
-	fieldBudget := contentHeight - 2 // title and action footer
-	if e.Err != nil {
-		fieldBudget--
-	}
-	if e.SuggestionsOpen {
-		fieldBudget--
-	}
-	if e.dateFocused() {
-		fieldBudget--
-	}
-	if fieldBudget < 1 {
-		fieldBudget = 1
-	}
-	start, end := e.fieldWindow(fieldBudget)
-	lines := []string{e.Styles.ModalTitle.Render("Edit task")}
-	for index := start; index < end; index++ {
-		field := EditField(index)
-		marker := " "
-		if e.fieldChanged(field) {
-			marker = "*"
-		}
-		if field == e.Focused {
-			marker = selectionMarker(e.Icons)
-		}
-		value := e.Inputs[index].View()
-		line := fmt.Sprintf("%s %-10s %s", marker, e.Styles.FieldLabel.Render(editFieldNames[index]), value)
-		if field == e.Focused {
-			line = e.Styles.Selection.Render(PadRight(Truncate(line, contentWidth), contentWidth))
-		} else {
-			line = Truncate(line, contentWidth)
-		}
-		lines = append(lines, line)
-	}
-	if e.SuggestionsOpen {
-		lines = append(lines, e.renderSuggestions(contentWidth)...)
-	}
-	if e.dateFocused() {
-		guidance := "Date: YYYY-MM-DD HH:MM · Ctrl+←/→ day · Ctrl+↑/↓ 30m"
-		lines = append(lines, e.Styles.Metadata.Render(Truncate(guidance, contentWidth)))
-	}
-	if e.Err != nil {
-		lines = append(lines, e.Styles.Error.Render(Truncate(e.Err.Error(), contentWidth)))
-	}
-	lines = append(lines, e.Styles.ModalAction.Render(Truncate("Tab next · Ctrl+S save · Esc cancel", contentWidth)))
-	return renderBoundedPanel(lines, contentWidth, contentHeight, e.Styles)
-}
-
-func (e EditModel) fieldWindow(budget int) (int, int) {
-	if budget >= len(editFieldNames) {
-		return 0, len(editFieldNames)
-	}
-	start := int(e.Focused) - budget + 1
-	if start < 0 {
-		start = 0
-	}
-	end := start + budget
-	if end > len(editFieldNames) {
-		end = len(editFieldNames)
-		start = end - budget
-	}
-	return start, end
 }
 
 func (e *EditModel) ensureFieldVisible() {
@@ -420,12 +354,165 @@ func (e *EditModel) ensureFieldVisible() {
 	e.Scroll = int(e.Focused)
 }
 
-func (e EditModel) renderSuggestions(width int) []string {
+// View renders the modal fields with the form-field states: • changed with a
+// Muted “was …”, ▌ and a filled input with a cursor cell when focused, and a
+// bold Red ! with the message under the value column on error.
+func (e EditModel) View() string {
+	if !e.Open || e.Width <= 0 || e.Height <= 0 {
+		return ""
+	}
+	icons := e.Icons.orUnicode()
+	width := ModalWidth(EditWidth, e.Width)
+	content := FrameContentWidth(width)
+	narrow := e.Width < NarrowBreakpoint
+	labelWidth := 12
+	if narrow {
+		labelWidth = 10
+	}
+	valueColumn := 2 + labelWidth + 1
+	rows := []FrameRow{{}}
+	focusedRow := 0
+	changed := 0
+	for index := range e.Inputs {
+		field := EditField(index)
+		label := editFieldNames[index]
+		if narrow && field == FieldDescription {
+			label = "Title"
+		}
+		isChanged := e.fieldChanged(field)
+		if isChanged {
+			changed++
+		}
+		marker := txt(" ")
+		if isChanged {
+			marker = sp(icons.Changed, ToneAccent)
+		}
+		fieldError := e.Err != nil && e.ErrHasField && e.ErrField == field
+		if fieldError {
+			marker = sp(icons.Error, ToneRed).bold()
+		}
+		r := FrameRow{}
+		if field == e.Focused {
+			focusedRow = len(rows)
+			input := e.Inputs[index]
+			value := inputSpans(input.Value(), input.Position(), content-valueColumn-1, true, input.Placeholder, nil)
+			for i := range value {
+				value[i].Bg = FillSelection
+			}
+			r.Mark = icons.Selection
+			r.Spans = append([]Span{marker, txt(" "), txt(fmt.Sprintf("%-*s", labelWidth, label)).bold(), {Text: " ", Bg: FillSelection}}, value...)
+			r.Spans = append(r.Spans, Span{Text: " ", Grow: true, Bg: FillSelection})
+		} else {
+			r.Spans = []Span{marker, txt(" "), muted(fmt.Sprintf("%-*s", labelWidth, label)), txt(" ")}
+			r.Spans = append(r.Spans, e.fieldValue(field, icons)...)
+			if isChanged && !narrow {
+				r.Spans = append(r.Spans, muted("   was "+e.beforeValue(field)))
+			}
+		}
+		rows = append(rows, r)
+		if fieldError {
+			for _, line := range WrapText(e.Err.Error(), max(1, content-valueColumn)) {
+				rows = append(rows, row(gap(valueColumn), sp(line, ToneRed)))
+			}
+		}
+		if field == e.Focused {
+			if e.SuggestionsOpen {
+				rows = append(rows, e.suggestionRows(valueColumn, icons)...)
+			}
+			if e.dateFocused() {
+				guide := "YYYY-MM-DD HH:MM " + icons.Dot + " ctrl+←/→ day " + icons.Dot + " ctrl+↑/↓ 30m"
+				if valueColumn+lipgloss.Width(guide) > content {
+					rows = append(rows, row(gap(valueColumn), muted("YYYY-MM-DD HH:MM")))
+					guide = "ctrl+←/→ day " + icons.Dot + " ctrl+↑/↓ 30m"
+				}
+				rows = append(rows, row(gap(valueColumn), muted(guide)))
+			}
+		}
+	}
+	if e.Err != nil && !e.ErrHasField {
+		rows = append(rows, FrameRow{})
+		for _, line := range WrapText(e.Err.Error(), max(1, content-2)) {
+			rows = append(rows, row(sp(icons.Error, ToneRed).bold(), txt(" "), sp(line, ToneRed)))
+		}
+	}
+	var legend []Span
+	if changed > 0 {
+		legend = append(legend, sp(icons.Changed, ToneAccent), muted(" changed"))
+	}
+	if e.Err != nil {
+		if len(legend) > 0 {
+			legend = append(legend, gap(5))
+		}
+		legend = append(legend, sp(icons.Error, ToneRed).bold(), muted(" needs a fix before saving"))
+	}
+	if len(legend) > 0 {
+		rows = append(rows, FrameRow{}, row(legend...))
+	}
+	rows = append(rows, FrameRow{})
+
+	maxRows := ModalMaxRows(e.Height)
+	offset := 0
+	if len(rows) > maxRows {
+		offset = min(max(0, focusedRow-maxRows/2), MaxOffset(len(rows), maxRows))
+	}
+	var context []Span
+	if changed > 0 {
+		context = []Span{sp(icons.Changed, ToneAccent), muted(fmt.Sprintf(" %d changed", changed))}
+	}
+	frame := Frame{
+		Title: "Edit task", Context: context, Rows: rows, Offset: offset, Width: width, MaxRows: maxRows,
+		Keys: []Hint{{"ctrl+s", "save"}, {"tab", "field"}, {"esc", "cancel"}},
+	}
+	return strings.Join(e.Styles.RenderFrame(frame, icons), "\n")
+}
+
+func (e EditModel) fieldValue(field EditField, icons Icons) []Span {
+	value := strings.TrimSpace(e.Inputs[field].Value())
+	if value == "" {
+		return []Span{muted("none")}
+	}
+	switch field {
+	case FieldProject:
+		return []Span{sp("#"+value, ToneCyan)}
+	case FieldPriority:
+		if label, tone, ok := prioritySlot(value, icons); ok {
+			return []Span{sp(strings.Replace(label, " Med", " Medium", 1), tone)}
+		}
+	case FieldTags:
+		return []Span{txt(formatTags(splitTags(value)))}
+	}
+	return []Span{txt(value)}
+}
+
+func (e EditModel) beforeValue(field EditField) string {
+	before := e.Before
+	value := ""
+	switch field {
+	case FieldDescription:
+		value = before.Description
+	case FieldProject:
+		value = before.Project
+	case FieldPriority:
+		value = PriorityLabel(before.Priority)
+	case FieldDue:
+		value = before.Due
+	case FieldScheduled:
+		value = before.Scheduled
+	case FieldTags:
+		value = strings.Join(before.Tags, " ")
+	}
+	if strings.TrimSpace(value) == "" {
+		return "none"
+	}
+	return value
+}
+
+func (e EditModel) suggestionRows(column int, icons Icons) []FrameRow {
 	labels := append([]string(nil), e.Suggestions...)
 	if e.Focused == FieldProject {
 		for i, value := range labels {
 			if label := e.ProjectLabels[value]; label != "" {
-				labels[i] = label + " (" + value + ")"
+				labels[i] = value + "  " + label
 			}
 		}
 	}
@@ -437,15 +524,15 @@ func (e EditModel) renderSuggestions(width int) []string {
 	if start+count > len(labels) {
 		start = len(labels) - count
 	}
-	lines := make([]string, 0, count)
+	rows := make([]FrameRow, 0, count)
 	for index := start; index < start+count; index++ {
-		marker := " "
 		if index == e.SuggestionIndex {
-			marker = selectionMarker(e.Icons)
+			rows = append(rows, FrameRow{Spans: []Span{gap(column), txt(labels[index]).bold()}, Mark: icons.Selection, Bg: FillSelection})
+			continue
 		}
-		lines = append(lines, e.Styles.Metadata.Render(Truncate(fmt.Sprintf("Suggestions %s %s", marker, labels[index]), width)))
+		rows = append(rows, row(gap(column), muted(labels[index])))
 	}
-	return lines
+	return rows
 }
 
 func (e EditModel) fieldChanged(field EditField) bool {
