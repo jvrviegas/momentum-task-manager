@@ -4,7 +4,7 @@
 **Application:** Momentum  
 **Module path:** `github.com/jvrviegas/momentum`  
 **Target directory:** `/home/joaovvr/Projects/Personal/momentum`  
-**Last updated:** 2026-09-16
+**Last updated:** 2026-10-02
 
 ## 1. Product Summary
 
@@ -75,13 +75,16 @@ A scheduled date before today does not make a task overdue. Overdue is based on 
 - **ROW-01:** A row shows completion state, description, project badge, relevant due/scheduled value, priority badge, and active-task indicator.
 - **ROW-02:** UUID, numeric ID, tags, raw urgency, recurrence, dependencies, and annotations are hidden from the default row.
 - **ROW-03:** Color is never the only indication of state.
-- **ROW-04:** Selected rows use a full-row background treatment.
+- **ROW-04:** Selected rows use three cues: a `▌` gutter on both lines (ASCII `>` on the first), the Selection fill, and a bold title.
+- **ROW-05:** Comfortable rows are two lines. Line 1 is gutter, state glyph, title, and a right-edge 6-cell slot (priority, or completion time in Completed). Line 2 starts at the title column with `Active · #project · due or scheduled`, joined by ` · `, and drops parts in a fixed order (project, then Active/scheduled, then the overdue phrase last) instead of wrapping. Below 50 columns a row is one line with a trailing `!` when overdue.
 
 Example:
 
 ```text
-□ Finish API proposal    #work.client    Today 17:00    H
-▶ Review pull request    #work
+▌ ▶ Send Q3 invoice to Acme Corp                      ↑ High
+▌   Active · #work.client.acme · Due Today 17:00
+  □ Renew the TLS certificate                          ↑ High
+    #ops.infra · ! Overdue · Due Sep 28 10:00
 ```
 
 ### Quick add
@@ -187,28 +190,33 @@ Editable fields are Description, Project, Priority, Due, Scheduled, and Tags. Pr
 
 ### Empty states
 
+Empty states sit at the title column: what would appear here and the keys that get you somewhere.
+
 Inbox:
 
 ```text
-No pending tasks
-c or Ctrl+K to capture something
+▱ No pending tasks
+  Tasks that are not due or scheduled today land here.
+  [c] capture a task
 ```
 
 Today:
 
 ```text
-Nothing scheduled for today
-Your day is clear.
-Ctrl+K to add a task
+◷ Nothing due today
+  Overdue, due and scheduled tasks land here.
+  [c] capture a task    [1] open Inbox · N waiting
 ```
 
 Completed:
 
 ```text
-No recently completed tasks
-Tasks completed in the last 30 days appear here.
-Ctrl+K to add a task
+✓ No recently completed tasks
+  Tasks completed in the last 30 days appear here.
+  [c] capture a task    [2] open Today
 ```
+
+Loading draws `░` skeleton rows at the real row positions and omits counts until they are known. A load failure shows `! Could not load tasks`, states that no data changed, shows Taskwarrior stderr in a Panel block, and offers `r` to retry.
 
 ## 5. Keyboard and Mouse Map
 
@@ -240,47 +248,41 @@ Mouse support is intentionally limited:
 - Mouse wheel scrolls the task list.
 - No drag-and-drop or hover-only actions.
 
-Keybindings are fixed in v1. The help screen must be generated from the application's keybinding definitions so it cannot drift from behavior.
+Keybindings are fixed in v1. The help screen must be generated from the application's keybinding definitions so it cannot drift from behavior. It lays them out as Navigate, Tasks and App columns plus a Mouse section.
 
 ## 6. Visual Design
 
-Momentum uses a minimal task-app aesthetic instead of a dense terminal table:
+Momentum's visual language is built only from what a terminal can draw: foreground, background, bold, underline and reverse on a monospace grid. The source of truth is the "Momentum TUI redesign" canvas; this section summarizes it.
 
-- Borderless sidebar with highlighted active view.
-- Flexible task list with generous horizontal spacing.
-- Subtle modal and panel borders.
-- Colored project badges.
-- Restrained priority colors.
-- Dimmed secondary metadata.
-- Full-row selection background.
-- No visible raw urgency score in rows.
+- **Hierarchy comes from column position first** (section at column 0, state glyph at 2, title and metadata at 4), weight second, color third.
+- **Two edges, two jobs.** The left edge reads as an outline; the right edge is a fixed 6-cell slot (`↑ High`, `→ Med`, `↓ Low`, or the completion time in Completed).
+- **Section headers** are `Title  count  ─────`: Overdue in bold Red, Inbox projects in bold Cyan with `#`, No project in bold Muted, otherwise bold Text. One blank row precedes each header except the first, removed below 50 columns. A list that overflows reports `↓ n more` on its last row.
+- **Modals are framed, not listed.** Title and context sit in the top border, keys in the bottom border, a scroll thumb `┃` and `a-b of n` show position, every cell has a Panel fill, and the view behind is redrawn in one Dim color with its fills removed. Destructive frames use a Red border and a `! Title`.
+- **Forms** use a 12-cell label column: `•` marks a changed field with a Muted `was …`, the focused field gets `▌`, a bold label and a filled input with a reverse-video cursor cell, and an invalid value swaps `•` for a bold Red `!` with the message under the value column.
+- **Quick capture** underlines parsed trigger tokens in their field color and shows a trigger guide that suggestions replace while a trigger is active. It sits at row 5 so the list stays visible.
+- **Footer** is a hints row of key chips plus a full-width Panel status bar: the message on the left (with an undo countdown bar during the grace window) and the sync state on the right. Each sync state has a glyph and a word (`✓` ready, `↻` syncing, `•` local changes, `!` failed, `·` local only), so nothing relies on color.
+- **Faint text, strikethrough, drop shadows and translucent backdrops are not used**; Border and Dim are explicit colors.
 
-The default palette is Tokyo Night-inspired:
-
-- dark navy surfaces
-- blue selection
-- cyan project badges
-- red overdue state
-- orange high priority
-- muted slate metadata
+The default palette is Tokyo Night-inspired. Tokens are Surface (never painted, so transparent terminals work), Panel, Selection, Text, Muted, Muted-on-fill, Accent, Cyan, Red, High, Medium, Low, Border and Dim. Light Muted, Cyan, Red, High and Medium are darkened to clear 4.5:1 on Panel and Selection.
 
 Lip Gloss background detection selects a dark or light variant when `theme = "auto"`. Users can override it.
 
 Icon modes:
 
 - `unicode` is the default and requires no Nerd Font.
-- `nerd` is an explicit opt-in via config or `MOMENTUM_ICONS=nerd`.
-- `ascii` supports restricted terminals.
+- `nerd` is an explicit opt-in via config or `MOMENTUM_ICONS=nerd`. It swaps only icons (Font Awesome codepoints from Nerd Fonts; use a "Mono" variant); chrome such as gutters, rules and borders stays box-drawing.
+- `ascii` supports restricted terminals with printable ASCII only: `[ ]`/`[x]`/`[>]` state, `>` selection, `^ = v` priority, `+ - |` chrome, and no navigation icons.
 
 Automatic Nerd Font detection is not attempted because terminals do not reliably expose the active font.
 
 Responsive behavior:
 
-- At normal widths, render a fixed-width sidebar and flexible task list.
-- Below approximately 80 columns, replace the sidebar with a compact top tab bar.
-- Below approximately 50 columns, hide nonessential row metadata before truncating descriptions.
-- Modals size relative to the terminal.
-- Show a minimum-size warning only when no usable layout can be rendered.
+- **Wide+ (≥ 140 columns):** Wide plus a 44-column read-only details pane for the selected task.
+- **Wide (104–139):** 24-column rail, `│` divider and a 2-column gutter; the main column starts at column 27, keeps a 2-column right margin, and has a title row and rule.
+- **Compact (50–103):** a tab row with `━` under the active tab replaces the rail; two-line rows.
+- **Narrow (28–49):** inactive tabs collapse to icon and count; one-line rows, no section gaps, and a single status row. Below 40 columns only the active tab shows, with `• · · ·` position dots.
+- Modals are min(spec, width − 4) wide (1-cell margins below 50 columns) and scroll rather than shrink.
+- Below 28 × 8 Momentum shows the current and needed size and how to quit.
 
 Exact breakpoints should be centralized constants and adjusted during manual UAT.
 
@@ -495,13 +497,12 @@ Taskwarrior cannot undo changes once they have been synchronized. Therefore:
 
 ### Shutdown
 
-When no app-originated unsynced changes exist, `q` quits immediately. Otherwise display:
+When no app-originated unsynced changes exist, `q` quits immediately. Otherwise display a "Quit Momentum?" frame:
 
 ```text
-Unsynced changes
-[s] Sync and quit
-[q] Quit without syncing
-[Esc] Cancel
+• Unsynced changes
+[s] Sync and quit     [q] Quit without syncing
+esc Cancel
 ```
 
 Sync-and-quit has a finite timeout. Quitting without sync leaves changes in Taskwarrior and uploads them on the next Momentum launch. Forced process termination cannot guarantee sync.
@@ -511,7 +512,7 @@ Sync-and-quit has a finite timeout. Quitting without sync leaves changes in Task
 When Taskwarrior sync is not configured:
 
 - Momentum remains fully functional.
-- Footer shows `Local only`.
+- The status bar shows `· Local only`.
 - `momentum doctor` reports missing settings without printing secret values.
 - `[sync].enabled = false` disables checks and suppresses the status warning.
 
