@@ -132,11 +132,14 @@ func (m *Model) refreshProjectSuggestions() {
 	m.Editor.SetProjectCatalog(projects)
 }
 
+// navigationItems feeds the rail and tabs. Counts are omitted until known
+// rather than shown as 0; Completed shows its count in the header instead.
 func (m *Model) navigationItems() []ui.NavItem {
+	unknown := m.Mode == ModeLoading || (m.Err != nil && len(m.Tasks) == 0)
 	return []ui.NavItem{
-		{Key: string(ViewInbox), Label: "Inbox", Count: len(m.Views.Inbox), Icon: m.Icons.Inbox, Group: "Views"},
-		{Key: string(ViewToday), Label: "Today", Count: len(m.Views.Today), Icon: m.Icons.Today, Group: "Views"},
-		{Key: string(ViewCompleted), Label: "Completed", Count: len(m.Views.Completed), Icon: m.Icons.Completed, Group: "Views"},
+		{Key: string(ViewInbox), Label: "Inbox", Count: len(m.Views.Inbox), Icon: m.Icons.Inbox, HideCount: unknown, Group: "Views"},
+		{Key: string(ViewToday), Label: "Today", Count: len(m.Views.Today), Icon: m.Icons.Today, HideCount: unknown, Group: "Views"},
+		{Key: string(ViewCompleted), Label: "Completed", Icon: m.Icons.CompletedView, HideCount: true, Group: "Views"},
 		{Key: string(ViewSettings), Label: "Settings", Icon: m.Icons.Settings, HideCount: true, Group: "Manage"},
 	}
 }
