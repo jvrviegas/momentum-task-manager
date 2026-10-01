@@ -1,6 +1,7 @@
 package ui
 
 import (
+	"reflect"
 	"strings"
 	"testing"
 
@@ -22,8 +23,29 @@ func TestThemeModesResolveDeterministically(t *testing.T) {
 func TestStylesUsePaletteColors(t *testing.T) {
 	theme := ResolveTheme(config.ThemeDark, true)
 	styles := NewStyles(theme)
-	if styles.Title.GetForeground() == nil || styles.Project.GetForeground() == nil || styles.Selection.GetBackground() == nil {
+	if styles.Theme != theme || styles.tone(ToneMuted, false) == nil || styles.fill(FillSelection) == nil {
 		t.Fatal("shared styles did not receive palette colors")
+	}
+}
+
+func TestPaletteCarriesFillAndBackdropTokens(t *testing.T) {
+	dark := ResolveTheme(config.ThemeDark, true)
+	light := ResolveTheme(config.ThemeLight, true)
+	if dark.MutedFill != "#959ec8" || dark.Dim != "#4a5170" || light.Dim != "#b4bacb" {
+		t.Fatalf("missing new tokens: dark=%#v light=%#v", dark, light)
+	}
+	// Light tokens are darkened to clear 4.5:1 on Panel and Selection.
+	if light.Muted != "#5a6180" || light.Cyan != "#0b6b7d" || light.Overdue != "#b03049" || light.High != "#9a4d00" || light.Medium != "#7a5800" {
+		t.Fatalf("light palette=%#v", light)
+	}
+}
+
+func TestMutedTextSwitchesToMutedFillOnFills(t *testing.T) {
+	styles := NewStyles(ResolveTheme(config.ThemeDark, true))
+	plain := styles.Line(4, FillNone, muted("meta"))
+	filled := styles.Line(4, FillSelection, muted("meta"))
+	if plain == filled || !strings.Contains(filled, "meta") {
+		t.Fatalf("plain=%q filled=%q", plain, filled)
 	}
 }
 
@@ -34,8 +56,23 @@ func TestIconModesHaveDistinctSafeSets(t *testing.T) {
 	if unicodeSet.Pending == asciiSet.Pending || nerdSet.Pending == unicodeSet.Pending || asciiSet.Search != "/" {
 		t.Fatalf("icon modes not distinct: %#v %#v %#v", unicodeSet, nerdSet, asciiSet)
 	}
-	if strings.Contains(asciiSet.Pending, "□") {
-		t.Fatal("ascii set contains unicode glyph")
+	values := reflect.ValueOf(asciiSet)
+	for index := 0; index < values.NumField(); index++ {
+		value, ok := values.Field(index).Interface().(string)
+		if !ok {
+			continue
+		}
+		for _, r := range value {
+			if r > 0x7e || r < 0x20 {
+				t.Fatalf("ascii %s=%q is not printable ASCII", values.Type().Field(index).Name, value)
+			}
+		}
+	}
+	if asciiSet.Inbox != "" || asciiSet.Active != "[>]" || asciiSet.SelectionCont != " " {
+		t.Fatalf("ascii navigation/state glyphs=%#v", asciiSet)
+	}
+	if nerdSet.Rule != unicodeSet.Rule || nerdSet.Selection != unicodeSet.Selection || nerdSet.CornerTL != unicodeSet.CornerTL {
+		t.Fatal("nerd mode must keep unicode chrome")
 	}
 }
 
@@ -47,7 +84,7 @@ func TestUnknownIconModeFallsBackToUnicode(t *testing.T) {
 
 func TestNewStylesCanRender(t *testing.T) {
 	styles := NewStyles(ResolveTheme(config.ThemeDark, true))
-	if got := styles.Title.Render("Momentum"); got == "" || !strings.Contains(got, "Momentum") {
+	if got := styles.Line(12, FillNone, txt("Momentum").bold()); got == "" || !strings.Contains(got, "Momentum") {
 		t.Fatalf("rendered title=%q", got)
 	}
 }
