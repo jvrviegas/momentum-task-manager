@@ -53,6 +53,7 @@ func fixtureComponentView(width, height int, state string) string {
 		details := NewDetails(styles)
 		details.SetSize(width, height)
 		details.OpenTask(task)
+		details.Now = now
 		return details.View()
 	case "help":
 		help := NewHelp(styles)
