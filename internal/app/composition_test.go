@@ -67,8 +67,8 @@ func TestNarrowViewHidesRowMetadata(t *testing.T) {
 
 func TestMinimumViewShowsWarning(t *testing.T) {
 	model := readyCompositionModel(20, 5)
-	content := model.View().Content
-	if !strings.Contains(content, "Terminal too small") {
+	content := sanitizeRender(model.View().Content)
+	if !strings.Contains(content, "Terminal too small") || !strings.Contains(content, "20 x 5") || !strings.Contains(content, "28 x 8") {
 		t.Fatalf("content=%q", content)
 	}
 }
@@ -104,25 +104,21 @@ func TestTodayCompositionKeepsSectionOrderAndNoDuplicate(t *testing.T) {
 func TestQuickAddOverlayIsCenteredWithCommandHints(t *testing.T) {
 	model := readyCompositionModel(100, 30)
 	model.OpenQuickAdd()
-	content := model.View().Content
-	for _, want := range []string{"Quick capture", "#project", "!priority", "@due", ">scheduled", "+tag"} {
+	content := sanitizeRender(model.View().Content)
+	for _, want := range []string{"Quick capture", "TRIGGERS", "# project", "! priority", "@ due", "> scheduled", "+ tag"} {
 		if !strings.Contains(content, want) {
 			t.Fatalf("quick capture missing %q: %q", want, content)
 		}
 	}
+	// Quick capture sits at row 5 so the list stays visible below it, and is
+	// centred horizontally over the dimmed view.
 	lines := strings.Split(content, "\n")
-	if len(lines) == 0 || strings.TrimSpace(lines[0]) != "" {
-		t.Fatalf("quick capture is not vertically centered: %q", content)
+	if len(lines) < 6 || !strings.Contains(lines[5], "Quick capture") {
+		t.Fatalf("quick capture is not at row 5: %q", content)
 	}
-	titleLine := ""
-	for _, line := range lines {
-		if strings.Contains(line, "Quick capture") {
-			titleLine = line
-			break
-		}
-	}
-	if titleLine == "" || !strings.HasPrefix(titleLine, " ") {
-		t.Fatalf("quick capture is not horizontally centered: %q", content)
+	left := strings.Index(lines[5], "╭")
+	if left <= 0 || lipgloss.Width(lines[5][:left]) != (100-78)/2 {
+		t.Fatalf("quick capture is not horizontally centered: %q", lines[5])
 	}
 }
 
@@ -135,7 +131,7 @@ func TestEditDetailsAndHelpOverlaysCompose(t *testing.T) {
 	model.Overlay = OverlayHelp
 	model.Help.OpenHelp()
 	model.Help.SetSize(100, 30)
-	if content := model.View().Content; !strings.Contains(content, "Keyboard shortcuts") {
+	if content := sanitizeRender(model.View().Content); !strings.Contains(content, "╭─ Keys") || !strings.Contains(content, "NAVIGATE") {
 		t.Fatalf("help=%q", content)
 	}
 }
@@ -144,8 +140,8 @@ func TestSearchFiltersCurrentViewAndReportsMatches(t *testing.T) {
 	model := readyCompositionModel(100, 30)
 	model.Search.Active = true
 	model.Search.Query = "scheduled"
-	content := model.View().Content
-	if !strings.Contains(content, "Scheduled task") || strings.Contains(content, "Overdue task") || !strings.Contains(content, "1/3 matches") {
+	content := sanitizeRender(model.View().Content)
+	if !strings.Contains(content, "Scheduled task") || strings.Contains(content, "Overdue task") || !strings.Contains(content, "1 of 3 match") {
 		t.Fatalf("search content=%q", content)
 	}
 }
@@ -155,12 +151,14 @@ func TestMouseClickSelectsTasksAndSidebarViews(t *testing.T) {
 	model.ActiveView = ViewInbox
 	model.Views.Today = nil
 	model.Views.Inbox = model.Tasks
-	model.Update(tea.MouseClickMsg{X: 5, Y: 2, Button: tea.MouseLeft})
+	// Rail rows: name, blank, VIEWS, Inbox, Today.
+	model.Update(tea.MouseClickMsg{X: 5, Y: 4, Button: tea.MouseLeft})
 	if model.ActiveView != ViewToday {
 		t.Fatalf("sidebar click active=%s", model.ActiveView)
 	}
 	model.ActiveView = ViewInbox
-	model.Update(tea.MouseClickMsg{X: 40, Y: 3, Button: tea.MouseLeft})
+	// Body row 3 is the #work heading; row 4 is its first task.
+	model.Update(tea.MouseClickMsg{X: 40, Y: 4, Button: tea.MouseLeft})
 	if model.Selected[ViewInbox] == "" {
 		t.Fatalf("task click did not select: %#v", model.Selected)
 	}
