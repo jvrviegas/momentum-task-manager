@@ -45,15 +45,15 @@ func saveIntent(t *testing.T, cmd tea.Cmd) ProjectSettingsSaveMsg {
 
 func TestProjectSettingsRendersConfiguredHierarchyAndEmptyState(t *testing.T) {
 	model := testProjectSettings()
-	view := model.View()
-	for _, want := range []string{"Settings / Projects", "Work", "Work → Client", "work.client", "[a] add", "[e] edit", "[d] remove"} {
+	view := sanitizeComponentRender(model.View())
+	for _, want := range []string{"Settings / Projects", "3 projects", "Work", "└ Client", "#work.client", "a add", "e edit", "d remove"} {
 		if !strings.Contains(view, want) {
 			t.Errorf("view missing %q: %s", want, view)
 		}
 	}
 
 	model.OpenProjects(nil)
-	view = model.View()
+	view = sanitizeComponentRender(model.View())
 	if !strings.Contains(view, "No configured projects") || !strings.Contains(view, "a to add") {
 		t.Fatalf("empty view=%s", view)
 	}
@@ -70,7 +70,7 @@ func TestProjectSettingsKeepsSelectedLongCatalogEntryVisible(t *testing.T) {
 	for i := 0; i < 15; i++ {
 		model.Update(projectSettingsKey("down"))
 	}
-	view := model.View()
+	view := sanitizeComponentRender(model.View())
 	if !strings.Contains(view, "Project P") {
 		t.Fatalf("selected entry hidden: %s", view)
 	}
@@ -216,7 +216,7 @@ func TestProjectSettingsSupportsResponsiveWidths(t *testing.T) {
 	model := testProjectSettings()
 	for _, size := range [][2]int{{120, 30}, {79, 20}, {49, 12}, {28, 8}, {0, 0}} {
 		model.SetSize(size[0], size[1])
-		view := model.View()
+		view := sanitizeComponentRender(model.View())
 		if size[0] == 0 || size[1] == 0 {
 			if view != "" {
 				t.Fatalf("size=%v view=%q", size, view)
