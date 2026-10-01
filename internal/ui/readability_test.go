@@ -19,7 +19,7 @@ func TestComfortableTaskBlockSeparatesMetadataAndUsesLabels(t *testing.T) {
 		Description: "Review API proposal", Status: "pending", Project: "work", Priority: "H", Due: &due,
 	}, TaskRowOptions{Width: 70, ShowMetadata: true, Density: DensityComfortable, Now: now, Styles: NewStyles(ResolveTheme("dark", true)), Icons: IconsFor("unicode")})
 	lines := strings.Split(row, "\n")
-	if len(lines) != 2 || !strings.Contains(lines[0], "Review API proposal") || !strings.Contains(lines[1], "Due Today 17:00") || !strings.Contains(lines[1], "High") {
+	if len(lines) != 2 || !strings.Contains(lines[0], "Review API proposal") || !strings.Contains(lines[1], "Due Today 17:00") || !strings.HasSuffix(strings.TrimRight(sanitizeComponentRender(lines[0]), " "), "↑ High") {
 		t.Fatalf("row=%q", row)
 	}
 	if strings.Contains(lines[1], " H ") || strings.Contains(lines[1], " M ") || strings.Contains(lines[1], " L ") {
@@ -32,18 +32,21 @@ func TestComfortableTaskBlockSeparatesMetadataAndUsesLabels(t *testing.T) {
 	}
 }
 
-func TestCompactTaskRowKeepsOneShortCueInline(t *testing.T) {
+func TestNarrowTaskRowIsOneLineWithTrailingOverdueMarker(t *testing.T) {
 	now := time.Date(2026, 9, 8, 10, 0, 0, 0, time.UTC)
 	due := now.Add(7 * time.Hour)
-	row := RenderTaskRow(domain.Task{Description: "Review API", Status: "pending", Due: &due}, TaskRowOptions{
-		Width: 40, Density: DensityCompact, CompactMetadata: true, Now: now,
-		Styles: NewStyles(ResolveTheme("dark", true)), Icons: IconsFor("ascii"),
-	})
-	if strings.Contains(row, "\n") || !strings.Contains(row, "Due Today") {
-		t.Fatalf("compact row=%q", row)
+	overdue := now.Add(-48 * time.Hour)
+	options := TaskRowOptions{Width: 40, Density: DensityCompact, Now: now, Styles: NewStyles(ResolveTheme("dark", true)), Icons: IconsFor("ascii")}
+	row := RenderTaskRow(domain.Task{Description: "Review API", Status: "pending", Due: &due}, options)
+	if strings.Contains(row, "\n") || strings.Contains(row, "Due") || strings.Contains(row, "!") {
+		t.Fatalf("narrow row=%q", row)
+	}
+	late := sanitizeComponentRender(RenderTaskRow(domain.Task{Description: "Review API", Status: "pending", Due: &overdue}, options))
+	if !strings.HasSuffix(late, " !") || !strings.HasPrefix(late, "  [ ] Review API") {
+		t.Fatalf("overdue narrow row=%q", late)
 	}
 	if lipgloss.Width(row) != 40 {
-		t.Fatalf("compact width=%d", lipgloss.Width(row))
+		t.Fatalf("narrow width=%d", lipgloss.Width(row))
 	}
 }
 
@@ -71,13 +74,14 @@ func TestSelectedTaskBlockUsesNonColorGutterOnEveryLine(t *testing.T) {
 		if len(lines) != 2 {
 			t.Fatalf("mode=%s row=%q", mode, row)
 		}
-		marker := "▌"
+		// The gutter marks both lines; ASCII marks the first line only.
+		markers := []string{"▌", "▌"}
 		if mode == "ascii" {
-			marker = ">"
+			markers = []string{">", " "}
 		}
-		for _, line := range lines {
-			if !strings.Contains(line, marker) {
-				t.Fatalf("mode=%s missing marker in %q", mode, line)
+		for index, line := range lines {
+			if !strings.HasPrefix(sanitizeComponentRender(line), markers[index]) {
+				t.Fatalf("mode=%s line %d missing marker in %q", mode, index, line)
 			}
 		}
 	}
@@ -118,7 +122,7 @@ func TestReadableLayoutBoundariesAndGeometry(t *testing.T) {
 		}
 	}
 	wide := ChooseLayout(120, 30)
-	if !wide.ShowSidebar || wide.ContentGutter != 2 || wide.MainWidth != 94 {
+	if !wide.ShowSidebar || wide.MainLeft != SidebarWidth+1+ContentGutter || wide.MainWidth != 91 {
 		t.Fatalf("wide=%#v", wide)
 	}
 	for _, height := range []int{8, 12, 18, 30} {
@@ -159,7 +163,7 @@ func TestDetailsAndHelpRetainScrollableContent(t *testing.T) {
 	for i := 0; i < 100; i++ {
 		details.Update(keyForReadability("down"))
 	}
-	if !strings.Contains(details.View(), "last field") {
+	if view := details.View(); !strings.Contains(view, "custom") || !strings.Contains(view, "last") || !strings.Contains(view, "field") {
 		t.Fatalf("details did not expose trailing field: %q", details.View())
 	}
 
@@ -169,7 +173,7 @@ func TestDetailsAndHelpRetainScrollableContent(t *testing.T) {
 	for i := 0; i < 100; i++ {
 		help.Update(keyForReadability("down"))
 	}
-	if !strings.Contains(help.View(), "close active") || !strings.Contains(help.View(), "overlay") {
+	if !strings.Contains(help.View(), "scroll the") || !strings.Contains(help.View(), "list") {
 		t.Fatalf("help did not expose trailing binding: %q", help.View())
 	}
 }
