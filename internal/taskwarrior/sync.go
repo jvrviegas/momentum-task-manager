@@ -18,7 +18,7 @@ func (c *CommandClient) Sync(ctx context.Context) (SyncResult, error) {
 // SyncConfigured reports whether all three Taskwarrior sync settings are
 // present without returning their values.
 func (c *CommandClient) SyncConfigured(ctx context.Context) (bool, error) {
-	for _, key := range []string{"sync.server.url", "sync.server.client_id", "sync.encryption_secret"} {
+	for _, key := range []string{"rc.sync.server.url", "rc.sync.server.client_id", "rc.sync.encryption_secret"} {
 		result, err := c.run(ctx, "sync-config", "_get", key)
 		if err != nil {
 			var commandErr *CommandError
