@@ -695,6 +695,16 @@ This extends the original stateless design through Momentum configuration and on
 
 The Settings → Projects implementation is complete in commits `04bc15c` through `019256c`, with the final config-snapshot correction recorded in the T11 commit. It provides in-app catalog editing, lossless active-config persistence, explicit rename preview/confirmation, active-context guarded migration, partial-result reporting, and migration-safe sync/undo lifecycle. Requirements and accepted policies remain in [docs/spec/settings-projects.md](docs/spec/settings-projects.md) and [ADR 0001](docs/adr/0001-project-settings-and-pending-task-renames.md); acceptance evidence is in [docs/UAT.md](docs/UAT.md).
 
+## Delivered follow-up — terminal UI redesign
+
+The UI follows the "Momentum TUI redesign" canvas (foundations, glyph vocabulary, terminal frames and component specs); `DESIGN.md` §6 summarizes it. Rendering moved to a span painter (`internal/ui/span.go`) and one modal frame plus dimmed-backdrop compositor (`internal/ui/frame.go`) shared by every overlay. Departures from the canvas, made because the canvas marks them as proposals or placeholders, or because Momentum has no matching feature:
+
+- **Not built:** Plan today and its capacity meter, task estimates (`~`), recurrence (`^`) and natural-language review in quick capture, the Theme/Icons/Daily-capacity settings rows, sync age ("2m ago"), per-suggestion task counts and the version in the help title. None of these exist in the domain today.
+- **Keys:** the canvas's placeholder keys are replaced by the existing keymap (`space` completes, `ctrl+s` saves edits, `tab` moves between fields, `s`/`q`/`esc` in the quit prompt). The quit prompt still appears for unsynced changes, as before.
+- **Copy:** undo is offered for the configured `mutation_delay` rather than a fixed 5 seconds; "Local only" is kept instead of "Sync off"; Today has no Planned section.
+- **Navigation:** the Completed count moved from the rail to the header ("N in the last 30 days"); counts are hidden until tasks load.
+- **Additions for small terminals:** the rename preview scrolls with `↑`/`↓`, and short confirms drop blank and explanatory rows before their choices.
+
 ## Completion Log
 
 | Date | Task | Commit | Verification | Notes |
