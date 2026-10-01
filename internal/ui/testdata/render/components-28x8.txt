@@ -1,72 +1,73 @@
 === task-comfortable ===
-▌ □ Renew the domain re…
-▌   #personal.admin  · …
+▌ □ Renew the d…  ↑ High
+▌   Due Today 17:00
 
 === task-compact ===
-[ ] Renew the domain re…
+  [ ] Renew the domain …
 
 === details ===
-╭──────────────────────╮
-│Task details          │
-│CORE                  │
-│Description: Renew the│
-│↑/↓ scroll · 1/31 · e…│
-╰──────────────────────╯
+╭─ Task details ─────────╮
+│                        ┃
+│   Renew the domain     │
+│   registration before  │
+│   the next billing     │
+╰─ ↑↓ scroll  1-4 of 35 ─╯
 
 === help ===
-╭──────────────────────╮
-│Keyboard shortcuts    │
-│Navigation            │
-│j / k / ↑ / ↓ move    │
-│↑/↓ scroll · 1/44 · E…│
-╰──────────────────────╯
+╭─ Keys ─────────────────╮
+│                        ┃
+│   NAVIGATE             │
+│   ↑ k       up         │
+│   ↓ j       down       │
+╰─ esc close  1-4 of 41 ─╯
 
 === quick-capture ===
-╭──────────────────────╮
-│Quick capture         │
-│Task                  │
-│> Renew #             │
-│Enter add task · Esc …│
-╰──────────────────────╯
+╭─ Quick capture ────────╮
+│                        │
+│   › Renew #            │
+│                        │
+│   PROJECTS           2 │
+╰─ ↑↓ select ────────────╯
 
 === edit ===
-╭──────────────────────╮
-│Edit task             │
-│  Description ndow    │
-│▌ Project dmin        │
-│Tab next · Ctrl+S sav…│
-╰──────────────────────╯
+╭─ Edit task ────────────╮
+│                        ┃
+│     Title      Renew … ┃
+│ ▌   Project    admin   │
+│     Priority   ↑ High  │
+╰───────────── 1-4 of 8 ─╯
 
 === confirm ===
-╭──────────────────────╮
-│Delete task           │
-│cannot be undone after│
-│synchronization.      │
-│[y] Yes   [n] No   [E…│
-╰──────────────────────╯
+╭─ Delete task ──────────╮
+│   Delete the selected  │
+│   undone after         │
+│   synchronization.     │
+│    y  yes      n  no   │
+╰─ esc cancel ───────────╯
 
 === quit ===
-╭──────────────────────╮
-│Unsynced changes      │
-│[s] Sync and quit     │
-│[q] Quit without sync…│
-│[Esc] Cancel          │
-╰──────────────────────╯
+╭─ Quit Momentum? ───────╮
+│   • Unsynced changes   │
+│   the next sync.       │
+│    s  Sync and quit    │
+│    q  Quit without sy… │
+╰─ esc Cancel ───────────╯
 
 === settings-list ===
-╭──────────────────────╮
-│Settings / Projects   │
-│[a] add   [e] edit   …│
-│▸ Work  (work)        │
-│Esc to close          │
-╰──────────────────────╯
+╭─ Settings / Projects ────╮
+│                          │
+│   PROJECT          VALUE │
+│ ▌ Work             #work │
+│   └ Client  #work.client │
+│                          │
+╰─ a add   e edit ─────────╯
 
 === settings-editor ===
-╭──────────────────────╮
-│Edit project          │
-│> Name k              │
-│  Value k             │
-│  Parent Pa           │
-│Full value: work      │
-│Tab next   Ctrl+S sav…│
-╰──────────────────────╯
+╭─ Edit project ───────────╮
+│                          ┃
+│ ▌   Name         Work    ┃
+│     Value        work    ┃
+│     Parent       none    ┃
+│                          ┃
+│     Full value   #work   │
+╰─ tab next ──── 1-6 of 7 ─╯
