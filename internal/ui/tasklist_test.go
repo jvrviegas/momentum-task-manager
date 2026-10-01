@@ -38,10 +38,10 @@ func TestRenderTaskRowIncludesSupportedDefaultMetadata(t *testing.T) {
 func TestRenderTaskRowUsesActiveAndCompletedIndicators(t *testing.T) {
 	start := time.Now()
 	options := TaskRowOptions{Width: 30, Now: time.Now(), Styles: NewStyles(ResolveTheme("dark", true)), Icons: IconsFor("ascii")}
-	if got := RenderTaskRow(domain.Task{Description: "active", Status: "pending", Start: &start}, options); !strings.HasPrefix(got, "> ") {
+	if got := sanitizeComponentRender(RenderTaskRow(domain.Task{Description: "active", Status: "pending", Start: &start}, options)); !strings.HasPrefix(got, "  [>] active") {
 		t.Fatalf("active row=%q", got)
 	}
-	if got := RenderTaskRow(domain.Task{Description: "done", Status: "completed"}, options); !strings.HasPrefix(got, "[x]") {
+	if got := sanitizeComponentRender(RenderTaskRow(domain.Task{Description: "done", Status: "completed"}, options)); !strings.HasPrefix(got, "  [x] done") {
 		t.Fatalf("completed row=%q", got)
 	}
 }
