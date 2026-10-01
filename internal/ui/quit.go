@@ -1,6 +1,7 @@
 package ui
 
 import (
+	"fmt"
 	"strings"
 
 	tea "charm.land/bubbletea/v2"
@@ -22,6 +23,7 @@ type QuitModel struct {
 	Width  int
 	Height int
 	Styles Styles
+	Icons  Icons
 }
 
 func NewQuit(styles Styles) QuitModel          { return QuitModel{Styles: styles} }
@@ -56,29 +58,39 @@ func (q QuitModel) View() string {
 	if !q.Open || q.Width <= 0 || q.Height <= 0 {
 		return ""
 	}
-	contentWidth := ModalContentWidth(q.Width, ModalMaxWidth)
-	contentHeight := ModalContentHeight(q.Height, 0)
-	lines := []string{
-		q.Styles.ModalTitle.Render("Unsynced changes"),
-		q.Styles.ModalBody.Render("Your local changes have not been synchronized."),
-		q.Styles.ModalAction.Render("[s] Sync and quit"),
-		q.Styles.ModalAction.Render("[q] Quit without syncing"),
-		q.Styles.ModalAction.Render("[Esc] Cancel"),
+	icons := q.Icons.orUnicode()
+	width := ModalWidth(QuitWidth, q.Width)
+	rows := []FrameRow{{}, row(sp(icons.Local, ToneMedium), txt(" Unsynced changes"))}
+	for _, line := range WrapText("Quitting without syncing keeps them in Taskwarrior for the next sync.", FrameContentWidth(width)) {
+		rows = append(rows, row(muted(line)))
 	}
-	return renderBoundedPanel(lines, contentWidth, contentHeight, q.Styles)
+	rows = append(rows, FrameRow{})
+	rows = append(rows, chipRows(FrameContentWidth(width), []Span{chip("s", FillAccent), txt(" Sync and quit")}, []Span{chip("q", FillSelection), muted(" Quit without syncing")})...)
+	rows = append(rows, FrameRow{})
+	frame := Frame{Title: "Quit Momentum?", Rows: fitRows(rows, ModalMaxRows(q.Height)), Width: width, MaxRows: ModalMaxRows(q.Height), Keys: []Hint{{"esc", "Cancel"}}}
+	return strings.Join(q.Styles.RenderFrame(frame, icons), "\n")
 }
 
-// MinimumSizeMessage is intentionally plain and width-safe.
-func MinimumSizeMessage(width, height int) string {
+// MinimumSizeMessage explains why nothing renders and what is needed. Plain
+// “x” keeps it ASCII-safe.
+func MinimumSizeMessage(width, height int, styles Styles) string {
 	if width < 1 || height < 1 {
 		return ""
 	}
 	lines := []string{
-		"Terminal too small",
-		"Resize to at least 28×8 to use Momentum.",
+		"",
+		styles.Line(width, FillNone, txt(spaces(min(1, width-20))), sp("!", ToneRed).bold(), txt(" "), txt("Terminal too small").bold()),
+		"",
+		styles.Line(width, FillNone, gap(3), muted(fmt.Sprintf("%-8s", "Now")), txt(fmt.Sprintf("%d x %d", width, height))),
+		styles.Line(width, FillNone, gap(3), muted(fmt.Sprintf("%-8s", "Needs")), txt(fmt.Sprintf("%d x %d", MinimumWidth, MinimumHeight)).bold()),
+		"",
+		styles.Line(width, FillNone, gap(3), muted("Resize, or "), txt("q").bold(), muted(" to quit")),
 	}
-	for index := range lines {
-		lines[index] = Truncate(lines[index], width)
+	if len(lines) > height {
+		lines = lines[1:]
+	}
+	for len(lines) > height {
+		lines = append(lines[:len(lines)-2], lines[len(lines)-1])
 	}
 	return strings.Join(lines, "\n")
 }
