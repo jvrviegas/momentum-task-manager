@@ -30,28 +30,21 @@ func (m *Model) handleMouse(message tea.MouseMsg) tea.Cmd {
 		return nil
 	}
 	nav := m.navigationItems()
-	if layout.ShowSidebar && mouse.X >= 0 && mouse.X < layout.SidebarWidth {
-		if index := ui.SidebarItemAt(nav, layout.Height, mouse.Y); index >= 0 {
+	if layout.ShowSidebar && mouse.X >= 0 && mouse.X < ui.SidebarWidth {
+		if index := ui.SidebarItemAt(nav, layout.Height-3, mouse.Y); index >= 0 {
 			m.SwitchView(ViewName(nav[index].Key))
 		}
 		return nil
 	}
-	mainLeft := 0
-	if layout.ShowSidebar {
-		mainLeft = layout.SidebarWidth + layout.ContentGutter
-	}
-	if mouse.X < mainLeft || mouse.X >= mainLeft+layout.MainWidth {
-		// The sidebar gutter is visual separation, not a task hit target.
+	if layout.ShowTabs && mouse.Y == 0 {
+		if index := ui.TabIndexAt(string(m.ActiveView), nav, layout.Width, mouse.X, m.Icons); index >= 0 {
+			m.SwitchView(ViewName(nav[index].Key))
+		}
 		return nil
 	}
-	if layout.ShowTabs {
-		geometry := layout.Geometry(false)
-		if mouse.Y == geometry.NavTop {
-			if index := ui.TabIndexAt(nav, layout.MainWidth, mouse.X); index >= 0 {
-				m.SwitchView(ViewName(nav[index].Key))
-			}
-			return nil
-		}
+	if mouse.X < layout.MainLeft || mouse.X >= layout.MainLeft+layout.MainWidth {
+		// The divider, gutter, margins and pane are not task hit targets.
+		return nil
 	}
 	if uuid := m.taskUUIDAt(mouse.Y, layout); uuid != "" {
 		tasks := m.tasksFor(m.ActiveView)
@@ -71,21 +64,16 @@ func (m *Model) taskUUIDAt(y int, layout ui.Layout) string {
 	if m.ActiveView == ViewSettings || !layout.Usable {
 		return ""
 	}
-	width := layout.MainWidth
-	if width < 1 {
-		width = layout.ContentWidth
-	}
 	geometry := layout.Geometry(m.Overlay == OverlaySearch && m.Search.Open)
 	lineIndex := y - geometry.BodyTop
 	if lineIndex < 0 || lineIndex >= geometry.BodyHeight {
 		return ""
 	}
-	blocks := m.taskBlocks(width)
+	blocks := m.taskBlocks(layout.MainWidth)
 	if len(blocks) == 0 {
 		return ""
 	}
-	selectedUUID := m.Selected[normalizeView(m.ActiveView)]
-	start, end := visibleRenderedBlockRange(blocks, selectedUUID, geometry.BodyHeight)
+	start, end, _ := m.visibleTaskWindow(blocks, geometry.BodyHeight)
 	for _, block := range blocks[start:end] {
 		for range block.lines {
 			if lineIndex == 0 && block.selectable {
