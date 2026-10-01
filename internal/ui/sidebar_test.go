@@ -12,7 +12,7 @@ func navItems() []NavItem {
 }
 
 func TestRenderSidebarShowsCountsAndActiveView(t *testing.T) {
-	got := RenderSidebar("today", navItems(), 24, 4, NewStyles(ResolveTheme("dark", true)))
+	got := RenderSidebar("today", navItems(), 24, 4, NewStyles(ResolveTheme("dark", true)), Icons{})
 	if !strings.Contains(got, "Inbox") || !strings.Contains(got, "Today") || !strings.Contains(got, "4") || !strings.Contains(got, "2") {
 		t.Fatalf("sidebar=%q", got)
 	}
@@ -28,36 +28,47 @@ func TestRenderSidebarSeparatesGroupHeadingsAndClickRows(t *testing.T) {
 		{Key: "today", Label: "Today", Count: 1, Icon: "D", Group: "Views"},
 		{Key: "settings", Label: "Settings", Icon: "S", HideCount: true, Group: "Manage"},
 	}
-	lines := strings.Split(RenderSidebar("inbox", items, 24, 8, Styles{}), "\n")
-	if !strings.Contains(lines[0], "VIEWS") || strings.Contains(lines[0], "Inbox") || !strings.Contains(lines[1], "Inbox 43") || !strings.Contains(lines[2], "Today 1") {
-		t.Fatalf("views group lines=%q", lines[:3])
+	lines := strings.Split(sanitizeComponentRender(RenderSidebar("inbox", items, 23, 8, Styles{}, Icons{})), "\n")
+	for len(lines) < 8 {
+		lines = append(lines, "")
 	}
-	if strings.TrimSpace(lines[3]) != "" || !strings.Contains(lines[4], "MANAGE") || strings.Contains(lines[4], "Settings") || !strings.Contains(lines[5], "Settings") {
-		t.Fatalf("manage group lines=%q", lines[3:6])
+	if !strings.Contains(lines[0], "Momentum") || strings.TrimSpace(lines[1]) != "" || !strings.Contains(lines[2], "VIEWS") {
+		t.Fatalf("rail header lines=%q", lines[:3])
 	}
-	for y, want := range []int{-1, 0, 1, -1, -1, 2, -1, -1} {
+	if !strings.HasPrefix(lines[3], "▌ I Inbox") || !strings.HasSuffix(lines[3], "43") || !strings.Contains(lines[4], "Today") || !strings.HasSuffix(lines[4], "1") {
+		t.Fatalf("views group lines=%q", lines[3:5])
+	}
+	if strings.TrimSpace(lines[5]) != "" || !strings.Contains(lines[6], "MANAGE") || !strings.Contains(lines[7], "Settings") {
+		t.Fatalf("manage group lines=%q", lines[5:8])
+	}
+	for y, want := range []int{-1, -1, -1, 0, 1, -1, -1, 2} {
 		if got := SidebarItemAt(items, 8, y); got != want {
 			t.Fatalf("row %d: item=%d want=%d", y, got, want)
 		}
 	}
+	// Constrained rails drop spacing and headings before navigation items.
+	short := strings.Split(sanitizeComponentRender(RenderSidebar("inbox", items, 23, 4, Styles{}, Icons{})), "\n")
+	if !strings.Contains(short[3], "Settings") || SidebarItemAt(items, 4, 3) != 2 {
+		t.Fatalf("short rail=%q", short)
+	}
 }
 
 func TestRenderSidebarAcceptsKeyOrLabelAsActive(t *testing.T) {
-	byKey := RenderSidebar("inbox", navItems(), 20, 2, NewStyles(ResolveTheme("dark", true)))
-	byLabel := RenderSidebar("Today", navItems(), 20, 2, NewStyles(ResolveTheme("dark", true)))
+	byKey := RenderSidebar("inbox", navItems(), 20, 2, NewStyles(ResolveTheme("dark", true)), Icons{})
+	byLabel := RenderSidebar("Today", navItems(), 20, 2, NewStyles(ResolveTheme("dark", true)), Icons{})
 	if lipgloss.Width(strings.Split(byKey, "\n")[0]) != 20 || lipgloss.Width(strings.Split(byLabel, "\n")[1]) != 20 {
 		t.Fatal("active rows were not full width")
 	}
 }
 
 func TestRenderSidebarHandlesSmallDimensions(t *testing.T) {
-	if RenderSidebar("inbox", navItems(), 0, 2, Styles{}) != "" || RenderSidebar("inbox", navItems(), 20, 0, Styles{}) != "" {
+	if RenderSidebar("inbox", navItems(), 0, 2, Styles{}, Icons{}) != "" || RenderSidebar("inbox", navItems(), 20, 0, Styles{}, Icons{}) != "" {
 		t.Fatal("invalid dimensions should be empty")
 	}
 }
 
 func TestRenderTabsShowsCompactNavigation(t *testing.T) {
-	got := RenderTabs("inbox", navItems(), 80, NewStyles(ResolveTheme("dark", true)))
+	got := RenderTabs("inbox", navItems(), 80, NewStyles(ResolveTheme("dark", true)), Icons{})
 	if !strings.Contains(got, "Inbox") || !strings.Contains(got, "Today") || !strings.Contains(got, "4") {
 		t.Fatalf("tabs=%q", got)
 	}
