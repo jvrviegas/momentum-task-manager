@@ -120,6 +120,7 @@ type Model struct {
 	Quit            ui.QuitModel
 	ProjectSettings ui.ProjectSettingsModel
 	ProjectRename   ui.ProjectRenameModel
+	Appearance      ui.AppearanceSettingsModel
 	Planner         ui.PlannerModel
 	DailyPlan       domain.DailyPlan
 	CalendarID      uint64
@@ -128,6 +129,8 @@ type Model struct {
 	DiscoveredProjects       []string
 	ProjectDiscoveryID       uint64
 	SettingsReturnView       ViewName
+	SettingsSection          SettingsSection
+	DarkBackground           bool
 	ProjectSaveRunning       bool
 	ProjectSaveID            uint64
 	ProjectSnapshot          config.ProjectCatalogSnapshot
@@ -210,6 +213,8 @@ func NewModel(options ModelOptions) *Model {
 		Quit:                 ui.NewQuit(styles),
 		ProjectSettings:      ui.NewProjectSettings(styles),
 		ProjectRename:        ui.NewProjectRename(styles),
+		Appearance:           ui.NewAppearanceSettings(styles, settings.Theme),
+		DarkBackground:       darkBackground,
 		Planner:              ui.NewPlanner(styles, icons),
 	}
 	model.Details.Icons = icons
@@ -334,6 +339,14 @@ func (m *Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		if message.Close {
 			m.leaveSettings()
 		}
+		return m, nil
+	case ui.AppearanceSaveMsg:
+		return m, m.beginThemeSave(message.Theme)
+	case ui.AppearanceCloseMsg:
+		m.leaveSettings()
+		return m, nil
+	case ThemeSaveMsg:
+		m.applyThemeSave(message)
 		return m, nil
 	case ui.ProjectSettingsDiscardMsg:
 		if m.QuitAfterProjectSettings {
@@ -915,7 +928,12 @@ func (m *Model) SwitchView(view ViewName) {
 			m.Status = "Save or discard project changes before leaving Settings"
 			return
 		}
+		if m.Appearance.Saving || m.Appearance.Dirty() {
+			m.Status = themeLeaveStatus
+			return
+		}
 		m.ProjectSettings.Close()
+		m.SettingsSection = SettingsProjects
 	}
 	m.ActiveView = view
 	m.Focus = FocusList
