@@ -13,7 +13,7 @@ Momentum is a keyboard-first terminal frontend for [Taskwarrior 3.x](https://tas
 Install the latest published command:
 
 ```sh
-go install github.com/jvrviegas/momentum/cmd/momentum@latest
+go install github.com/jvrviegas/momentum-task-manager/cmd/momentum@latest
 ```
 
 Or build locally:
