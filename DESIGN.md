@@ -127,6 +127,7 @@ Autocomplete:
 - `Tab` accepts the highlighted suggestion.
 - `Enter` submits the whole task.
 - First `Esc` dismisses suggestions; a second `Esc` closes quick add.
+- With the cursor on or directly after a highlighted natural-language phrase, `Esc` keeps that phrase as description text instead of closing; editing the phrase makes it recognizable again.
 - Projects and tags use fuzzy matching.
 - Priority uses a fixed list.
 - Due and scheduled suggestions include today, tomorrow, upcoming weekdays, `next-week` (Friday of the next calendar week), and ISO-date guidance.
@@ -267,11 +268,11 @@ Momentum's visual language is built only from what a terminal can draw: foregrou
 - **Section headers** are `Title  count  ─────`: Overdue in bold Red, Inbox projects in bold Cyan with `#`, No project in bold Muted, otherwise bold Text. One blank row precedes each header except the first, removed below 50 columns. A list that overflows reports `↓ n more` on its last row.
 - **Modals are framed, not listed.** Title and context sit in the top border, keys in the bottom border, a scroll thumb `┃` and `a-b of n` show position, every cell has a Panel fill, and the view behind is redrawn in one Dim color with its fills removed. Destructive frames use a Red border and a `! Title`.
 - **Forms** use a 12-cell label column: `•` marks a changed field with a Muted `was …`, the focused field gets `▌`, a bold label and a filled input with a reverse-video cursor cell, and an invalid value swaps `•` for a bold Red `!` with the message under the value column.
-- **Quick capture** underlines parsed trigger tokens in their field color and shows a trigger guide that suggestions replace while a trigger is active. It sits at row 5 so the list stays visible.
+- **Quick capture** underlines parsed trigger tokens and recognized natural-language phrases in their field color (project cyan, priority High, due Accent, scheduled Medium, tag Green, estimate Purple, recurrence Teal) as you type (phrases that would block the capture in red), and shows a trigger guide that suggestions replace while a trigger is active. It sits at row 5 so the list stays visible.
 - **Footer** is a hints row of key chips plus a full-width Panel status bar: the message on the left (with an undo countdown bar during the grace window) and the sync state on the right. Each sync state has a glyph and a word (`✓` ready, `↻` syncing, `•` local changes, `!` failed, `·` local only), so nothing relies on color.
 - **Faint text, strikethrough, drop shadows and translucent backdrops are not used**; Border and Dim are explicit colors.
 
-The default palette is Tokyo Night-inspired. Tokens are Surface (never painted, so transparent terminals work), Panel, Selection, Text, Muted, Muted-on-fill, Accent, Cyan, Red, High, Medium, Low, Border and Dim. Light Muted, Cyan, Red, High and Medium are darkened to clear 4.5:1 on Panel and Selection.
+The default palette is Tokyo Night-inspired. Tokens are Surface (never painted, so transparent terminals work), Panel, Selection, Text, Muted, Muted-on-fill, Accent, Cyan, Red, High, Medium, Low, Green, Purple, Teal, Border and Dim. Light Muted, Cyan, Red, High, Medium, Green, Purple and Teal are darkened to clear 4.5:1 on Panel and Selection.
 
 Lip Gloss background detection selects a dark or light variant when `theme = "auto"`. Users can override it.
 
