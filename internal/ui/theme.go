@@ -55,14 +55,32 @@ func lightTheme() Theme {
 	}
 }
 
-// ResolveTheme chooses a deterministic palette. auto uses the supplied
-// terminal observation; callers can obtain that observation at startup.
+// terminalTheme uses the terminal's 16 ANSI colors so its color scheme
+// decides every hue. Text is unset to keep the default foreground; the
+// neutral fills, Muted-on-fill and Surface follow the background observation.
+func terminalTheme(darkBackground bool) Theme {
+	theme := Theme{
+		Name: "terminal", Text: "", Muted: "8", Accent: "4", Cyan: "6", Overdue: "1", High: "9",
+		Medium: "3", Low: "8", Green: "2", Purple: "5", Teal: "14", Border: "8",
+	}
+	if darkBackground {
+		theme.Surface, theme.Panel, theme.Selection, theme.MutedFill, theme.Dim = "0", "0", "8", "7", "8"
+	} else {
+		theme.Surface, theme.Panel, theme.Selection, theme.MutedFill, theme.Dim = "15", "15", "7", "0", "7"
+	}
+	return theme
+}
+
+// ResolveTheme chooses a deterministic palette. auto and terminal use the
+// supplied terminal observation; callers can obtain it at startup.
 func ResolveTheme(mode string, darkBackground bool) Theme {
 	switch strings.ToLower(strings.TrimSpace(mode)) {
 	case config.ThemeLight:
 		return lightTheme()
 	case config.ThemeDark:
 		return darkTheme()
+	case config.ThemeTerminal:
+		return terminalTheme(darkBackground)
 	default:
 		if darkBackground {
 			return darkTheme()
