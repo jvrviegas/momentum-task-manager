@@ -8,9 +8,11 @@ import (
 
 	tea "charm.land/bubbletea/v2"
 	"github.com/charmbracelet/x/ansi"
+
+	"github.com/jvrviegas/momentum-task-manager/internal/quickadd"
 )
 
-func TestNaturalQuickAddOpensReviewBeforeSubmit(t *testing.T) {
+func TestNaturalQuickAddSubmitsOnEnter(t *testing.T) {
 	q := NewQuickAdd(NewStyles(ResolveTheme("dark", true)), IconsFor("unicode"))
 	q.SetSize(90, 30)
 	q.Now = time.Date(2026, 9, 21, 10, 0, 0, 0, time.UTC)
@@ -20,29 +22,39 @@ func TestNaturalQuickAddOpensReviewBeforeSubmit(t *testing.T) {
 		t.Fatal("enter did not schedule interpretation")
 	}
 	message := cmd()
-	if _, ok := message.(QuickAddReviewMsg); !ok {
+	submission, ok := message.(QuickAddSubmitMsg)
+	if !ok || submission.Task.Description != "Prepare proposal" || submission.Task.Project != "work" || submission.Task.Due != "20260922T150000" {
 		t.Fatalf("message=%T %#v", message, message)
 	}
 	q.ApplyMessage(message)
-	if !q.ReviewOpen || !q.Open {
-		t.Fatalf("review=%#v", q)
+	if q.ReviewOpen || q.Open {
+		t.Fatalf("capture remained open: review=%v open=%v", q.ReviewOpen, q.Open)
 	}
-	if view := ansi.Strip(q.View()); !strings.Contains(view, "Review capture") || !strings.Contains(view, "20260922T150000") {
-		t.Fatalf("view=%q", q.View())
+}
+
+func TestInvalidNaturalQuickAddStillRequiresCorrection(t *testing.T) {
+	for _, input := range []string{"Call at 3pm", "Call tomorrow at 3pm at 4pm", "Report for 0 minutes", "Report tomorrow every Friday"} {
+		t.Run(input, func(t *testing.T) {
+			q := NewQuickAdd(Styles{}, IconsFor("ascii"))
+			q.SetSize(80, 24)
+			q.Now = time.Date(2026, 9, 21, 10, 0, 0, 0, time.UTC)
+			q.OpenQuickAdd(input)
+			_, cmd := q.Update(specialQuickKey(tea.KeyEnter, 0))
+			message := cmd()
+			if _, ok := message.(QuickAddReviewMsg); !ok {
+				t.Fatalf("invalid input bypassed correction: %#v", message)
+			}
+			q.ApplyMessage(message)
+			if !q.Open || !q.ReviewOpen {
+				t.Fatal("correction review did not remain open")
+			}
+		})
 	}
 }
 
 func TestExplicitOnlyReviewPathSubmitsOriginalProse(t *testing.T) {
-	q := NewQuickAdd(Styles{}, IconsFor("ascii"))
-	q.SetSize(80, 20)
-	q.OpenQuickAdd("Discuss Friday")
-	_, cmd := q.Update(specialQuickKey(tea.KeyEnter, 0))
-	message := cmd()
-	q.ApplyMessage(message)
-	if !q.ReviewOpen {
-		t.Fatal("natural date did not open review")
-	}
-	_, cmd = q.Update(tea.KeyPressMsg(tea.Key{Code: 'x', Mod: tea.ModCtrl}))
+	q := reviewedQuickAdd(t, "Discuss Friday")
+	_, cmd := q.Update(tea.KeyPressMsg(tea.Key{Code: 'x', Mod: tea.ModCtrl}))
 	if cmd == nil {
 		t.Fatal("explicit-only did not submit")
 	}
@@ -55,11 +67,11 @@ func TestExplicitOnlyReviewPathSubmitsOriginalProse(t *testing.T) {
 func TestCanceledReviewDoesNotSubmit(t *testing.T) {
 	q := NewQuickAdd(Styles{}, IconsFor("ascii"))
 	q.SetSize(80, 20)
-	q.OpenQuickAdd("Call tomorrow")
+	q.OpenQuickAdd("Call at 3pm")
 	_, cmd := q.Update(specialQuickKey(tea.KeyEnter, 0))
 	q.ApplyMessage(cmd())
 	_, cmd = q.Update(tea.KeyPressMsg(tea.Key{Text: "esc", Code: tea.KeyEscape}))
-	if q.ReviewOpen || !q.Open || q.Input.Value() != "Call tomorrow" {
+	if q.ReviewOpen || !q.Open || q.Input.Value() != "Call at 3pm" {
 		t.Fatalf("review=%v open=%v input=%q", q.ReviewOpen, q.Open, q.Input.Value())
 	}
 }
@@ -70,15 +82,13 @@ func reviewedQuickAdd(t *testing.T, input string) QuickAddModel {
 	q.SetSize(90, 30)
 	q.Now = time.Date(2026, 9, 21, 10, 0, 0, 0, time.UTC)
 	q.OpenQuickAdd(input)
-	_, cmd := q.Update(specialQuickKey(tea.KeyEnter, 0))
-	if cmd == nil {
-		t.Fatal("interpretation command missing")
+	// Exercise review rendering/editing directly, independently of the Enter
+	// fast path. Valid interpretations no longer open review on submission.
+	interpretation, err := quickadd.Interpret(input, q.Now)
+	if err != nil {
+		t.Fatal(err)
 	}
-	message := cmd()
-	q.ApplyMessage(message)
-	if !q.ReviewOpen {
-		t.Fatalf("message=%T %#v review=%v", message, message, q.ReviewOpen)
-	}
+	q.openReview(interpretation)
 	return q
 }
 
