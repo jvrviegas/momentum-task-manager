@@ -14,9 +14,10 @@ import (
 )
 
 const (
-	ThemeAuto  = "auto"
-	ThemeDark  = "dark"
-	ThemeLight = "light"
+	ThemeAuto     = "auto"
+	ThemeDark     = "dark"
+	ThemeLight    = "light"
+	ThemeTerminal = "terminal"
 
 	IconsUnicode = "unicode"
 	IconsNerd    = "nerd"
@@ -172,9 +173,9 @@ func (c Config) Validate() error {
 	}
 	c.Theme = strings.ToLower(strings.TrimSpace(c.Theme))
 	switch c.Theme {
-	case ThemeAuto, ThemeDark, ThemeLight:
+	case ThemeAuto, ThemeDark, ThemeLight, ThemeTerminal:
 	default:
-		return fmt.Errorf("config key %q must be one of auto, dark, or light", "theme")
+		return fmt.Errorf("config key %q must be one of auto, dark, light, or terminal", "theme")
 	}
 	c.Icons = strings.ToLower(strings.TrimSpace(c.Icons))
 	switch c.Icons {
