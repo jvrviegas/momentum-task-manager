@@ -91,9 +91,18 @@ var (
 
 type sourceSpan struct{ start, end int }
 
+// Span is a rune range [Start, End) of capture input.
+type Span struct{ Start, End int }
+
 // Interpret applies the deliberately small English grammar approved for
 // natural-language capture. It performs no I/O and never invokes Taskwarrior.
 func Interpret(input string, now time.Time) (Interpretation, error) {
+	return InterpretWithLiterals(input, now, nil)
+}
+
+// InterpretWithLiterals is Interpret with input ranges the user chose to keep
+// as description text; no phrase overlapping them is inferred.
+func InterpretWithLiterals(input string, now time.Time, literals []Span) (Interpretation, error) {
 	if now.IsZero() {
 		now = time.Now()
 	}
@@ -116,6 +125,9 @@ func Interpret(input string, now time.Time) (Interpretation, error) {
 	}
 	explicitSpans, protected := explicitSourceSpans(input)
 	protected = append(protected, protectedTextSpans(input)...)
+	for _, literal := range literals {
+		protected = append(protected, sourceSpan{literal.Start, literal.End})
+	}
 	reserved := append([]sourceSpan(nil), matchedSpans(findMatches(unsupportedDateRE, input))...)
 	unsupportedRecurrences := naturalMatches(unsupportedRecurrenceRE, input, protected, nil)
 	for _, match := range unsupportedRecurrences {
