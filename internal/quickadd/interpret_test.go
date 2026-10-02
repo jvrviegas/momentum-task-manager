@@ -21,6 +21,21 @@ func TestInterpretNaturalDateTimeAndExplicitProject(t *testing.T) {
 	}
 }
 
+func TestInterpretWithLiteralsKeepsChosenPhraseAsText(t *testing.T) {
+	now := time.Date(2026, 9, 21, 10, 0, 0, 0, time.UTC)
+	got, err := InterpretWithLiterals("Read tomorrow by tomorrow", now, []Span{{Start: 5, End: 13}})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if got.Task.Description != "Read tomorrow by" || got.Task.Due != "20260922T000000" {
+		t.Fatalf("task=%#v", got.Task)
+	}
+	got, err = InterpretWithLiterals("Read tomorrow", now, []Span{{Start: 5, End: 13}})
+	if err != nil || got.RequiresReview || got.Task.Description != "Read tomorrow" || got.Task.Due != "" {
+		t.Fatalf("interpretation=%#v err=%v", got, err)
+	}
+}
+
 func TestInterpretRoadmapExampleConsumesOwnedCommaSeparators(t *testing.T) {
 	now := time.Date(2026, 9, 21, 10, 0, 0, 0, time.UTC)
 	got, err := Interpret("Prepare proposal tomorrow at 3pm, p1, every Friday, about 1h #work", now)
