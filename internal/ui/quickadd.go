@@ -9,8 +9,8 @@ import (
 	"charm.land/bubbles/v2/textinput"
 	tea "charm.land/bubbletea/v2"
 
-	"github.com/jvrviegas/momentum/internal/domain"
-	"github.com/jvrviegas/momentum/internal/quickadd"
+	"github.com/jvrviegas/momentum-task-manager/internal/domain"
+	"github.com/jvrviegas/momentum-task-manager/internal/quickadd"
 )
 
 // QuickAddSubmitMsg is emitted after a successful parse; it contains no
