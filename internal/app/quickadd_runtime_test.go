@@ -4,6 +4,7 @@ import (
 	"context"
 	"strings"
 	"testing"
+	"time"
 
 	tea "charm.land/bubbletea/v2"
 
@@ -65,17 +66,17 @@ func TestQuickAddKeyFlowProducesSubmissionThroughRootModel(t *testing.T) {
 	}
 }
 
-func TestQuickAddExplicitOnlyReachesOneMutationThroughRoot(t *testing.T) {
+func TestQuickAddLiteralPhraseReachesOneMutationThroughRoot(t *testing.T) {
 	client := &fakeClient{}
 	model := actionModel(client)
 	model.Width, model.Height = 80, 24
 	model.OpenQuickAdd()
 	model.QuickAdd.Input.SetValue("Discuss Friday #work")
+	model.QuickAdd.Input.SetCursor(len("Discuss Friday"))
+	model.Update(tea.KeyPressMsg(tea.Key{Code: tea.KeyEscape}))
 	_, cmd := model.Update(tea.KeyPressMsg(tea.Key{Code: tea.KeyEnter}))
-	model.Update(cmd())
-	_, cmd = model.Update(tea.KeyPressMsg(tea.Key{Code: 'x', Mod: tea.ModCtrl}))
 	if cmd == nil {
-		t.Fatal("explicit-only command missing")
+		t.Fatal("literal capture command missing")
 	}
 	message, ok := cmd().(ui.QuickAddSubmitMsg)
 	if !ok {
@@ -88,6 +89,38 @@ func TestQuickAddExplicitOnlyReachesOneMutationThroughRoot(t *testing.T) {
 	result := mutation().(MutationMsg)
 	if result.Err != nil || len(client.mutations) != 1 || client.mutations[0].Input.Description != "Discuss Friday" {
 		t.Fatalf("result=%#v mutations=%#v", result, client.mutations)
+	}
+}
+
+func TestNaturalQuickAddEnterCreatesExactlyOneTask(t *testing.T) {
+	client := &fakeClient{}
+	model := actionModel(client)
+	model.Width, model.Height = 80, 24
+	model.OpenQuickAdd()
+	model.QuickAdd.NowProvider = func() time.Time {
+		return time.Date(2026, 9, 21, 10, 0, 0, 0, time.UTC)
+	}
+	model.QuickAdd.Input.SetValue("Prepare proposal tomorrow at 3pm p1 about 1h #work")
+	_, parse := model.Update(tea.KeyPressMsg(tea.Key{Code: tea.KeyEnter}))
+	_, repeated := model.Update(tea.KeyPressMsg(tea.Key{Code: tea.KeyEnter}))
+	message, ok := parse().(ui.QuickAddSubmitMsg)
+	if !ok {
+		t.Fatal("Enter did not submit valid natural-language capture")
+	}
+	_, mutation := model.Update(message)
+	if mutation == nil || model.Overlay != OverlayNone || model.QuickAdd.Open || model.QuickAdd.ReviewOpen {
+		t.Fatal("capture required review instead of starting mutation")
+	}
+	if _, duplicate := model.Update(repeated()); duplicate != nil {
+		t.Fatal("repeated Enter started a duplicate mutation")
+	}
+	result := mutation().(MutationMsg)
+	if result.Err != nil || len(client.mutations) != 1 {
+		t.Fatalf("result=%#v mutations=%#v", result, client.mutations)
+	}
+	task := client.mutations[0].Input
+	if task.Description != "Prepare proposal" || task.Project != "work" || task.Priority != "H" || task.Due != "20260922T150000" || task.Estimate == nil || task.Estimate.Minutes != 60 {
+		t.Fatalf("created task=%#v", task)
 	}
 }
 
