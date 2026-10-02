@@ -7,7 +7,7 @@ import (
 	"sort"
 	"strings"
 
-	"github.com/jvrviegas/momentum/internal/domain"
+	"github.com/jvrviegas/momentum-task-manager/internal/domain"
 )
 
 var (
