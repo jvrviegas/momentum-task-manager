@@ -44,6 +44,18 @@ func TestTerminalThemeUsesOnlyANSIColors(t *testing.T) {
 	}
 }
 
+// Many dark schemes set bright black close to the background, so dark
+// foreground neutrals use white; light schemes keep bright black.
+func TestTerminalThemeAvoidsBrightBlackForegroundsOnDark(t *testing.T) {
+	dark, light := ResolveTheme(config.ThemeTerminal, true), ResolveTheme(config.ThemeTerminal, false)
+	if dark.Muted != "7" || dark.Low != "7" || dark.Border != "7" {
+		t.Fatalf("dark Muted=%q Low=%q Border=%q, want white", dark.Muted, dark.Low, dark.Border)
+	}
+	if light.Muted != "8" || light.Low != "8" || light.Border != "8" {
+		t.Fatalf("light Muted=%q Low=%q Border=%q, want bright black", light.Muted, light.Low, light.Border)
+	}
+}
+
 func TestTerminalThemeKeepsDefaultForegroundAndReversesCursor(t *testing.T) {
 	styles := NewStyles(ResolveTheme(config.ThemeTerminal, true))
 	if got := styles.Line(4, FillNone, txt("text")); got != "text" {
