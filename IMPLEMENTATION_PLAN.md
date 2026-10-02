@@ -3,7 +3,7 @@
 **Design:** [`DESIGN.md`](./DESIGN.md)  
 **Status:** Baseline complete; Settings → Projects extension implemented and documented
 **Progress:** 24 / 24 tasks complete
-**Module:** `github.com/jvrviegas/momentum`
+**Module:** `github.com/jvrviegas/momentum-task-manager`
 
 > **Baseline correction (2026-09-16):** T22 verified context discovery, but its wording did not establish that machine-readable `task export` applies the active context. Taskwarrior 3.5.0 intentionally leaves `export` context-unencumbered. Context-scoped future operations must retrieve `rc.context.<name>.read` and supply it explicitly; the pending-only rename plan records the isolated evidence.
 
@@ -106,7 +106,7 @@ Tasks marked `[P]` may run in parallel only when their dependencies are complete
 
 **Done when:**
 
-- [x] Module path is `github.com/jvrviegas/momentum`.
+- [x] Module path is `github.com/jvrviegas/momentum-task-manager`.
 - [x] Package boundaries match `DESIGN.md`.
 - [x] No GitHub remote is created.
 - [x] `go build ./cmd/momentum` passes.
