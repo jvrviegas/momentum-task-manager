@@ -208,6 +208,9 @@ func (m *Model) renderBody(width, height int) string {
 		if m.ProjectRename.Open {
 			return m.ProjectRename.ViewAt(width, height)
 		}
+		if m.SettingsSection == SettingsAppearance {
+			return m.Appearance.ViewAt(width, height)
+		}
 		return m.ProjectSettings.ViewAt(width, height)
 	}
 	return m.renderTaskBody(width, height)
