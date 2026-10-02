@@ -5,7 +5,7 @@ import (
 	"strings"
 	"unicode"
 
-	"github.com/jvrviegas/momentum/internal/domain"
+	"github.com/jvrviegas/momentum-task-manager/internal/domain"
 )
 
 // ErrorKind identifies a user-correctable quick-add parse failure.
