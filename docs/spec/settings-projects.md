@@ -83,7 +83,7 @@ The existing BurntSushi encoder is not source-preserving. T00 verified a lossles
 
 ## Out of scope
 
-- Theme/icons/refresh/sync settings editors (Settings should allow future sections, but do not implement them now).
+- Icons/refresh/sync settings editors. Theme is edited in the separate Settings → Appearance section described in [`DESIGN.md`](../../DESIGN.md); Projects stays the first section.
 - Project dashboards, progress metrics, archived project states, separate database or stable IDs.
 - Migrating completed/deleted/waiting/recurring-template tasks, changing recurrence definitions, or retroactively rewriting history.
 - General bulk task editing, automatic merges, automatic catalog growth from tasks.
