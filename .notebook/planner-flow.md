@@ -12,4 +12,6 @@ Durable marker: `domain.DailyPlanTagFor()` → `momentum-plan-YYYY-MM-DD`; no pl
 
 Capacity: `config.PlanningConfig` → configured focus minutes − estimated fixed obligations − merged calendar busy minutes − buffer. Missing estimates are counted separately.
 
-Updated: 2026-09-21
+Rendering: `internal/ui/planner.go:PlannerModel.View()` draws a shared modal `Frame` (summary, calendar context, then grouped rows); the frame offset keeps the cursor row in view. `internal/app/view.go` composes it like other overlays.
+
+Updated: 2026-10-02
