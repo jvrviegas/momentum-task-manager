@@ -1,7 +1,7 @@
 # Goal plan — Task-first daily planner
 
 **Created:** 2026-09-20  
-**Status:** Proposed; product outcomes defined, individual feature specifications and implementation plans pending  
+**Status:** Implemented — every goal has a specification and a completed implementation tracker; live UAT pending for G0 and G2–G5, and G1 needs a live re-check after the 2026-10-02 main UI redesign merge  
 **Product direction:** Keep Momentum task-first and keyboard-first. Add the parts of Akiflow that improve capture and daily commitment without building a calendar application.
 
 ## Purpose
@@ -28,7 +28,7 @@ A goal advances through these states:
 | Goal | Outcome | Status | Specification | Implementation plan | UAT evidence |
 |---|---|---|---|---|---|
 | G0 | Tasks can carry optional effort estimates | Implemented | [EST-01–EST-05](#g0--optional-task-effort-estimates) | [Implementation tracker](task-estimates.md) | [Automated evidence](../UAT.md#g0-estimate-implementation-evidence-2026-09-21); live UAT pending |
-| G1 | Command bar understands common natural-language task input | Validated — automated evidence and maintainer-reported live T10 UAT pass | [G1-01–G1-23](natural-language-capture.md#acceptance-contract) | [Implementation tracker](natural-language-capture.md) | [T10 maintainer UAT](../UAT.md#g1-t10-live-maintainer-uat-2026-09-25) |
+| G1 | Command bar understands common natural-language task input | Validated on the pre-redesign UI — automated evidence and maintainer-reported live T10 UAT pass; live re-check pending after the 2026-10-02 merge | [G1-01–G1-23](natural-language-capture.md#acceptance-contract) | [Implementation tracker](natural-language-capture.md) | [T10 maintainer UAT](../UAT.md#g1-t10-live-maintainer-uat-2026-09-25) |
 | G2 | Recurring tasks can be created and maintained safely | Implemented — automated evidence; live UAT pending | [REC-01–REC-08](recurring-tasks.md) | [Implementation tracker](recurring-tasks.md) | Isolated Taskwarrior recurrence lifecycle; live UAT pending |
 | G3 | A daily ritual produces a deliberate, capacity-aware task plan | Implemented — automated evidence; live UAT pending | [RIT-01–RIT-10](daily-planning.md) | [Implementation tracker](daily-planning.md) | Domain/app/UI plan tests; live UAT pending |
 | G4 | Daily planning reflects read-only calendar commitments | Implemented — local ICS provider; automated evidence; live UAT pending | [CAL-01–CAL-09](calendar-awareness.md) | [Implementation tracker](calendar-awareness.md) | ICS fixture tests; live UAT pending |
@@ -278,15 +278,10 @@ The program is complete when live UAT demonstrates all of the following:
 - Team planning, assignment, or shared capacity
 - Productivity scores, streaks, or telemetry
 
-## Next planning steps
+## Next steps
 
-Create one specification and one trackable implementation plan for each goal, rather than one cross-cutting implementation tracker. Recommended order:
+All goal plans have been executed; the implementation trackers are complete. What remains is live validation on the feature branch before it merges:
 
-1. Execute the approved [G0 estimate implementation tracker](task-estimates.md);
-2. G3 — task-only daily ritual;
-3. G2 — recurring tasks;
-4. G4 — calendar awareness after its provider/privacy feasibility decision;
-5. Execute the remaining feasibility gate in the [G1 natural-language capture implementation tracker](natural-language-capture.md); O1–O9 are approved and its basic capture slice may ship before G2, but recurrence integration remains blocked on G2;
-6. G5 — integration and release validation.
-
-Each feature plan must link back to the requirement IDs in this document, record unresolved product decisions before implementation, identify independent tracer-bullet demos, and include isolated Taskwarrior/calendar test safeguards.
+1. Live UAT for G0, G2, G3, G4, and G5, in an isolated Taskwarrior profile.
+2. A live re-check of G1 capture review, because its T10 verdict predates the main UI redesign merged on 2026-10-02 and the review overlay was ported to the shared modal frame.
+3. Demonstrate the overall success scenarios above and record the results in [`docs/UAT.md`](../UAT.md), then mark each goal Validated in the tracking table.
