@@ -21,6 +21,9 @@ const (
 	ToneBorder
 	ToneSurface
 	ToneDim
+	ToneGreen
+	TonePurple
+	ToneTeal
 )
 
 // Fill names a background role. Only Panel and Selection are used as row
