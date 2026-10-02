@@ -5,7 +5,7 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/jvrviegas/momentum/internal/config"
+	"github.com/jvrviegas/momentum-task-manager/internal/config"
 )
 
 func TestThemeModesResolveDeterministically(t *testing.T) {
