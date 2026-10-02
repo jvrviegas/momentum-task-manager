@@ -2,6 +2,7 @@ package ui
 
 import (
 	"reflect"
+	"strconv"
 	"strings"
 	"testing"
 
@@ -17,6 +18,39 @@ func TestThemeModesResolveDeterministically(t *testing.T) {
 	}
 	if ResolveTheme(config.ThemeAuto, true).Name != "dark" || ResolveTheme(config.ThemeAuto, false).Name != "light" {
 		t.Fatal("auto theme did not follow explicit background observation")
+	}
+}
+
+func TestTerminalThemeUsesOnlyANSIColors(t *testing.T) {
+	for _, dark := range []bool{true, false} {
+		theme := ResolveTheme(config.ThemeTerminal, dark)
+		if theme.Name != "terminal" || theme.Text != "" {
+			t.Fatalf("dark=%v theme=%#v", dark, theme)
+		}
+		values := reflect.ValueOf(theme)
+		for index := 0; index < values.NumField(); index++ {
+			name := values.Type().Field(index).Name
+			value := values.Field(index).String()
+			if name == "Name" || name == "Text" {
+				continue
+			}
+			if number, err := strconv.Atoi(value); err != nil || number < 0 || number > 15 {
+				t.Errorf("dark=%v %s=%q is not one of the 16 ANSI colors", dark, name, value)
+			}
+		}
+	}
+	if dark, light := ResolveTheme(config.ThemeTerminal, true), ResolveTheme(config.ThemeTerminal, false); dark.Selection == light.Selection || dark.MutedFill == light.MutedFill {
+		t.Fatal("terminal fills did not follow the background observation")
+	}
+}
+
+func TestTerminalThemeKeepsDefaultForegroundAndReversesCursor(t *testing.T) {
+	styles := NewStyles(ResolveTheme(config.ThemeTerminal, true))
+	if got := styles.Line(4, FillNone, txt("text")); got != "text" {
+		t.Fatalf("text should use the default foreground, got %q", got)
+	}
+	if got := styles.Line(1, FillNone, Span{Text: " ", Cursor: true}); !strings.Contains(got, "\x1b[7m") {
+		t.Fatalf("cursor should use reverse video, got %q", got)
 	}
 }
 
