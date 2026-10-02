@@ -174,6 +174,10 @@ func (s Styles) paint(span Span, rowBg Fill) string {
 	}
 	if span.Cursor {
 		style = lipgloss.NewStyle().Foreground(s.tone(ToneSurface, false)).Background(s.tone(ToneText, false))
+		if s.Theme.Text == "" {
+			// The default foreground has no color to fill with.
+			style = lipgloss.NewStyle().Reverse(true)
+		}
 	}
 	if span.Bold {
 		style = style.Bold(true)
