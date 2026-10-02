@@ -415,7 +415,7 @@ func diagnosticFieldIndexes(message string) []int {
 func reviewTaskValues(task domain.NewTask) []string {
 	estimate := ""
 	if task.Estimate != nil {
-		estimate = task.Estimate.String()
+		estimate = task.Estimate.InputValue()
 	}
 	return []string{
 		task.Description,
