@@ -258,6 +258,12 @@ func (e Estimate) String() string {
 	return fmt.Sprintf("%dh %dm", hours, minutes)
 }
 
+// InputValue formats an estimate in the compact syntax ParseEstimateValue
+// accepts, so an editable field opens with a value that round-trips.
+func (e Estimate) InputValue() string {
+	return strings.ReplaceAll(e.String(), " ", "")
+}
+
 // EstimateSuggestions returns the deterministic quick-capture/editor presets.
 func EstimateSuggestions() []string {
 	return []string{"15m", "30m", "45m", "1h", "2h", "4h"}
