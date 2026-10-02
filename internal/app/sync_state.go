@@ -3,7 +3,7 @@ package app
 import (
 	"time"
 
-	"github.com/jvrviegas/momentum/internal/config"
+	"github.com/jvrviegas/momentum-task-manager/internal/config"
 )
 
 // SyncPhase is the pure synchronization lifecycle state.
