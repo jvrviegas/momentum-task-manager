@@ -1,7 +1,7 @@
 # Implementation plan — G1 natural-language command-bar capture
 
 **Created:** 2026-09-21  
-**Status:** Validated — T00–T10 complete; maintainer-reported live keyboard/visual UAT recorded in `docs/UAT.md`
+**Status:** Validated — T00–T10 complete; maintainer-reported live keyboard/visual UAT recorded in `docs/UAT.md`; live re-check pending after the 2026-10-02 main UI redesign merge
 **Baseline:** `36b80bb` on `feat/task-estimates`, with the uncommitted G0 implementation present; recheck HEAD and working tree before starting  
 **Goal:** [G1 — Natural-language command-bar capture](task-first-daily-planner-goals.md#g1--natural-language-command-bar-capture)  
 **Requirements:** NLC-01–NLC-08 from the goal plan
