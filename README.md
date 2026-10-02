@@ -109,7 +109,7 @@ Momentum uses `$XDG_CONFIG_HOME/momentum/config.toml`, or `~/.config/momentum/co
 
 Copy [`config.example.toml`](./config.example.toml) to get started. `MOMENTUM_ICONS=unicode|nerd|ascii` overrides the icon setting. `0s` disables background task refresh.
 
-Themes are `auto`, `dark`, and `light`; icons are `unicode`, `nerd`, and `ascii`.
+Themes are `auto`, `dark`, `light`, and `terminal` (your terminal's 16 ANSI colors); icons are `unicode`, `nerd`, and `ascii`. In Settings, `Tab` switches to **Appearance**, where `←`/`→` previews each theme live, `Enter` saves it to the active config file, and `Esc` discards the preview.
 
 ### Daily planning and calendar awareness
 
