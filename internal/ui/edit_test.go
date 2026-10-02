@@ -306,3 +306,18 @@ func TestEditApplyMessageIgnoresUnrelatedMessages(t *testing.T) {
 		t.Fatalf("message=%#v handled=%v", message, handled)
 	}
 }
+
+func TestUnchangedMixedEstimateIsNotAnEdit(t *testing.T) {
+	e := testEdit()
+	task := editableTask()
+	task.Estimate = &domain.Estimate{Minutes: 90}
+	e.OpenTask(task, FieldDescription)
+	if e.fieldChanged(FieldEstimate) {
+		t.Fatalf("untouched estimate %q is marked changed", e.Input(FieldEstimate).Value())
+	}
+	e.Inputs[FieldDescription].SetValue("Renamed")
+	message, ok := e.submit()().(EditSubmitMsg)
+	if !ok || !message.Diff.Estimate.Empty() || message.Diff.Description.Empty() {
+		t.Fatalf("saving another field must keep the estimate: %#v", message)
+	}
+}
