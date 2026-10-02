@@ -9,8 +9,8 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/jvrviegas/momentum/internal/config"
-	"github.com/jvrviegas/momentum/internal/taskwarrior"
+	"github.com/jvrviegas/momentum-task-manager/internal/config"
+	"github.com/jvrviegas/momentum-task-manager/internal/taskwarrior"
 )
 
 func doctorClient(responses ...taskwarrior.CommandResult) (*taskwarrior.CommandClient, *doctorRunner) {
