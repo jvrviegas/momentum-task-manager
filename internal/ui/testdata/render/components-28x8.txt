@@ -32,10 +32,10 @@
 === edit ===
 ╭─ Edit task ────────────╮
 │                        ┃
-│     Title      Renew … │
+│     Title      Renew … ┃
 │ ▌   Project    admin   │
 │     Priority   ↑ High  │
-╰──────────── 1-4 of 12 ─╯
+╰──────────── 1-4 of 10 ─╯
 
 === confirm ===
 ╭─ Delete task ──────────╮
