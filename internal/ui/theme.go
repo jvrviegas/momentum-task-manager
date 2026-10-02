@@ -57,16 +57,20 @@ func lightTheme() Theme {
 
 // terminalTheme uses the terminal's 16 ANSI colors so its color scheme
 // decides every hue. Text is unset to keep the default foreground; the
-// neutral fills, Muted-on-fill and Surface follow the background observation.
+// neutrals and Surface follow the background observation. Dark schemes often
+// set bright black close to the background, so dark Muted, Low and Border use
+// white instead.
 func terminalTheme(darkBackground bool) Theme {
 	theme := Theme{
-		Name: "terminal", Text: "", Muted: "8", Accent: "4", Cyan: "6", Overdue: "1", High: "9",
-		Medium: "3", Low: "8", Green: "2", Purple: "5", Teal: "14", Border: "8",
+		Name: "terminal", Text: "", Accent: "4", Cyan: "6", Overdue: "1", High: "9",
+		Medium: "3", Green: "2", Purple: "5", Teal: "14",
 	}
 	if darkBackground {
 		theme.Surface, theme.Panel, theme.Selection, theme.MutedFill, theme.Dim = "0", "0", "8", "7", "8"
+		theme.Muted, theme.Low, theme.Border = "7", "7", "7"
 	} else {
 		theme.Surface, theme.Panel, theme.Selection, theme.MutedFill, theme.Dim = "15", "15", "7", "0", "7"
+		theme.Muted, theme.Low, theme.Border = "8", "8", "8"
 	}
 	return theme
 }
