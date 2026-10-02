@@ -269,6 +269,19 @@ func ProjectCatalogSaveCommand(ctx context.Context, store config.ProjectCatalogS
 	}
 }
 
+// ThemeSaveCommand persists the theme asynchronously through the store when
+// it supports theme writes.
+func ThemeSaveCommand(ctx context.Context, store config.ProjectCatalogStore, snapshot config.ProjectCatalogSnapshot, theme string) tea.Cmd {
+	return func() tea.Msg {
+		themes, ok := store.(config.ThemeStore)
+		if !ok {
+			return ThemeSaveMsg{Theme: theme, Err: errProjectStoreUnavailable}
+		}
+		saved, err := themes.SaveTheme(commandContext(ctx), snapshot, theme)
+		return ThemeSaveMsg{Theme: theme, Snapshot: saved, Err: err}
+	}
+}
+
 func commandContext(ctx context.Context) context.Context {
 	if ctx == nil {
 		return context.Background()
