@@ -8,6 +8,7 @@ import (
 	"charm.land/lipgloss/v2"
 
 	"github.com/jvrviegas/momentum-task-manager/internal/domain"
+	"github.com/jvrviegas/momentum-task-manager/internal/quickadd"
 )
 
 func designStyles() Styles { return NewStyles(ResolveTheme("dark", true)) }
@@ -187,8 +188,48 @@ func TestSearchHighlightSplitsMatchedText(t *testing.T) {
 	}
 }
 
+func TestCaptureInputHighlightsNaturalPhrasesWhileTyping(t *testing.T) {
+	now := time.Date(2026, 9, 8, 10, 0, 0, 0, time.UTC)
+	cell := captureTokenCell("Call mom tomorrow for 30m p1", now, nil)
+	if span := cell(9, 't'); span.Tone != ToneAccent || !span.Underline {
+		t.Fatalf("due phrase=%#v", span)
+	}
+	if span := cell(22, '3'); !span.Underline {
+		t.Fatalf("estimate phrase=%#v", span)
+	}
+	if span := cell(26, 'p'); span.Tone != ToneHigh || !span.Underline {
+		t.Fatalf("priority phrase=%#v", span)
+	}
+	if span := cell(5, 'm'); span.Underline {
+		t.Fatalf("description underlined: %#v", span)
+	}
+	// Two competing dates block the capture; the phrases show the problem
+	// before Enter instead of claiming either value was understood.
+	blocked := captureTokenCell("Call mom tomorrow monday", now, nil)
+	if span := blocked(9, 't'); span.Tone != ToneRed || !span.Underline {
+		t.Fatalf("blocking phrase=%#v", span)
+	}
+}
+
+func TestCaptureTriggersHaveDistinctTones(t *testing.T) {
+	seen := map[Tone]rune{ToneRed: 'x'}
+	for _, trigger := range "#!@>+~^" {
+		tone, ok := triggerTone(trigger)
+		if other, taken := seen[tone]; !ok || taken {
+			t.Fatalf("trigger %q tone %v shared with %q", trigger, tone, other)
+		}
+		seen[tone] = trigger
+	}
+	if candidateTone(quickadd.FieldTime) != ToneAccent || candidateTone(quickadd.FieldRecurrence) != ToneTeal {
+		t.Fatal("inferred phrases should match their trigger tones")
+	}
+	if suggestionTone(quickadd.SuggestionEstimate) != TonePurple {
+		t.Fatal("suggestions should match their trigger tones")
+	}
+}
+
 func TestCaptureInputUnderlinesTriggerTokens(t *testing.T) {
-	cell := captureTokenCell(`Call #work !high \#tag`)
+	cell := captureTokenCell(`Call #work !high \#tag`, time.Date(2026, 9, 8, 10, 0, 0, 0, time.UTC), nil)
 	if span := cell(5, '#'); span.Tone != ToneCyan || !span.Underline {
 		t.Fatalf("project token=%#v", span)
 	}
