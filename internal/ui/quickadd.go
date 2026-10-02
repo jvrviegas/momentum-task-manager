@@ -46,6 +46,7 @@ type QuickAddModel struct {
 	Now                   time.Time
 	NowProvider           func() time.Time
 	OriginalInput         string
+	Literals              []quickadd.Span
 	Review                quickadd.Interpretation
 	ReviewOpen            bool
 	ReviewField           int
@@ -88,6 +89,7 @@ func (q *QuickAddModel) OpenQuickAdd(value string) tea.Cmd {
 	q.ReviewTouched = [quickAddReviewFieldCount]bool{}
 	q.ReviewDecisions = [quickAddReviewFieldCount]bool{}
 	q.OriginalInput = value
+	q.Literals = nil
 	q.ParseErr = nil
 	q.Input.SetValue(value)
 	q.Input.CursorEnd()
@@ -141,6 +143,11 @@ func (q *QuickAddModel) Update(msg tea.Msg) (*QuickAddModel, tea.Cmd) {
 				q.SuggestionsOpen = false
 				return q, nil
 			}
+			if span, ok := q.phraseAtCursor(); ok {
+				q.Literals = append(q.Literals, span)
+				q.CaptureRevision++
+				return q, nil
+			}
 			q.Close()
 			return q, nil
 		case "tab":
@@ -172,6 +179,7 @@ func (q *QuickAddModel) Update(msg tea.Msg) (*QuickAddModel, tea.Cmd) {
 	q.Input, cmd = q.Input.Update(msg)
 	if before != q.Input.Value() {
 		q.CaptureRevision++
+		q.Literals = shiftLiterals(before, q.Input.Value(), q.Literals)
 	}
 	q.ParseErr = nil
 	q.refreshSuggestions()
@@ -218,8 +226,10 @@ func (q *QuickAddModel) acceptSuggestion() {
 	if len(q.Suggestions) == 0 {
 		return
 	}
-	ctx := quickadd.ContextAt(q.Input.Value(), q.Input.Position())
-	value, cursor := quickadd.ApplySuggestion(q.Input.Value(), ctx, q.Suggestions[q.SuggestionIndex])
+	before := q.Input.Value()
+	ctx := quickadd.ContextAt(before, q.Input.Position())
+	value, cursor := quickadd.ApplySuggestion(before, ctx, q.Suggestions[q.SuggestionIndex])
+	q.Literals = shiftLiterals(before, value, q.Literals)
 	q.Input.SetValue(value)
 	q.Input.SetCursor(cursor)
 	q.CaptureRevision++
@@ -230,8 +240,9 @@ func (q *QuickAddModel) submit() tea.Cmd {
 	input := q.Input.Value()
 	now := q.currentTime()
 	revision := q.CaptureRevision
+	literals := append([]quickadd.Span(nil), q.Literals...)
 	return func() tea.Msg {
-		interpretation, err := quickadd.Interpret(input, now)
+		interpretation, err := quickadd.InterpretWithLiterals(input, now, literals)
 		if err != nil {
 			return QuickAddErrorMsg{Err: err, Revision: revision, Source: input}
 		}
@@ -298,12 +309,15 @@ func (q QuickAddModel) View() string {
 		content = width - 1
 	}
 	input := append([]Span{sp(icons.Prompt, ToneAccent), txt(" ")},
-		inputSpans(q.Input.Value(), q.Input.Position(), content-2, true, q.Input.Placeholder, captureTokenCell(q.Input.Value()))...)
+		inputSpans(q.Input.Value(), q.Input.Position(), content-2, true, q.Input.Placeholder, captureTokenCell(q.Input.Value(), q.currentTime(), q.Literals))...)
 	if q.Height < 3 {
 		return q.Styles.Line(width, FillPanel, append([]Span{txt(" ")}, input...)...)
 	}
 	rows := []FrameRow{{}, row(input...)}
 	keys := []Hint{{"enter", "add"}, {"esc", "close"}}
+	if _, ok := q.phraseAtCursor(); ok {
+		keys = []Hint{{"enter", "add"}, {"esc", "keep as text"}}
+	}
 	switch {
 	case q.ParseErr != nil:
 		rows = append(rows, FrameRow{})
@@ -329,10 +343,27 @@ func (q QuickAddModel) View() string {
 // captureTokenCell colors trigger tokens (#project, !priority, @due,
 // >scheduled, +tag, ~estimate, ^recurrence) by field and underlines them, so
 // parsing is visible before Enter. A leading backslash escapes a trigger.
-func captureTokenCell(value string) func(int, rune) Span {
+// Natural-language phrases the interpreter accepts are underlined the same
+// way, and phrases that would block the capture are underlined in red.
+// Literals are phrases the user chose to keep as text.
+func captureTokenCell(value string, now time.Time, literals []quickadd.Span) func(int, rune) Span {
 	runes := []rune(value)
 	tones := make([]Tone, len(runes))
 	parsed := make([]bool, len(runes))
+	if interpretation, err := quickadd.InterpretWithLiterals(value, now, literals); err == nil {
+		for _, candidate := range interpretation.Candidates {
+			if !highlightedCandidate(candidate) {
+				continue
+			}
+			tone := candidateTone(candidate.Field)
+			if candidate.Blocking {
+				tone = ToneRed
+			}
+			for index := max(0, candidate.Start); index < min(candidate.End, len(runes)); index++ {
+				tones[index], parsed[index] = tone, true
+			}
+		}
+	}
 	for start := 0; start < len(runes); {
 		if unicode.IsSpace(runes[start]) {
 			start++
@@ -356,16 +387,93 @@ func captureTokenCell(value string) func(int, rune) Span {
 	}
 }
 
+func highlightedCandidate(candidate quickadd.Candidate) bool {
+	return candidate.Provenance == quickadd.ProvenanceInferred && (candidate.Accepted || candidate.Blocking)
+}
+
+// phraseAtCursor returns the highlighted natural-language phrase the cursor is
+// on or directly after, which Esc keeps as text.
+func (q QuickAddModel) phraseAtCursor() (quickadd.Span, bool) {
+	interpretation, err := quickadd.InterpretWithLiterals(q.Input.Value(), q.currentTime(), q.Literals)
+	if err != nil {
+		return quickadd.Span{}, false
+	}
+	cursor := q.Input.Position()
+	for _, candidate := range interpretation.Candidates {
+		if highlightedCandidate(candidate) && candidate.Start <= cursor && cursor <= candidate.End {
+			return quickadd.Span{Start: candidate.Start, End: candidate.End}, true
+		}
+	}
+	return quickadd.Span{}, false
+}
+
+// shiftLiterals moves kept phrases with an edit between before and after.
+// A kept phrase the edit touches is dropped so the new text is recognized
+// again.
+func shiftLiterals(before, after string, literals []quickadd.Span) []quickadd.Span {
+	if len(literals) == 0 {
+		return nil
+	}
+	old, next := []rune(before), []rune(after)
+	prefix := 0
+	for prefix < len(old) && prefix < len(next) && old[prefix] == next[prefix] {
+		prefix++
+	}
+	suffix := 0
+	for suffix < len(old)-prefix && suffix < len(next)-prefix && old[len(old)-1-suffix] == next[len(next)-1-suffix] {
+		suffix++
+	}
+	editEnd, delta := len(old)-suffix, len(next)-len(old)
+	var kept []quickadd.Span
+	for _, literal := range literals {
+		switch {
+		case literal.End <= prefix:
+			kept = append(kept, literal)
+		case literal.Start >= editEnd:
+			kept = append(kept, quickadd.Span{Start: literal.Start + delta, End: literal.End + delta})
+		}
+	}
+	return kept
+}
+
+// candidateTone matches an inferred phrase to its explicit trigger's color.
+func candidateTone(field quickadd.CandidateField) Tone {
+	switch field {
+	case quickadd.FieldProject:
+		return ToneCyan
+	case quickadd.FieldPriority:
+		return ToneHigh
+	case quickadd.FieldDue, quickadd.FieldTime:
+		return ToneAccent
+	case quickadd.FieldScheduled:
+		return ToneMedium
+	case quickadd.FieldTag:
+		return ToneGreen
+	case quickadd.FieldEstimate:
+		return TonePurple
+	case quickadd.FieldRecurrence:
+		return ToneTeal
+	default:
+		return ToneText
+	}
+}
+
 func triggerTone(trigger rune) (Tone, bool) {
 	switch trigger {
 	case '#':
 		return ToneCyan, true
 	case '!':
 		return ToneHigh, true
-	case '@', '>':
+	case '@':
 		return ToneAccent, true
-	case '+', '~', '^':
-		return ToneText, true
+	case '>':
+		return ToneMedium, true
+	case '+':
+		return ToneGreen, true
+	case '~':
+		return TonePurple, true
+	case '^':
+		return ToneTeal, true
 	default:
 		return ToneText, false
 	}
@@ -481,8 +589,16 @@ func suggestionTone(kind quickadd.SuggestionKind) Tone {
 		return ToneCyan
 	case quickadd.SuggestionPriority:
 		return ToneHigh
-	case quickadd.SuggestionDue, quickadd.SuggestionScheduled:
+	case quickadd.SuggestionDue:
 		return ToneAccent
+	case quickadd.SuggestionScheduled:
+		return ToneMedium
+	case quickadd.SuggestionTag:
+		return ToneGreen
+	case quickadd.SuggestionEstimate:
+		return TonePurple
+	case quickadd.SuggestionRecurrence:
+		return ToneTeal
 	default:
 		return ToneText
 	}
