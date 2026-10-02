@@ -246,7 +246,7 @@ func (q *QuickAddModel) submit() tea.Cmd {
 		if err != nil {
 			return QuickAddErrorMsg{Err: err, Revision: revision, Source: input}
 		}
-		if interpretation.RequiresReview {
+		if !interpretation.Valid {
 			return QuickAddReviewMsg{Interpretation: interpretation, Revision: revision}
 		}
 		return QuickAddSubmitMsg{Task: cloneNewTask(interpretation.Task), Revision: revision, Source: input}
