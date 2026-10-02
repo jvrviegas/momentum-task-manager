@@ -596,7 +596,7 @@ func (p ProjectSettingsModel) renderList() string {
 	frame := Frame{
 		Title: "Settings / Projects", Context: []Span{muted(fmt.Sprintf("%d projects", len(p.Projects)))},
 		Rows: rows, Offset: offset, Width: p.frameWidth(), MaxRows: maxRows,
-		Keys: []Hint{{"a", "add"}, {"e", "edit"}, {"d", "remove"}, {"esc", "close"}},
+		Keys: []Hint{{"a", "add"}, {"e", "edit"}, {"d", "remove"}, {"esc", "close"}, {"tab", "appearance"}},
 	}
 	return strings.Join(p.Styles.RenderFrame(frame, icons), "\n")
 }
