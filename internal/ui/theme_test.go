@@ -35,7 +35,8 @@ func TestPaletteCarriesFillAndBackdropTokens(t *testing.T) {
 		t.Fatalf("missing new tokens: dark=%#v light=%#v", dark, light)
 	}
 	// Light tokens are darkened to clear 4.5:1 on Panel and Selection.
-	if light.Muted != "#5a6180" || light.Cyan != "#0b6b7d" || light.Overdue != "#b03049" || light.High != "#9a4d00" || light.Medium != "#7a5800" {
+	if light.Muted != "#5a6180" || light.Cyan != "#0b6b7d" || light.Overdue != "#b03049" || light.High != "#9a4d00" || light.Medium != "#7a5800" ||
+		light.Green != "#4f6b2f" || light.Purple != "#7343b5" || light.Teal != "#1d6b5f" {
 		t.Fatalf("light palette=%#v", light)
 	}
 }
