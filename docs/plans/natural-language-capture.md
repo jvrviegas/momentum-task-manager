@@ -6,6 +6,10 @@
 **Goal:** [G1 — Natural-language command-bar capture](task-first-daily-planner-goals.md#g1--natural-language-command-bar-capture)  
 **Requirements:** NLC-01–NLC-08 from the goal plan
 
+## Approved policy update — one-Enter capture
+
+The user approved immediate creation on Enter for valid natural-language interpretations, superseding the mandatory review portions of O3 and the historical acceptance criteria below. Invalid or conflicting interpretations retain correction review; explicit-only/literal escape, mutation validation, and lifecycle guards remain intact. See `IMPLEMENTATION_PLAN.md` and the UI/root-model regression tests for the follow-up.
+
 ## Independent validation — 2026-09-21
 
 **Final review R5 resolved.** The [2026-09-22 final pass](../reviews/g1-natural-language-capture-final-review.md) confirmed R1–R4 and found that recurrence previews dropped time-of-day and disagreed with Taskwarrior at month end. `domain.RecurrenceNext` now mirrors observed Taskwarrior 3.5 calendar/duration semantics. Permanent domain, review-rendering, and 12-case isolated differential integration coverage verifies time-of-day, month-end/leap-year clamping, supported intervals, and DST transitions. The README now correctly documents explicit `^` fast capture. Full, race, vet, native/cross-build, integration, formatting, and diff gates pass.
