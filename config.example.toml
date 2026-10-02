@@ -4,7 +4,7 @@
 # uda.estimate.type=duration
 # uda.estimate.label=Estimate
 refresh_interval = "60s" # set to "0s" to disable background refresh
-theme = "auto"           # auto, dark, light
+theme = "auto"           # auto, dark, light, terminal
 icons = "unicode"        # unicode, nerd, ascii
 
 [sync]
