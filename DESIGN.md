@@ -276,6 +276,10 @@ The default palette is Tokyo Night-inspired. Tokens are Surface (never painted, 
 
 Lip Gloss background detection selects a dark or light variant when `theme = "auto"`. Users can override it.
 
+`theme = "terminal"` maps every token to the terminal's 16 ANSI colors, so the user's color scheme decides the hues: Accent blue, Cyan cyan, Red red, High bright red, Medium yellow, Green green, Purple magenta, Teal bright cyan, and Muted, Low and Border bright black. Text keeps the default foreground, so the input cursor uses reverse video. Background detection still picks the neutrals: on dark, Panel is black, Selection bright black, Muted-on-fill white and Dim bright black; on light, Panel is bright white, Selection white, Muted-on-fill black and Dim white. Contrast then depends on the scheme, so the 4.5:1 guarantee does not apply.
+
+Settings → Appearance is the second Settings section (`Tab` from Projects). `←`/`→` cycles auto, dark, light and terminal and repaints the whole app as a live preview; `Enter` saves the top-level `theme` key with the same conflict-checked, comment-preserving replacement as Projects saves, and `Esc` restores the saved theme. With an unsaved or saving draft, `Tab`, `1`–`3`, `q` and closing are refused with a status message until the draft is saved or discarded. Leaving Settings resets it to Projects.
+
 Icon modes:
 
 - `unicode` is the default and requires no Nerd Font.
@@ -323,7 +327,7 @@ Momentum works with defaults when the file does not exist.
 
 ```toml
 refresh_interval = "60s"
-theme = "auto"       # auto, dark, light
+theme = "auto"       # auto, dark, light, terminal
 icons = "unicode"    # unicode, nerd, ascii
 
 [sync]
