@@ -30,6 +30,9 @@ type Theme struct {
 	High      string
 	Medium    string
 	Low       string
+	Green     string
+	Purple    string
+	Teal      string
 	Border    string
 	Dim       string
 }
@@ -38,7 +41,8 @@ func darkTheme() Theme {
 	return Theme{
 		Name: "dark", Surface: "#161a2b", Panel: "#1f2438", Text: "#c0caf5", Muted: "#7982a9", MutedFill: "#959ec8",
 		Selection: "#283457", Accent: "#7aa2f7", Cyan: "#7dcfff", Overdue: "#f7768e", High: "#ff9e64",
-		Medium: "#e0af68", Low: "#7982a9", Border: "#3b4261", Dim: "#4a5170",
+		Medium: "#e0af68", Low: "#7982a9", Green: "#9ece6a", Purple: "#bb9af7", Teal: "#73daca",
+		Border: "#3b4261", Dim: "#4a5170",
 	}
 }
 
@@ -46,7 +50,8 @@ func lightTheme() Theme {
 	return Theme{
 		Name: "light", Surface: "#f6f7fb", Panel: "#e8ebf3", Text: "#343b58", Muted: "#5a6180", MutedFill: "#5a6180",
 		Selection: "#d7e3ff", Accent: "#34548a", Cyan: "#0b6b7d", Overdue: "#b03049", High: "#9a4d00",
-		Medium: "#7a5800", Low: "#5a6180", Border: "#a9b1c6", Dim: "#b4bacb",
+		Medium: "#7a5800", Low: "#5a6180", Green: "#4f6b2f", Purple: "#7343b5", Teal: "#1d6b5f",
+		Border: "#a9b1c6", Dim: "#b4bacb",
 	}
 }
 
@@ -107,6 +112,12 @@ func (s Styles) tone(t Tone, onFill bool) color.Color {
 		value = theme.High
 	case ToneMedium:
 		value = theme.Medium
+	case ToneGreen:
+		value = theme.Green
+	case TonePurple:
+		value = theme.Purple
+	case ToneTeal:
+		value = theme.Teal
 	case ToneBorder:
 		value = theme.Border
 	case ToneSurface:
