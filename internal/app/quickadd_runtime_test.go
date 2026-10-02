@@ -5,7 +5,7 @@ import (
 
 	tea "charm.land/bubbletea/v2"
 
-	"github.com/jvrviegas/momentum/internal/ui"
+	"github.com/jvrviegas/momentum-task-manager/internal/ui"
 )
 
 func TestQuickAddKeyFlowProducesSubmissionThroughRootModel(t *testing.T) {
