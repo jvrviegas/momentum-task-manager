@@ -89,6 +89,14 @@ func TestExplicitPathOutranksXDG(t *testing.T) {
 	}
 }
 
+func TestTerminalThemeIsAccepted(t *testing.T) {
+	path := writeConfig(t, `theme = "terminal"`)
+	got, _, err := LoadWithOptions(LoadOptions{PathOverride: path, Env: map[string]string{}})
+	if err != nil || got.Theme != ThemeTerminal {
+		t.Fatalf("got config=%#v err=%v", got, err)
+	}
+}
+
 func TestUnknownTopLevelKeyIsRejected(t *testing.T) {
 	path := writeConfig(t, `mispelled = true`)
 	_, _, err := LoadWithOptions(LoadOptions{PathOverride: path, Env: map[string]string{}})
