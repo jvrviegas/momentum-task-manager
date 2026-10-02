@@ -3,7 +3,7 @@ package ui
 import (
 	"strings"
 
-	"github.com/jvrviegas/momentum/internal/config"
+	"github.com/jvrviegas/momentum-task-manager/internal/config"
 )
 
 // Icons is the complete marker vocabulary. Nerd mode swaps only icons;
