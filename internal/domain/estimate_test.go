@@ -173,3 +173,13 @@ func TestEstimateDiffDistinguishesUnchangedSetAndClear(t *testing.T) {
 		t.Fatalf("snapshot estimate=%#v", got)
 	}
 }
+
+func TestEstimateInputValueRoundTrips(t *testing.T) {
+	for minutes := MinEstimateMinutes; minutes <= MaxEstimateMinutes+90; minutes++ {
+		estimate := Estimate{Minutes: minutes}
+		parsed, err := ParseEstimateValue(estimate.InputValue())
+		if err != nil || parsed != estimate {
+			t.Fatalf("minutes=%d input=%q parsed=%#v err=%v", minutes, estimate.InputValue(), parsed, err)
+		}
+	}
+}
