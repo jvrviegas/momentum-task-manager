@@ -104,6 +104,14 @@ func (s *FileProjectCatalogStore) Save(ctx context.Context, snapshot ProjectCata
 	if err := projects.Validate(); err != nil {
 		return ProjectCatalogSnapshot{}, err
 	}
+	return s.save(ctx, snapshot, "projects", func(doc *tomledit.Document) error {
+		return patchProjects(doc, projects)
+	})
+}
+
+// save validates and atomically replaces the config after patch edits its
+// document. The source must still match snapshot.Revision.
+func (s *FileProjectCatalogStore) save(ctx context.Context, snapshot ProjectCatalogSnapshot, label string, patch func(*tomledit.Document) error) (ProjectCatalogSnapshot, error) {
 	path, err := s.resolvedPath()
 	if err != nil {
 		return ProjectCatalogSnapshot{}, err
@@ -134,11 +142,12 @@ func (s *FileProjectCatalogStore) Save(ctx context.Context, snapshot ProjectCata
 	if err != nil {
 		return ProjectCatalogSnapshot{}, fmt.Errorf("validate current project config %s: %w", path, err)
 	}
-	if err := patchProjects(doc, projects); err != nil {
-		return ProjectCatalogSnapshot{}, fmt.Errorf("edit projects in %s: %w", path, err)
+	if err := patch(doc); err != nil {
+		return ProjectCatalogSnapshot{}, fmt.Errorf("edit %s in %s: %w", label, path, err)
 	}
 	output := normalizeNewlines(source, doc.Bytes())
-	if _, _, err := parseAndValidateConfig(output); err != nil {
+	_, edited, err := parseAndValidateConfig(output)
+	if err != nil {
 		return ProjectCatalogSnapshot{}, fmt.Errorf("validate edited project config %s: %w", path, err)
 	}
 
@@ -146,7 +155,7 @@ func (s *FileProjectCatalogStore) Save(ctx context.Context, snapshot ProjectCata
 	// identical bytes. A missing path is still deliberately created, including
 	// when the requested catalog is empty.
 	if revision.Exists && bytes.Equal(source, output) {
-		return ProjectCatalogSnapshot{Path: path, Projects: cloneProjects(projects), Revision: revision}, nil
+		return ProjectCatalogSnapshot{Path: path, Projects: cloneProjects(edited.Projects), Revision: revision}, nil
 	}
 
 	// Check again after parsing/editing and immediately before creating the
