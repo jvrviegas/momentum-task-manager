@@ -99,7 +99,7 @@ Automated input and rendering tests cover wide (120), compact (79), narrow (49),
 
 Suggested maintainer smoke pass:
 
-1. Launch with a temporary `--config` and temporary `TASKRC`/`TASKDATA`; press `3` and inspect Settings → Projects at wide/compact/narrow widths.
+1. Launch with a temporary `--config` and temporary `TASKRC`/`TASKDATA`; press `4` and inspect Settings → Projects at wide/compact/narrow widths.
 2. Add, reparent, rename-label, remove (No/Yes/Cancel), save, quit/restart, and verify quick-add/editor suggestions immediately and after restart.
 3. Seed isolated pending, completed, deleted, waiting, recurring-template/instance, child, and prefix-lookalike tasks. Preview a value rename with descendants off/on; verify only confirmed active-context pending tasks change and historical values/unrelated fields remain.
 4. Exercise catalog-save failure, hook rejection, stale preview/retry, partial task failure, task-only destination warning, no-active-context, and disabled-sync states.
@@ -245,6 +245,12 @@ Four reviewed real-terminal PNGs from the isolated `/private/tmp/momentum-ui-uat
 
 Automated formatting, full/unit and race tests, vet, native build, Linux AMD64/macOS ARM64 cross-builds, and `git diff --check` passed on the working tree. T07 is marked validated with these limitations recorded. This verdict does not validate unrelated Settings, G0, G2, G3, G4, or integrated workflow UAT.
 
+## Main UI redesign merge (2026-10-02)
+
+**Automated gates PASS; live re-check pending.** Merge `e201976` brought main's redesigned terminal UI and the `momentum-task-manager` module rename into the feature branch. The daily planner and capture review overlays were ported to the shared modal frame; estimate, recurrence, and stop-recurrence details, editor fields, and help keys were re-applied to the redesigned components. Follow-up commits `63cf6e4`–`5eb216e` fixed editable estimate inputs that opened in the display form (`1h 30m`), which the parser rejects: untouched mixed estimates were marked changed and blocked editor saves and review confirmation.
+
+The G1 T10 and UI readability T07 live verdicts above were given on the pre-redesign UI. They do not cover the redesigned shell, the ported planner and capture review, or the underlined active-tab cue, so both need a live re-check. Settings now opens with `4`; `3` opens Completed. At the 28-column minimum, a focused 15-cell review value can lose its first character to the cursor cell while its tail stays visible.
+
 ## Overall status
 
-G1 natural-language capture and UI readability T07 have automated evidence and maintainer-reported live validation. Release readiness still requires separate live visual/keyboard UAT for Settings, G0 estimate workflow, broader recurrence/template stop, daily planning, and local-ICS degradation. These sign-offs do not imply those other goals passed live UAT.
+G1 natural-language capture and UI readability T07 have automated evidence and maintainer-reported live validation on the pre-redesign UI; both need a live re-check after the 2026-10-02 merge. Release readiness still requires separate live visual/keyboard UAT for Settings, G0 estimate workflow, broader recurrence/template stop, daily planning, and local-ICS degradation. These sign-offs do not imply those other goals passed live UAT.
