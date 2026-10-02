@@ -249,3 +249,15 @@ func TestReviewRendersErrorsAndAllSubmittedFields(t *testing.T) {
 		t.Fatalf("review error hidden: %q", q.View())
 	}
 }
+
+func TestReviewConfirmsMixedEstimateUnchanged(t *testing.T) {
+	q := reviewedQuickAdd(t, "Write report tomorrow ~90m")
+	_, cmd := q.Update(tea.KeyPressMsg(tea.Key{Code: 's', Mod: tea.ModCtrl}))
+	if cmd == nil {
+		t.Fatalf("confirm blocked: err=%v", q.ParseErr)
+	}
+	message, ok := cmd().(QuickAddSubmitMsg)
+	if !ok || message.Task.Estimate == nil || message.Task.Estimate.Minutes != 90 {
+		t.Fatalf("message=%#v err=%v", cmd(), q.ParseErr)
+	}
+}
