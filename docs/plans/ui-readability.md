@@ -1,7 +1,7 @@
 # Implementation plan — UI readability and comfortable layout
 
 **Created:** 2026-09-17  
-**Status:** Validated; 8 / 8 tasks complete (automated gates and maintainer-reported live T07 visual/interaction UAT pass; evidence in `docs/UAT.md`)
+**Status:** Validated; 8 / 8 tasks complete (automated gates and maintainer-reported live T07 visual/interaction UAT pass; evidence in `docs/UAT.md`); live re-check pending after the 2026-10-02 main UI redesign merge
 **Baseline:** `1605293` on `main`; recheck HEAD and the working tree before starting.  
 **Design input:** [Momentum Design §6](../../DESIGN.md#6-visual-design) and [UI readability audit](../../.notebook/ui-readability-audit.md)  
 **Primary scope:** `internal/ui`, `internal/app/view.go`, `internal/app/update.go`, rendering tests, screenshots, and UAT evidence
