@@ -5,9 +5,9 @@ import (
 
 	tea "charm.land/bubbletea/v2"
 
-	"github.com/jvrviegas/momentum/internal/domain"
-	"github.com/jvrviegas/momentum/internal/taskwarrior"
-	"github.com/jvrviegas/momentum/internal/ui"
+	"github.com/jvrviegas/momentum-task-manager/internal/domain"
+	"github.com/jvrviegas/momentum-task-manager/internal/taskwarrior"
+	"github.com/jvrviegas/momentum-task-manager/internal/ui"
 )
 
 func (m *Model) handleProjectSettingsSave(plan domain.ProjectCatalogPlan) tea.Cmd {
