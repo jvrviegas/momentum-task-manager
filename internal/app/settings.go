@@ -7,6 +7,16 @@ import (
 	"github.com/jvrviegas/momentum-task-manager/internal/ui"
 )
 
+// SettingsSection is the Settings screen tab switches between.
+type SettingsSection string
+
+const (
+	SettingsProjects   SettingsSection = ""
+	SettingsAppearance SettingsSection = "appearance"
+)
+
+const themeLeaveStatus = "Save (enter) or discard (esc) the theme change first"
+
 func normalizeTaskView(view ViewName) ViewName {
 	switch view {
 	case ViewToday, ViewCompleted:
@@ -24,6 +34,9 @@ func (m *Model) updateSettingsKey(message tea.KeyPressMsg) tea.Cmd {
 		_, cmd := m.ProjectRename.Update(message)
 		return cmd
 	}
+	if m.SettingsSection == SettingsAppearance {
+		return m.updateAppearanceKey(message)
+	}
 	if !m.ProjectSettings.Editing && !m.ProjectSettings.RemovePromptOpen && !m.ProjectSettings.DiscardPromptOpen {
 		switch message.String() {
 		case "1":
@@ -34,6 +47,11 @@ func (m *Model) updateSettingsKey(message tea.KeyPressMsg) tea.Cmd {
 			return nil
 		case "3":
 			m.SwitchView(ViewCompleted)
+			return nil
+		case "tab":
+			if !m.ProjectSaveRunning && !m.MigrationRunning {
+				m.SettingsSection = SettingsAppearance
+			}
 			return nil
 		}
 	}
@@ -65,11 +83,91 @@ func (m *Model) leaveSettings() {
 		m.Status = "Save or discard project changes before leaving Settings"
 		return
 	}
+	if m.Appearance.Saving || m.Appearance.Dirty() {
+		m.Status = themeLeaveStatus
+		return
+	}
 	view := normalizeTaskView(m.SettingsReturnView)
 	m.ProjectSettings.Close()
+	m.SettingsSection = SettingsProjects
 	m.ActiveView = view
 	m.Focus = FocusList
 	m.restoreSelection(view, m.Selected[view])
+}
+
+// updateAppearanceKey routes keys in Settings → Appearance and repaints the
+// app with the draft theme so every change previews live.
+func (m *Model) updateAppearanceKey(message tea.KeyPressMsg) tea.Cmd {
+	pending := m.Appearance.Saving || m.Appearance.Dirty()
+	switch message.String() {
+	case "1":
+		m.SwitchView(ViewInbox)
+		return nil
+	case "2":
+		m.SwitchView(ViewToday)
+		return nil
+	case "3":
+		m.SwitchView(ViewCompleted)
+		return nil
+	case "tab":
+		if pending {
+			m.Status = themeLeaveStatus
+		} else {
+			m.SettingsSection = SettingsProjects
+		}
+		return nil
+	case "q", "ctrl+c":
+		if pending {
+			m.Status = themeLeaveStatus
+			return nil
+		}
+		m.leaveSettings()
+		return m.requestQuit()
+	}
+	cmd := m.Appearance.Update(message)
+	m.applyTheme(m.Appearance.Draft)
+	return cmd
+}
+
+// applyTheme repaints every component with the palette for mode.
+func (m *Model) applyTheme(mode string) {
+	styles := ui.NewStyles(ui.ResolveTheme(mode, m.DarkBackground))
+	if styles == m.Styles {
+		return
+	}
+	m.Styles = styles
+	m.QuickAdd.Styles = styles
+	m.Search.Styles = styles
+	m.Editor.Styles = styles
+	m.Details.Styles = styles
+	m.Confirm.Styles = styles
+	m.Help.Styles = styles
+	m.Quit.Styles = styles
+	m.ProjectSettings.Styles = styles
+	m.ProjectRename.Styles = styles
+	m.Appearance.Styles = styles
+	m.Planner.Styles = styles
+}
+
+func (m *Model) beginThemeSave(theme string) tea.Cmd {
+	m.Status = "Saving theme…"
+	return ThemeSaveCommand(m.ctx, m.ProjectStore, m.ProjectSnapshot, theme)
+}
+
+func (m *Model) applyThemeSave(message ThemeSaveMsg) {
+	if !m.Appearance.Saving {
+		return
+	}
+	m.Appearance.ApplySaved(message.Err)
+	if message.Err != nil {
+		m.Status = "Theme save failed: " + conciseError(message.Err)
+		return
+	}
+	m.Config.Theme = message.Theme
+	if message.Snapshot.Path != "" || message.Snapshot.Revision.Exists {
+		m.ProjectSnapshot = message.Snapshot
+	}
+	m.Status = "Theme saved"
 }
 
 func (m *Model) beginProjectCatalogSave(plan domain.ProjectCatalogPlan) tea.Cmd {
