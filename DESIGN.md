@@ -2,7 +2,7 @@
 
 **Status:** Implemented; see `docs/UAT.md` for acceptance evidence  
 **Application:** Momentum  
-**Module path:** `github.com/jvrviegas/momentum`  
+**Module path:** `github.com/jvrviegas/momentum-task-manager`  
 **Target directory:** `/home/joaovvr/Projects/Personal/momentum`  
 **Last updated:** 2026-10-02
 
@@ -649,7 +649,7 @@ Doctor must not mutate tasks or run an irreversible sync unless explicitly docum
 Initial development uses local Go builds. Releases support:
 
 ```sh
-go install github.com/jvrviegas/momentum/cmd/momentum@latest
+go install github.com/jvrviegas/momentum-task-manager/cmd/momentum@latest
 ```
 
 First published releases should provide binaries for:
