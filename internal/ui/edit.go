@@ -101,7 +101,7 @@ func (e *EditModel) OpenTask(task domain.Task, initial EditField) tea.Cmd {
 	e.Focused = initial
 	estimateValue := ""
 	if e.Before.Estimate != nil {
-		estimateValue = e.Before.Estimate.String()
+		estimateValue = e.Before.Estimate.InputValue()
 	}
 	values := [...]string{e.Before.Description, e.Before.Project, e.Before.Priority, e.Before.Due, e.Before.Scheduled, strings.Join(e.Before.Tags, " "), estimateValue, e.Before.Recurrence}
 	for index, value := range values {
