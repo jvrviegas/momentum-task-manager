@@ -11,7 +11,7 @@ import (
 	"strings"
 	"time"
 
-	"github.com/jvrviegas/momentum/internal/domain"
+	"github.com/jvrviegas/momentum-task-manager/internal/domain"
 )
 
 const defaultTimeout = 15 * time.Second
