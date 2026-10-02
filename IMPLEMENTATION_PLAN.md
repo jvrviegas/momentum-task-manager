@@ -679,6 +679,10 @@ Record implementation-time departures here before proceeding.
 | 2026-09-08 | T23 | `test: validate momentum user workflows` | macOS gates/UAT; Linux `golang:1.27` gates and Debian sid Taskwarrior 3.5 UAT | Cross-platform builds, full/race gates, isolated Linux/macOS integration, local-only TTY quick-add smoke, responsive widths, and icon modes recorded in `docs/UAT.md`. |
 | 2026-09-08 | T24 | `docs: prepare momentum for initial release` | `go test ./...`; `go test -race ./...`; `go vet ./...`; native/cross builds; `goreleaser build --snapshot --clean` | README, contributor guide, config example, manual sync guide, CI, GoReleaser targets, and screenshot placeholder added; no remote/release created. |
 
+## Approved follow-up — one-Enter natural-language capture
+
+At the user's request, valid natural-language quick capture now submits immediately on Enter rather than requiring review/Ctrl+S. Invalid or conflicting interpretations still open correction review. This supersedes G1's original mandatory inference-review policy; Taskwarrior validation and stale/busy/duplicate mutation guards are unchanged. UI and root-model regression tests cover immediate creation, exact inferred fields, repeated Enter, and correction routing.
+
 ## Approved extension — project suggestion catalog
 
 User-approved scope: Momentum owns an optional config-backed catalog of common projects. Each entry stores a display name and a lowercase, hyphenated/dotted Taskwarrior value; hierarchy follows the dotted value. Settings → Projects manages this catalog and supports an explicit pending-only task-value migration; there is no independent project database or automatic catalog growth.
