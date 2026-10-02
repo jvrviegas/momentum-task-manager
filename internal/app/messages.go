@@ -115,6 +115,13 @@ type ProjectCatalogSaveMsg struct {
 	Err      error
 }
 
+// ThemeSaveMsg is the typed result of an asynchronous theme save.
+type ThemeSaveMsg struct {
+	Theme    string
+	Snapshot config.ProjectCatalogSnapshot
+	Err      error
+}
+
 // ProjectRenamePreviewMsg is the typed result of one async preview export.
 type ProjectRenamePreviewMsg struct {
 	ID      uint64
