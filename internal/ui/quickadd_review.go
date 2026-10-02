@@ -8,8 +8,8 @@ import (
 	tea "charm.land/bubbletea/v2"
 	"charm.land/lipgloss/v2"
 
-	"github.com/jvrviegas/momentum/internal/domain"
-	"github.com/jvrviegas/momentum/internal/quickadd"
+	"github.com/jvrviegas/momentum-task-manager/internal/domain"
+	"github.com/jvrviegas/momentum-task-manager/internal/quickadd"
 )
 
 const (
@@ -49,7 +49,6 @@ func (q *QuickAddModel) setReviewInputValues(task domain.NewTask) {
 		q.ReviewInputs[index].SetValue(values[index])
 		q.ReviewInputs[index].Blur()
 	}
-	q.resizeReviewInputs()
 	q.ensureReviewFieldVisible()
 }
 
@@ -119,7 +118,6 @@ func (q *QuickAddModel) updateReview(msg tea.Msg) tea.Cmd {
 		q.CaptureRevision++
 	}
 	q.ParseErr = nil
-	q.resizeReviewInputs()
 	q.ensureReviewFieldVisible()
 	return cmd
 }
@@ -169,8 +167,8 @@ func (q *QuickAddModel) ensureReviewFieldVisible() {
 }
 
 func (q QuickAddModel) reviewFieldBudget() int {
-	height := ModalContentHeight(q.Height, 0)
-	budget := height - 2 // title and action footer
+	height := ModalMaxRows(q.Height)
+	budget := height // the frame border carries the title and keys
 	if q.ParseErr != nil || q.hasBlockingReviewDiagnostic() {
 		budget--
 	}
@@ -590,23 +588,23 @@ func (q QuickAddModel) hasBlockingReviewDiagnostic() bool {
 	return false
 }
 
-func (q QuickAddModel) reviewDetailLines(width int) []string {
-	lines := make([]string, 0)
-	appendWrapped := func(text string, style interface{ Render(...string) string }) {
+func (q QuickAddModel) reviewDetailRows(width int) []FrameRow {
+	rows := make([]FrameRow, 0)
+	appendWrapped := func(text string, tone Tone) {
 		for _, line := range WrapText(text, width) {
-			lines = append(lines, style.Render(line))
+			rows = append(rows, row(sp(line, tone)))
 		}
 	}
 	if q.ParseErr != nil {
-		appendWrapped(q.ParseErr.Error(), q.Styles.Error)
-		return lines
+		appendWrapped(q.ParseErr.Error(), ToneRed)
+		return rows
 	}
 	for _, diagnostic := range q.Review.Diagnostics {
-		style := q.Styles.Metadata
+		tone := ToneMuted
 		if diagnostic.Blocking {
-			style = q.Styles.Error
+			tone = ToneRed
 		}
-		appendWrapped(diagnostic.Message, style)
+		appendWrapped(diagnostic.Message, tone)
 	}
 	if recurrence := strings.TrimSpace(q.ReviewInputs[quickAddReviewRecurrence].Value()); recurrence != "" {
 		reference := q.Review.ReferenceTime
@@ -615,7 +613,7 @@ func (q QuickAddModel) reviewDetailLines(width int) []string {
 		}
 		if anchor, ok := reviewAnchor(q.ReviewInputs[quickAddReviewDue].Value(), reference); ok {
 			if next, ok := domain.RecurrenceNext(anchor, recurrence); ok {
-				appendWrapped("Next occurrence: "+next.Format("2006-01-02 15:04 MST"), q.Styles.Metadata)
+				appendWrapped("Next occurrence: "+next.Format("2006-01-02 15:04 MST"), ToneMuted)
 			}
 		}
 	}
@@ -638,7 +636,7 @@ func (q QuickAddModel) reviewDetailLines(width int) []string {
 		if candidate.Diagnostic != "" {
 			line += " · " + candidate.Diagnostic
 		}
-		style := q.Styles.Metadata
+		tone := ToneMuted
 		resolved := false
 		for _, index := range reviewFieldIndexes(candidate.Field) {
 			if q.ReviewDecisions[index] {
@@ -647,11 +645,11 @@ func (q QuickAddModel) reviewDetailLines(width int) []string {
 			}
 		}
 		if candidate.Blocking && !resolved {
-			style = q.Styles.Error
+			tone = ToneRed
 		}
-		appendWrapped(line, style)
+		appendWrapped(line, tone)
 	}
-	return lines
+	return rows
 }
 
 // reviewFieldAffixes is shared by sizing and rendering so the input viewport
@@ -677,51 +675,36 @@ func (q QuickAddModel) reviewFieldAffixes(index int) (prefix, suffix string) {
 }
 
 func (q QuickAddModel) compactReview() bool {
-	return quickAddContentWidth(q.Width) < 60 || ModalContentHeight(q.Height, 0) < 10
+	return quickAddContentWidth(q.Width) < 60 || ModalMaxRows(q.Height) < 10
 }
 
-func (q *QuickAddModel) resizeReviewInputs() {
-	width := quickAddContentWidth(q.Width)
-	for index := range q.ReviewInputs {
-		prefix, suffix := q.reviewFieldAffixes(index)
-		// Bubbles adds a cursor cell beyond the configured input width.
-		q.ReviewInputs[index].SetWidth(max(1, width-lipgloss.Width(prefix)-lipgloss.Width(suffix)-1))
-		// SetWidth alone does not recompute Bubbles' horizontal viewport.
-		q.ReviewInputs[index].SetCursor(q.ReviewInputs[index].Position())
-	}
+// quickAddContentWidth is the content column of the capture frame.
+func quickAddContentWidth(terminalWidth int) int {
+	return FrameContentWidth(ModalWidth(QuickAddWidth, terminalWidth))
 }
 
 func (q QuickAddModel) reviewView() string {
-	// Refresh the render snapshot too: callers may replace a value directly,
-	// changing the optional formatted-date prefix without a key event.
-	q.resizeReviewInputs()
-	width := quickAddContentWidth(q.Width)
-	height := ModalContentHeight(q.Height, 0)
-	if height < 1 {
-		height = 1
-	}
+	icons := q.Icons.orUnicode()
+	frameWidth := ModalWidth(QuickAddWidth, q.Width)
+	width := FrameContentWidth(frameWidth)
+	height := ModalMaxRows(q.Height)
 
-	title := q.Styles.ModalTitle.Render("Review capture")
-	action := q.Styles.ModalAction.Render(Truncate("Tab · Ctrl+S confirm · Ctrl+R resolve · Ctrl+X explicit-only · PgUp/Dn · Esc", width))
 	compact := q.compactReview()
-	info := make([]string, 0, 2)
+	info := make([]FrameRow, 0, 2)
 	if !compact && height >= 10 {
-		info = append(info, q.Styles.Metadata.Render(Truncate("Inferred values are frozen until you go back and reinterpret", width)))
+		info = append(info, row(muted(Truncate("Inferred values are frozen until you go back and reinterpret", width))))
 		if q.Review.Timezone != "" {
-			info = append(info, q.Styles.Metadata.Render(Truncate("Timezone: "+q.Review.Timezone, width)))
+			info = append(info, row(muted(Truncate("Timezone: "+q.Review.Timezone, width))))
 		}
 	}
 
-	details := q.reviewDetailLines(width)
+	details := q.reviewDetailRows(width)
 	if compact && q.ParseErr == nil && !q.hasBlockingReviewDiagnostic() && len(q.Review.Diagnostics) == 0 {
 		// Compact rows carry provenance markers themselves; spend the scarce
 		// height on the focused value rather than hiding it behind candidates.
 		details = nil
 	}
-	available := height - 1 - len(info) - 1 // title and action
-	if available < 1 {
-		available = 1
-	}
+	available := max(1, height-len(info))
 	// Keep at least one field visible. Blocking diagnostics take priority over
 	// candidate prose when a short terminal cannot show everything at once.
 	detailBudget := min(len(details), max(0, available-1))
@@ -731,33 +714,34 @@ func (q QuickAddModel) reviewView() string {
 		detailBudget = max(0, available-fieldBudget)
 	}
 	if detailBudget < len(details) {
-		detailStart := q.ReviewDetailScroll
-		maxStart := len(details) - detailBudget
-		if detailStart > maxStart {
-			detailStart = maxStart
-		}
-		if detailStart < 0 {
-			detailStart = 0
-		}
+		detailStart := min(max(0, q.ReviewDetailScroll), len(details)-detailBudget)
 		details = details[detailStart : detailStart+detailBudget]
 	}
 	fieldStart, fieldEnd := q.reviewFieldWindow(fieldBudget)
 
-	lines := []string{title}
-	lines = append(lines, info...)
-	lines = append(lines, details...)
+	rows := append(info, details...)
 	for index := fieldStart; index < fieldEnd; index++ {
-		prefix, suffix := q.reviewFieldAffixes(index)
-		line := prefix + q.ReviewInputs[index].View() + suffix
-		if index == q.ReviewField {
-			line = q.Styles.Selection.Render(PadRight(Truncate(line, width), width))
-		} else {
-			line = Truncate(line, width)
-		}
-		lines = append(lines, line)
+		rows = append(rows, q.reviewFieldRow(index, width, icons))
 	}
-	lines = append(lines, action)
-	return renderBoundedPanel(lines, width, height, q.Styles)
+	frame := Frame{
+		Title: "Review capture", Rows: rows, Width: frameWidth, MaxRows: height,
+		Keys: []Hint{{"ctrl+s", "confirm"}, {"esc", "back"}, {"tab", "field"}, {"ctrl+r", "resolve"}, {"ctrl+x", "explicit only"}, {"pgup/dn", "details"}},
+	}
+	return strings.Join(q.Styles.RenderFrame(frame, icons), "\n")
+}
+
+// reviewFieldRow budgets the input by the same affixes it renders, so a long
+// value scrolls to keep its cursor visible instead of clipping behind them.
+func (q QuickAddModel) reviewFieldRow(index, width int, icons Icons) FrameRow {
+	prefix, suffix := q.reviewFieldAffixes(index)
+	input := q.ReviewInputs[index]
+	focused := index == q.ReviewField
+	value := inputSpans(input.Value(), input.Position(), width-lipgloss.Width(prefix)-lipgloss.Width(suffix), focused, input.Placeholder, nil)
+	if !focused {
+		return row(append(append([]Span{muted(prefix)}, value...), muted(suffix))...)
+	}
+	spans := append(append([]Span{txt(prefix).bold()}, value...), txt(suffix))
+	return FrameRow{Spans: spans, Mark: icons.Selection, Bg: FillSelection}
 }
 
 func (q QuickAddModel) reviewFieldWindow(budget int) (int, int) {
@@ -787,7 +771,7 @@ func (q QuickAddModel) reviewFieldWindow(budget int) (int, int) {
 }
 
 func reviewConfirmationAccessible(width, height int) bool {
-	return width >= MinimumWidth && height >= MinimumHeight && ModalContentHeight(height, 0) >= 3
+	return width >= MinimumWidth && height >= MinimumHeight
 }
 
 func cloneInterpretation(value quickadd.Interpretation) quickadd.Interpretation {

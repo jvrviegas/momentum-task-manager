@@ -1,255 +1,255 @@
 === today ===
-VIEWS                     Momentum  ·  Today · 3 tasks
-  ▱ Inbox 1
-▌ ◷ Today 3               Overdue · 1
-  ✓ Completed 0           ▌ □ Overdue task
-                          ▌   Overdue · Due Sep 7 10:00
-MANAGE
-  ⚙ Settings
-                          Due Today · 1
-                          □ Due task
-                            Due Today 17:00
+ Momentum               │  Today  3 tasks                                                            sorted by urgency
+                        │  ───────────────────────────────────────────────────────────────────────────────────────────
+ VIEWS                  │
+  ▱ Inbox            1  │  Overdue  1  ───────────────────────────────────────────────────────────────────────────────
+▌ ◷ Today            3  │  ▌ □ Overdue task
+  ✓ Completed           │  ▌   ! Overdue · Due Yesterday 10:00
+                        │
+ MANAGE                 │  Due Today  1  ─────────────────────────────────────────────────────────────────────────────
+  ⚙ Settings            │    □ Due task
+                        │      Due Today 17:00
+                        │
+                        │  Scheduled Today  1  ───────────────────────────────────────────────────────────────────────
+                        │    □ Scheduled task
+                        │      Scheduled Today 09:00
+                        │
+                        │
+                        │
+                        │
+                        │
+                        │
+                        │
+                        │
+                        │
+                        │
+                        │
+                        │
+                        │
 
-
-                          Scheduled Today · 1
-                          □ Scheduled task
-                            Scheduled Today 09:00
-
-
-
-
-
-
-
-
-
-
-
-
-
-                          [c] Create  [/] Search  [?] Help  [q] Quit
-                          Sync ready
+  c  capture   /  search   enter  details   ?  help   q  quit                                                1-4  views
+                                                                                                           ✓ Sync ready
 
 === inbox ===
-VIEWS                     Momentum  ·  Inbox · 1 tasks
-▌ ▱ Inbox 1
-  ◷ Today 3               work
-  ✓ Completed 0           □ Inbox task
+ Momentum               │  Inbox  1 task                                                            grouped by project
+                        │  ───────────────────────────────────────────────────────────────────────────────────────────
+ VIEWS                  │
+▌ ▱ Inbox            1  │  #work  1  ─────────────────────────────────────────────────────────────────────────────────
+  ◷ Today            3  │    □ Inbox task
+  ✓ Completed           │
+                        │
+ MANAGE                 │
+  ⚙ Settings            │
+                        │
+                        │
+                        │
+                        │
+                        │
+                        │
+                        │
+                        │
+                        │
+                        │
+                        │
+                        │
+                        │
+                        │
+                        │
+                        │
+                        │
+                        │
 
-MANAGE
-  ⚙ Settings
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-                          [c] Create  [/] Search  [?] Help  [q] Quit
-                          Sync ready
+  c  capture   /  search   enter  details   ?  help   q  quit                                                1-4  views
+                                                                                                           ✓ Sync ready
 
 === empty ===
-VIEWS                     Momentum  ·  Inbox · 0 tasks
-▌ ▱ Inbox 0
-  ◷ Today 0               No pending tasks
-  ✓ Completed 0           Ctrl+K to capture something
+ Momentum               │  Inbox  0 tasks                                                           grouped by project
+                        │  ───────────────────────────────────────────────────────────────────────────────────────────
+ VIEWS                  │
+▌ ▱ Inbox            0  │
+  ◷ Today            0  │
+  ✓ Completed           │
+                        │    ▱ No pending tasks
+ MANAGE                 │      Tasks that are not due or scheduled today land here.
+  ⚙ Settings            │
+                        │       c  capture a task
+                        │
+                        │
+                        │
+                        │
+                        │
+                        │
+                        │
+                        │
+                        │
+                        │
+                        │
+                        │
+                        │
+                        │
+                        │
+                        │
+                        │
 
-MANAGE
-  ⚙ Settings
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-                          [c] Create  [/] Search  [?] Help  [q] Quit
-                          Sync ready
+  c  capture   /  search   enter  details   ?  help   q  quit                                                1-4  views
+                                                                                                           ✓ Sync ready
 
 === loading ===
-VIEWS                     Momentum  ·  Today · 0 tasks
-  ▱ Inbox 0
-▌ ◷ Today 0               Loading tasks…
-  ✓ Completed 0
+ Momentum               │  Today                                                                     sorted by urgency
+                        │  ───────────────────────────────────────────────────────────────────────────────────────────
+ VIEWS                  │
+  ▱ Inbox               │  ░░░░░░░░░  ░░
+▌ ◷ Today               │      ░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░
+  ✓ Completed           │        ░░░░░░░░░░░░░░░░░░░░░░░░░░░░
+                        │      ░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░
+ MANAGE                 │        ░░░░░░░░░░░░░░░░░░░░░░
+  ⚙ Settings            │
+                        │  ░░░░░░░░░░░  ░░
+                        │      ░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░
+                        │        ░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░
+                        │      ░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░
+                        │        ░░░░░░░░░░░░░░░░░░░░░░░░
+                        │
+                        │
+                        │
+                        │
+                        │
+                        │
+                        │
+                        │
+                        │
+                        │
+                        │
+                        │
+                        │
 
-MANAGE
-  ⚙ Settings
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-                          [c] Create  [/] Search  [?] Help  [q] Quit
-                          Sync ready
+  c  capture   /  search   enter  details   ?  help   q  quit                                                1-4  views
+ ↻ Loading tasks from Taskwarrior…                                                            ↻ Waiting for task export
 
 === error ===
-VIEWS                     Momentum  ·  Today · 0 tasks
-  ▱ Inbox 0
-▌ ◷ Today 0               Unable to load tasks: fixture Taskwarrior unavailable
-  ✓ Completed 0
+ Momentum               │  Today                                                                     sorted by urgency
+                        │  ───────────────────────────────────────────────────────────────────────────────────────────
+ VIEWS                  │
+  ▱ Inbox               │
+▌ ◷ Today               │  ! Could not load tasks
+  ✓ Completed           │  fixture Taskwarrior unavailable. Your data has not been changed.
+                        │
+ MANAGE                 │  Fix the cause, then press r to retry.
+  ⚙ Settings            │
+                        │
+                        │
+                        │
+                        │
+                        │
+                        │
+                        │
+                        │
+                        │
+                        │
+                        │
+                        │
+                        │
+                        │
+                        │
+                        │
+                        │
+                        │
 
-MANAGE
-  ⚙ Settings
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-                          [c] Create  [/] Search  [?] Help  [q] Quit
-                          Error: fixture Taskwarrior unavailable  ·  Sync ready
+  r  retry   ?  help   q  quit                                                                               1-4  views
+ ! fixture Taskwarrior unavailable                                                                         ✓ Sync ready
 
 === search ===
-VIEWS                     Momentum  ·  Today · 1 tasks · /scheduled
-  ▱ Inbox 1
-▌ ◷ Today 3               Scheduled Today · 1
-  ✓ Completed 0           □ Scheduled task
-                            Scheduled Today 09:00
-MANAGE
-  ⚙ Settings
+ Momentum               │  Today  1 of 3                                                             sorted by urgency
+                        │  ───────────────────────────────────────────────────────────────────────────────────────────
+ VIEWS                  │
+  ▱ Inbox            1  │  Scheduled Today  1  ───────────────────────────────────────────────────────────────────────
+▌ ◷ Today            3  │    □ Scheduled task
+  ✓ Completed           │      Scheduled Today 09:00
+                        │
+ MANAGE                 │
+  ⚙ Settings            │
+                        │
+                        │
+                        │
+                        │
+                        │
+                        │
+                        │
+                        │
+                        │
+                        │
+                        │
+                        │
+                        │
+                        │
+                        │
+                        │
+                        │
+                        │
 
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-                          [c] Create  [/] Search  [?] Help  [q] Quit
-                          1/3 matches  ·  Sync ready
+  esc  clear   ↑↓  move   enter  details   /  edit search                                                    1-4  views
+ ⌕ 1 of 3 match "scheduled"                                                                                ✓ Sync ready
 
 === settings-list ===
-VIEWS                     Momentum  ·  Settings
-  ▱ Inbox 1
-  ◷ Today 3               ╭──────────────────────────────────────────────────────────────────────────────╮
-  ✓ Completed 0           │Settings / Projects                                                           │
-                          │[a] add   [e] edit   [d] remove   [Enter] edit                                │
-MANAGE                    │▸ Work  (work)                                                                │
-▌ ⚙ Settings              │  Work → Client  (work.client)                                                │
-                          │Esc to close                                                                  │
-                          ╰──────────────────────────────────────────────────────────────────────────────╯
+ Momentum               │  Settings
+                        │  ───────────────────────────────────────────────────────────────────────────────────────────
+ VIEWS                  │
+  ▱ Inbox            1  │  ╭─ Settings / Projects ─────────────────────────────────── 2 projects ─╮
+  ◷ Today            3  │  │                                                                      │
+  ✓ Completed           │  │   PROJECT                                                      VALUE │
+                        │  │ ▌ Work                                                         #work │
+ MANAGE                 │  │   └ Client                                              #work.client │
+▌ ⚙ Settings            │  │                                                                      │
+                        │  ╰─ a add   e edit   d remove   esc close ──────────────────────────────╯
+                        │
+                        │
+                        │
+                        │
+                        │
+                        │
+                        │
+                        │
+                        │
+                        │
+                        │
+                        │
+                        │
+                        │
+                        │
+                        │
+                        │
 
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-                          [c] Create  [/] Search  [?] Help  [q] Quit
-                          Sync ready
+  esc  back   1-3  views   q  quit
+                                                                                                           ✓ Sync ready
 
 === settings-editor ===
-VIEWS                     Momentum  ·  Settings
-  ▱ Inbox 1
-  ◷ Today 3               ╭──────────────────────────────────────────────────────────────────────────────╮
-  ✓ Completed 0           │Edit project                                                                  │
-                          │> Name Work                                                                   │
-MANAGE                    │  Value work                                                                  │
-▌ ⚙ Settings              │  Parent Parent                                                               │
-                          │Full value: work                                                              │
-                          │Tab next   Ctrl+S save   Esc cancel                                           │
-                          ╰──────────────────────────────────────────────────────────────────────────────╯
+ Momentum               │  Settings
+                        │  ───────────────────────────────────────────────────────────────────────────────────────────
+ VIEWS                  │
+  ▱ Inbox            1  │  ╭─ Edit project ───────────────────────────────────────────────────────╮
+  ◷ Today            3  │  │                                                                      │
+  ✓ Completed           │  │ ▌   Name         Work                                                │
+                        │  │     Value        work                                                │
+ MANAGE                 │  │     Parent       none                                                │
+▌ ⚙ Settings            │  │                                                                      │
+                        │  │     Full value   #work                                               │
+                        │  │                                                                      │
+                        │  ╰─ tab next   ctrl+s save   esc cancel ────────────────────────────────╯
+                        │
+                        │
+                        │
+                        │
+                        │
+                        │
+                        │
+                        │
+                        │
+                        │
+                        │
+                        │
+                        │
+                        │
+                        │
 
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-                          [c] Create  [/] Search  [?] Help  [q] Quit
-                          Sync ready
+  esc  back   1-3  views   q  quit
+                                                                                                           ✓ Sync ready

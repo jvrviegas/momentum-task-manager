@@ -1,4 +1,4 @@
-module github.com/jvrviegas/momentum
+module github.com/jvrviegas/momentum-task-manager
 
 go 1.27.0
 

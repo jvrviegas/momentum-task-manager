@@ -8,7 +8,7 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/jvrviegas/momentum/internal/config"
+	"github.com/jvrviegas/momentum-task-manager/internal/config"
 )
 
 func TestDoctorReportsCalendarSourceWithoutEventContent(t *testing.T) {

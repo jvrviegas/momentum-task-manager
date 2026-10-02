@@ -10,7 +10,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/jvrviegas/momentum/internal/domain"
+	"github.com/jvrviegas/momentum-task-manager/internal/domain"
 )
 
 // TestComponentRenderFixtures complements focused assertions with a compact,
@@ -53,6 +53,7 @@ func fixtureComponentView(width, height int, state string) string {
 		details := NewDetails(styles)
 		details.SetSize(width, height)
 		details.OpenTask(task)
+		details.Now = now
 		return details.View()
 	case "help":
 		help := NewHelp(styles)

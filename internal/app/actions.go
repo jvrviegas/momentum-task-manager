@@ -6,8 +6,8 @@ import (
 
 	tea "charm.land/bubbletea/v2"
 
-	"github.com/jvrviegas/momentum/internal/domain"
-	"github.com/jvrviegas/momentum/internal/ui"
+	"github.com/jvrviegas/momentum-task-manager/internal/domain"
+	"github.com/jvrviegas/momentum-task-manager/internal/ui"
 )
 
 // SelectedTask returns the task currently targeted by an action.
@@ -62,7 +62,8 @@ func (m *Model) DeleteSelected() {
 		return
 	}
 	m.DeleteTarget = task.UUID
-	m.Confirm.OpenFor("Delete task", "Delete "+task.Description+" permanently?")
+	m.Confirm.OpenTask("Delete task", task, "Removes it from Taskwarrior. u undoes it until the next sync.", m.nowTime())
+	m.Confirm.SetSize(m.Width, m.Height)
 	m.Overlay = OverlayConfirm
 }
 
@@ -191,6 +192,7 @@ func (m *Model) OpenDetails() {
 		return
 	}
 	m.Details.OpenTask(task)
+	m.Details.Now = m.nowTime()
 	m.Details.SetSize(m.Width, m.Height)
 	m.Overlay = OverlayDetails
 }

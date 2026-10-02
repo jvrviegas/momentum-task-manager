@@ -7,7 +7,7 @@ import (
 
 	tea "charm.land/bubbletea/v2"
 
-	"github.com/jvrviegas/momentum/internal/domain"
+	"github.com/jvrviegas/momentum-task-manager/internal/domain"
 )
 
 func searchSpecial(code rune, mod tea.KeyMod) tea.KeyPressMsg {
@@ -102,7 +102,7 @@ func TestSearchViewIsWidthSafe(t *testing.T) {
 }
 
 func TestSearchSummaryShowsMatchCount(t *testing.T) {
-	if SearchSummary(10, 3, "work") != "3/10 matches" || SearchSummary(10, 10, "") != "" {
+	if SearchSummary(10, 3, "work") != "3 of 10 match" || SearchSummary(10, 10, "") != "" {
 		t.Fatal("unexpected summary")
 	}
 }

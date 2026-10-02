@@ -7,7 +7,7 @@ import (
 
 	tea "charm.land/bubbletea/v2"
 
-	"github.com/jvrviegas/momentum/internal/domain"
+	"github.com/jvrviegas/momentum-task-manager/internal/domain"
 )
 
 func quickKey(text string) tea.KeyPressMsg {
@@ -151,30 +151,31 @@ func TestQuickAddModalRendersSuggestionsAndGuidanceWithinBounds(t *testing.T) {
 	q.Input.SetValue("#")
 	q.Input.CursorEnd()
 	q.refreshSuggestions()
-	got := q.View()
+	got := sanitizeComponentRender(q.View())
 	lines := strings.Split(got, "\n")
 	if len(lines) > q.Height || len(lines) < 2 {
 		t.Fatalf("lines=%d view=%q", len(lines), got)
 	}
-	for _, want := range []string{"Quick capture", "Task", "Projects", "#work.client", "Enter add task", "Esc cancel", "Tab use"} {
+	for _, want := range []string{"Quick capture", "PROJECTS", "#work.client", "↑↓ select", "tab accept", "esc close", "tab inserts"} {
 		if !strings.Contains(got, want) {
 			t.Errorf("modal missing %q: %q", want, got)
 		}
 	}
-	for _, unwanted := range []string{"Optional details", "Example:", "!priority", "@due"} {
+	for _, unwanted := range []string{"TRIGGERS", "Example:", "priority", "@tomorrow"} {
 		if strings.Contains(got, unwanted) {
 			t.Errorf("suggestions should replace static guidance; found %q: %q", unwanted, got)
 		}
 	}
-	if strings.Index(got, "#work.client") <= strings.Index(got, "> ") {
+	if strings.Index(got, "#work.client") <= strings.Index(got, "› ") {
 		t.Fatalf("suggestion should render below input: %q", got)
 	}
 }
 
 func TestQuickAddIdleStateShowsCompactSyntaxGuide(t *testing.T) {
 	q := testQuickAdd()
-	got := q.View()
-	for _, want := range []string{"Optional details", "#project", "!priority", "@due date", ">scheduled", "+tag", "~estimate"} {
+	q.SetSize(50, 16)
+	got := sanitizeComponentRender(q.View())
+	for _, want := range []string{"TRIGGERS", "project", "priority", "due", "scheduled", "tag", "#work.client", "@tomorrow", ">monday", "+planning", "estimate", "~1h30m"} {
 		if !strings.Contains(got, want) {
 			t.Errorf("guide missing %q: %q", want, got)
 		}

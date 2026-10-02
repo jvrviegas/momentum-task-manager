@@ -1,115 +1,124 @@
 === task-comfortable ===
-▌ □ Renew the domain registration before the next billing window
-▌   #personal.admin  ·  Due Today 17:00  ·  Estimate 1h 30m  ·  High
+▌ □ Renew the domain registration before the next billing window     ↑ High
+▌   #personal.admin · Due Today 17:00 · Estimate 1h 30m
 
 === task-compact ===
-[ ] Renew the domain registration before the next billing window
+  [ ] Renew the domain registration before the next billing window
 
 === details ===
-╭─────────────────────────────────────────────────────────────────────────╮
-│Task details                                                             │
-│CORE                                                                     │
-│Description: Renew the domain registration before the next billing window│
-│Status: pending                                                          │
-│Priority: High                                                           │
-│Estimate: 1h 30m                                                         │
-│SCHEDULE                                                                 │
-│Due: 2026-09-08T17:00:00Z                                                │
-│ORGANIZATION                                                             │
-│Project: personal.admin                                                  │
-│Tags: planning, admin                                                    │
-│Annotations: Check registrar account and confirm receipt                 │
-│Depends: fixture-dependency                                              │
-│Recurrence: Annual [yearly]                                              │
-│Next occurrence: 2027-09-08T17:00:00Z                                    │
-│TECHNICAL                                                                │
-│Urgency: 8.25                                                            │
-│UUID: fixture-task                                                       │
-│custom: "fixture value"                                                  │
-│e edit · x stop recurrence · Esc close                                   │
-╰─────────────────────────────────────────────────────────────────────────╯
+╭─ Task details ────────────────────────────────────────────── read-only ─╮
+│                                                                         ┃
+│   Renew the domain registration before the next billing window          ┃
+│                                                                         ┃
+│   OVERVIEW  ─────────────────────────────────────────────────────────── ┃
+│   Project     #personal.admin                                           ┃
+│   Priority    ↑ High                                                    ┃
+│   Tags        +planning  +admin                                         ┃
+│   Estimate    1h 30m                                                    ┃
+│                                                                         ┃
+│   SCHEDULE  ─────────────────────────────────────────────────────────── ┃
+│   Due         Today 17:00                                               ┃
+│   Scheduled   none                                                      ┃
+│   Recurrence  Annual [yearly]                                           ┃
+│   Next due    Sep 8 2027 17:00                                          ┃
+│                                                                         ┃
+│   NOTES  1  ─────────────────────────────────────────────────────────── ┃
+│   Check registrar account and confirm receipt                           │
+│                                                                         │
+│   RECORD  ───────────────────────────────────────────────────────────── │
+│   UUID        fixture-task                                              │
+╰─ ↑↓ scroll   e edit   x stop recurrence   esc close ─────── 1-20 of 25 ─╯
 
 === help ===
-╭─────────────────────────────────────────────────────────────────────────╮
-│Keyboard shortcuts                                                       │
-│Navigation                            Search / Create / Edit             │
-│j / k / ↑ / ↓      move selection     c / Ctrl+K         create task     │
-│h / l / Tab        switch                                (quick add)     │
-│                   focus/view         P                  open today's    │
-│g / G              first / last                          daily planning  │
-│                   task                                  ritual          │
-│1 / 2 / 3 / 4      Inbox / Today /    /                  search          │
-│                   Completed /                           (project:name   │
-│                   Settings                              filters project)│
-│Tasks                                 Application                        │
-│Enter              open details       r                  refresh tasks   │
-│Space              complete task      Ctrl+R             synchronize now │
-│e / E / R / p / ! / D / S / t edit    ?                  show help       │
-│                              field   q                  quit            │
-│X                  stop selected      Esc                close active    │
-│                   recurrence                            overlay         │
-│s                  start / stop                                          │
-│                   task                                                  │
-│↑/↓ scroll · 1/3 · Esc close                                             │
-╰─────────────────────────────────────────────────────────────────────────╯
+╭─ Keys ──────────────────────────────────────────────────────────────────╮
+│                                                                         ┃
+│   NAVIGATE                                                              ┃
+│   ↑ k       up                                                          ┃
+│   ↓ j       down                                                        ┃
+│   g G       first / last                                                ┃
+│   1-4       jump to view                                                ┃
+│   h l tab   sidebar / list                                              ┃
+│   enter     details                                                     ┃
+│   /         search                                                      ┃
+│   esc       close / back                                                ┃
+│                                                                         ┃
+│   TASKS                                                                 │
+│   c         capture                                                     │
+│   ctrl+k    capture                                                     │
+│   space     complete                                                    │
+│   s         start / stop                                                │
+│   e         edit                                                        │
+│   p ! D S t edit one field                                              │
+│   E         edit estimate                                               │
+│   R         edit recurrence                                             │
+╰─ esc close ──────────────────────────────────────────────── 1-20 of 36 ─╯
 
 === quick-capture ===
-╭────────────────────────────────────────────────────────────────╮
-│Quick capture                                                   │
-│Task                                                            │
-│> Renew #                                                       │
-│Projects  ·  ↑/↓ select  ·  Tab use                             │
-│› #personal.admin                                               │
-│› #work                                                         │
-│Enter add task · Esc cancel                                     │
-╰────────────────────────────────────────────────────────────────╯
+╭─ Quick capture ──────────────────────────────────────────────── ctrl+k ─╮
+│                                                                         │
+│   › Renew #                                                             │
+│                                                                         │
+│   PROJECTS                                                            2 │
+│ ▌ #personal.admin                                                       │
+│   #work                                                                 │
+│                                                                         │
+│   tab inserts #personal.admin                                           │
+│                                                                         │
+╰─ ↑↓ select   tab accept   esc close ────────────────────────────────────╯
 
 === edit ===
-╭─────────────────────────────────────────────────────────────────────────╮
-│Edit task                                                                │
-│  Description  the domain registration before the next billing window    │
-│▌ Project personal.admin                                                 │
-│  Priority H                                                             │
-│  Due 2026-09-08 17:00                                                   │
-│  Scheduled YYYY-MM-DD HH:MM or tomorrow                                 │
-│  Tags admin planning                                                    │
-│* Estimate 1h 30m                                                        │
-│  Recurrence yearly                                                      │
-│Tab next · Ctrl+S save · Esc cancel                                      │
-╰─────────────────────────────────────────────────────────────────────────╯
+╭─ Edit task ─────────────────────────────────────────────── • 1 changed ─╮
+│                                                                         │
+│     Description  Renew the domain registration before the next billing… │
+│ ▌   Project      personal.admin                                         │
+│     Priority     ↑ High                                                 │
+│     Due          2026-09-08 17:00                                       │
+│     Scheduled    none                                                   │
+│     Tags         +admin  +planning                                      │
+│   • Estimate     1h 30m   was 1h 30m                                    │
+│     Recurrence   yearly                                                 │
+│                                                                         │
+│   • changed                                                             │
+│                                                                         │
+╰─ ctrl+s save   tab field   esc cancel ──────────────────────────────────╯
 
 === confirm ===
-╭─────────────────────────────────────────────────────────────────────────╮
-│Delete task                                                              │
-│Delete the selected task permanently? This cannot be undone after        │
-│synchronization.                                                         │
-│[y] Yes   [n] No   [Esc] cancel                                          │
-╰─────────────────────────────────────────────────────────────────────────╯
+╭─ Delete task ────────────────────────────────────────────────╮
+│                                                              │
+│   Delete the selected task permanently? This cannot be       │
+│   undone after synchronization.                              │
+│                                                              │
+│    y  yes      n  no                                         │
+│                                                              │
+╰─ esc cancel ─────────────────────────────────────────────────╯
 
 === quit ===
-╭─────────────────────────────────────────────────────────────────────────╮
-│Unsynced changes                                                         │
-│Your local changes have not been synchronized.                           │
-│[s] Sync and quit                                                        │
-│[q] Quit without syncing                                                 │
-│[Esc] Cancel                                                             │
-╰─────────────────────────────────────────────────────────────────────────╯
+╭─ Quit Momentum? ─────────────────────────────────────────╮
+│                                                          │
+│   • Unsynced changes                                     │
+│   Quitting without syncing keeps them in Taskwarrior for │
+│   the next sync.                                         │
+│                                                          │
+│    s  Sync and quit      q  Quit without syncing         │
+│                                                          │
+╰─ esc Cancel ─────────────────────────────────────────────╯
 
 === settings-list ===
-╭─────────────────────────────────────────────────────────────────────────╮
-│Settings / Projects                                                      │
-│[a] add   [e] edit   [d] remove   [Enter] edit                           │
-│▸ Work  (work)                                                           │
-│  Work → Client  (work.client)                                           │
-│Esc to close                                                             │
-╰─────────────────────────────────────────────────────────────────────────╯
+╭─ Settings / Projects ─────────────────────────────────── 2 projects ─╮
+│                                                                      │
+│   PROJECT                                                      VALUE │
+│ ▌ Work                                                         #work │
+│   └ Client                                              #work.client │
+│                                                                      │
+╰─ a add   e edit   d remove   esc close ──────────────────────────────╯
 
 === settings-editor ===
-╭─────────────────────────────────────────────────────────────────────────╮
-│Edit project                                                             │
-│> Name Work                                                              │
-│  Value work                                                             │
-│  Parent Parent                                                          │
-│Full value: work                                                         │
-│Tab next   Ctrl+S save   Esc cancel                                      │
-╰─────────────────────────────────────────────────────────────────────────╯
+╭─ Edit project ───────────────────────────────────────────────────────╮
+│                                                                      │
+│ ▌   Name         Work                                                │
+│     Value        work                                                │
+│     Parent       none                                                │
+│                                                                      │
+│     Full value   #work                                               │
+│                                                                      │
+╰─ tab next   ctrl+s save   esc cancel ────────────────────────────────╯

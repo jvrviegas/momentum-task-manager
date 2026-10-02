@@ -4,12 +4,13 @@ import (
 	"fmt"
 	"strings"
 	"time"
+	"unicode"
 
 	"charm.land/bubbles/v2/textinput"
 	tea "charm.land/bubbletea/v2"
 
-	"github.com/jvrviegas/momentum/internal/domain"
-	"github.com/jvrviegas/momentum/internal/quickadd"
+	"github.com/jvrviegas/momentum-task-manager/internal/domain"
+	"github.com/jvrviegas/momentum-task-manager/internal/quickadd"
 )
 
 // QuickAddSubmitMsg is emitted after a successful parse; it contains no
@@ -65,7 +66,7 @@ type QuickAddModel struct {
 // NewQuickAdd creates a focused quick-capture model.
 func NewQuickAdd(styles Styles, icons Icons) QuickAddModel {
 	input := textinput.New()
-	input.Prompt = "> "
+	input.Prompt = ""
 	input.Placeholder = "What needs doing?"
 	model := QuickAddModel{Input: input, Styles: styles, Icons: icons, Now: time.Now()}
 	for index := range model.ReviewInputs {
@@ -110,11 +111,6 @@ func (q *QuickAddModel) Close() {
 
 func (q *QuickAddModel) SetSize(width, height int) {
 	q.Width, q.Height = width, height
-	// Bubbles reserves one additional cursor cell beyond the two-cell prompt.
-	// Budget it here so an idle input never gains a misleading trailing ellipsis.
-	contentWidth := quickAddContentWidth(width)
-	q.Input.SetWidth(max(1, contentWidth-3))
-	q.resizeReviewInputs()
 	q.ensureReviewFieldVisible()
 }
 
@@ -283,7 +279,9 @@ func (q *QuickAddModel) ApplyMessage(msg tea.Msg) (tea.Msg, bool) {
 	}
 }
 
-// View renders a responsive capture modal with syntax and keyboard guidance.
+// View renders the capture frame: the input with parsed tokens underlined in
+// their field color, then either the trigger guide or, while a trigger is
+// active, the suggestion list that replaces it.
 func (q QuickAddModel) View() string {
 	if !q.Open || q.Width <= 0 || q.Height <= 0 {
 		return ""
@@ -291,64 +289,203 @@ func (q QuickAddModel) View() string {
 	if q.ReviewOpen {
 		return q.reviewView()
 	}
-	contentWidth := quickAddContentWidth(q.Width)
-	if q.Height <= 2 {
-		return q.Styles.Panel.Render(Truncate(q.Input.View(), contentWidth))
+	icons := q.Icons.orUnicode()
+	width := ModalWidth(QuickAddWidth, q.Width)
+	content := FrameContentWidth(width)
+	narrow := q.Width < NarrowBreakpoint
+	maxRows := ModalMaxRows(q.Height)
+	if q.Height < 3 {
+		content = width - 1
 	}
-	contentHeight := ModalContentHeight(q.Height, 0)
-	if contentHeight < 1 {
-		contentHeight = 1
+	input := append([]Span{sp(icons.Prompt, ToneAccent), txt(" ")},
+		inputSpans(q.Input.Value(), q.Input.Position(), content-2, true, q.Input.Placeholder, captureTokenCell(q.Input.Value()))...)
+	if q.Height < 3 {
+		return q.Styles.Line(width, FillPanel, append([]Span{txt(" ")}, input...)...)
 	}
-
-	title := q.Styles.ModalTitle.Render("Quick capture")
-	label := q.Styles.FieldLabel.Render(Truncate("Task", contentWidth))
-	bar := q.Styles.Panel.Render(Truncate(q.Input.View(), contentWidth))
-	keys := q.Styles.ModalAction.Render(Truncate("Enter add task · Esc cancel", contentWidth))
-
-	// Keep the capture path visually singular: title, question, input, action.
-	// Contextual suggestions replace (rather than stack on top of) the syntax
-	// guide. This avoids turning the modal into a wall of equally weighted help.
-	mandatory := 4 // title, label, input, actions
-	if q.ParseErr != nil {
-		mandatory++
-	}
-	optional := max(0, contentHeight-mandatory)
-	lines := []string{title, label, bar}
-	if q.ParseErr != nil {
-		lines = append(lines, q.Styles.Error.Render(Truncate(q.ParseErr.Error(), contentWidth)))
-	}
-
-	if q.ParseErr == nil && q.SuggestionsOpen && len(q.Suggestions) > 0 && optional > 0 {
-		heading := suggestionHeading(q.Suggestions[0].Kind) + "  ·  ↑/↓ select  ·  Tab use"
-		lines = append(lines, q.Styles.SectionTitle.Render(Truncate(heading, contentWidth)))
-		optional--
-		maxSuggestions := min(5, min(len(q.Suggestions), optional))
-		start := max(0, q.SuggestionIndex-maxSuggestions+1)
-		for index := start; index < min(len(q.Suggestions), start+maxSuggestions); index++ {
-			suggestion := q.Suggestions[index]
-			text := suggestion.Text
-			if suggestion.Label != "" {
-				text = suggestion.Label + "  " + suggestion.Text
-			}
-			line := fmt.Sprintf("%s %s", q.Icons.Chevron, text)
-			if index == q.SuggestionIndex {
-				line = q.Styles.Selection.Render(PadRight(Truncate(line, contentWidth), contentWidth))
-			} else {
-				line = q.Styles.Metadata.Render(Truncate(line, contentWidth))
-			}
-			lines = append(lines, line)
+	rows := []FrameRow{{}, row(input...)}
+	keys := []Hint{{"enter", "add"}, {"esc", "close"}}
+	switch {
+	case q.ParseErr != nil:
+		rows = append(rows, FrameRow{})
+		for _, line := range WrapText(q.ParseErr.Error(), max(1, content-2)) {
+			rows = append(rows, row(sp(icons.Error, ToneRed).bold(), txt(" "), sp(line, ToneRed)))
 		}
-	} else if q.ParseErr == nil && optional >= 2 {
-		guide := []string{
-			q.Styles.SectionTitle.Render(Truncate("Optional details", contentWidth)),
-			q.Styles.Metadata.Render(Truncate("#project   !priority   @due date", contentWidth)),
-			q.Styles.Metadata.Render(Truncate(">scheduled   +tag   ~estimate", contentWidth)),
-		}
-		lines = append(lines, guide[:min(len(guide), optional)]...)
+	case q.SuggestionsOpen && len(q.Suggestions) > 0:
+		keys = []Hint{{"↑↓", "select"}, {"tab", "accept"}, {"esc", "close"}}
+		rows = append(rows, q.suggestionRows(content, narrow, maxRows-len(rows), icons)...)
+	default:
+		rows = append(rows, captureGuide(content, maxRows-len(rows), icons)...)
 	}
+	rows = append(rows, FrameRow{})
+	if len(rows) > maxRows {
+		rows = rows[:maxRows]
+	}
+	frame := Frame{
+		Title: "Quick capture", Context: []Span{muted("ctrl+k")}, Rows: rows, Width: width, MaxRows: maxRows, Keys: keys,
+	}
+	return strings.Join(q.Styles.RenderFrame(frame, icons), "\n")
+}
 
-	lines = append(lines, keys)
-	return renderBoundedPanel(lines, contentWidth, contentHeight, q.Styles)
+// captureTokenCell colors trigger tokens (#project, !priority, @due,
+// >scheduled, +tag, ~estimate, ^recurrence) by field and underlines them, so
+// parsing is visible before Enter. A leading backslash escapes a trigger.
+func captureTokenCell(value string) func(int, rune) Span {
+	runes := []rune(value)
+	tones := make([]Tone, len(runes))
+	parsed := make([]bool, len(runes))
+	for start := 0; start < len(runes); {
+		if unicode.IsSpace(runes[start]) {
+			start++
+			continue
+		}
+		end := start
+		for end < len(runes) && !unicode.IsSpace(runes[end]) {
+			end++
+		}
+		tone, ok := triggerTone(runes[start])
+		for index := start; index < end && ok; index++ {
+			tones[index], parsed[index] = tone, true
+		}
+		start = end
+	}
+	return func(index int, r rune) Span {
+		if index < len(parsed) && parsed[index] {
+			return Span{Text: string(r), Tone: tones[index], Underline: true}
+		}
+		return txt(string(r))
+	}
+}
+
+func triggerTone(trigger rune) (Tone, bool) {
+	switch trigger {
+	case '#':
+		return ToneCyan, true
+	case '!':
+		return ToneHigh, true
+	case '@', '>':
+		return ToneAccent, true
+	case '+', '~', '^':
+		return ToneText, true
+	default:
+		return ToneText, false
+	}
+}
+
+func captureGuide(width, budget int, icons Icons) []FrameRow {
+	if budget < 2 {
+		return nil
+	}
+	type trigger struct {
+		sigil, field, example string
+	}
+	triggers := []trigger{
+		{"#", "project", "#work.client"}, {"+", "tag", "+planning"},
+		{"!", "priority", "!high  !low"}, {"@", "due", "@tomorrow"},
+		{">", "scheduled", ">monday"}, {"~", "estimate", "~1h30m"},
+	}
+	cell := func(t trigger, exampleWidth int) []Span {
+		tone, _ := triggerTone([]rune(t.sigil)[0])
+		spans := []Span{sp(t.sigil, tone).bold(), txt(" "), muted(fmt.Sprintf("%-10s", t.field))}
+		if exampleWidth > 0 {
+			spans = append(spans, txt(fmt.Sprintf("%-*s", exampleWidth, Truncate(t.example, exampleWidth))))
+		}
+		return spans
+	}
+	perRow, exampleWidth := 2, 22
+	if width < 70 {
+		perRow, exampleWidth = 1, min(22, width-12)
+	}
+	if exampleWidth < 6 {
+		exampleWidth = 0
+	}
+	var triggerRows []FrameRow
+	for index := 0; index < len(triggers); index += perRow {
+		spans := cell(triggers[index], exampleWidth)
+		if perRow == 2 && index+1 < len(triggers) {
+			spans = append(append(spans, gap(2)), cell(triggers[index+1], exampleWidth)...)
+		}
+		triggerRows = append(triggerRows, row(spans...))
+	}
+	// Every trigger row survives first; decoration fills what is left.
+	room := budget - 1 - len(triggerRows)
+	if room < 0 {
+		// A partial guide misleads; show every trigger or none.
+		return nil
+	}
+	var head, tail []FrameRow
+	if room >= 2 {
+		head = []FrameRow{{}, row(muted("TRIGGERS"))}
+		room -= 2
+	}
+	if room >= 2 {
+		tail = []FrameRow{{}, row(muted(`\#launch keeps a literal "#launch" in the title.`))}
+		room -= 2
+	}
+	if room >= 1 && len(head) > 0 {
+		head = []FrameRow{{}, row(rule(icons.Rule)), row(muted("TRIGGERS"))}
+	}
+	return append(append(head, triggerRows...), tail...)
+}
+
+func (q QuickAddModel) suggestionRows(width int, narrow bool, budget int, icons Icons) []FrameRow {
+	ctx := quickadd.ContextAt(q.Input.Value(), q.Input.Position())
+	limit := 6
+	if narrow {
+		limit = 2
+	}
+	limit = min(limit, len(q.Suggestions), max(1, budget-5))
+	start := max(0, q.SuggestionIndex-limit+1)
+	header := []Span{muted(strings.ToUpper(suggestionHeading(q.Suggestions[0].Kind)))}
+	if !narrow && ctx.Prefix != "" {
+		header = append(header, gap(2), muted(fmt.Sprintf("matching %q", ctx.Prefix)))
+	}
+	header = append(header, grow(), muted(fmt.Sprintf("%d", len(q.Suggestions))))
+	rows := []FrameRow{{}, row(header...)}
+	tone := suggestionTone(q.Suggestions[0].Kind)
+	for index := start; index < start+limit; index++ {
+		suggestion := q.Suggestions[index]
+		selected := index == q.SuggestionIndex
+		spans := matchedPrefix(suggestion.Text, ctx.Token, tone, selected)
+		spans = append(spans, grow())
+		if suggestion.Label != "" && !narrow {
+			spans = append(spans, muted(suggestion.Label))
+		}
+		r := row(spans...)
+		if selected {
+			r.Mark, r.Bg = icons.Selection, FillSelection
+		}
+		rows = append(rows, r)
+	}
+	if !narrow {
+		selected := q.Suggestions[q.SuggestionIndex]
+		rows = append(rows, FrameRow{}, row(txt("tab").bold(), muted(" inserts "), sp(Truncate(selected.Text, max(1, width-12)), tone)))
+	}
+	return rows
+}
+
+// matchedPrefix bolds and underlines the part of a suggestion already typed.
+func matchedPrefix(text, typed string, tone Tone, selected bool) []Span {
+	base := Span{Text: text, Tone: tone, Bold: selected}
+	if typed == "" || !strings.HasPrefix(strings.ToLower(text), strings.ToLower(typed)) {
+		return []Span{base}
+	}
+	head, tail := base, base
+	head.Text, head.Bold, head.Underline = text[:len(typed)], true, true
+	tail.Text = text[len(typed):]
+	return []Span{head, tail}
+}
+
+func suggestionTone(kind quickadd.SuggestionKind) Tone {
+	switch kind {
+	case quickadd.SuggestionProject:
+		return ToneCyan
+	case quickadd.SuggestionPriority:
+		return ToneHigh
+	case quickadd.SuggestionDue, quickadd.SuggestionScheduled:
+		return ToneAccent
+	default:
+		return ToneText
+	}
 }
 
 func suggestionHeading(kind quickadd.SuggestionKind) string {
@@ -370,10 +507,6 @@ func suggestionHeading(kind quickadd.SuggestionKind) string {
 	default:
 		return "Suggestions"
 	}
-}
-
-func quickAddContentWidth(terminalWidth int) int {
-	return ModalContentWidth(terminalWidth, QuickAddMaxWidth)
 }
 
 // ErrorText is a plain error accessor for status rendering and tests.

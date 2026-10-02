@@ -7,7 +7,7 @@ import (
 
 	"charm.land/lipgloss/v2"
 
-	"github.com/jvrviegas/momentum/internal/domain"
+	"github.com/jvrviegas/momentum-task-manager/internal/domain"
 )
 
 func renderOptions(width, height, selected int) TaskListOptions {
@@ -38,10 +38,10 @@ func TestRenderTaskRowIncludesSupportedDefaultMetadata(t *testing.T) {
 func TestRenderTaskRowUsesActiveAndCompletedIndicators(t *testing.T) {
 	start := time.Now()
 	options := TaskRowOptions{Width: 30, Now: time.Now(), Styles: NewStyles(ResolveTheme("dark", true)), Icons: IconsFor("ascii")}
-	if got := RenderTaskRow(domain.Task{Description: "active", Status: "pending", Start: &start}, options); !strings.HasPrefix(got, "> ") {
+	if got := sanitizeComponentRender(RenderTaskRow(domain.Task{Description: "active", Status: "pending", Start: &start}, options)); !strings.HasPrefix(got, "  [>] active") {
 		t.Fatalf("active row=%q", got)
 	}
-	if got := RenderTaskRow(domain.Task{Description: "done", Status: "completed"}, options); !strings.HasPrefix(got, "[x]") {
+	if got := sanitizeComponentRender(RenderTaskRow(domain.Task{Description: "done", Status: "completed"}, options)); !strings.HasPrefix(got, "  [x] done") {
 		t.Fatalf("completed row=%q", got)
 	}
 }
@@ -63,7 +63,7 @@ func TestCompletedRowsKeepCompletionMetadataWithoutEstimate(t *testing.T) {
 	got := RenderTaskRow(domain.Task{Description: "done", Status: "completed", End: &end, Estimate: &domain.Estimate{Minutes: 90}}, TaskRowOptions{
 		Width: 80, ShowMetadata: true, Completed: true, Now: end, Styles: NewStyles(ResolveTheme("dark", true)), Icons: IconsFor("unicode"),
 	})
-	if !strings.Contains(got, "Completed") || strings.Contains(got, "Estimate") {
+	if !strings.Contains(got, "09:00") || strings.Contains(got, "Estimate") {
 		t.Fatalf("completed row=%q", got)
 	}
 }

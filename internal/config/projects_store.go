@@ -14,7 +14,7 @@ import (
 
 	tomledit "github.com/smm-h/go-toml-edit"
 
-	"github.com/jvrviegas/momentum/internal/domain"
+	"github.com/jvrviegas/momentum-task-manager/internal/domain"
 )
 
 var (

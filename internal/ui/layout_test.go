@@ -8,16 +8,43 @@ import (
 
 func TestChooseLayoutBreakpoints(t *testing.T) {
 	wide := ChooseLayout(120, 30)
-	if wide.Mode != LayoutWide || !wide.ShowSidebar || wide.ShowTabs || !wide.ShowRowMetadata || wide.ContentWidth != 95 {
+	if wide.Mode != LayoutWide || !wide.ShowSidebar || wide.ShowTabs || !wide.ShowRowMetadata || wide.MainLeft != 27 || wide.MainWidth != 91 || wide.ShowPane {
 		t.Fatalf("wide=%#v", wide)
 	}
 	tabs := ChooseLayout(79, 30)
 	if tabs.Mode != LayoutTabs || tabs.ShowSidebar || !tabs.ShowTabs || !tabs.ShowRowMetadata {
 		t.Fatalf("tabs=%#v", tabs)
 	}
+	if tabs.MainLeft != 2 || tabs.MainWidth != 75 {
+		t.Fatalf("compact main column=%#v", tabs)
+	}
 	narrow := ChooseLayout(49, 30)
-	if narrow.Mode != LayoutTabs || !narrow.ShowTabs || narrow.ShowRowMetadata {
+	if narrow.Mode != LayoutTabs || !narrow.ShowTabs || narrow.ShowRowMetadata || !narrow.Narrow || narrow.MainLeft != 1 || narrow.MainWidth != 47 {
 		t.Fatalf("narrow=%#v", narrow)
+	}
+	plus := ChooseLayout(150, 30)
+	if !plus.ShowPane || plus.PaneLeft != 106 || plus.PaneWidth != 44 || plus.MainWidth != 77 {
+		t.Fatalf("wide+=%#v", plus)
+	}
+}
+
+func TestShellGeometryRowsPerTier(t *testing.T) {
+	for _, tc := range []struct {
+		width, height                      int
+		search                             bool
+		bodyTop, bodyHeight, hints, status int
+	}{
+		{120, 30, false, 3, 24, 28, 29},
+		{120, 30, true, 3, 24, 28, 29},
+		{79, 24, false, 3, 19, 22, 23},
+		{49, 18, false, 2, 15, -1, 17},
+		{49, 18, true, 3, 14, -1, 17},
+		{28, 8, false, 2, 5, -1, 7},
+	} {
+		g := ChooseLayout(tc.width, tc.height).Geometry(tc.search)
+		if g.BodyTop != tc.bodyTop || g.BodyHeight != tc.bodyHeight || g.HintsTop != tc.hints || g.StatusTop != tc.status {
+			t.Errorf("size=%dx%d search=%v geometry=%#v", tc.width, tc.height, tc.search, g)
+		}
 	}
 }
 
@@ -66,7 +93,7 @@ func TestPadRightUsesDisplayWidth(t *testing.T) {
 
 func TestLayoutContentWidthNeverDropsBelowOne(t *testing.T) {
 	layout := ChooseLayout(MinimumWidth, MinimumHeight)
-	if layout.ContentWidth < 1 {
+	if layout.MainWidth < 1 {
 		t.Fatalf("layout=%#v", layout)
 	}
 }

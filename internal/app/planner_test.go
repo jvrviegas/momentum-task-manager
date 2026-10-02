@@ -7,9 +7,9 @@ import (
 
 	tea "charm.land/bubbletea/v2"
 
-	"github.com/jvrviegas/momentum/internal/config"
-	"github.com/jvrviegas/momentum/internal/domain"
-	"github.com/jvrviegas/momentum/internal/ui"
+	"github.com/jvrviegas/momentum-task-manager/internal/config"
+	"github.com/jvrviegas/momentum-task-manager/internal/domain"
+	"github.com/jvrviegas/momentum-task-manager/internal/ui"
 )
 
 func TestOpenPlannerShowsObligationsAndCandidatesWithoutMutating(t *testing.T) {

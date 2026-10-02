@@ -16,10 +16,10 @@ import (
 	tea "charm.land/bubbletea/v2"
 	"charm.land/lipgloss/v2"
 
-	"github.com/jvrviegas/momentum/internal/app"
-	"github.com/jvrviegas/momentum/internal/config"
-	"github.com/jvrviegas/momentum/internal/diagnostics"
-	"github.com/jvrviegas/momentum/internal/taskwarrior"
+	"github.com/jvrviegas/momentum-task-manager/internal/app"
+	"github.com/jvrviegas/momentum-task-manager/internal/config"
+	"github.com/jvrviegas/momentum-task-manager/internal/diagnostics"
+	"github.com/jvrviegas/momentum-task-manager/internal/taskwarrior"
 )
 
 // Version is replaced by release builds; local builds remain explicit.

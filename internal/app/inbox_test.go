@@ -4,7 +4,7 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/jvrviegas/momentum/internal/domain"
+	"github.com/jvrviegas/momentum-task-manager/internal/domain"
 )
 
 func TestInboxProjectHeadersFilteringAndSelection(t *testing.T) {
@@ -31,7 +31,7 @@ func TestInboxProjectHeadersFilteringAndSelection(t *testing.T) {
 	}
 	model.Search.Active = true
 	model.Search.Query = "Second"
-	body = model.renderTaskBody(80, 20)
+	body = sanitizeRender(model.renderTaskBody(80, 20))
 	if !strings.Contains(body, "Beta") || !strings.Contains(body, "Second item") || strings.Contains(body, "Alpha") || strings.Contains(body, "No project") {
 		t.Fatalf("filtered headers: %q", body)
 	}

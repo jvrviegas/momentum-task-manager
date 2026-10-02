@@ -14,12 +14,12 @@ func TestNavigationCanHideTaskCountForSettings(t *testing.T) {
 		{Key: "settings", Label: "Settings", Count: 0, Icon: "S", HideCount: true},
 	}
 	styles := NewStyles(ResolveTheme("dark", true))
-	sidebar := RenderSidebar("settings", items, 24, 4, styles)
+	sidebar := RenderSidebar("settings", items, 24, 4, styles, Icons{})
 	lines := strings.Split(sidebar, "\n")
-	if len(lines) < 3 || !strings.Contains(lines[2], "Settings") || strings.Contains(lines[2], "Settings 0") || lipgloss.Width(lines[2]) != 24 {
+	if len(lines) < 4 || !strings.Contains(lines[3], "Settings") || strings.Contains(lines[3], "Settings 0") || lipgloss.Width(lines[3]) != 24 {
 		t.Fatalf("sidebar=%q", sidebar)
 	}
-	tabs := RenderTabs("settings", items, 80, styles)
+	tabs := RenderTabs("settings", items, 80, styles, Icons{})
 	if !strings.Contains(tabs, "Settings") || strings.Contains(tabs, "Settings 0") {
 		t.Fatalf("tabs=%q", tabs)
 	}
@@ -31,21 +31,22 @@ func TestTabIndexAtUsesRenderedItemBoundaries(t *testing.T) {
 		{Key: "today", Label: "Today", Count: 2, Icon: "D"},
 		{Key: "settings", Label: "Settings", HideCount: true, Icon: "S"},
 	}
-	for index, want := range []string{"inbox", "today", "settings"} {
-		x := navigationItemStart(items, 80, index)
-		if got := TabIndexAt(items, 80, x); got != index || items[got].Key != want {
-			t.Fatalf("index=%d x=%d got=%d", index, x, got)
+	for _, width := range []int{80, 45, 30} {
+		row := strings.Split(componentANSI.ReplaceAllString(RenderTabs("today", items, width, Styles{}, Icons{}), ""), "\n")[0]
+		for index, want := range []string{"inbox", "today", "settings"} {
+			found := false
+			for x := 0; x < width; x++ {
+				if got := TabIndexAt("today", items, width, x, Icons{}); got == index && items[got].Key == want {
+					found = strings.TrimSpace(string([]rune(row)[x])) != ""
+					break
+				}
+			}
+			if !found {
+				t.Fatalf("width=%d tab %s has no rendered hit cell in %q", width, want, row)
+			}
+		}
+		if got := TabIndexAt("today", items, width, 0, Icons{}); got != -1 {
+			t.Fatalf("width=%d padding cell got=%d", width, got)
 		}
 	}
-	if got := TabIndexAt(items, 80, 79); got != -1 {
-		t.Fatalf("truncated/outside tab got=%d", got)
-	}
-}
-
-func navigationItemStart(items []NavItem, width, index int) int {
-	start := 0
-	for i := 0; i < index; i++ {
-		start += navItemWidth(items[i]) + 3
-	}
-	return start
 }

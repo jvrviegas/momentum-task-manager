@@ -5,7 +5,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/jvrviegas/momentum/internal/config"
+	"github.com/jvrviegas/momentum-task-manager/internal/config"
 )
 
 func syncSettings() config.SyncConfig {

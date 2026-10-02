@@ -5,7 +5,6 @@ import (
 	"strings"
 
 	tea "charm.land/bubbletea/v2"
-	"charm.land/lipgloss/v2"
 )
 
 // KeyBinding is the single source for help text and app routing labels.
@@ -16,26 +15,37 @@ type KeyBinding struct {
 }
 
 var keyBindings = []KeyBinding{
-	{Category: "Navigation", Keys: "j / k / ↑ / ↓", Description: "move selection"},
-	{Category: "Navigation", Keys: "h / l / Tab", Description: "switch focus/view"},
-	{Category: "Navigation", Keys: "g / G", Description: "first / last task"},
-	{Category: "Navigation", Keys: "1 / 2 / 3 / 4", Description: "Inbox / Today / Completed / Settings"},
-	{Category: "Tasks", Keys: "Enter", Description: "open details"},
-	{Category: "Tasks", Keys: "Space", Description: "complete task"},
-	{Category: "Tasks", Keys: "e / E / R / p / ! / D / S / t", Description: "edit field"},
-	{Category: "Tasks", Keys: "X", Description: "stop selected recurrence"},
-	{Category: "Tasks", Keys: "s", Description: "start / stop task"},
-	{Category: "Tasks", Keys: "d", Description: "delete task"},
-	{Category: "Tasks", Keys: "u", Description: "undo last change"},
-	{Category: "Search / Create / Edit", Keys: "c / Ctrl+K", Description: "create task (quick add)"},
-	{Category: "Search / Create / Edit", Keys: "P", Description: "open today's daily planning ritual"},
-	{Category: "Search / Create / Edit", Keys: "/", Description: "search (project:name filters project)"},
-	{Category: "Application", Keys: "r", Description: "refresh tasks"},
-	{Category: "Application", Keys: "Ctrl+R", Description: "synchronize now"},
-	{Category: "Application", Keys: "?", Description: "show help"},
-	{Category: "Application", Keys: "q", Description: "quit"},
-	{Category: "Application", Keys: "Esc", Description: "close active overlay"},
+	{Category: "Navigate", Keys: "↑ k", Description: "up"},
+	{Category: "Navigate", Keys: "↓ j", Description: "down"},
+	{Category: "Navigate", Keys: "g G", Description: "first / last"},
+	{Category: "Navigate", Keys: "1-4", Description: "jump to view"},
+	{Category: "Navigate", Keys: "h l tab", Description: "sidebar / list"},
+	{Category: "Navigate", Keys: "enter", Description: "details"},
+	{Category: "Navigate", Keys: "/", Description: "search"},
+	{Category: "Navigate", Keys: "esc", Description: "close / back"},
+	{Category: "Tasks", Keys: "c", Description: "capture"},
+	{Category: "Tasks", Keys: "ctrl+k", Description: "capture"},
+	{Category: "Tasks", Keys: "space", Description: "complete"},
+	{Category: "Tasks", Keys: "s", Description: "start / stop"},
+	{Category: "Tasks", Keys: "e", Description: "edit"},
+	{Category: "Tasks", Keys: "p ! D S t", Description: "edit one field"},
+	{Category: "Tasks", Keys: "E", Description: "edit estimate"},
+	{Category: "Tasks", Keys: "R", Description: "edit recurrence"},
+	{Category: "Tasks", Keys: "X", Description: "stop recurrence"},
+	{Category: "Tasks", Keys: "P", Description: "plan today"},
+	{Category: "Tasks", Keys: "d", Description: "delete"},
+	{Category: "Tasks", Keys: "u", Description: "undo"},
+	{Category: "App", Keys: "r", Description: "refresh"},
+	{Category: "App", Keys: "ctrl+r", Description: "sync now"},
+	{Category: "App", Keys: "4", Description: "settings"},
+	{Category: "App", Keys: "?", Description: "this help"},
+	{Category: "App", Keys: "q", Description: "quit"},
+	{Category: "Mouse", Keys: "click", Description: "select a view or a task"},
+	{Category: "Mouse", Keys: "wheel", Description: "scroll the list"},
 }
+
+// helpKeyWidth is the bold key column; actions follow it.
+const helpKeyWidth = 10
 
 // KeyBindings returns a copy so callers cannot drift help from routing by
 // mutating the package's definitions.
@@ -104,9 +114,8 @@ func (h *HelpModel) maxScroll() int {
 	if !h.Open || h.Width <= 0 || h.Height <= 0 {
 		return 0
 	}
-	body := helpBodyLines(ModalContentWidth(h.Width, HelpMaxWidth), h.Styles)
-	viewport := max(1, ModalContentHeight(h.Height, 0)-2)
-	return max(0, len(body)-viewport)
+	width := ModalWidth(HelpWidth, h.Width)
+	return MaxOffset(len(helpRows(FrameContentWidth(width))), ModalMaxRows(h.Height))
 }
 
 func (h *HelpModel) clampScroll() {
@@ -123,36 +132,18 @@ func RenderHelp(width, height int, styles Styles) string {
 	return RenderHelpAt(width, height, styles, 0)
 }
 
-// RenderHelpAt renders a scroll position without holding UI state. The
-// category-aware layout uses two columns only when each column has enough room
-// for readable keys and descriptions.
+// RenderHelpAt renders a scroll position without holding UI state. Wide
+// frames lay Navigate, Tasks and App side by side; narrow frames stack them.
 func RenderHelpAt(width, height int, styles Styles, scroll int) string {
 	if width <= 0 || height <= 0 {
 		return ""
 	}
-	contentWidth := ModalContentWidth(width, HelpMaxWidth)
-	contentHeight := ModalContentHeight(height, 0)
-	body := helpBodyLines(contentWidth, styles)
-	viewport := max(1, contentHeight-2)
-	maximum := max(0, len(body)-viewport)
-	if scroll < 0 {
-		scroll = 0
+	frameWidth := ModalWidth(HelpWidth, width)
+	frame := Frame{
+		Title: "Keys", Rows: helpRows(FrameContentWidth(frameWidth)), Offset: scroll,
+		Width: frameWidth, MaxRows: ModalMaxRows(height), Keys: []Hint{{"esc", "close"}},
 	}
-	if scroll > maximum {
-		scroll = maximum
-	}
-
-	lines := []string{styles.ModalTitle.Render("Keyboard shortcuts")}
-	end := min(len(body), scroll+viewport)
-	if scroll < end {
-		lines = append(lines, body[scroll:end]...)
-	}
-	if maximum > 0 {
-		lines = append(lines, styles.ModalAction.Render(fmt.Sprintf("↑/↓ scroll · %d/%d · Esc close", scroll+1, maximum+1)))
-	} else {
-		lines = append(lines, styles.ModalAction.Render("Esc close"))
-	}
-	return renderBoundedPanel(lines, contentWidth, contentHeight, styles)
+	return strings.Join(styles.RenderFrame(frame, Icons{}), "\n")
 }
 
 func (h HelpModel) View() string {
@@ -162,27 +153,7 @@ func (h HelpModel) View() string {
 	return RenderHelpAt(h.Width, h.Height, h.Styles, h.Scroll)
 }
 
-func helpBodyLines(width int, styles Styles) []string {
-	if width >= 64 {
-		return helpTwoColumnLines(width, styles)
-	}
-	return helpSingleColumnLines(width, styles)
-}
-
-func helpSingleColumnLines(width int, styles Styles) []string {
-	lines := make([]string, 0, len(keyBindings)+4)
-	lastCategory := ""
-	for _, binding := range KeyBindings() {
-		if binding.Category != lastCategory {
-			lines = append(lines, styles.SectionTitle.Render(binding.Category))
-			lastCategory = binding.Category
-		}
-		lines = append(lines, helpBindingLines(binding, width, styles)...)
-	}
-	return lines
-}
-
-func helpTwoColumnLines(width int, styles Styles) []string {
+func helpGroups() [][]KeyBinding {
 	groups := make([][]KeyBinding, 0, 4)
 	for _, binding := range KeyBindings() {
 		if len(groups) == 0 || groups[len(groups)-1][0].Category != binding.Category {
@@ -191,73 +162,56 @@ func helpTwoColumnLines(width int, styles Styles) []string {
 			groups[len(groups)-1] = append(groups[len(groups)-1], binding)
 		}
 	}
-	leftGroups := groups[:2]
-	rightGroups := groups[2:]
-	left := helpColumnLines(leftGroups, (width-3)/2, styles)
-	right := helpColumnLines(rightGroups, (width-3)/2, styles)
-	rows := max(len(left), len(right))
-	columnWidth := (width - 3) / 2
-	lines := make([]string, 0, rows)
-	for index := 0; index < rows; index++ {
-		leftLine, rightLine := "", ""
-		if index < len(left) {
-			leftLine = left[index]
-		}
-		if index < len(right) {
-			rightLine = right[index]
-		}
-		leftLine = PadRight(Truncate(leftLine, columnWidth), columnWidth)
-		if rightLine == "" {
-			lines = append(lines, leftLine)
-		} else {
-			lines = append(lines, leftLine+"   "+Truncate(rightLine, columnWidth))
-		}
-	}
-	return lines
+	return groups
 }
 
-func helpColumnLines(groups [][]KeyBinding, width int, styles Styles) []string {
-	lines := make([]string, 0)
+func helpRows(width int) []FrameRow {
+	groups := helpGroups()
+	rows := []FrameRow{{}}
+	columns := groups
+	var rest [][]KeyBinding
+	if len(groups) > 3 {
+		columns, rest = groups[:3], groups[3:]
+	}
+	columnWidth := width / 3
+	if columnWidth >= helpKeyWidth+15 {
+		header := make([]Span, 0, 3)
+		depth := 0
+		for _, group := range columns {
+			header = append(header, muted(fmt.Sprintf("%-*s", columnWidth, strings.ToUpper(group[0].Category))))
+			depth = max(depth, len(group))
+		}
+		rows = append(rows, row(header...))
+		for line := 0; line < depth; line++ {
+			spans := make([]Span, 0, 6)
+			for _, group := range columns {
+				key, action := "", ""
+				if line < len(group) {
+					key, action = group[line].Keys, group[line].Description
+				}
+				spans = append(spans,
+					txt(fmt.Sprintf("%-*s", helpKeyWidth, key)).bold(),
+					txt(fmt.Sprintf("%-*s", columnWidth-helpKeyWidth, Truncate(action, columnWidth-helpKeyWidth-1))))
+			}
+			rows = append(rows, row(spans...))
+		}
+		groups = rest
+		rows = append(rows, FrameRow{})
+	}
 	for _, group := range groups {
-		if len(group) == 0 {
-			continue
-		}
-		lines = append(lines, styles.SectionTitle.Render(group[0].Category))
+		rows = append(rows, row(muted(strings.ToUpper(group[0].Category))))
 		for _, binding := range group {
-			lines = append(lines, helpBindingLines(binding, width, styles)...)
+			for index, line := range WrapText(binding.Description, max(1, width-helpKeyWidth)) {
+				key := ""
+				if index == 0 {
+					key = binding.Keys
+				}
+				rows = append(rows, row(txt(fmt.Sprintf("%-*s", helpKeyWidth, key)).bold(), txt(line)))
+			}
 		}
+		rows = append(rows, FrameRow{})
 	}
-	return lines
-}
-
-func helpBindingLines(binding KeyBinding, width int, _ Styles) []string {
-	keyWidth := 18
-	if width < 30 {
-		// Keep enough room for complete words in narrow descriptions; a
-		// very wide key column makes the help screen look truncated even
-		// though scrolling is available.
-		keyWidth = max(1, width/3)
-	} else if width < keyWidth+4 {
-		keyWidth = max(1, width/2)
-	}
-	prefix := fmt.Sprintf("%-*s ", keyWidth, binding.Keys)
-	available := width - lipgloss.Width(prefix)
-	if available < 1 {
-		available = 1
-	}
-	wrapped := WrapText(binding.Description, available)
-	if len(wrapped) == 0 {
-		return []string{Truncate(prefix, width)}
-	}
-	lines := make([]string, 0, len(wrapped))
-	for index, value := range wrapped {
-		if index == 0 {
-			lines = append(lines, Truncate(prefix+value, width))
-		} else {
-			lines = append(lines, Truncate(strings.Repeat(" ", lipgloss.Width(prefix))+value, width))
-		}
-	}
-	return lines
+	return rows
 }
 
 // HelpText returns unstyled generated content for tests and alternate output.

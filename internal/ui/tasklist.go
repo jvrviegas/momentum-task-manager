@@ -7,38 +7,38 @@ import (
 
 	"charm.land/lipgloss/v2"
 
-	"github.com/jvrviegas/momentum/internal/domain"
+	"github.com/jvrviegas/momentum-task-manager/internal/domain"
 )
 
 // TaskListOptions controls a rendering pass without holding UI state.
 type TaskListOptions struct {
-	Width           int
-	Height          int
-	Selected        int
-	ShowMetadata    bool
-	HideProject     bool
-	CompactMetadata bool
-	Density         RowDensity
-	Now             time.Time
-	Styles          Styles
-	Icons           Icons
+	Width        int
+	Height       int
+	Selected     int
+	ShowMetadata bool
+	HideProject  bool
+	Density      RowDensity
+	Now          time.Time
+	Styles       Styles
+	Icons        Icons
 }
 
 // TaskRowOptions controls one task block. Comfortable density becomes a
-// two-line logical block when metadata is useful; compact density keeps only
-// explicitly enabled short metadata. HideProject is used by Inbox, where the
-// project group heading already communicates that value.
+// two-line logical block when metadata is useful; compact density is one line
+// with only the overdue marker. HideProject is used by Inbox, where the
+// project group heading already communicates that value. Highlight emphasises
+// search terms in the title.
 type TaskRowOptions struct {
-	Width           int
-	ShowMetadata    bool
-	HideProject     bool
-	CompactMetadata bool
-	Completed       bool
-	Density         RowDensity
-	Selected        bool
-	Now             time.Time
-	Styles          Styles
-	Icons           Icons
+	Width        int
+	ShowMetadata bool
+	HideProject  bool
+	Completed    bool
+	Density      RowDensity
+	Selected     bool
+	Highlight    string
+	Now          time.Time
+	Styles       Styles
+	Icons        Icons
 }
 
 // TaskBlock is the render geometry shared by list rendering and callers that
@@ -79,15 +79,14 @@ func RenderTaskList(tasks []domain.Task, options TaskListOptions) string {
 	blocks := make([]TaskBlock, 0, len(tasks))
 	for index, task := range tasks {
 		rowOptions := TaskRowOptions{
-			Width:           options.Width,
-			ShowMetadata:    options.ShowMetadata,
-			HideProject:     options.HideProject,
-			CompactMetadata: options.CompactMetadata,
-			Density:         options.Density,
-			Selected:        index == selected,
-			Now:             options.Now,
-			Styles:          options.Styles,
-			Icons:           options.Icons,
+			Width:        options.Width,
+			ShowMetadata: options.ShowMetadata,
+			HideProject:  options.HideProject,
+			Density:      options.Density,
+			Selected:     index == selected,
+			Now:          options.Now,
+			Styles:       options.Styles,
+			Icons:        options.Icons,
 		}
 		blocks = append(blocks, RenderTaskBlock(task, rowOptions))
 	}
@@ -207,150 +206,224 @@ func renderTaskLines(task domain.Task, options TaskRowOptions) []string {
 			options.Density = DensityCompact
 		}
 	}
+	icons := options.Icons.orUnicode()
+	styles := options.Styles
+	width := options.Width
 
-	icon := options.Icons.Pending
-	if task.Start != nil {
-		icon = options.Icons.Active
-	} else if !task.IsPending() {
-		icon = options.Icons.Completed
+	state, stateTone, stateBold := icons.Pending, ToneMuted, false
+	switch {
+	case !task.IsPending():
+		state = icons.Completed
+	case task.Start != nil:
+		state, stateTone, stateBold = icons.Active, ToneCyan, true
+	case options.Selected:
+		stateTone = ToneText
 	}
-
-	gutter := ""
+	bg := FillNone
+	gutter := txt(" ")
 	if options.Selected {
-		gutter = options.Styles.FocusGutter.Render(selectionMarker(options.Icons)) + " "
+		bg = FillSelection
+		gutter = sp(icons.Selection, ToneAccent)
 	}
-	prefix := gutter + icon + " "
-	var metadata []string
+	stateSpan := sp(state, stateTone)
+	stateSpan.Bold = stateBold
+	prefix := []Span{gutter, txt(" "), stateSpan, txt(" ")}
+	prefixWidth := spansWidth(prefix)
+	titleTone, titleBold := ToneText, options.Selected
+	if !task.IsPending() {
+		titleTone = ToneMuted
+	}
+	title := func(cells int) []Span {
+		return highlightTitle(Truncate(task.Description, max(1, cells)), options.Highlight, titleTone, titleBold)
+	}
+	overdue := task.IsPending() && ClassifyOverdue(task, options.Now)
+
 	if options.Density == DensityCompact {
-		if options.CompactMetadata || options.ShowMetadata {
-			metadata = compactMetadata(task, options)
+		var trailing []Span
+		if overdue {
+			trailing = []Span{txt(" "), sp(icons.Overdue, ToneRed).bold()}
 		}
-	} else if options.ShowMetadata {
-		metadata = taskMetadata(task, options)
+		line := append(append(prefix, title(width-prefixWidth-spansWidth(trailing))...), grow())
+		return []string{styles.Line(width, bg, append(line, trailing...)...)}
 	}
 
-	metadataSuffix := ""
-	if options.Density == DensityCompact && len(metadata) > 0 {
-		metadataSuffix = "  ·  " + strings.Join(metadata, "  ·  ")
+	var slot []Span
+	slotWidth := 0
+	if options.Completed && task.End != nil {
+		slot = []Span{muted(completionTime(task.End.In(options.Now.Location()), options.Now))}
+		slotWidth = spansWidth(slot)
+	} else if label, tone, ok := prioritySlot(task.Priority, icons); ok {
+		slotWidth = max(6, lipgloss.Width(label))
+		slot = []Span{sp(label, tone), gap(slotWidth - lipgloss.Width(label))}
 	}
-	descriptionWidth := options.Width - lipgloss.Width(prefix) - lipgloss.Width(metadataSuffix)
-	if descriptionWidth < 1 {
-		metadataSuffix = ""
-		descriptionWidth = options.Width - lipgloss.Width(prefix)
+	titleWidth := width - prefixWidth
+	if slotWidth > 0 {
+		titleWidth -= slotWidth + 2
 	}
-	if descriptionWidth < 1 {
-		descriptionWidth = 1
-	}
-	description := Truncate(task.Description, descriptionWidth)
-	primary := PadRight(Truncate(prefix+description+metadataSuffix, options.Width), options.Width)
+	primary := append(append(prefix, title(titleWidth)...), grow())
+	primary = append(primary, slot...)
+	lines := []string{styles.Line(width, bg, primary...)}
 
-	if options.Density == DensityCompact || len(metadata) == 0 {
-		return []string{renderTaskLine(primary, options.Width, options.Selected, options.Styles)}
+	if !options.ShowMetadata {
+		return lines
 	}
-
-	metadataPrefix := strings.Repeat(" ", lipgloss.Width(prefix))
+	parts := taskMetadata(task, options, icons)
+	if len(parts) == 0 {
+		return lines
+	}
+	separator := muted(" " + icons.Dot + " ")
+	available := width - prefixWidth
+	total := func() int {
+		sum := 0
+		for index, part := range parts {
+			if index > 0 {
+				sum += spansWidth([]Span{separator})
+			}
+			sum += spansWidth(part.spans)
+		}
+		return sum
+	}
+	for len(parts) > 1 && total() > available {
+		lowest := 0
+		for index, part := range parts {
+			if part.priority < parts[lowest].priority {
+				lowest = index
+			}
+		}
+		parts = append(parts[:lowest], parts[lowest+1:]...)
+	}
+	cont := txt(" ")
 	if options.Selected {
-		metadataPrefix = gutter + strings.Repeat(" ", lipgloss.Width(icon+" "))
+		cont = sp(icons.SelectionCont, ToneAccent)
 	}
-	metadataLine := metadataPrefix + strings.Join(metadata, "  ·  ")
-	metadataLine = PadRight(Truncate(metadataLine, options.Width), options.Width)
-	return []string{
-		renderTaskLine(primary, options.Width, options.Selected, options.Styles),
-		renderTaskLine(metadataLine, options.Width, options.Selected, options.Styles),
-	}
-}
-
-func renderTaskLine(line string, width int, selected bool, styles Styles) string {
-	line = PadRight(Truncate(line, width), width)
-	if selected {
-		return styles.Selection.Width(width).Render(line)
-	}
-	return line
-}
-
-func selectionMarker(icons Icons) string {
-	if icons.Pending == "[ ]" {
-		return ">"
-	}
-	return "▌"
-}
-
-func taskMetadata(task domain.Task, options TaskRowOptions) []string {
-	metadata := make([]string, 0, 4)
-	if !options.HideProject && task.Project != "" {
-		metadata = append(metadata, options.Styles.Project.Render("#"+task.Project))
-	}
-	if options.Completed {
-		if task.End != nil {
-			metadata = append(metadata, options.Styles.Metadata.Render("Completed "+formatDate(task.End.In(options.Now.Location()), options.Now)))
+	metadata := []Span{cont, gap(prefixWidth - 1)}
+	for index, part := range parts {
+		if index > 0 {
+			metadata = append(metadata, separator)
 		}
-		return metadata
+		metadata = append(metadata, part.spans...)
+	}
+	metadata = append(metadata, grow())
+	return append(lines, styles.Line(width, bg, metadata...))
+}
+
+// metadataPart is one piece of a row's second line. Lower priorities drop
+// first as width shrinks; the overdue phrase is the last to go.
+type metadataPart struct {
+	spans    []Span
+	priority int
+}
+
+func taskMetadata(task domain.Task, options TaskRowOptions, icons Icons) []metadataPart {
+	parts := make([]metadataPart, 0, 4)
+	if task.Start != nil && task.IsPending() {
+		parts = append(parts, metadataPart{spans: []Span{sp("Active", ToneCyan)}, priority: 3})
+	}
+	if !options.HideProject && task.Project != "" {
+		parts = append(parts, metadataPart{spans: []Span{sp("#"+task.Project, ToneCyan)}, priority: 2})
+	}
+	if options.Completed || !task.IsPending() {
+		return parts
 	}
 	if task.Due != nil {
 		date := "Due " + formatDate(task.Due.In(options.Now.Location()), options.Now)
 		if ClassifyOverdue(task, options.Now) {
-			date = "Overdue · " + date
-			metadata = append(metadata, options.Styles.Overdue.Render(date))
+			parts = append(parts, metadataPart{spans: []Span{
+				sp(icons.Overdue+" Overdue", ToneRed), muted(" " + icons.Dot + " "), sp(date, ToneRed),
+			}, priority: 5})
 		} else {
-			metadata = append(metadata, options.Styles.Metadata.Render(date))
+			parts = append(parts, metadataPart{spans: []Span{muted(date)}, priority: 3})
 		}
 	}
 	if task.Scheduled != nil {
 		date := "Scheduled " + formatDate(task.Scheduled.In(options.Now.Location()), options.Now)
-		metadata = append(metadata, options.Styles.Metadata.Render(date))
+		parts = append(parts, metadataPart{spans: []Span{muted(date)}, priority: 3})
 	}
 	if task.Estimate != nil {
-		metadata = append(metadata, options.Styles.Metadata.Render("Estimate "+task.Estimate.String()))
+		parts = append(parts, metadataPart{spans: []Span{muted("Estimate " + task.Estimate.String())}, priority: 1})
 	}
-	if task.Priority != "" {
-		metadata = append(metadata, priorityStyle(task.Priority, options.Styles).Render(PriorityLabel(task.Priority)))
-	}
-	return metadata
+	return parts
 }
 
-func compactMetadata(task domain.Task, options TaskRowOptions) []string {
-	// Compact metadata is opt-in because the description is the primary
-	// affordance at 28–49 columns. Keep one short state/date/priority cue;
-	// full timestamps remain on the comfortable metadata line and details
-	// remain available through Enter.
-	candidate := ""
-	if options.Completed && task.End != nil {
-		candidate = "Completed " + formatDate(task.End.In(options.Now.Location()), options.Now)
-	} else if ClassifyOverdue(task, options.Now) {
-		candidate = "Overdue"
-	} else if task.Due != nil {
-		candidate = "Due " + compactDate(task.Due.In(options.Now.Location()), options.Now)
-	} else if task.Scheduled != nil {
-		candidate = "Scheduled " + compactDate(task.Scheduled.In(options.Now.Location()), options.Now)
-	} else if task.Priority != "" {
-		candidate = PriorityLabel(task.Priority)
+// highlightTitle marks case-insensitive occurrences of search terms in bold
+// underlined Accent so matches read without color too.
+func highlightTitle(title, query string, tone Tone, bold bool) []Span {
+	base := Span{Text: title, Tone: tone, Bold: bold}
+	_, text, _ := parseSearchQuery(query)
+	terms := strings.Fields(text)
+	if len(terms) == 0 || title == "" {
+		return []Span{base}
 	}
-	if candidate == "" {
-		return nil
+	lower := strings.ToLower(title)
+	marks := make([]bool, len(lower))
+	for _, term := range terms {
+		for from := 0; ; {
+			index := strings.Index(lower[from:], term)
+			if index < 0 {
+				break
+			}
+			for i := from + index; i < from+index+len(term); i++ {
+				marks[i] = true
+			}
+			from += index + len(term)
+		}
 	}
-	prefixWidth := lipgloss.Width(options.Icons.Pending + " ")
-	if options.Selected {
-		prefixWidth = lipgloss.Width(selectionMarker(options.Icons) + " " + options.Icons.Pending + " ")
+	if len(lower) != len(title) {
+		return []Span{base}
 	}
-	// The candidate shares the primary line with a five-cell separator. Keep
-	// it only when it leaves at least one cell for the description.
-	if prefixWidth+5+lipgloss.Width(candidate) >= options.Width {
-		return nil
+	spans := make([]Span, 0, 4)
+	start := 0
+	for index := 1; index <= len(title); index++ {
+		if index < len(title) && marks[index] == marks[start] {
+			continue
+		}
+		part := base
+		part.Text = title[start:index]
+		if marks[start] {
+			part.Tone, part.Bold, part.Underline = ToneAccent, true, true
+		}
+		spans = append(spans, part)
+		start = index
 	}
-	return []string{options.Styles.Metadata.Render(candidate)}
+	return spans
 }
 
-func priorityStyle(priority string, styles Styles) lipgloss.Style {
+// prioritySlot is the right-edge slot label: arrow plus a short word.
+func prioritySlot(priority string, icons Icons) (string, Tone, bool) {
 	switch strings.ToUpper(strings.TrimSpace(priority)) {
 	case "H", "HIGH":
-		return styles.PriorityHigh
+		return icons.High + " High", ToneHigh, true
 	case "M", "MEDIUM":
-		return styles.PriorityMed
+		return icons.Medium + " Med", ToneMedium, true
 	case "L", "LOW":
-		return styles.PriorityLow
+		return icons.Low + " Low", ToneLow, true
 	default:
-		return styles.Priority
+		return "", ToneText, false
 	}
+}
+
+// RenderSectionHeader renders “Title  count  ─────” at column 0. The rule
+// shrinks first, then the title truncates; the count stays.
+func RenderSectionHeader(title string, count int, tone Tone, width int, styles Styles, icons Icons) string {
+	if width <= 0 {
+		return ""
+	}
+	icons = icons.orUnicode()
+	countText := fmt.Sprintf("%d", count)
+	if lipgloss.Width(title)+4+lipgloss.Width(countText) <= width {
+		return styles.Line(width, FillNone, sp(title, tone).bold(), gap(2), muted(countText), gap(2), rule(icons.Rule))
+	}
+	room := width - 2 - lipgloss.Width(countText)
+	if room < 1 {
+		return styles.Line(width, FillNone, sp(title, tone).bold())
+	}
+	return styles.Line(width, FillNone, sp(Truncate(title, room), tone).bold(), gap(2), muted(countText))
+}
+
+// RenderMoreLine reports how many tasks sit below the visible window.
+func RenderMoreLine(hidden, width int, styles Styles, icons Icons) string {
+	icons = icons.orUnicode()
+	return styles.Line(width, FillNone, muted(fmt.Sprintf("    %s %d more", icons.More, hidden)))
 }
 
 // PriorityLabel turns Taskwarrior's compact priority code into readable copy.
@@ -390,32 +463,44 @@ func relevantDate(task domain.Task, now time.Time) string {
 	return ""
 }
 
+// formatDate is the friendly row date: Today/Tomorrow/Yesterday or “Sep 28”,
+// plus the time unless it is local midnight (a date-only Taskwarrior value).
 func formatDate(value, now time.Time) string {
+	loc := now.Location()
+	value = value.In(loc)
+	clock := ""
+	if value.Hour() != 0 || value.Minute() != 0 {
+		clock = " " + value.Format("15:04")
+	}
+	return relativeDay(value, now) + clock
+}
+
+func relativeDay(value, now time.Time) string {
 	loc := now.Location()
 	today := now.In(loc)
 	value = value.In(loc)
-	if value.Year() == today.Year() && value.YearDay() == today.YearDay() {
-		return "Today " + value.Format("15:04")
+	sameDay := func(day time.Time) bool { return value.Year() == day.Year() && value.YearDay() == day.YearDay() }
+	switch {
+	case sameDay(today):
+		return "Today"
+	case sameDay(today.AddDate(0, 0, 1)):
+		return "Tomorrow"
+	case sameDay(today.AddDate(0, 0, -1)):
+		return "Yesterday"
+	default:
+		return value.Format("Jan 2")
 	}
-	tomorrow := today.AddDate(0, 0, 1)
-	if value.Year() == tomorrow.Year() && value.YearDay() == tomorrow.YearDay() {
-		return "Tomorrow " + value.Format("15:04")
-	}
-	return value.Format("Jan 2 15:04")
 }
 
-func compactDate(value, now time.Time) string {
-	parts := strings.Fields(formatDate(value, now))
-	if len(parts) == 0 {
-		return ""
+// completionTime fills the Completed slot: HH:MM today and yesterday, the
+// date and time earlier.
+func completionTime(value, now time.Time) string {
+	switch relativeDay(value, now) {
+	case "Today", "Yesterday":
+		return value.In(now.Location()).Format("15:04")
+	default:
+		return value.In(now.Location()).Format("Jan 2 15:04")
 	}
-	if parts[0] == "Today" || parts[0] == "Tomorrow" || parts[0] == "Yesterday" {
-		return parts[0]
-	}
-	if len(parts) > 1 {
-		return parts[0] + " " + parts[1]
-	}
-	return parts[0]
 }
 
 // RowSummary is a plain-text equivalent useful for tests and accessibility.

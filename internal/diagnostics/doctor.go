@@ -9,8 +9,8 @@ import (
 	"path/filepath"
 	"strings"
 
-	"github.com/jvrviegas/momentum/internal/config"
-	"github.com/jvrviegas/momentum/internal/taskwarrior"
+	"github.com/jvrviegas/momentum-task-manager/internal/config"
+	"github.com/jvrviegas/momentum-task-manager/internal/taskwarrior"
 )
 
 // Check is one safe doctor result.

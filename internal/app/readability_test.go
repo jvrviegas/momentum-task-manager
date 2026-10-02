@@ -6,16 +6,19 @@ import (
 	"testing"
 
 	tea "charm.land/bubbletea/v2"
+	"charm.land/lipgloss/v2"
 	"github.com/charmbracelet/x/ansi"
 
-	"github.com/jvrviegas/momentum/internal/domain"
-	"github.com/jvrviegas/momentum/internal/ui"
+	"github.com/jvrviegas/momentum-task-manager/internal/domain"
+	"github.com/jvrviegas/momentum-task-manager/internal/ui"
 )
 
 func TestColorStrippedShellRetainsActiveAndErrorStatus(t *testing.T) {
 	model := readyCompositionModel(79, 24)
 	plain := ansi.Strip(model.View().Content)
-	if !strings.Contains(plain, "▌ ◷ Today") {
+	lines := strings.Split(plain, "\n")
+	today := strings.Index(lines[0], "Today")
+	if today < 0 || len(lines) < 2 || string([]rune(lines[1])[lipgloss.Width(lines[0][:today])]) != "━" {
 		t.Fatalf("active view lost its non-color cue: %q", plain)
 	}
 	if !strings.Contains(plain, "Sync ready") {
@@ -26,7 +29,7 @@ func TestColorStrippedShellRetainsActiveAndErrorStatus(t *testing.T) {
 	model.Views = domain.Views{}
 	model.Err = errors.New("fixture Taskwarrior unavailable")
 	plain = ansi.Strip(model.View().Content)
-	if !strings.Contains(plain, "Error: fixture Taskwarrior unavailable") {
+	if !strings.Contains(plain, "! fixture Taskwarrior unavailable") {
 		t.Fatalf("error status lost from color-stripped footer: %q", plain)
 	}
 }

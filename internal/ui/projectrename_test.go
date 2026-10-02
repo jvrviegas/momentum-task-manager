@@ -9,7 +9,7 @@ import (
 	tea "charm.land/bubbletea/v2"
 	"charm.land/lipgloss/v2"
 
-	"github.com/jvrviegas/momentum/internal/domain"
+	"github.com/jvrviegas/momentum-task-manager/internal/domain"
 )
 
 func renameKey(text string) tea.KeyPressMsg {
@@ -50,7 +50,7 @@ func TestProjectRenameCatalogOnlyIsDefaultAndShowsPreviewContext(t *testing.T) {
 	if model.Mode != ProjectRenameCatalogOnly || model.IncludeSubprojects || !model.PreviewValid {
 		t.Fatalf("initial model=%#v", model)
 	}
-	view := model.View()
+	view := sanitizeComponentRender(model.View())
 	for _, want := range []string{"Rename project", "work → delivery", "Catalog only", "Active context: work-context", "Catalog descendants: 0", "Task descendants: 0", "Historical tasks retain their values", "native u cannot reverse"} {
 		if !strings.Contains(view, want) {
 			t.Errorf("view missing %q: %s", want, view)
@@ -73,7 +73,7 @@ func TestProjectRenameIncludeSubprojectsShowsSeparateCatalogAndTaskCounts(t *tes
 	preview.ExactTasks = nil
 	preview.SubprojectTasks = []domain.ProjectTaskMapping{{UUID: "root", OldValue: "work", NewValue: "delivery"}, child}
 	model.UpdatePreview(preview)
-	view := model.View()
+	view := sanitizeComponentRender(model.View())
 	for _, want := range []string{"Include subprojects", "Catalog descendants: 1", "Task descendants: 1", "Pending tasks: 2"} {
 		if !strings.Contains(view, want) {
 			t.Errorf("view missing %q: %s", want, view)
@@ -131,9 +131,9 @@ func TestProjectRenameTaskOnlyDestinationRequiresEffectiveMergeWarning(t *testin
 	if !model.MergeWarningOpen || model.ConfirmOpen {
 		t.Fatalf("merge warning state=%#v", model)
 	}
-	view := strings.ToLower(model.View())
+	view := strings.ToLower(sanitizeComponentRender(model.View()))
 	if !strings.Contains(view, "effective merge") || !strings.Contains(view, "not in the catalog") {
-		t.Fatalf("warning missing: %s", model.View())
+		t.Fatalf("warning missing: %s", sanitizeComponentRender(model.View()))
 	}
 	model.Update(renameKey("enter"))
 	if !model.ConfirmOpen || model.MergeWarningOpen {
@@ -150,8 +150,8 @@ func TestProjectRenameNameOnlyAndZeroMatchPreviewsRemainCatalogOnly(t *testing.T
 	model := NewProjectRename(Styles{})
 	model.SetSize(70, 20)
 	model.OpenPreview(ProjectRenamePreview{ExactPlan: labelPlan, SubprojectsPlan: labelPlan, HasActiveContext: false})
-	if model.CanMigrateTasks() || strings.Contains(model.View(), "Catalog + pending tasks") || !strings.Contains(model.View(), "no task migration") {
-		t.Fatalf("label-only preview=%s", model.View())
+	if model.CanMigrateTasks() || strings.Contains(sanitizeComponentRender(model.View()), "Catalog + pending tasks") || !strings.Contains(sanitizeComponentRender(model.View()), "no task migration") {
+		t.Fatalf("label-only preview=%s", sanitizeComponentRender(model.View()))
 	}
 
 	exact, err := domain.PlanUpdateProject(catalog, "work", domain.Project{Name: "Delivery", Value: "delivery"}, false)
@@ -161,8 +161,8 @@ func TestProjectRenameNameOnlyAndZeroMatchPreviewsRemainCatalogOnly(t *testing.T
 	model.OpenPreview(ProjectRenamePreview{ExactPlan: exact, SubprojectsPlan: exact, HasActiveContext: false})
 	model.Mode = ProjectRenameCatalogAndPending
 	model.UpdatePreview(ProjectRenamePreview{ExactPlan: exact, SubprojectsPlan: exact, HasActiveContext: false})
-	if !strings.Contains(model.View(), "No active context") || !strings.Contains(model.View(), "Pending tasks: 0") {
-		t.Fatalf("zero-match preview=%s", model.View())
+	if !strings.Contains(sanitizeComponentRender(model.View()), "No active context") || !strings.Contains(sanitizeComponentRender(model.View()), "Pending tasks: 0") {
+		t.Fatalf("zero-match preview=%s", sanitizeComponentRender(model.View()))
 	}
 }
 
@@ -176,8 +176,8 @@ func TestProjectRenameCancelStaleAndErrorKeepActionableState(t *testing.T) {
 		t.Fatalf("stale state=%#v", model)
 	}
 	model.ApplyMessage(ProjectRenameResultMsg{Err: errors.New("save failed")})
-	if model.PreviewValid || model.Err == nil || !strings.Contains(model.View(), "save failed") {
-		t.Fatalf("error state=%#v view=%s", model, model.View())
+	if model.PreviewValid || model.Err == nil || !strings.Contains(sanitizeComponentRender(model.View()), "save failed") {
+		t.Fatalf("error state=%#v view=%s", model, sanitizeComponentRender(model.View()))
 	}
 	_, cmd := model.Update(renameKey("esc"))
 	if cmd == nil || model.Open {
@@ -194,7 +194,7 @@ func TestProjectRenameWidthsStayBounded(t *testing.T) {
 	model.OpenPreview(preview)
 	for _, size := range [][2]int{{120, 30}, {80, 24}, {49, 12}, {28, 8}, {0, 0}} {
 		model.SetSize(size[0], size[1])
-		view := model.View()
+		view := sanitizeComponentRender(model.View())
 		if size[0] == 0 || size[1] == 0 {
 			if view != "" {
 				t.Fatalf("size=%v view=%q", size, view)

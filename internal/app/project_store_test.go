@@ -4,8 +4,8 @@ import (
 	"context"
 	"testing"
 
-	"github.com/jvrviegas/momentum/internal/config"
-	"github.com/jvrviegas/momentum/internal/domain"
+	"github.com/jvrviegas/momentum-task-manager/internal/config"
+	"github.com/jvrviegas/momentum-task-manager/internal/domain"
 )
 
 type recordingProjectStore struct {

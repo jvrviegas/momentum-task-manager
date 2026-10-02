@@ -7,8 +7,8 @@ import (
 	"testing"
 	"time"
 
-	"github.com/jvrviegas/momentum/internal/domain"
-	"github.com/jvrviegas/momentum/internal/ui"
+	"github.com/jvrviegas/momentum-task-manager/internal/domain"
+	"github.com/jvrviegas/momentum-task-manager/internal/ui"
 )
 
 type completedCapableClient struct {
@@ -42,8 +42,8 @@ func TestCompletedLoadUsesThirtyCalendarDayWindowAndExplicitView(t *testing.T) {
 	if model.ActiveView != ViewCompleted || len(model.Views.Completed) != 1 || model.Selected[ViewCompleted] != "done" {
 		t.Fatalf("active=%s completed=%#v selected=%#v", model.ActiveView, model.Views.Completed, model.Selected)
 	}
-	content := model.View().Content
-	if !strings.Contains(content, "Today · 1") || !strings.Contains(content, "#work") || !strings.Contains(content, "Completed Today 10:00") {
+	content := sanitizeRender(model.View().Content)
+	if !strings.Contains(content, "Today  1") || !strings.Contains(content, "#work") || !strings.Contains(content, "10:00") {
 		t.Fatalf("completed view=%q", content)
 	}
 }

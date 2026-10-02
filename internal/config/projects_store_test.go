@@ -10,7 +10,7 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/jvrviegas/momentum/internal/domain"
+	"github.com/jvrviegas/momentum-task-manager/internal/domain"
 )
 
 func TestProjectCatalogStorePreservesUnrelatedTOMLAndArrayTableComments(t *testing.T) {

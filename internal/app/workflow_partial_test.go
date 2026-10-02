@@ -3,8 +3,8 @@ package app
 import (
 	"testing"
 
-	"github.com/jvrviegas/momentum/internal/domain"
-	"github.com/jvrviegas/momentum/internal/taskwarrior"
+	"github.com/jvrviegas/momentum-task-manager/internal/domain"
+	"github.com/jvrviegas/momentum-task-manager/internal/taskwarrior"
 )
 
 func TestPendingRenameReportsPartialTaskOutcomesAfterRefresh(t *testing.T) {

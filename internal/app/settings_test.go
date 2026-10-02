@@ -9,10 +9,10 @@ import (
 
 	tea "charm.land/bubbletea/v2"
 
-	"github.com/jvrviegas/momentum/internal/config"
-	"github.com/jvrviegas/momentum/internal/domain"
-	"github.com/jvrviegas/momentum/internal/taskwarrior"
-	"github.com/jvrviegas/momentum/internal/ui"
+	"github.com/jvrviegas/momentum-task-manager/internal/config"
+	"github.com/jvrviegas/momentum-task-manager/internal/domain"
+	"github.com/jvrviegas/momentum-task-manager/internal/taskwarrior"
+	"github.com/jvrviegas/momentum-task-manager/internal/ui"
 )
 
 type settingsStore struct {
@@ -112,7 +112,7 @@ func TestSettingsMouseNavigationUsesActualCompactTabBoundary(t *testing.T) {
 	nav := model.navigationItems()
 	settingsX := -1
 	for x := 0; x < model.Width; x++ {
-		if ui.TabIndexAt(nav, model.Width, x) == 3 {
+		if ui.TabIndexAt(string(model.ActiveView), nav, model.Width, x, model.Icons) == 3 {
 			settingsX = x
 			break
 		}
@@ -120,18 +120,18 @@ func TestSettingsMouseNavigationUsesActualCompactTabBoundary(t *testing.T) {
 	if settingsX < 0 {
 		t.Fatal("settings tab was not rendered")
 	}
-	model.Update(tea.MouseClickMsg{X: settingsX, Y: 1, Button: tea.MouseLeft})
+	model.Update(tea.MouseClickMsg{X: settingsX, Y: 0, Button: tea.MouseLeft})
 	if model.ActiveView != ViewSettings {
 		t.Fatalf("tab click x=%d active=%s", settingsX, model.ActiveView)
 	}
 	inboxX := -1
 	for x := 0; x < model.Width; x++ {
-		if ui.TabIndexAt(nav, model.Width, x) == 0 {
+		if ui.TabIndexAt(string(model.ActiveView), nav, model.Width, x, model.Icons) == 0 {
 			inboxX = x
 			break
 		}
 	}
-	model.Update(tea.MouseClickMsg{X: inboxX, Y: 1, Button: tea.MouseLeft})
+	model.Update(tea.MouseClickMsg{X: inboxX, Y: 0, Button: tea.MouseLeft})
 	if model.ActiveView != ViewInbox || model.ProjectSettings.Open {
 		t.Fatalf("inbox tab click x=%d active=%s settings_open=%t", inboxX, model.ActiveView, model.ProjectSettings.Open)
 	}

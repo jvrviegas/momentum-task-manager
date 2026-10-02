@@ -64,7 +64,6 @@ type PlannerModel struct {
 	Date    time.Time
 	Items   []PlannerItem
 	Cursor  int
-	Scroll  int
 	Width   int
 	Height  int
 	Summary PlannerSummary
@@ -88,7 +87,6 @@ func (p *PlannerModel) OpenPlan(date time.Time, items []PlannerItem, summary Pla
 	p.Items = append([]PlannerItem(nil), items...)
 	p.Summary = summary
 	p.Cursor = firstSelectable(items)
-	p.Scroll = 0
 	p.Err = ""
 	p.clamp()
 }
@@ -97,7 +95,6 @@ func (p *PlannerModel) Close() {
 	p.Open = false
 	p.Items = nil
 	p.Cursor = 0
-	p.Scroll = 0
 	p.Err = ""
 }
 
@@ -207,42 +204,24 @@ func (p *PlannerModel) clamp() {
 	if p.Cursor >= len(p.Items) && len(p.Items) > 0 {
 		p.Cursor = len(p.Items) - 1
 	}
-	if p.Height <= 0 {
-		return
-	}
-	viewport := max(1, p.Height-8-len(p.Summary.CalendarEvents))
-	if p.Cursor < p.Scroll {
-		p.Scroll = p.Cursor
-	}
-	if p.Cursor >= p.Scroll+viewport {
-		p.Scroll = p.Cursor - viewport + 1
-	}
-	maxScroll := max(0, len(p.Items)-viewport)
-	if p.Scroll > maxScroll {
-		p.Scroll = maxScroll
-	}
-	if p.Scroll < 0 {
-		p.Scroll = 0
-	}
 }
 
+// View keeps the capacity summary and calendar context above the grouped
+// tasks; the frame scrolls to keep the cursor row in view.
 func (p PlannerModel) View() string {
 	if !p.Open || p.Width <= 0 || p.Height <= 0 {
 		return ""
 	}
-	width := ModalContentWidth(p.Width, 92)
-	height := ModalContentHeight(p.Height, 0)
-	lines := make([]string, 0, height)
-	lines = append(lines, p.Styles.ModalTitle.Render("Plan today"))
-	date := p.Date.Format("Monday, January 2, 2006")
-	lines = append(lines, p.Styles.Metadata.Render(Truncate(date+" · Space select · Enter commit · Esc cancel", width)))
-	lines = append(lines, p.summaryLine(width))
-	if p.Summary.CalendarError != "" {
-		lines = append(lines, p.Styles.Error.Render(Truncate("Calendar unavailable: "+p.Summary.CalendarError, width)))
-	} else if p.Summary.CalendarStale {
-		lines = append(lines, p.Styles.Metadata.Render(Truncate("Calendar data is stale; task planning remains available", width)))
-	} else if p.Summary.CalendarAvailable {
-		lines = append(lines, p.Styles.Metadata.Render(Truncate(fmt.Sprintf("Calendar: %d meeting(s), %s busy", p.Summary.MeetingCount, formatMinutes(p.Summary.CalendarMinutes)), width)))
+	icons := p.Icons.orUnicode()
+	width := ModalWidth(PlannerWidth, p.Width)
+	rows := []FrameRow{{}, p.summaryRow(icons)}
+	switch {
+	case p.Summary.CalendarError != "":
+		rows = append(rows, row(sp(icons.Error, ToneRed).bold(), txt(" "), sp("Calendar unavailable: "+p.Summary.CalendarError, ToneRed)))
+	case p.Summary.CalendarStale:
+		rows = append(rows, row(muted("Calendar data is stale; task planning remains available")))
+	case p.Summary.CalendarAvailable:
+		rows = append(rows, row(muted(fmt.Sprintf("Calendar: %d meeting(s), %s busy", p.Summary.MeetingCount, formatMinutes(p.Summary.CalendarMinutes)))))
 		for _, event := range p.Summary.CalendarEvents {
 			label := event.Summary
 			if label == "" {
@@ -252,30 +231,33 @@ func (p PlannerModel) View() string {
 			if !event.AllDay {
 				when = event.Start.Format("15:04") + "–" + event.End.Format("15:04")
 			}
-			lines = append(lines, p.Styles.Metadata.Render(Truncate("  "+when+"  "+label, width)))
+			rows = append(rows, row(gap(2), muted(when), gap(2), txt(label)))
 		}
 	}
-	lines = append(lines, "")
-	body := p.bodyLines(width)
-	viewport := max(1, height-len(lines)-1)
-	start := min(p.Scroll, max(0, len(body)-viewport))
-	end := min(len(body), start+viewport)
-	lines = append(lines, body[start:end]...)
-	for len(lines) < height-1 {
-		lines = append(lines, "")
+	body, cursorRow := p.bodyRows(icons)
+	cursorRow += len(rows)
+	rows = append(append(rows, body...), FrameRow{})
+
+	maxRows := ModalMaxRows(p.Height)
+	offset := 0
+	if len(rows) > maxRows {
+		offset = min(max(0, cursorRow-maxRows/2), MaxOffset(len(rows), maxRows))
 	}
-	lines = append(lines, p.Styles.ModalAction.Render(Truncate("↑/↓ move · Space add/remove · Enter confirm · Esc cancel", width)))
-	return renderBoundedPanel(lines, width, height, p.Styles)
+	frame := Frame{
+		Title: "Plan today", Context: []Span{muted(p.Date.Format("Monday, January 2, 2006"))},
+		Rows: rows, Offset: offset, Width: width, MaxRows: maxRows,
+		Keys: []Hint{{"space", "select"}, {"enter", "commit"}, {"esc", "cancel"}, {"↑↓", "move"}},
+	}
+	return strings.Join(p.Styles.RenderFrame(frame, icons), "\n")
 }
 
-func (p PlannerModel) bodyLines(width int) []string {
-	lines := make([]string, 0, len(p.Items)+6)
+// bodyRows groups items under section rows and returns the cursor's row.
+func (p PlannerModel) bodyRows(icons Icons) ([]FrameRow, int) {
+	rows := make([]FrameRow, 0, len(p.Items)+6)
+	cursorRow := 0
 	last := PlannerGroup("")
 	for index, item := range p.Items {
 		if item.Group != last {
-			if len(lines) > 0 {
-				lines = append(lines, "")
-			}
 			label := "Candidates"
 			switch item.Group {
 			case PlannerObligation:
@@ -283,7 +265,7 @@ func (p PlannerModel) bodyLines(width int) []string {
 			case PlannerRollover:
 				label = "Rollover"
 			}
-			lines = append(lines, p.Styles.SectionTitle.Render(label))
+			rows = append(rows, FrameRow{}, sectionRow(label, -1, icons))
 			last = item.Group
 		}
 		marker := "[ ]"
@@ -291,13 +273,7 @@ func (p PlannerModel) bodyLines(width int) []string {
 			marker = "[x]"
 		}
 		if item.Fixed {
-			marker = "!"
-		}
-		if index == p.Cursor && !item.Fixed {
-			marker = selectionMarker(p.Icons)
-			if item.Selected {
-				marker += "x"
-			}
+			marker = " ! "
 		}
 		meta := make([]string, 0, 4)
 		if item.Project != "" {
@@ -312,27 +288,30 @@ func (p PlannerModel) bodyLines(width int) []string {
 		if item.Estimate != "" {
 			meta = append(meta, item.Estimate)
 		}
-		value := item.Description
+		spans := []Span{txt(marker), txt(" "), txt(item.Description)}
 		if len(meta) > 0 {
-			value += "  ·  " + strings.Join(meta, "  ·  ")
+			spans = append(spans, muted("  "+icons.Dot+"  "+strings.Join(meta, "  "+icons.Dot+"  ")))
 		}
-		line := fmt.Sprintf("%s %s", marker, value)
-		if index == p.Cursor && !item.Fixed {
-			line = p.Styles.Selection.Render(PadRight(Truncate(line, width), width))
-		} else if item.Fixed {
-			line = p.Styles.Metadata.Render(Truncate(line, width))
-		} else {
-			line = Truncate(line, width)
+		r := row(spans...)
+		switch {
+		case index == p.Cursor && !item.Fixed:
+			cursorRow = len(rows)
+			r.Spans[2] = r.Spans[2].bold()
+			r.Mark, r.Bg = icons.Selection, FillSelection
+		case item.Fixed:
+			for i := range r.Spans {
+				r.Spans[i].Tone = ToneMuted
+			}
 		}
-		lines = append(lines, line)
+		rows = append(rows, r)
 	}
-	if len(lines) == 0 {
-		lines = append(lines, p.Styles.Metadata.Render("No pending candidates"))
+	if len(rows) == 0 {
+		rows = append(rows, FrameRow{}, row(muted("No pending candidates")))
 	}
-	return lines
+	return rows, cursorRow
 }
 
-func (p PlannerModel) summaryLine(width int) string {
+func (p PlannerModel) summaryRow(icons Icons) FrameRow {
 	available := formatMinutes(p.Summary.AvailableMinutes)
 	over := p.Summary.SelectedMinutes > p.Summary.AvailableMinutes
 	if over {
@@ -346,9 +325,9 @@ func (p PlannerModel) summaryLine(width int) string {
 		value += fmt.Sprintf(" · %d fixed unestimated", p.Summary.UnestimatedFixed)
 	}
 	if over {
-		return p.Styles.Error.Render(Truncate("Warning: over by "+formatMinutes(p.Summary.SelectedMinutes-p.Summary.AvailableMinutes)+" · "+value, width))
+		return row(sp(icons.Error, ToneRed).bold(), txt(" "), sp("Warning: over by "+formatMinutes(p.Summary.SelectedMinutes-p.Summary.AvailableMinutes)+" · "+value, ToneRed))
 	}
-	return p.Styles.Status.Render(Truncate(value, width))
+	return row(txt(value))
 }
 
 func firstSelectable(items []PlannerItem) int {

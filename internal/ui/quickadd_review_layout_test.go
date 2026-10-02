@@ -23,19 +23,17 @@ func TestReviewLongFieldEditingKeepsCursorViewportVisible(t *testing.T) {
 						q.Update(tea.KeyPressMsg(tea.Key{Code: key}))
 						q.Update(tea.KeyPressMsg(tea.Key{Code: 'Z', Text: "Z"}))
 						view := q.View()
-						// Include the styled cursor cell, not just a prefix of the text.
-						if !strings.Contains(view, q.ReviewInputs[field].View()) {
-							t.Fatalf("input viewport/cursor was truncated by the row: %q", view)
-						}
-						plain := ansi.Strip(view)
+						prefix, _ := q.reviewFieldAffixes(field)
 						var row string
-						for _, line := range strings.Split(plain, "\n") {
-							if strings.HasPrefix(line, quickAddReviewFieldNames[field]) {
+						for _, line := range strings.Split(ansi.Strip(view), "\n") {
+							if strings.Contains(line, prefix) {
 								row = line
 								break
 							}
 						}
-						if !strings.Contains(row, "Z") {
+						// The row must show the edit point, not a prefix clipped by the label.
+						shown := strings.TrimRight(row[strings.Index(row, prefix)+len(prefix):], " │|")
+						if key == tea.KeyEnd && !strings.HasSuffix(shown, "Z") || key == tea.KeyHome && !strings.HasPrefix(shown, "Z") {
 							t.Fatalf("typed character/cursor viewport hidden: value=%q row=%q view=%q", q.ReviewInputs[field].Value(), row, view)
 						}
 						if lipgloss.Width(view) > size[0] || lipgloss.Height(view) > size[1] {

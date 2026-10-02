@@ -8,10 +8,10 @@ import (
 
 	tea "charm.land/bubbletea/v2"
 
-	"github.com/jvrviegas/momentum/internal/config"
-	"github.com/jvrviegas/momentum/internal/domain"
-	"github.com/jvrviegas/momentum/internal/taskwarrior"
-	"github.com/jvrviegas/momentum/internal/ui"
+	"github.com/jvrviegas/momentum-task-manager/internal/config"
+	"github.com/jvrviegas/momentum-task-manager/internal/domain"
+	"github.com/jvrviegas/momentum-task-manager/internal/taskwarrior"
+	"github.com/jvrviegas/momentum-task-manager/internal/ui"
 )
 
 // ViewName identifies one of Momentum's fixed views.
@@ -212,6 +212,9 @@ func NewModel(options ModelOptions) *Model {
 		ProjectRename:        ui.NewProjectRename(styles),
 		Planner:              ui.NewPlanner(styles, icons),
 	}
+	model.Details.Icons = icons
+	model.Confirm.Icons = icons
+	model.Quit.Icons = icons
 	model.ProjectSettings.SetProjects(settings.Projects)
 	if model.ActiveView == ViewSettings {
 		model.ProjectSettings.OpenProjects(settings.Projects)
@@ -624,21 +627,51 @@ func (m *Model) applyMutation(message MutationMsg) tea.Cmd {
 	} else {
 		m.Sync, _ = m.Sync.Mutation(m.now())
 	}
-	kind := string(message.Kind)
-	if kind == "" {
-		kind = "action"
+	var request MutationRequest
+	if pending != nil {
+		request = *pending
 	}
-	switch message.Kind {
-	case MutationPlan:
-		m.Status = "Daily plan saved"
-	case MutationStopRecurrence:
-		m.Status = "Recurrence stopped"
-	default:
-		m.Status = strings.ToUpper(kind[:1]) + kind[1:] + " succeeded"
-	}
+	m.Status = m.mutationStatus(message.Kind, request)
 	// Every successful mutation has one and only one follow-up export. Sync
 	// bookkeeping is attached by the feature-integration layer.
 	return m.beginRefresh("mutation")
+}
+
+// mutationStatus names what changed, e.g. Completed "Send Q3 invoice".
+func (m *Model) mutationStatus(kind MutationKind, request MutationRequest) string {
+	subject := request.Input.Description
+	for _, task := range m.Tasks {
+		if request.UUID != "" && task.UUID == request.UUID {
+			subject = task.Description
+			break
+		}
+	}
+	quoted := ""
+	if subject = oneLine(subject); subject != "" {
+		quoted = fmt.Sprintf(" %q", subject)
+	}
+	switch kind {
+	case MutationAdd:
+		return "Added" + quoted
+	case MutationModify:
+		return "Saved" + quoted
+	case MutationComplete:
+		return "Completed" + quoted
+	case MutationDelete:
+		return "Deleted" + quoted
+	case MutationStart:
+		return "Started" + quoted
+	case MutationStop:
+		return "Stopped" + quoted
+	case MutationUndo:
+		return "Undid the last change"
+	case MutationPlan:
+		return "Daily plan saved"
+	case MutationStopRecurrence:
+		return "Recurrence stopped"
+	default:
+		return "Done"
+	}
 }
 
 func (m *Model) handleEditSubmit(message ui.EditSubmitMsg) tea.Cmd {

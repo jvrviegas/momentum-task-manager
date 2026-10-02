@@ -6,7 +6,7 @@ import (
 
 	tea "charm.land/bubbletea/v2"
 
-	"github.com/jvrviegas/momentum/internal/domain"
+	"github.com/jvrviegas/momentum-task-manager/internal/domain"
 )
 
 // ProjectRenameMode selects whether a value edit saves the catalog only or
@@ -70,6 +70,7 @@ type ProjectRenameModel struct {
 	ConfirmOpen        bool
 	MergeWarningOpen   bool
 	Err                error
+	Scroll             int
 	Width              int
 	Height             int
 	Styles             Styles
@@ -90,6 +91,7 @@ func (p *ProjectRenameModel) OpenPreview(preview ProjectRenamePreview) {
 	p.Preview = cloneProjectRenamePreview(preview)
 	p.Mode = ProjectRenameCatalogOnly
 	p.IncludeSubprojects = false
+	p.Scroll = 0
 	p.PreviewValid = true
 	p.ConfirmOpen = false
 	p.MergeWarningOpen = false
@@ -184,6 +186,10 @@ func (p *ProjectRenameModel) Update(msg tea.Msg) (*ProjectRenameModel, tea.Cmd) 
 		if !p.PreviewValid {
 			return p, p.invalidateOptions()
 		}
+	case "up", "k":
+		p.Scroll = max(0, p.Scroll-1)
+	case "down", "j":
+		p.Scroll = min(p.Scroll+1, MaxOffset(len(p.previewRows()), p.Height-2))
 	case "enter":
 		return p, p.requestConfirmation()
 	case "esc", "escape":
@@ -290,83 +296,119 @@ func (p ProjectRenameModel) View() string {
 	return p.renderPreview()
 }
 
+func (p ProjectRenameModel) frameWidth() int {
+	return min(RenameWidth, max(1, p.Width))
+}
+
 func (p ProjectRenameModel) renderPreview() string {
+	frame := Frame{
+		Title: "Rename project", Context: []Span{muted("nothing saved yet")}, Rows: p.previewRows(), Offset: p.Scroll,
+		Width: p.frameWidth(), MaxRows: max(1, p.Height-2),
+		Keys: []Hint{{"enter", "confirm"}, {"r", "refresh"}, {"esc", "cancel"}},
+	}
+	return strings.Join(p.Styles.RenderFrame(frame, Icons{}), "\n")
+}
+
+func (p ProjectRenameModel) previewRows() []FrameRow {
+	icons := Icons{}.orUnicode()
 	plan := p.activePlan()
-	lines := []string{p.Styles.ModalTitle.Render("Rename project")}
+	content := FrameContentWidth(p.frameWidth())
+	rows := []FrameRow{{}}
+	for _, mapping := range plan.Mappings {
+		rows = append(rows, row(sp(mapping.OldValue, ToneCyan), muted(" "+icons.Arrow+" "), sp(mapping.NewValue, ToneCyan).bold()))
+	}
 	if len(plan.Mappings) > 0 {
-		for index, mapping := range plan.Mappings {
-			prefix := ""
-			if index > 0 {
-				prefix = "  "
+		rows = append(rows, FrameRow{})
+	}
+	problems := len(rows)
+	warning := func(tone Tone, text string) {
+		for index, line := range WrapText(text, max(1, content-2)) {
+			glyph := "  "
+			if index == 0 {
+				glyph = icons.Error + " "
 			}
-			lines = append(lines, Truncate(prefix+mapping.OldValue+" → "+mapping.NewValue, ModalContentWidth(p.Width, ModalMaxWidth)))
+			rows = append(rows, row(sp(glyph, tone).bold(), sp(line, tone)))
 		}
 	}
-	lines = append(lines,
-		fmt.Sprintf("Catalog descendants: %d", p.catalogDescendantCount()),
-		fmt.Sprintf("Task descendants: %d", p.taskDescendantCount()),
-		fmt.Sprintf("Pending tasks: %d", len(p.activeTasks())),
+	if p.Preview.DestinationTaskOnly && p.Mode == ProjectRenameCatalogAndPending {
+		warning(ToneMedium, "Destination is used by tasks but not in the catalog")
+	}
+	if p.Preview.CollisionMessage != "" {
+		warning(ToneRed, p.Preview.CollisionMessage)
+	}
+	if !p.PreviewValid {
+		warning(ToneRed, "Preview needs refresh before confirmation")
+	}
+	if p.Err != nil {
+		warning(ToneRed, p.Err.Error())
+	}
+	if len(rows) > problems {
+		rows = append(rows, FrameRow{})
+	}
+	count := func(label string, value int) FrameRow {
+		return row(muted(label+" "), txt(fmt.Sprintf("%d", value)).bold())
+	}
+	rows = append(rows,
+		count("Catalog descendants:", p.catalogDescendantCount()),
+		count("Task descendants:", p.taskDescendantCount()),
+		count("Pending tasks:", len(p.activeTasks())),
 	)
 	if p.Preview.HasActiveContext {
-		lines = append(lines, "Active context: "+p.Preview.ContextName)
+		rows = append(rows, row(muted("Active context: "), txt(p.Preview.ContextName)))
 	} else {
-		lines = append(lines, "No active context (all eligible pending tasks)")
+		rows = append(rows, row(muted("No active context (all eligible pending tasks)")))
 	}
+	rows = append(rows, FrameRow{})
+
 	if plan.ValueChanged() {
-		if p.Mode == ProjectRenameCatalogAndPending {
-			lines = append(lines, "Mode: Catalog + pending tasks")
-		} else {
-			lines = append(lines, "Mode: Catalog only")
+		option := func(key, label string, on bool) FrameRow {
+			r := row(txt(key).bold(), txt("  "), txt(label))
+			if on {
+				r.Mark = icons.Selection
+				r.Spans[2] = txt(label).bold()
+			}
+			return r
 		}
+		rows = append(rows,
+			option("c", "Catalog only", p.Mode != ProjectRenameCatalogAndPending),
+			option("t", "Catalog + pending tasks", p.Mode == ProjectRenameCatalogAndPending))
 		if p.CanSelectSubprojects() {
 			choice := "off"
 			if p.IncludeSubprojects {
 				choice = "on"
 			}
-			lines = append(lines, "Include subprojects: "+choice+"  [s] toggle")
+			rows = append(rows, row(txt("s").bold(), txt("  Include subprojects: "), txt(choice).bold()))
 		}
-		lines = append(lines, "[c] Catalog only   [t] Catalog + pending tasks")
 	} else {
-		lines = append(lines, "Name-only/no-op change: no task migration")
+		rows = append(rows, row(muted("Name-only/no-op change: no task migration")))
 	}
-	if p.Preview.DestinationTaskOnly && p.Mode == ProjectRenameCatalogAndPending {
-		lines = append(lines, p.Styles.Error.Render("Destination is used by tasks but not in the catalog"))
-	}
-	if p.Preview.CollisionMessage != "" {
-		lines = append(lines, p.Styles.Error.Render(Truncate(p.Preview.CollisionMessage, ModalContentWidth(p.Width, ModalMaxWidth))))
-	}
-	if !p.PreviewValid {
-		lines = append(lines, p.Styles.Error.Render("Preview needs refresh before confirmation"))
-	}
-	lines = append(lines,
-		p.Styles.Muted.Render("Historical tasks retain their values"),
-		p.Styles.Muted.Render("native u cannot reverse this catalog/task operation"),
-	)
-	if p.Err != nil {
-		lines = append(lines, p.Styles.Error.Render(Truncate(p.Err.Error(), ModalContentWidth(p.Width, ModalMaxWidth))))
-	}
-	lines = append(lines, p.Styles.ModalAction.Render("Enter confirm   r refresh   Esc cancel"))
-	return p.renderPanel(lines)
+	rows = append(rows, FrameRow{},
+		row(muted("Historical tasks retain their values")),
+		row(muted("native u cannot reverse this catalog/task operation")))
+	return append(rows, FrameRow{})
 }
 
 func (p ProjectRenameModel) renderMergeWarning() string {
-	lines := []string{
-		p.Styles.ModalTitle.Render("Effective merge warning"),
-		p.Styles.ModalBody.Render("The destination is used by Taskwarrior tasks but is not in the catalog."),
-		p.Styles.ModalBody.Render("Migrating will combine task projects under one effective value."),
-		p.Styles.ModalAction.Render("Enter confirm warning   Esc cancel"),
+	rows := []FrameRow{{}}
+	for _, line := range WrapText("The destination is used by Taskwarrior tasks but is not in the catalog. Migrating will combine task projects under one effective value.", FrameContentWidth(p.frameWidth())) {
+		rows = append(rows, row(txt(line)))
 	}
-	return p.renderPanel(lines)
+	rows = append(rows, FrameRow{}, row(chip("enter", FillAccent), txt(" confirm warning"), gap(5), chip("esc", FillSelection), muted(" cancel")), FrameRow{})
+	frame := Frame{Title: "Effective merge warning", Danger: true, Rows: fitRows(rows, max(1, p.Height-2)), Width: p.frameWidth(), MaxRows: max(1, p.Height-2)}
+	return strings.Join(p.Styles.RenderFrame(frame, Icons{}), "\n")
 }
 
 func (p ProjectRenameModel) renderConfirmation() string {
-	lines := []string{
-		p.Styles.ModalTitle.Render("Confirm project operation"),
-		fmt.Sprintf("Catalog descendants: %d", p.catalogDescendantCount()),
-		fmt.Sprintf("Pending tasks: %d", len(p.activeTasks())),
-		p.Styles.ModalAction.Render("[y] confirm   [n] cancel"),
+	rows := []FrameRow{
+		{},
+		row(muted(fmt.Sprintf("%-22s", "Catalog descendants:")), txt(fmt.Sprintf("%d", p.catalogDescendantCount())).bold()),
+		row(muted(fmt.Sprintf("%-22s", "Pending tasks:")), txt(fmt.Sprintf("%d", len(p.activeTasks()))).bold()),
+		{},
+		row(chip("y", FillAccent), txt(" confirm"), gap(5), chip("n", FillSelection), muted(" cancel")),
+		{},
 	}
-	return p.renderPanel(lines)
+	frame := Frame{Title: "Confirm project operation", Rows: fitRows(rows, max(1, p.Height-2)), Width: p.frameWidth(), MaxRows: max(1, p.Height-2)}
+	return strings.Join(p.Styles.RenderFrame(frame, Icons{}), "\n")
 }
 
 func (p ProjectRenameModel) catalogDescendantCount() int {
@@ -390,12 +432,6 @@ func (p ProjectRenameModel) taskDescendantCount() int {
 		}
 	}
 	return count
-}
-
-func (p ProjectRenameModel) renderPanel(lines []string) string {
-	contentWidth := ModalContentWidth(p.Width, ModalMaxWidth)
-	contentHeight := max(1, p.Height-2)
-	return renderBoundedPanel(lines, contentWidth, contentHeight, p.Styles)
 }
 
 func renameMessageCommand(message tea.Msg) tea.Cmd {

@@ -7,7 +7,7 @@ import (
 	"charm.land/bubbles/v2/textinput"
 	tea "charm.land/bubbletea/v2"
 
-	"github.com/jvrviegas/momentum/internal/domain"
+	"github.com/jvrviegas/momentum-task-manager/internal/domain"
 )
 
 // ProjectSettingsField identifies an editable catalog draft field.
@@ -89,10 +89,6 @@ func NewProjectSettings(styles Styles) ProjectSettingsModel {
 // SetSize updates the component's responsive dimensions without doing I/O.
 func (p *ProjectSettingsModel) SetSize(width, height int) {
 	p.Width, p.Height = width, height
-	contentWidth := ModalContentWidth(width, ModalMaxWidth)
-	for i := range p.Inputs {
-		p.Inputs[i].SetWidth(max(1, contentWidth-22))
-	}
 }
 
 // OpenProjects opens the list with an owned catalog snapshot.
@@ -560,85 +556,150 @@ func (p ProjectSettingsModel) View() string {
 	}
 }
 
+func (p ProjectSettingsModel) frameWidth() int {
+	return min(SettingsWidth, max(1, p.Width))
+}
+
 func (p ProjectSettingsModel) renderList() string {
-	lines := []string{
-		p.Styles.ModalTitle.Render("Settings / Projects"),
-		p.Styles.ModalAction.Render("[a] add   [e] edit   [d] remove   [Enter] edit"),
-	}
+	icons := Icons{}.orUnicode()
+	rows := []FrameRow{{}}
+	selectedRow := 0
 	if len(p.Projects) == 0 {
-		lines = append(lines,
-			p.Styles.Muted.Render("No configured projects"),
-			p.Styles.Muted.Render("Press a to add a project."),
-		)
+		rows = append(rows, row(muted("No configured projects")), row(muted("Press "), txt("a").bold(), muted(" to add a project.")))
 	} else {
-		labels := p.Projects.Labels()
-		visible := max(1, p.Height-2-5)
-		start := p.Selected - visible + 1
-		if start < 0 {
-			start = 0
-		}
-		end := min(len(p.Projects), start+visible)
-		for i := start; i < end; i++ {
-			project := p.Projects[i]
-			label := labels[project.Value]
-			if label == "" {
-				label = project.Name
+		rows = append(rows, row(muted("PROJECT"), grow(), muted("VALUE")))
+		prefixes := projectTreePrefixes(p.Projects, icons)
+		for i, project := range p.Projects {
+			name := project.Name
+			if name == "" {
+				name = project.Value
 			}
-			if label == "" {
-				label = project.Value
-			}
-			line := fmt.Sprintf("%s %s  (%s)", marker(i == p.Selected), label, project.Value)
-			line = Truncate(line, ModalContentWidth(p.Width, ModalMaxWidth))
+			label := sp(name, ToneCyan)
+			r := row(muted(prefixes[i]), label, grow(), muted("#"+project.Value))
 			if i == p.Selected {
-				line = p.Styles.Selection.Render(line)
+				r.Spans[1] = label.bold()
+				r.Mark, r.Bg = icons.Selection, FillSelection
+				selectedRow = len(rows)
 			}
-			lines = append(lines, line)
+			rows = append(rows, r)
 		}
 	}
 	if p.Err != nil {
-		lines = append(lines, p.Styles.Error.Render(Truncate(p.Err.Error(), ModalContentWidth(p.Width, ModalMaxWidth))))
+		rows = append(rows, FrameRow{}, row(sp(icons.Error, ToneRed).bold(), txt(" "), sp(p.Err.Error(), ToneRed)))
 	}
-	lines = append(lines, p.Styles.ModalAction.Render("Esc to close"))
-	return p.renderPanel(lines)
+	rows = append(rows, FrameRow{})
+	maxRows := max(1, p.Height-2)
+	offset := 0
+	if len(rows) > maxRows {
+		offset = min(max(0, selectedRow-maxRows+2), MaxOffset(len(rows), maxRows))
+	}
+	frame := Frame{
+		Title: "Settings / Projects", Context: []Span{muted(fmt.Sprintf("%d projects", len(p.Projects)))},
+		Rows: rows, Offset: offset, Width: p.frameWidth(), MaxRows: maxRows,
+		Keys: []Hint{{"a", "add"}, {"e", "edit"}, {"d", "remove"}, {"esc", "close"}},
+	}
+	return strings.Join(p.Styles.RenderFrame(frame, icons), "\n")
+}
+
+// projectTreePrefixes draws ├ └ │ for catalog entries nested under another
+// catalog entry, so the hierarchy reads without the dotted values.
+func projectTreePrefixes(projects domain.ProjectCatalog, icons Icons) []string {
+	parentOf := make([]int, len(projects))
+	for i, project := range projects {
+		parentOf[i] = -1
+		best := -1
+		for j, candidate := range projects {
+			if j != i && strings.HasPrefix(project.Value, candidate.Value+".") && (best < 0 || len(candidate.Value) > len(projects[best].Value)) {
+				best = j
+			}
+		}
+		parentOf[i] = best
+	}
+	isLast := func(i int) bool {
+		for j := i + 1; j < len(projects); j++ {
+			if parentOf[j] == parentOf[i] {
+				return false
+			}
+		}
+		return true
+	}
+	prefixes := make([]string, len(projects))
+	for i := range projects {
+		if parentOf[i] < 0 {
+			continue
+		}
+		prefix := icons.TreeTee + " "
+		if isLast(i) {
+			prefix = icons.TreeElbow + " "
+		}
+		for ancestor := parentOf[i]; parentOf[ancestor] >= 0; ancestor = parentOf[ancestor] {
+			if isLast(ancestor) {
+				prefix = "  " + prefix
+			} else {
+				prefix = icons.TreePipe + " " + prefix
+			}
+		}
+		prefixes[i] = prefix
+	}
+	return prefixes
 }
 
 func (p ProjectSettingsModel) renderEditor() string {
+	icons := Icons{}.orUnicode()
 	title := "Add project"
 	if p.EditIndex >= 0 {
 		title = "Edit project"
 	}
-	lines := []string{
-		p.Styles.ModalTitle.Render(title),
-		p.renderField(ProjectSettingsName),
-		p.renderField(ProjectSettingsValue),
-		p.renderField(ProjectSettingsParent),
+	content := FrameContentWidth(p.frameWidth())
+	rows := []FrameRow{{}}
+	for _, field := range []ProjectSettingsField{ProjectSettingsName, ProjectSettingsValue, ProjectSettingsParent} {
+		rows = append(rows, p.renderField(field, content))
+		if field == p.Focused && p.SuggestionsOpen {
+			rows = append(rows, p.renderParentSuggestions(icons)...)
+		}
 	}
-	preview, err := p.PreviewValue()
-	if err != nil {
-		lines = append(lines, p.Styles.Error.Render("Full value: "+Truncate(err.Error(), ModalContentWidth(p.Width, ModalMaxWidth))))
+	rows = append(rows, FrameRow{})
+	if preview, err := p.PreviewValue(); err != nil {
+		rows = append(rows, row(txt("  "), muted(fmt.Sprintf("%-12s", "Full value")), txt(" "), sp(icons.Error+" "+err.Error(), ToneRed)))
 	} else {
-		lines = append(lines, p.Styles.Project.Render("Full value: "+Truncate(preview, ModalContentWidth(p.Width, ModalMaxWidth))))
-	}
-	if p.SuggestionsOpen {
-		lines = append(lines, p.renderParentSuggestions(ModalContentWidth(p.Width, ModalMaxWidth))...)
+		rows = append(rows, row(txt("  "), muted(fmt.Sprintf("%-12s", "Full value")), txt(" "), sp("#"+preview, ToneCyan)))
 	}
 	if p.Err != nil {
-		lines = append(lines, p.Styles.Error.Render(Truncate(p.Err.Error(), ModalContentWidth(p.Width, ModalMaxWidth))))
+		rows = append(rows, row(sp(icons.Error, ToneRed).bold(), txt(" "), sp(p.Err.Error(), ToneRed)))
 	}
-	lines = append(lines, p.Styles.ModalAction.Render("Tab next   Ctrl+S save   Esc cancel"))
-	return p.renderEditorPanel(lines)
+	rows = append(rows, FrameRow{})
+	maxRows := max(1, p.Height-2)
+	offset := 0
+	if len(rows) > maxRows {
+		offset = min(int(p.Focused), MaxOffset(len(rows), maxRows))
+	}
+	frame := Frame{
+		Title: title, Rows: rows, Offset: offset, Width: p.frameWidth(), MaxRows: maxRows,
+		Keys: []Hint{{"tab", "next"}, {"ctrl+s", "save"}, {"esc", "cancel"}},
+	}
+	return strings.Join(p.Styles.RenderFrame(frame, icons), "\n")
 }
 
-func (p ProjectSettingsModel) renderField(field ProjectSettingsField) string {
-	marker := " "
-	if p.Focused == field {
-		marker = ">"
+func (p ProjectSettingsModel) renderField(field ProjectSettingsField, content int) FrameRow {
+	label := fmt.Sprintf("%-12s", projectSettingsFieldNames[field])
+	input := p.Inputs[field]
+	if p.Focused != field {
+		value := muted("none")
+		if input.Value() != "" {
+			value = txt(input.Value())
+		}
+		return row(txt("  "), muted(label), txt(" "), value)
 	}
-	return fmt.Sprintf("%s %-7s %s", marker, p.Styles.FieldLabel.Render(projectSettingsFieldNames[field]), p.Inputs[field].View())
+	value := inputSpans(input.Value(), input.Position(), content-16, true, input.Placeholder, nil)
+	for i := range value {
+		value[i].Bg = FillSelection
+	}
+	spans := append([]Span{txt("  "), txt(label).bold(), {Text: " ", Bg: FillSelection}}, value...)
+	return FrameRow{Spans: append(spans, Span{Text: " ", Grow: true, Bg: FillSelection}), Mark: Icons{}.orUnicode().Selection}
 }
 
-func (p ProjectSettingsModel) renderParentSuggestions(width int) []string {
-	if len(p.Suggestions) == 0 || width <= 0 {
+func (p ProjectSettingsModel) renderParentSuggestions(icons Icons) []FrameRow {
+	if len(p.Suggestions) == 0 {
 		return nil
 	}
 	count := min(3, len(p.Suggestions))
@@ -649,69 +710,41 @@ func (p ProjectSettingsModel) renderParentSuggestions(width int) []string {
 	if start+count > len(p.Suggestions) {
 		start = len(p.Suggestions) - count
 	}
-	lines := make([]string, 0, count)
+	rows := make([]FrameRow, 0, count)
 	for index := start; index < start+count; index++ {
-		marker := " "
+		value := sp("#"+p.Suggestions[index], ToneCyan)
 		if index == p.SuggestionIndex {
-			marker = ">"
+			rows = append(rows, FrameRow{Spans: []Span{gap(15), value.bold()}, Mark: icons.Selection, Bg: FillSelection})
+			continue
 		}
-		lines = append(lines, p.Styles.Metadata.Render(Truncate(fmt.Sprintf("Parents %s %s", marker, p.Suggestions[index]), width)))
+		rows = append(rows, row(gap(15), value))
 	}
-	return lines
+	return rows
 }
 
 func (p ProjectSettingsModel) renderRemovePrompt() string {
-	project := p.RemoveTargetValue
-	lines := []string{
-		p.Styles.ModalTitle.Render("Remove project?"),
-		Truncate(project, ModalContentWidth(p.Width, ModalMaxWidth)),
-		fmt.Sprintf("Configured children: %d", p.RemoveChildCount),
-		p.Styles.ModalAction.Render("[n] only this entry"),
-		p.Styles.ModalAction.Render("[y] this entry and its children"),
-		p.Styles.ModalAction.Render("[Esc] cancel"),
+	rows := []FrameRow{
+		{},
+		row(sp("#"+p.RemoveTargetValue, ToneCyan).bold()),
+		row(muted(fmt.Sprintf("Configured children: %d", p.RemoveChildCount))),
+		{},
 	}
-	return p.renderPanel(lines)
+	rows = append(rows, chipRows(FrameContentWidth(p.frameWidth()), []Span{chip("n", FillSelection), txt(" only this entry")}, []Span{chip("y", FillRed), txt(" this entry and its children")})...)
+	rows = append(rows, FrameRow{})
+	frame := Frame{Title: "Remove project?", Danger: true, Rows: fitRows(rows, max(1, p.Height-2)), Width: p.frameWidth(), MaxRows: max(1, p.Height-2), Keys: []Hint{{"esc", "cancel"}}}
+	return strings.Join(p.Styles.RenderFrame(frame, Icons{}), "\n")
 }
 
 func (p ProjectSettingsModel) renderDiscardPrompt() string {
-	lines := []string{
-		p.Styles.ModalTitle.Render("Unsaved project changes"),
-		p.Styles.ModalAction.Render("[s] save   [d] discard   [Esc] cancel"),
+	rows := []FrameRow{
+		{},
+		row(txt("This project has changes that are not saved.")),
+		{},
+		row(chip("s", FillAccent), txt(" save"), gap(5), chip("d", FillSelection), muted(" discard")),
+		{},
 	}
-	return p.renderPanel(lines)
-}
-
-func (p ProjectSettingsModel) renderPanel(lines []string) string {
-	contentWidth := ModalContentWidth(p.Width, ModalMaxWidth)
-	contentHeight := max(1, p.Height-2)
-	return renderBoundedPanel(lines, contentWidth, contentHeight, p.Styles)
-}
-
-func (p ProjectSettingsModel) renderEditorPanel(lines []string) string {
-	contentWidth := ModalContentWidth(p.Width, ModalMaxWidth)
-	contentHeight := max(1, p.Height-2)
-	if len(lines) > contentHeight && contentHeight >= 3 {
-		// Keep the active field and action footer visible before optional
-		// preview/suggestion rows. Field navigation remains usable on a
-		// minimum terminal even though not all three fields fit together.
-		focused := 1 + int(p.Focused)
-		if focused >= len(lines)-1 {
-			focused = 1
-		}
-		selected := []string{lines[0], lines[focused], lines[len(lines)-1]}
-		if p.Err != nil && len(selected) < contentHeight {
-			selected = append(selected, lines[len(lines)-2])
-		}
-		lines = selected
-	}
-	return renderBoundedPanel(lines, contentWidth, contentHeight, p.Styles)
-}
-
-func marker(selected bool) string {
-	if selected {
-		return "▸"
-	}
-	return " "
+	frame := Frame{Title: "Unsaved project changes", Rows: fitRows(rows, max(1, p.Height-2)), Width: p.frameWidth(), MaxRows: max(1, p.Height-2), Keys: []Hint{{"esc", "cancel"}}}
+	return strings.Join(p.Styles.RenderFrame(frame, Icons{}), "\n")
 }
 
 func settingsMessageCommand(message tea.Msg) tea.Cmd {

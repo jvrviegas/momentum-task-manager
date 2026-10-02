@@ -7,7 +7,7 @@ import (
 	"path/filepath"
 	"time"
 
-	"github.com/jvrviegas/momentum/internal/taskwarrior"
+	"github.com/jvrviegas/momentum-task-manager/internal/taskwarrior"
 )
 
 // LogOptions makes debug-log paths testable and keeps process environment out

@@ -7,6 +7,7 @@ import (
 	"time"
 
 	tea "charm.land/bubbletea/v2"
+	"github.com/charmbracelet/x/ansi"
 )
 
 func TestNaturalQuickAddOpensReviewBeforeSubmit(t *testing.T) {
@@ -26,7 +27,7 @@ func TestNaturalQuickAddOpensReviewBeforeSubmit(t *testing.T) {
 	if !q.ReviewOpen || !q.Open {
 		t.Fatalf("review=%#v", q)
 	}
-	if !strings.Contains(q.View(), "Review capture") || !strings.Contains(q.View(), "20260922T150000") {
+	if view := ansi.Strip(q.View()); !strings.Contains(view, "Review capture") || !strings.Contains(view, "20260922T150000") {
 		t.Fatalf("view=%q", q.View())
 	}
 }
@@ -233,11 +234,13 @@ func TestReviewRendersErrorsAndAllSubmittedFields(t *testing.T) {
 	}
 	for field, label := range quickAddReviewFieldNames {
 		q.focusReviewField(field)
-		view := q.View()
-		if !strings.Contains(view, label) || !strings.Contains(view, "Ctrl+S") {
+		view := ansi.Strip(q.View())
+		if !strings.Contains(view, label) || !strings.Contains(view, "ctrl+s") {
 			t.Fatalf("short review hides field/action %q: %q", label, view)
 		}
-		if want := shortValues[field]; want != "" && !strings.Contains(view, want) {
+		// At 28 columns the focused cursor cell can push the first rune of a
+		// 15-cell value out; the edit point (its tail) must stay visible.
+		if want := shortValues[field]; want != "" && !strings.Contains(view, want[max(0, len(want)-14):]) {
 			t.Fatalf("short review hides value %q for %q: %q", want, label, view)
 		}
 	}
