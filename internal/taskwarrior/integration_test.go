@@ -10,7 +10,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/jvrviegas/momentum/internal/domain"
+	"github.com/jvrviegas/momentum-task-manager/internal/domain"
 )
 
 // isolatedEnvironment is mandatory for every real Taskwarrior integration
