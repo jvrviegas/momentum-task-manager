@@ -8,6 +8,7 @@ import (
 	tea "charm.land/bubbletea/v2"
 
 	"github.com/jvrviegas/momentum-task-manager/internal/domain"
+	"github.com/jvrviegas/momentum-task-manager/internal/quickadd"
 )
 
 func quickKey(text string) tea.KeyPressMsg {
@@ -133,6 +134,59 @@ func TestQuickAddEscapeDismissesSuggestionsThenCloses(t *testing.T) {
 	q.Update(specialQuickKey(tea.KeyEscape, 0))
 	if q.Open {
 		t.Fatal("second escape should close")
+	}
+}
+
+func typeQuick(q *QuickAddModel, text string) {
+	for _, r := range text {
+		q.Update(quickKey(string(r)))
+	}
+}
+
+func TestQuickAddEscapeKeepsPhraseUnderCursorAsText(t *testing.T) {
+	q := testQuickAdd()
+	typeQuick(&q, "Read tomorrow")
+	if got := sanitizeComponentRender(q.View()); !strings.Contains(got, "esc keep as text") {
+		t.Fatalf("missing literal hint: %q", got)
+	}
+	q.Update(specialQuickKey(tea.KeyEscape, 0))
+	if !q.Open {
+		t.Fatal("escape on a recognized phrase should keep the capture open")
+	}
+	if span := captureTokenCell(q.Input.Value(), q.currentTime(), q.Literals)(5, 't'); span.Underline {
+		t.Fatalf("kept phrase still highlighted: %#v", span)
+	}
+	if got := sanitizeComponentRender(q.View()); !strings.Contains(got, "esc close") {
+		t.Fatalf("hint should return to close: %q", got)
+	}
+	_, cmd := q.Update(specialQuickKey(tea.KeyEnter, 0))
+	message, ok := cmd().(QuickAddSubmitMsg)
+	if !ok || message.Task.Description != "Read tomorrow" || message.Task.Due != "" {
+		t.Fatalf("message=%#v", cmd())
+	}
+	q.Update(specialQuickKey(tea.KeyEscape, 0))
+	if q.Open {
+		t.Fatal("escape away from a recognized phrase should close")
+	}
+}
+
+func TestQuickAddKeptPhraseFollowsEditsAndResetsWhenChanged(t *testing.T) {
+	q := testQuickAdd()
+	typeQuick(&q, "Read tomorrow")
+	q.Update(specialQuickKey(tea.KeyEscape, 0))
+	q.Input.SetCursor(0)
+	typeQuick(&q, "Re-")
+	if len(q.Literals) != 1 || q.Literals[0] != (quickadd.Span{Start: 8, End: 16}) {
+		t.Fatalf("literals=%#v", q.Literals)
+	}
+	q.Input.SetCursor(16)
+	q.Update(specialQuickKey(tea.KeyBackspace, 0))
+	typeQuick(&q, "w")
+	if len(q.Literals) != 0 {
+		t.Fatalf("edited phrase should be recognized again: %#v", q.Literals)
+	}
+	if span := captureTokenCell(q.Input.Value(), q.currentTime(), q.Literals)(8, 't'); !span.Underline {
+		t.Fatalf("retyped phrase not highlighted: %#v", span)
 	}
 }
 
