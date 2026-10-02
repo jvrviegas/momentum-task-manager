@@ -23,10 +23,10 @@ The original audit found:
 - `internal/app/view.go` composes one page header, grouped shell navigation, explicit Today counts, section gaps, and a two-line footer when height permits. Search occupies a real shell row rather than being appended after a clipped base view.
 - `internal/ui/details.go` and `help.go` wrap content and retain body scroll state. `theme.go` supplies shared bounded modal rendering for details, help, capture, edit, confirmations, and Settings surfaces.
 - Deterministic ANSI-stripped fixtures live in `internal/app/testdata/render/` and `internal/ui/testdata/render/`. They are compared by default and updated only with `MOMENTUM_UPDATE_GOLDENS=1`; sanitized Today captures for wide/compact/narrow review live in `docs/screenshots/`.
-- Compact active tabs reserve a visible marker slot in `internal/ui/sidebar.go:RenderTabs()` so active navigation remains identifiable after ANSI/color stripping, and `TabIndexAt()` uses the same reserved geometry.
+- `internal/ui/sidebar.go:RenderTabs()` underlines the active tab with `Icons.RuleActive` on a separate row, so active navigation remains identifiable after ANSI/color stripping; `TabIndexAt()` uses the same `tabLayout()` geometry.
 
 ## Validation outcome
 
 Automated width, height, color-stripped content, block-selection, mouse, workflow, race, vet, cross-build, and fixture checks pass. The maintainer accepted live dark/light and Unicode/ASCII presentation, task mouse selection after retest, and keyboard/Settings/quit flows in the isolated synthetic profile. `docs/screenshots/uat-*.png` retains wide/compact/narrow real-terminal captures. Exact cell sizes were not measured for those images; the transparent light-theme background shows terminal wallpaper and is a recorded release-image limitation. Nerd Font was not checked live. See `docs/UAT.md` for the T07 sign-off; no personal Taskwarrior data was used.
 
-Updated: 2026-09-25
+Updated: 2026-10-02
