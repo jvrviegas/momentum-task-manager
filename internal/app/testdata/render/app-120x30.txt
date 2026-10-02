@@ -200,7 +200,7 @@
                         │  │ ▌ Work                                                         #work │
  MANAGE                 │  │   └ Client                                              #work.client │
 ▌ ⚙ Settings            │  │                                                                      │
-                        │  ╰─ a add   e edit   d remove   esc close ──────────────────────────────╯
+                        │  ╰─ a add   e edit   d remove   esc close   tab appearance ─────────────╯
                         │
                         │
                         │
