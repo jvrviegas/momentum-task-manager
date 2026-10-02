@@ -108,7 +108,7 @@
 │ ▌ Work                                                         #work │
 │   └ Client                                              #work.client │
 │                                                                      │
-╰─ a add   e edit   d remove   esc close ──────────────────────────────╯
+╰─ a add   e edit   d remove   esc close   tab appearance ─────────────╯
 
 === settings-editor ===
 ╭─ Edit project ───────────────────────────────────────────────────────╮
