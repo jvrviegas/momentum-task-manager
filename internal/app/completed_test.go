@@ -7,8 +7,8 @@ import (
 	"testing"
 	"time"
 
-	"github.com/jvrviegas/momentum/internal/domain"
-	"github.com/jvrviegas/momentum/internal/ui"
+	"github.com/jvrviegas/momentum-task-manager/internal/domain"
+	"github.com/jvrviegas/momentum-task-manager/internal/ui"
 )
 
 type completedCapableClient struct {
