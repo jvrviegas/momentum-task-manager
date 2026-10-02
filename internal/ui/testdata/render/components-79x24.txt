@@ -67,7 +67,7 @@
 ╰─ ↑↓ select   tab accept   esc close ────────────────────────────────────╯
 
 === edit ===
-╭─ Edit task ─────────────────────────────────────────────── • 1 changed ─╮
+╭─ Edit task ─────────────────────────────────────────────────────────────╮
 │                                                                         │
 │     Description  Renew the domain registration before the next billing… │
 │ ▌   Project      personal.admin                                         │
@@ -75,10 +75,8 @@
 │     Due          2026-09-08 17:00                                       │
 │     Scheduled    none                                                   │
 │     Tags         +admin  +planning                                      │
-│   • Estimate     1h 30m   was 1h 30m                                    │
+│     Estimate     1h30m                                                  │
 │     Recurrence   yearly                                                 │
-│                                                                         │
-│   • changed                                                             │
 │                                                                         │
 ╰─ ctrl+s save   tab field   esc cancel ──────────────────────────────────╯
 
