@@ -52,6 +52,43 @@ func TestInvalidNaturalQuickAddStillRequiresCorrection(t *testing.T) {
 	}
 }
 
+func TestReviewEnterConfirmsCorrectedDraft(t *testing.T) {
+	q := reviewedQuickAdd(t, "Report for 0 minutes")
+	q.ReviewInputs[quickAddReviewEstimate].SetValue("30m")
+	_, cmd := q.Update(specialQuickKey(tea.KeyEnter, 0))
+	if cmd == nil {
+		t.Fatal("enter did not confirm review")
+	}
+	message, ok := cmd().(QuickAddSubmitMsg)
+	if !ok || message.Task.Estimate == nil || message.Task.Estimate.Minutes != 30 {
+		t.Fatalf("corrected submission=%#v", message)
+	}
+}
+
+func TestReviewEnterKeepsUnresolvedDraftOpen(t *testing.T) {
+	q := reviewedQuickAdd(t, "Report for 0 minutes")
+	_, cmd := q.Update(specialQuickKey(tea.KeyEnter, 0))
+	if cmd != nil {
+		q.ApplyMessage(cmd())
+	}
+	if !q.Open || !q.ReviewOpen || q.ParseErr == nil {
+		t.Fatal("unresolved review should remain open with a validation error")
+	}
+}
+
+func TestQuickAddCtrlSSubmits(t *testing.T) {
+	q := NewQuickAdd(Styles{}, IconsFor("ascii"))
+	q.OpenQuickAdd("Write report #work")
+	_, cmd := q.Update(specialQuickKey('s', tea.ModCtrl))
+	if cmd == nil {
+		t.Fatal("ctrl+s did not submit capture")
+	}
+	message, ok := cmd().(QuickAddSubmitMsg)
+	if !ok || message.Task.Description != "Write report" || message.Task.Project != "work" {
+		t.Fatalf("submission=%#v", message)
+	}
+}
+
 func TestExplicitOnlyReviewPathSubmitsOriginalProse(t *testing.T) {
 	q := reviewedQuickAdd(t, "Discuss Friday")
 	_, cmd := q.Update(tea.KeyPressMsg(tea.Key{Code: 'x', Mod: tea.ModCtrl}))
@@ -245,7 +282,7 @@ func TestReviewRendersErrorsAndAllSubmittedFields(t *testing.T) {
 	for field, label := range quickAddReviewFieldNames {
 		q.focusReviewField(field)
 		view := ansi.Strip(q.View())
-		if !strings.Contains(view, label) || !strings.Contains(view, "ctrl+s") {
+		if !strings.Contains(view, label) || !strings.Contains(view, "enter") {
 			t.Fatalf("short review hides field/action %q: %q", label, view)
 		}
 		// At 28 columns the focused cursor cell can push the first rune of a
