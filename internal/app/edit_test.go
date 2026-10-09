@@ -5,6 +5,8 @@ import (
 	"strings"
 	"testing"
 
+	tea "charm.land/bubbletea/v2"
+
 	"github.com/jvrviegas/momentum-task-manager/internal/domain"
 	"github.com/jvrviegas/momentum-task-manager/internal/ui"
 )
@@ -114,6 +116,25 @@ func TestEditSubmissionMessageRoutesThroughUpdate(t *testing.T) {
 	_, cmd := model.Update(ui.EditSubmitMsg{Diff: domain.TaskDiff{Due: domain.FieldChange{Kind: domain.Clear}}})
 	if cmd == nil || model.PendingMutation.Kind != MutationModify {
 		t.Fatalf("model=%#v cmd=%v", model, cmd)
+	}
+}
+
+func TestEnterInEditorRoutesOneModify(t *testing.T) {
+	client := &fakeClient{}
+	model := actionModel(client)
+	model.OpenEditShortcut("e")
+	model.Editor.Inputs[ui.FieldDescription].SetValue("Updated description")
+	_, submit := model.Update(tea.KeyPressMsg(tea.Key{Code: tea.KeyEnter}))
+	if submit == nil {
+		t.Fatal("enter did not submit editor")
+	}
+	_, modify := model.Update(submit())
+	if modify == nil || model.PendingMutation == nil || model.PendingMutation.Kind != MutationModify {
+		t.Fatal("enter submission did not route to modify")
+	}
+	modify()
+	if len(client.mutations) != 1 || client.mutations[0].UUID != "one" || client.mutations[0].Diff.Description.Value != "Updated description" {
+		t.Fatalf("mutations=%#v", client.mutations)
 	}
 }
 
