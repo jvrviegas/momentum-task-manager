@@ -78,7 +78,7 @@
 │     Estimate     1h30m                                                  │
 │     Recurrence   yearly                                                 │
 │                                                                         │
-╰─ ctrl+s save   tab field   esc cancel ──────────────────────────────────╯
+╰─ enter save   tab field   esc cancel ───────────────────────────────────╯
 
 === confirm ===
 ╭─ Delete task ────────────────────────────────────────────────╮
