@@ -75,7 +75,7 @@ func (q *QuickAddModel) updateReview(msg tea.Msg) tea.Cmd {
 		}
 		q.focusReviewField(q.ReviewField + delta)
 		return nil
-	case "ctrl+s":
+	case "enter", "ctrl+s":
 		return q.submitReview()
 	case "ctrl+r":
 		// Explicitly keep the current candidate literal/unchanged. This is
@@ -725,7 +725,7 @@ func (q QuickAddModel) reviewView() string {
 	}
 	frame := Frame{
 		Title: "Review capture", Rows: rows, Width: frameWidth, MaxRows: height,
-		Keys: []Hint{{"ctrl+s", "confirm"}, {"esc", "back"}, {"tab", "field"}, {"ctrl+r", "resolve"}, {"ctrl+x", "explicit only"}, {"pgup/dn", "details"}},
+		Keys: []Hint{{"enter", "confirm"}, {"esc", "back"}, {"tab", "field"}, {"ctrl+r", "resolve"}, {"ctrl+x", "explicit only"}, {"pgup/dn", "details"}},
 	}
 	return strings.Join(q.Styles.RenderFrame(frame, icons), "\n")
 }
