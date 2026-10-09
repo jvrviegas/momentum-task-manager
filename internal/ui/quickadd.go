@@ -166,7 +166,7 @@ func (q *QuickAddModel) Update(msg tea.Msg) (*QuickAddModel, tea.Cmd) {
 				q.moveSuggestion(1)
 				return q, nil
 			}
-		case "enter":
+		case "enter", "ctrl+s":
 			return q, q.submit()
 		case "ctrl+k":
 			// Ctrl+K is the global opener; inside the bar it must not delete
