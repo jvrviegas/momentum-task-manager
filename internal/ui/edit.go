@@ -179,6 +179,10 @@ func (e *EditModel) Update(msg tea.Msg) (*EditModel, tea.Cmd) {
 			e.Close()
 			return e, nil
 		case "tab", "shift+tab":
+			if keyMsg.String() == "tab" && e.SuggestionsOpen && len(e.Suggestions) > 0 {
+				e.acceptSuggestion()
+				return e, nil
+			}
 			delta := 1
 			if keyMsg.String() == "shift+tab" {
 				delta = -1
@@ -195,12 +199,7 @@ func (e *EditModel) Update(msg tea.Msg) (*EditModel, tea.Cmd) {
 				e.moveSuggestion(1)
 			}
 			return e, nil
-		case "enter":
-			if e.SuggestionsOpen {
-				e.acceptSuggestion()
-				return e, nil
-			}
-		case "ctrl+s":
+		case "enter", "ctrl+s":
 			return e, e.submit()
 		}
 	}
@@ -524,9 +523,13 @@ func (e EditModel) View() string {
 	if changed > 0 {
 		context = []Span{sp(icons.Changed, ToneAccent), muted(fmt.Sprintf(" %d changed", changed))}
 	}
+	tabLabel := "field"
+	if e.SuggestionsOpen {
+		tabLabel = "accept"
+	}
 	frame := Frame{
 		Title: "Edit task", Context: context, Rows: rows, Offset: offset, Width: width, MaxRows: maxRows,
-		Keys: []Hint{{"ctrl+s", "save"}, {"tab", "field"}, {"esc", "cancel"}},
+		Keys: []Hint{{"enter", "save"}, {"tab", tabLabel}, {"esc", "cancel"}},
 	}
 	return strings.Join(e.Styles.RenderFrame(frame, icons), "\n")
 }
