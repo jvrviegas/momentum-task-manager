@@ -125,7 +125,7 @@ Autocomplete:
 - Suggestions appear below the input and replace the idle syntax guide, keeping the capture path uncluttered.
 - `Up`/`Down` and `Ctrl+P`/`Ctrl+N` move through suggestions.
 - `Tab` accepts the highlighted suggestion.
-- `Enter` submits the whole task.
+- `Enter` submits the whole task; `Ctrl+S` is an alternative. In correction review, either key confirms the current draft after validation.
 - First `Esc` dismisses suggestions; a second `Esc` closes quick add.
 - With the cursor on or directly after a highlighted natural-language phrase, `Esc` keeps that phrase as description text instead of closing; editing the phrase makes it recognizable again.
 - Projects and tags use fuzzy matching.
@@ -137,9 +137,9 @@ Autocomplete:
 
 - **EDIT-01:** `e` opens a structured modal focused on Description.
 - **EDIT-02:** Direct task-list shortcuts open the same modal focused on a specific field.
-- **EDIT-03:** `Tab` and `Shift+Tab` exclusively move forward and backward between fields.
-- **EDIT-04:** `Up`/`Down` and `Ctrl+P`/`Ctrl+N` navigate field suggestions only; `Enter` accepts the highlighted suggestion.
-- **EDIT-05:** `Ctrl+S` saves only changed supported fields.
+- **EDIT-03:** `Tab` accepts a visible suggestion without changing fields; otherwise it moves to the next field. After accepting, another `Tab` moves forward. `Shift+Tab` always moves to the previous field without accepting suggestions.
+- **EDIT-04:** `Up`/`Down` and `Ctrl+P`/`Ctrl+N` navigate field suggestions only; `Tab` accepts the highlighted suggestion.
+- **EDIT-05:** `Enter` saves only changed supported fields using the current input, never the highlighted suggestion. `Ctrl+S` remains an alternative; validation failures retain the editor.
 - **EDIT-06:** `Esc` cancels without mutation.
 - **EDIT-07:** Unsupported exported fields remain untouched.
 
