@@ -683,6 +683,10 @@ Record implementation-time departures here before proceeding.
 
 At the user's request, valid natural-language quick capture now submits immediately on Enter rather than requiring review/Ctrl+S. Invalid or conflicting interpretations still open correction review. This supersedes G1's original mandatory inference-review policy; Taskwarrior validation and stale/busy/duplicate mutation guards are unchanged. UI and root-model regression tests cover immediate creation, exact inferred fields, repeated Enter, and correction routing.
 
+## Approved follow-up — consistent capture and edit keys
+
+Enter now submits current input in quick capture, correction review, and structured editing; Ctrl+S remains an alternative in all three. Tab accepts visible field suggestions, otherwise advances in structured forms; Shift+Tab always moves backward. This supersedes EDIT-03–EDIT-05 and the original T15 traversal/Enter-completion policy. Validation and mutation guards are unchanged. Hints, render fixtures, and regression tests track the new behavior.
+
 ## Approved extension — project suggestion catalog
 
 User-approved scope: Momentum owns an optional config-backed catalog of common projects. Each entry stores a display name and a lowercase, hyphenated/dotted Taskwarrior value; hierarchy follows the dotted value. Settings → Projects manages this catalog and supports an explicit pending-only task-value migration; there is no independent project database or automatic catalog growth.
