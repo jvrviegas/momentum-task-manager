@@ -107,6 +107,21 @@ func TestQuickAddEnterEmitsParsedSubmission(t *testing.T) {
 	}
 }
 
+func TestQuickAddEnterDoesNotAcceptHighlightedSuggestion(t *testing.T) {
+	q := testQuickAdd()
+	q.Input.SetValue("write docs #wor")
+	q.Input.CursorEnd()
+	q.refreshSuggestions()
+	if !q.SuggestionsOpen {
+		t.Fatal("expected project suggestions")
+	}
+	_, cmd := q.Update(specialQuickKey(tea.KeyEnter, 0))
+	message, ok := cmd().(QuickAddSubmitMsg)
+	if !ok || message.Task.Project != "wor" {
+		t.Fatalf("enter accepted highlighted suggestion: %#v", message)
+	}
+}
+
 func TestQuickAddParseErrorRetainsEnteredText(t *testing.T) {
 	q := testQuickAdd()
 	q.Input.SetValue("task #a #b")
