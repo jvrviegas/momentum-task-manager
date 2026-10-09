@@ -1,6 +1,7 @@
 package ui
 
 import (
+	"reflect"
 	"strings"
 	"testing"
 	"time"
@@ -92,6 +93,7 @@ func TestDateFieldViewShowsKeyboardGuidance(t *testing.T) {
 func TestTabAndShiftTabTraverseFields(t *testing.T) {
 	e := testEdit()
 	for _, want := range []EditField{FieldProject, FieldPriority, FieldDue, FieldScheduled, FieldTags, FieldEstimate, FieldRecurrence, FieldDescription} {
+		e.SuggestionsOpen = false // No completion: Tab traverses.
 		e.Update(editSpecial(tea.KeyTab, 0))
 		if e.Focused != want {
 			t.Fatalf("tab focused=%d want=%d", e.Focused, want)
@@ -115,7 +117,7 @@ func TestUpDownDoNotTraverseFieldsWithoutSuggestions(t *testing.T) {
 	}
 }
 
-func TestProjectSuggestionsOwnArrowsAndEnter(t *testing.T) {
+func TestProjectSuggestionsOwnArrowsAndTab(t *testing.T) {
 	e := testEdit()
 	e.Update(editKey("p")) // append to the existing project only after focus changes below
 	// Re-open on project so the test is independent of Description's text.
@@ -131,7 +133,7 @@ func TestProjectSuggestionsOwnArrowsAndEnter(t *testing.T) {
 		t.Fatalf("suggestion index=%d", e.SuggestionIndex)
 	}
 	want := e.Suggestions[e.SuggestionIndex]
-	e.Update(editSpecial(tea.KeyEnter, 0))
+	e.Update(editSpecial(tea.KeyTab, 0))
 	if e.Input(FieldProject).Value() != want {
 		t.Fatalf("project value=%q want=%q", e.Input(FieldProject).Value(), want)
 	}
@@ -140,18 +142,67 @@ func TestProjectSuggestionsOwnArrowsAndEnter(t *testing.T) {
 	}
 }
 
-func TestTabLeavesProjectWithoutAcceptingSuggestion(t *testing.T) {
+func TestTabAcceptsThenTraversesProject(t *testing.T) {
 	e := testEdit()
 	e.OpenTask(editableTask(), FieldProject)
 	e.Inputs[FieldProject].SetValue("")
 	e.refreshSuggestions()
+	want := e.Suggestions[e.SuggestionIndex]
 
 	e.Update(editSpecial(tea.KeyTab, 0))
-	if e.Focused != FieldPriority {
-		t.Fatalf("tab focused=%d want=%d", e.Focused, FieldPriority)
+	if e.Focused != FieldProject || e.Input(FieldProject).Value() != want || e.SuggestionsOpen {
+		t.Fatalf("tab did not accept in place: focus=%d value=%q suggestions=%v", e.Focused, e.Input(FieldProject).Value(), e.SuggestionsOpen)
 	}
-	if e.Input(FieldProject).Value() != "" {
-		t.Fatalf("tab accepted project suggestion %q", e.Input(FieldProject).Value())
+	e.Update(editSpecial(tea.KeyTab, 0))
+	if e.Focused != FieldPriority {
+		t.Fatalf("second tab focused=%d want=%d", e.Focused, FieldPriority)
+	}
+}
+
+func TestShiftTabSkipsSuggestionsWithoutAccepting(t *testing.T) {
+	e := testEdit()
+	e.OpenTask(editableTask(), FieldProject)
+	e.Inputs[FieldProject].SetValue("")
+	e.refreshSuggestions()
+	e.Update(editSpecial(tea.KeyTab, tea.ModShift))
+	if e.Focused != FieldDescription || e.Input(FieldProject).Value() != "" {
+		t.Fatalf("shift tab accepted or failed to traverse: focus=%d value=%q", e.Focused, e.Input(FieldProject).Value())
+	}
+}
+
+func TestEnterSavesCurrentInputWithoutAcceptingSuggestions(t *testing.T) {
+	for _, field := range []EditField{FieldDescription, FieldProject, FieldPriority, FieldDue, FieldScheduled, FieldTags, FieldEstimate, FieldRecurrence} {
+		t.Run(editFieldNames[field], func(t *testing.T) {
+			e := testEdit()
+			e.OpenTask(editableTask(), field)
+			if field == FieldProject {
+				e.Inputs[field].SetValue("wor") // Highlighted "work" must not replace this.
+				e.refreshSuggestions()
+			}
+			before := e.CurrentSnapshot()
+			_, cmd := e.Update(editSpecial(tea.KeyEnter, 0))
+			if cmd == nil {
+				t.Fatal("enter did not submit")
+			}
+			message, ok := cmd().(EditSubmitMsg)
+			if !ok || !reflect.DeepEqual(message.After, before) {
+				t.Fatalf("enter changed current input: %#v", message)
+			}
+		})
+	}
+}
+
+func TestEnterRejectsInvalidInputWithoutClosing(t *testing.T) {
+	e := testEdit()
+	e.Inputs[FieldDescription].SetValue("")
+	_, cmd := e.Update(editSpecial(tea.KeyEnter, 0))
+	message, ok := cmd().(EditErrorMsg)
+	if !ok {
+		t.Fatal("enter bypassed validation")
+	}
+	e.ApplyMessage(message)
+	if !e.Open || e.Err == nil {
+		t.Fatal("invalid editor should remain open")
 	}
 }
 
@@ -164,7 +215,7 @@ func TestEstimateFieldSuggestionsUseApprovedPresets(t *testing.T) {
 		t.Fatalf("suggestions=%v", e.Suggestions)
 	}
 	e.Update(editSpecial(tea.KeyDown, 0))
-	e.Update(editSpecial(tea.KeyEnter, 0))
+	e.Update(editSpecial(tea.KeyTab, 0))
 	if e.Input(FieldEstimate).Value() != "30m" {
 		t.Fatalf("estimate=%q", e.Input(FieldEstimate).Value())
 	}

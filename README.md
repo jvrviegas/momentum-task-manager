@@ -59,7 +59,7 @@ Momentum never installs or changes this configuration. Estimate values sync as t
 
 ## Quick add
 
-Press `Ctrl+K`, type a description, and press Enter. Metadata triggers work at token boundaries:
+Press `Ctrl+K`, type a description, and press Enter. In both quick capture and task editing, `Enter` submits the current input (`Ctrl+S` also works), arrows select suggestions, and `Tab` accepts a visible suggestion. In the editor, `Tab` otherwise moves to the next field; after accepting a suggestion, press `Tab` again to move on. `Shift+Tab` always moves to the previous field. Capture correction review also uses `Enter` to confirm after validation. Metadata triggers work at token boundaries:
 
 ```text
 Prepare proposal tomorrow at 3pm, p1, every Friday, about 1h #work.client
