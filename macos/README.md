@@ -23,7 +23,7 @@ open Momentum.xcodeproj    # or:
 xcodebuild -scheme Momentum -configuration Debug build
 ```
 
-The `Build momentum-bridge` phase compiles `cmd/momentum-bridge` for each target architecture and places it in `Momentum.app/Contents/MacOS`. The app is not sandboxed because it runs `task`, which reads `~/.taskrc`.
+The `Build momentum-bridge` phase compiles `tui/cmd/momentum-bridge` for each target architecture and places it in `Momentum.app/Contents/MacOS`. The app is not sandboxed because it runs `task`, which reads `~/.taskrc`.
 
 To try the app against a throwaway database, launch the executable directly so the bridge inherits the environment:
 
@@ -35,8 +35,8 @@ TASKRC=/tmp/demo/taskrc TASKDATA=/tmp/demo/data \
 ## Tests
 
 ```sh
-xcodebuild -scheme Momentum test                   # Swift: store, sync reducer, search, wire format
-go test ./internal/bridge/ ./internal/quickadd/    # Go: protocol, views, edits, capture review
+xcodebuild -scheme Momentum test                                  # Swift: store, sync reducer, search, wire format
+(cd ../tui && go test ./internal/bridge/ ./internal/quickadd/)    # Go: protocol, views, edits, capture review
 ```
 
 The bridge's integration test runs real Taskwarrior against a temporary `TASKRC`/`TASKDATA` and refuses the real `~/.taskrc` and `~/.task`.
