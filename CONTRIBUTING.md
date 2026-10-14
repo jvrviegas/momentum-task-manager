@@ -18,8 +18,9 @@ Momentum is a monorepo. The root `go.work` joins its Go modules for local builds
   - `internal/bridge`, `cmd/momentum-bridge` — JSON-lines service that exposes the packages above to the macOS app
 - `macos/` — native SwiftUI app (see [`macos/README.md`](./macos/README.md)); run `xcodebuild -scheme Momentum test` there when it changes
 - `backend/` — Go and PostgreSQL replacement for Taskwarrior, in progress (module `github.com/jvrviegas/momentum-task-manager/backend`; [ADR 0002](./docs/adr/0002-go-postgres-backend.md), [plan](./docs/plans/backend.md), [README](./backend/README.md))
-  - `cmd/momentum-server` — configuration, listening, and graceful shutdown
-  - `internal/httpapi` — routes, JSON errors, and request logging
+  - `cmd/momentum-server` — configuration, listening, graceful shutdown, and the `migrate` command
+  - `internal/httpapi` — routes, JSON errors, request logging, and the sign-in pages
+  - `internal/auth` — device sign-in, Google and GitHub providers, and sessions
   - `internal/logging` — JSON logs that redact every attribute outside an allowlist
   - `internal/config` — environment variables
   - `internal/store` — PostgreSQL access, migrations, and the local-only test database guard; `ent/schema` is the schema, the rest of `ent/` is generated, and `rule` and `viewer` limit task access to the signed-in user
