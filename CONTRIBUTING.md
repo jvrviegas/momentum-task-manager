@@ -22,6 +22,8 @@ Momentum is a monorepo. The root `go.work` joins its Go modules for local builds
   - `internal/httpapi` — routes, JSON errors, and request logging
   - `internal/logging` — JSON logs that redact every attribute outside an allowlist
   - `internal/config` — environment variables
+  - `internal/store` — PostgreSQL access, migrations, and the local-only test database guard; `ent/schema` is the schema, the rest of `ent/` is generated, and `rule` and `viewer` limit task access to the signed-in user
+  - `migrations` — reviewed migration files, written by `cmd/migration-diff`
 - `docs/` — decisions and plans that span more than one folder
 
 ## Before a change
@@ -50,6 +52,8 @@ When `backend/` or `core/` changes, also build the server image from the reposit
 ```sh
 docker build -f backend/Dockerfile .
 ```
+
+Backend store tests run only against a local PostgreSQL server named by `MOMENTUM_TEST_DATABASE_URL` (see [`backend/README.md`](./backend/README.md)); each test uses a database of its own. Never point them, or `cmd/migration-diff`, at Neon. After changing `backend/internal/store/ent/schema`, run `go generate ./...` in `backend/` and commit the generated code with a reviewed migration.
 
 Taskwarrior integration tests must use temporary `TASKRC` and `TASKDATA` values. They must not run in parallel and must retain the guard that rejects `~/.taskrc` and `~/.task`. Never use a real sync server or production task database in tests.
 
