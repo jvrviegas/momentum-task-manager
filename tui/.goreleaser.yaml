@@ -31,9 +31,9 @@ archives:
 checksum:
   name_template: checksums.txt
 
-release:
-  draft: false
-  prerelease: auto
+# The release workflow publishes with gh, using the CHANGELOG.md section.
+changelog:
+  disable: true
 
 metadata:
   mod_timestamp: '{{ .CommitTimestamp }}'
