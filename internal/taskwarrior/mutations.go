@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"sort"
 	"strings"
+	"time"
 
 	"github.com/jvrviegas/momentum-task-manager/internal/domain"
 )
@@ -25,10 +26,10 @@ func AddArgs(input domain.NewTask) ([]string, error) {
 		args = append(args, "project:"+input.Project)
 	}
 	if input.Due != "" {
-		args = append(args, "due:"+normalizeDateAlias(input.Due))
+		args = append(args, "due:"+normalizeDate(input.Due))
 	}
 	if input.Scheduled != "" {
-		args = append(args, "scheduled:"+normalizeDateAlias(input.Scheduled))
+		args = append(args, "scheduled:"+normalizeDate(input.Scheduled))
 	}
 	if input.Recurrence != "" {
 		recurrence, err := domain.ParseRecurrence(input.Recurrence)
@@ -79,8 +80,8 @@ func ModifyArgs(uuid string, diff domain.TaskDiff) ([]string, error) {
 	appendChange("description", diff.Description)
 	appendChange("project", diff.Project)
 	appendChange("priority", diff.Priority)
-	diff.Due.Value = normalizeDateAlias(diff.Due.Value)
-	diff.Scheduled.Value = normalizeDateAlias(diff.Scheduled.Value)
+	diff.Due.Value = normalizeDate(diff.Due.Value)
+	diff.Scheduled.Value = normalizeDate(diff.Scheduled.Value)
 	appendChange("due", diff.Due)
 	appendChange("scheduled", diff.Scheduled)
 	if diff.Recurrence.Kind == domain.Set {
@@ -123,9 +124,16 @@ func ModifyArgs(uuid string, diff domain.TaskDiff) ([]string, error) {
 	return args, nil
 }
 
-func normalizeDateAlias(value string) string {
+// normalizeDate expands the next-week alias and rewrites the editor's
+// "YYYY-MM-DD HH:MM" form as ISO 8601. Taskwarrior 3.5 reads
+// "2026-10-15 09:30" as midnight and silently drops the time, while
+// "2026-10-15T09:30" keeps it. Other expressions pass through.
+func normalizeDate(value string) string {
 	if strings.EqualFold(strings.TrimSpace(value), "next-week") {
 		return "sow+1w+4d"
+	}
+	if parsed, err := time.Parse("2006-01-02 15:04", strings.TrimSpace(value)); err == nil {
+		return parsed.Format("2006-01-02T15:04")
 	}
 	return value
 }
