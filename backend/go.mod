@@ -5,9 +5,12 @@ go 1.27.0
 require (
 	ariga.io/atlas v0.36.2-0.20250730182955-2c6300d0a3e1
 	entgo.io/ent v0.14.6
+	github.com/coreos/go-oidc/v3 v3.21.0
+	github.com/go-jose/go-jose/v4 v4.1.4
 	github.com/google/uuid v1.6.0
 	github.com/jackc/pgx/v5 v5.11.0
 	github.com/jvrviegas/momentum-task-manager/core v0.0.0-00010101000000-000000000000
+	golang.org/x/oauth2 v0.37.0
 )
 
 require (
