@@ -13,6 +13,12 @@ var (
 		{Name: "id", Type: field.TypeInt, Increment: true},
 		{Name: "device_code_hash", Type: field.TypeBytes, Unique: true},
 		{Name: "user_code", Type: field.TypeString, Unique: true},
+		{Name: "status", Type: field.TypeEnum, Enums: []string{"pending", "approved", "denied"}, Default: "pending"},
+		{Name: "provider", Type: field.TypeString, Nullable: true},
+		{Name: "state_hash", Type: field.TypeBytes, Unique: true, Nullable: true},
+		{Name: "code_verifier", Type: field.TypeString, Nullable: true},
+		{Name: "nonce", Type: field.TypeString, Nullable: true},
+		{Name: "last_polled_at", Type: field.TypeTime, Nullable: true},
 		{Name: "created_at", Type: field.TypeTime},
 		{Name: "expires_at", Type: field.TypeTime},
 		{Name: "user_id", Type: field.TypeUUID, Nullable: true},
@@ -25,7 +31,7 @@ var (
 		ForeignKeys: []*schema.ForeignKey{
 			{
 				Symbol:     "device_authorizations_users_device_authorizations",
-				Columns:    []*schema.Column{DeviceAuthorizationsColumns[5]},
+				Columns:    []*schema.Column{DeviceAuthorizationsColumns[11]},
 				RefColumns: []*schema.Column{UsersColumns[0]},
 				OnDelete:   schema.SetNull,
 			},
