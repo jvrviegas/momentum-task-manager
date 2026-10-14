@@ -10,6 +10,8 @@
 - `internal/config` — strict TOML and XDG resolution
 - `internal/quickadd` — trigger parser and suggestions
 - `internal/diagnostics` — doctor checks and redacted logging
+- `internal/bridge`, `cmd/momentum-bridge` — JSON-lines service that exposes the packages above to the macOS app
+- `macos/` — native SwiftUI app (see [`macos/README.md`](./macos/README.md)); run `xcodebuild -scheme Momentum test` there when it changes
 
 ## Before a change
 
