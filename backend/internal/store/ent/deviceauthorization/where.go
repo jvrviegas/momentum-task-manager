@@ -71,6 +71,31 @@ func UserID(v uuid.UUID) predicate.DeviceAuthorization {
 	return predicate.DeviceAuthorization(sql.FieldEQ(FieldUserID, v))
 }
 
+// Provider applies equality check predicate on the "provider" field. It's identical to ProviderEQ.
+func Provider(v string) predicate.DeviceAuthorization {
+	return predicate.DeviceAuthorization(sql.FieldEQ(FieldProvider, v))
+}
+
+// StateHash applies equality check predicate on the "state_hash" field. It's identical to StateHashEQ.
+func StateHash(v []byte) predicate.DeviceAuthorization {
+	return predicate.DeviceAuthorization(sql.FieldEQ(FieldStateHash, v))
+}
+
+// CodeVerifier applies equality check predicate on the "code_verifier" field. It's identical to CodeVerifierEQ.
+func CodeVerifier(v string) predicate.DeviceAuthorization {
+	return predicate.DeviceAuthorization(sql.FieldEQ(FieldCodeVerifier, v))
+}
+
+// Nonce applies equality check predicate on the "nonce" field. It's identical to NonceEQ.
+func Nonce(v string) predicate.DeviceAuthorization {
+	return predicate.DeviceAuthorization(sql.FieldEQ(FieldNonce, v))
+}
+
+// LastPolledAt applies equality check predicate on the "last_polled_at" field. It's identical to LastPolledAtEQ.
+func LastPolledAt(v time.Time) predicate.DeviceAuthorization {
+	return predicate.DeviceAuthorization(sql.FieldEQ(FieldLastPolledAt, v))
+}
+
 // CreatedAt applies equality check predicate on the "created_at" field. It's identical to CreatedAtEQ.
 func CreatedAt(v time.Time) predicate.DeviceAuthorization {
 	return predicate.DeviceAuthorization(sql.FieldEQ(FieldCreatedAt, v))
@@ -186,6 +211,26 @@ func UserCodeContainsFold(v string) predicate.DeviceAuthorization {
 	return predicate.DeviceAuthorization(sql.FieldContainsFold(FieldUserCode, v))
 }
 
+// StatusEQ applies the EQ predicate on the "status" field.
+func StatusEQ(v Status) predicate.DeviceAuthorization {
+	return predicate.DeviceAuthorization(sql.FieldEQ(FieldStatus, v))
+}
+
+// StatusNEQ applies the NEQ predicate on the "status" field.
+func StatusNEQ(v Status) predicate.DeviceAuthorization {
+	return predicate.DeviceAuthorization(sql.FieldNEQ(FieldStatus, v))
+}
+
+// StatusIn applies the In predicate on the "status" field.
+func StatusIn(vs ...Status) predicate.DeviceAuthorization {
+	return predicate.DeviceAuthorization(sql.FieldIn(FieldStatus, vs...))
+}
+
+// StatusNotIn applies the NotIn predicate on the "status" field.
+func StatusNotIn(vs ...Status) predicate.DeviceAuthorization {
+	return predicate.DeviceAuthorization(sql.FieldNotIn(FieldStatus, vs...))
+}
+
 // UserIDEQ applies the EQ predicate on the "user_id" field.
 func UserIDEQ(v uuid.UUID) predicate.DeviceAuthorization {
 	return predicate.DeviceAuthorization(sql.FieldEQ(FieldUserID, v))
@@ -214,6 +259,331 @@ func UserIDIsNil() predicate.DeviceAuthorization {
 // UserIDNotNil applies the NotNil predicate on the "user_id" field.
 func UserIDNotNil() predicate.DeviceAuthorization {
 	return predicate.DeviceAuthorization(sql.FieldNotNull(FieldUserID))
+}
+
+// ProviderEQ applies the EQ predicate on the "provider" field.
+func ProviderEQ(v string) predicate.DeviceAuthorization {
+	return predicate.DeviceAuthorization(sql.FieldEQ(FieldProvider, v))
+}
+
+// ProviderNEQ applies the NEQ predicate on the "provider" field.
+func ProviderNEQ(v string) predicate.DeviceAuthorization {
+	return predicate.DeviceAuthorization(sql.FieldNEQ(FieldProvider, v))
+}
+
+// ProviderIn applies the In predicate on the "provider" field.
+func ProviderIn(vs ...string) predicate.DeviceAuthorization {
+	return predicate.DeviceAuthorization(sql.FieldIn(FieldProvider, vs...))
+}
+
+// ProviderNotIn applies the NotIn predicate on the "provider" field.
+func ProviderNotIn(vs ...string) predicate.DeviceAuthorization {
+	return predicate.DeviceAuthorization(sql.FieldNotIn(FieldProvider, vs...))
+}
+
+// ProviderGT applies the GT predicate on the "provider" field.
+func ProviderGT(v string) predicate.DeviceAuthorization {
+	return predicate.DeviceAuthorization(sql.FieldGT(FieldProvider, v))
+}
+
+// ProviderGTE applies the GTE predicate on the "provider" field.
+func ProviderGTE(v string) predicate.DeviceAuthorization {
+	return predicate.DeviceAuthorization(sql.FieldGTE(FieldProvider, v))
+}
+
+// ProviderLT applies the LT predicate on the "provider" field.
+func ProviderLT(v string) predicate.DeviceAuthorization {
+	return predicate.DeviceAuthorization(sql.FieldLT(FieldProvider, v))
+}
+
+// ProviderLTE applies the LTE predicate on the "provider" field.
+func ProviderLTE(v string) predicate.DeviceAuthorization {
+	return predicate.DeviceAuthorization(sql.FieldLTE(FieldProvider, v))
+}
+
+// ProviderContains applies the Contains predicate on the "provider" field.
+func ProviderContains(v string) predicate.DeviceAuthorization {
+	return predicate.DeviceAuthorization(sql.FieldContains(FieldProvider, v))
+}
+
+// ProviderHasPrefix applies the HasPrefix predicate on the "provider" field.
+func ProviderHasPrefix(v string) predicate.DeviceAuthorization {
+	return predicate.DeviceAuthorization(sql.FieldHasPrefix(FieldProvider, v))
+}
+
+// ProviderHasSuffix applies the HasSuffix predicate on the "provider" field.
+func ProviderHasSuffix(v string) predicate.DeviceAuthorization {
+	return predicate.DeviceAuthorization(sql.FieldHasSuffix(FieldProvider, v))
+}
+
+// ProviderIsNil applies the IsNil predicate on the "provider" field.
+func ProviderIsNil() predicate.DeviceAuthorization {
+	return predicate.DeviceAuthorization(sql.FieldIsNull(FieldProvider))
+}
+
+// ProviderNotNil applies the NotNil predicate on the "provider" field.
+func ProviderNotNil() predicate.DeviceAuthorization {
+	return predicate.DeviceAuthorization(sql.FieldNotNull(FieldProvider))
+}
+
+// ProviderEqualFold applies the EqualFold predicate on the "provider" field.
+func ProviderEqualFold(v string) predicate.DeviceAuthorization {
+	return predicate.DeviceAuthorization(sql.FieldEqualFold(FieldProvider, v))
+}
+
+// ProviderContainsFold applies the ContainsFold predicate on the "provider" field.
+func ProviderContainsFold(v string) predicate.DeviceAuthorization {
+	return predicate.DeviceAuthorization(sql.FieldContainsFold(FieldProvider, v))
+}
+
+// StateHashEQ applies the EQ predicate on the "state_hash" field.
+func StateHashEQ(v []byte) predicate.DeviceAuthorization {
+	return predicate.DeviceAuthorization(sql.FieldEQ(FieldStateHash, v))
+}
+
+// StateHashNEQ applies the NEQ predicate on the "state_hash" field.
+func StateHashNEQ(v []byte) predicate.DeviceAuthorization {
+	return predicate.DeviceAuthorization(sql.FieldNEQ(FieldStateHash, v))
+}
+
+// StateHashIn applies the In predicate on the "state_hash" field.
+func StateHashIn(vs ...[]byte) predicate.DeviceAuthorization {
+	return predicate.DeviceAuthorization(sql.FieldIn(FieldStateHash, vs...))
+}
+
+// StateHashNotIn applies the NotIn predicate on the "state_hash" field.
+func StateHashNotIn(vs ...[]byte) predicate.DeviceAuthorization {
+	return predicate.DeviceAuthorization(sql.FieldNotIn(FieldStateHash, vs...))
+}
+
+// StateHashGT applies the GT predicate on the "state_hash" field.
+func StateHashGT(v []byte) predicate.DeviceAuthorization {
+	return predicate.DeviceAuthorization(sql.FieldGT(FieldStateHash, v))
+}
+
+// StateHashGTE applies the GTE predicate on the "state_hash" field.
+func StateHashGTE(v []byte) predicate.DeviceAuthorization {
+	return predicate.DeviceAuthorization(sql.FieldGTE(FieldStateHash, v))
+}
+
+// StateHashLT applies the LT predicate on the "state_hash" field.
+func StateHashLT(v []byte) predicate.DeviceAuthorization {
+	return predicate.DeviceAuthorization(sql.FieldLT(FieldStateHash, v))
+}
+
+// StateHashLTE applies the LTE predicate on the "state_hash" field.
+func StateHashLTE(v []byte) predicate.DeviceAuthorization {
+	return predicate.DeviceAuthorization(sql.FieldLTE(FieldStateHash, v))
+}
+
+// StateHashIsNil applies the IsNil predicate on the "state_hash" field.
+func StateHashIsNil() predicate.DeviceAuthorization {
+	return predicate.DeviceAuthorization(sql.FieldIsNull(FieldStateHash))
+}
+
+// StateHashNotNil applies the NotNil predicate on the "state_hash" field.
+func StateHashNotNil() predicate.DeviceAuthorization {
+	return predicate.DeviceAuthorization(sql.FieldNotNull(FieldStateHash))
+}
+
+// CodeVerifierEQ applies the EQ predicate on the "code_verifier" field.
+func CodeVerifierEQ(v string) predicate.DeviceAuthorization {
+	return predicate.DeviceAuthorization(sql.FieldEQ(FieldCodeVerifier, v))
+}
+
+// CodeVerifierNEQ applies the NEQ predicate on the "code_verifier" field.
+func CodeVerifierNEQ(v string) predicate.DeviceAuthorization {
+	return predicate.DeviceAuthorization(sql.FieldNEQ(FieldCodeVerifier, v))
+}
+
+// CodeVerifierIn applies the In predicate on the "code_verifier" field.
+func CodeVerifierIn(vs ...string) predicate.DeviceAuthorization {
+	return predicate.DeviceAuthorization(sql.FieldIn(FieldCodeVerifier, vs...))
+}
+
+// CodeVerifierNotIn applies the NotIn predicate on the "code_verifier" field.
+func CodeVerifierNotIn(vs ...string) predicate.DeviceAuthorization {
+	return predicate.DeviceAuthorization(sql.FieldNotIn(FieldCodeVerifier, vs...))
+}
+
+// CodeVerifierGT applies the GT predicate on the "code_verifier" field.
+func CodeVerifierGT(v string) predicate.DeviceAuthorization {
+	return predicate.DeviceAuthorization(sql.FieldGT(FieldCodeVerifier, v))
+}
+
+// CodeVerifierGTE applies the GTE predicate on the "code_verifier" field.
+func CodeVerifierGTE(v string) predicate.DeviceAuthorization {
+	return predicate.DeviceAuthorization(sql.FieldGTE(FieldCodeVerifier, v))
+}
+
+// CodeVerifierLT applies the LT predicate on the "code_verifier" field.
+func CodeVerifierLT(v string) predicate.DeviceAuthorization {
+	return predicate.DeviceAuthorization(sql.FieldLT(FieldCodeVerifier, v))
+}
+
+// CodeVerifierLTE applies the LTE predicate on the "code_verifier" field.
+func CodeVerifierLTE(v string) predicate.DeviceAuthorization {
+	return predicate.DeviceAuthorization(sql.FieldLTE(FieldCodeVerifier, v))
+}
+
+// CodeVerifierContains applies the Contains predicate on the "code_verifier" field.
+func CodeVerifierContains(v string) predicate.DeviceAuthorization {
+	return predicate.DeviceAuthorization(sql.FieldContains(FieldCodeVerifier, v))
+}
+
+// CodeVerifierHasPrefix applies the HasPrefix predicate on the "code_verifier" field.
+func CodeVerifierHasPrefix(v string) predicate.DeviceAuthorization {
+	return predicate.DeviceAuthorization(sql.FieldHasPrefix(FieldCodeVerifier, v))
+}
+
+// CodeVerifierHasSuffix applies the HasSuffix predicate on the "code_verifier" field.
+func CodeVerifierHasSuffix(v string) predicate.DeviceAuthorization {
+	return predicate.DeviceAuthorization(sql.FieldHasSuffix(FieldCodeVerifier, v))
+}
+
+// CodeVerifierIsNil applies the IsNil predicate on the "code_verifier" field.
+func CodeVerifierIsNil() predicate.DeviceAuthorization {
+	return predicate.DeviceAuthorization(sql.FieldIsNull(FieldCodeVerifier))
+}
+
+// CodeVerifierNotNil applies the NotNil predicate on the "code_verifier" field.
+func CodeVerifierNotNil() predicate.DeviceAuthorization {
+	return predicate.DeviceAuthorization(sql.FieldNotNull(FieldCodeVerifier))
+}
+
+// CodeVerifierEqualFold applies the EqualFold predicate on the "code_verifier" field.
+func CodeVerifierEqualFold(v string) predicate.DeviceAuthorization {
+	return predicate.DeviceAuthorization(sql.FieldEqualFold(FieldCodeVerifier, v))
+}
+
+// CodeVerifierContainsFold applies the ContainsFold predicate on the "code_verifier" field.
+func CodeVerifierContainsFold(v string) predicate.DeviceAuthorization {
+	return predicate.DeviceAuthorization(sql.FieldContainsFold(FieldCodeVerifier, v))
+}
+
+// NonceEQ applies the EQ predicate on the "nonce" field.
+func NonceEQ(v string) predicate.DeviceAuthorization {
+	return predicate.DeviceAuthorization(sql.FieldEQ(FieldNonce, v))
+}
+
+// NonceNEQ applies the NEQ predicate on the "nonce" field.
+func NonceNEQ(v string) predicate.DeviceAuthorization {
+	return predicate.DeviceAuthorization(sql.FieldNEQ(FieldNonce, v))
+}
+
+// NonceIn applies the In predicate on the "nonce" field.
+func NonceIn(vs ...string) predicate.DeviceAuthorization {
+	return predicate.DeviceAuthorization(sql.FieldIn(FieldNonce, vs...))
+}
+
+// NonceNotIn applies the NotIn predicate on the "nonce" field.
+func NonceNotIn(vs ...string) predicate.DeviceAuthorization {
+	return predicate.DeviceAuthorization(sql.FieldNotIn(FieldNonce, vs...))
+}
+
+// NonceGT applies the GT predicate on the "nonce" field.
+func NonceGT(v string) predicate.DeviceAuthorization {
+	return predicate.DeviceAuthorization(sql.FieldGT(FieldNonce, v))
+}
+
+// NonceGTE applies the GTE predicate on the "nonce" field.
+func NonceGTE(v string) predicate.DeviceAuthorization {
+	return predicate.DeviceAuthorization(sql.FieldGTE(FieldNonce, v))
+}
+
+// NonceLT applies the LT predicate on the "nonce" field.
+func NonceLT(v string) predicate.DeviceAuthorization {
+	return predicate.DeviceAuthorization(sql.FieldLT(FieldNonce, v))
+}
+
+// NonceLTE applies the LTE predicate on the "nonce" field.
+func NonceLTE(v string) predicate.DeviceAuthorization {
+	return predicate.DeviceAuthorization(sql.FieldLTE(FieldNonce, v))
+}
+
+// NonceContains applies the Contains predicate on the "nonce" field.
+func NonceContains(v string) predicate.DeviceAuthorization {
+	return predicate.DeviceAuthorization(sql.FieldContains(FieldNonce, v))
+}
+
+// NonceHasPrefix applies the HasPrefix predicate on the "nonce" field.
+func NonceHasPrefix(v string) predicate.DeviceAuthorization {
+	return predicate.DeviceAuthorization(sql.FieldHasPrefix(FieldNonce, v))
+}
+
+// NonceHasSuffix applies the HasSuffix predicate on the "nonce" field.
+func NonceHasSuffix(v string) predicate.DeviceAuthorization {
+	return predicate.DeviceAuthorization(sql.FieldHasSuffix(FieldNonce, v))
+}
+
+// NonceIsNil applies the IsNil predicate on the "nonce" field.
+func NonceIsNil() predicate.DeviceAuthorization {
+	return predicate.DeviceAuthorization(sql.FieldIsNull(FieldNonce))
+}
+
+// NonceNotNil applies the NotNil predicate on the "nonce" field.
+func NonceNotNil() predicate.DeviceAuthorization {
+	return predicate.DeviceAuthorization(sql.FieldNotNull(FieldNonce))
+}
+
+// NonceEqualFold applies the EqualFold predicate on the "nonce" field.
+func NonceEqualFold(v string) predicate.DeviceAuthorization {
+	return predicate.DeviceAuthorization(sql.FieldEqualFold(FieldNonce, v))
+}
+
+// NonceContainsFold applies the ContainsFold predicate on the "nonce" field.
+func NonceContainsFold(v string) predicate.DeviceAuthorization {
+	return predicate.DeviceAuthorization(sql.FieldContainsFold(FieldNonce, v))
+}
+
+// LastPolledAtEQ applies the EQ predicate on the "last_polled_at" field.
+func LastPolledAtEQ(v time.Time) predicate.DeviceAuthorization {
+	return predicate.DeviceAuthorization(sql.FieldEQ(FieldLastPolledAt, v))
+}
+
+// LastPolledAtNEQ applies the NEQ predicate on the "last_polled_at" field.
+func LastPolledAtNEQ(v time.Time) predicate.DeviceAuthorization {
+	return predicate.DeviceAuthorization(sql.FieldNEQ(FieldLastPolledAt, v))
+}
+
+// LastPolledAtIn applies the In predicate on the "last_polled_at" field.
+func LastPolledAtIn(vs ...time.Time) predicate.DeviceAuthorization {
+	return predicate.DeviceAuthorization(sql.FieldIn(FieldLastPolledAt, vs...))
+}
+
+// LastPolledAtNotIn applies the NotIn predicate on the "last_polled_at" field.
+func LastPolledAtNotIn(vs ...time.Time) predicate.DeviceAuthorization {
+	return predicate.DeviceAuthorization(sql.FieldNotIn(FieldLastPolledAt, vs...))
+}
+
+// LastPolledAtGT applies the GT predicate on the "last_polled_at" field.
+func LastPolledAtGT(v time.Time) predicate.DeviceAuthorization {
+	return predicate.DeviceAuthorization(sql.FieldGT(FieldLastPolledAt, v))
+}
+
+// LastPolledAtGTE applies the GTE predicate on the "last_polled_at" field.
+func LastPolledAtGTE(v time.Time) predicate.DeviceAuthorization {
+	return predicate.DeviceAuthorization(sql.FieldGTE(FieldLastPolledAt, v))
+}
+
+// LastPolledAtLT applies the LT predicate on the "last_polled_at" field.
+func LastPolledAtLT(v time.Time) predicate.DeviceAuthorization {
+	return predicate.DeviceAuthorization(sql.FieldLT(FieldLastPolledAt, v))
+}
+
+// LastPolledAtLTE applies the LTE predicate on the "last_polled_at" field.
+func LastPolledAtLTE(v time.Time) predicate.DeviceAuthorization {
+	return predicate.DeviceAuthorization(sql.FieldLTE(FieldLastPolledAt, v))
+}
+
+// LastPolledAtIsNil applies the IsNil predicate on the "last_polled_at" field.
+func LastPolledAtIsNil() predicate.DeviceAuthorization {
+	return predicate.DeviceAuthorization(sql.FieldIsNull(FieldLastPolledAt))
+}
+
+// LastPolledAtNotNil applies the NotNil predicate on the "last_polled_at" field.
+func LastPolledAtNotNil() predicate.DeviceAuthorization {
+	return predicate.DeviceAuthorization(sql.FieldNotNull(FieldLastPolledAt))
 }
 
 // CreatedAtEQ applies the EQ predicate on the "created_at" field.
