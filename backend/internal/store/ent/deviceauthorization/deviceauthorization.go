@@ -3,6 +3,7 @@
 package deviceauthorization
 
 import (
+	"fmt"
 	"time"
 
 	"entgo.io/ent/dialect/sql"
@@ -18,8 +19,20 @@ const (
 	FieldDeviceCodeHash = "device_code_hash"
 	// FieldUserCode holds the string denoting the user_code field in the database.
 	FieldUserCode = "user_code"
+	// FieldStatus holds the string denoting the status field in the database.
+	FieldStatus = "status"
 	// FieldUserID holds the string denoting the user_id field in the database.
 	FieldUserID = "user_id"
+	// FieldProvider holds the string denoting the provider field in the database.
+	FieldProvider = "provider"
+	// FieldStateHash holds the string denoting the state_hash field in the database.
+	FieldStateHash = "state_hash"
+	// FieldCodeVerifier holds the string denoting the code_verifier field in the database.
+	FieldCodeVerifier = "code_verifier"
+	// FieldNonce holds the string denoting the nonce field in the database.
+	FieldNonce = "nonce"
+	// FieldLastPolledAt holds the string denoting the last_polled_at field in the database.
+	FieldLastPolledAt = "last_polled_at"
 	// FieldCreatedAt holds the string denoting the created_at field in the database.
 	FieldCreatedAt = "created_at"
 	// FieldExpiresAt holds the string denoting the expires_at field in the database.
@@ -42,7 +55,13 @@ var Columns = []string{
 	FieldID,
 	FieldDeviceCodeHash,
 	FieldUserCode,
+	FieldStatus,
 	FieldUserID,
+	FieldProvider,
+	FieldStateHash,
+	FieldCodeVerifier,
+	FieldNonce,
+	FieldLastPolledAt,
 	FieldCreatedAt,
 	FieldExpiresAt,
 }
@@ -66,6 +85,33 @@ var (
 	DefaultCreatedAt func() time.Time
 )
 
+// Status defines the type for the "status" enum field.
+type Status string
+
+// StatusPending is the default value of the Status enum.
+const DefaultStatus = StatusPending
+
+// Status values.
+const (
+	StatusPending  Status = "pending"
+	StatusApproved Status = "approved"
+	StatusDenied   Status = "denied"
+)
+
+func (s Status) String() string {
+	return string(s)
+}
+
+// StatusValidator is a validator for the "status" field enum values. It is called by the builders before save.
+func StatusValidator(s Status) error {
+	switch s {
+	case StatusPending, StatusApproved, StatusDenied:
+		return nil
+	default:
+		return fmt.Errorf("deviceauthorization: invalid enum value for status field: %q", s)
+	}
+}
+
 // OrderOption defines the ordering options for the DeviceAuthorization queries.
 type OrderOption func(*sql.Selector)
 
@@ -79,9 +125,34 @@ func ByUserCode(opts ...sql.OrderTermOption) OrderOption {
 	return sql.OrderByField(FieldUserCode, opts...).ToFunc()
 }
 
+// ByStatus orders the results by the status field.
+func ByStatus(opts ...sql.OrderTermOption) OrderOption {
+	return sql.OrderByField(FieldStatus, opts...).ToFunc()
+}
+
 // ByUserID orders the results by the user_id field.
 func ByUserID(opts ...sql.OrderTermOption) OrderOption {
 	return sql.OrderByField(FieldUserID, opts...).ToFunc()
+}
+
+// ByProvider orders the results by the provider field.
+func ByProvider(opts ...sql.OrderTermOption) OrderOption {
+	return sql.OrderByField(FieldProvider, opts...).ToFunc()
+}
+
+// ByCodeVerifier orders the results by the code_verifier field.
+func ByCodeVerifier(opts ...sql.OrderTermOption) OrderOption {
+	return sql.OrderByField(FieldCodeVerifier, opts...).ToFunc()
+}
+
+// ByNonce orders the results by the nonce field.
+func ByNonce(opts ...sql.OrderTermOption) OrderOption {
+	return sql.OrderByField(FieldNonce, opts...).ToFunc()
+}
+
+// ByLastPolledAt orders the results by the last_polled_at field.
+func ByLastPolledAt(opts ...sql.OrderTermOption) OrderOption {
+	return sql.OrderByField(FieldLastPolledAt, opts...).ToFunc()
 }
 
 // ByCreatedAt orders the results by the created_at field.
