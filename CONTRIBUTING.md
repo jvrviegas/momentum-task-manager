@@ -15,11 +15,12 @@ Momentum is a monorepo:
   - `internal/diagnostics` — doctor checks and redacted logging
   - `internal/bridge`, `cmd/momentum-bridge` — JSON-lines service that exposes the packages above to the macOS app
 - `macos/` — native SwiftUI app (see [`macos/README.md`](./macos/README.md)); run `xcodebuild -scheme Momentum test` there when it changes
-- `backend/` — planned replacement for Taskwarrior; not started
+- `backend/` — planned Go and PostgreSQL replacement for Taskwarrior; not started ([ADR 0002](./docs/adr/0002-go-postgres-backend.md), [plan](./docs/plans/backend.md))
+- `docs/` — decisions and plans that span more than one folder
 
 ## Before a change
 
-Read [`tui/DESIGN.md`](./tui/DESIGN.md) and the relevant implementation-plan task. Keep Taskwarrior as the source of truth. Do not add persistence, a shell, a background service, telemetry, or direct access to `~/.task`.
+Read [`tui/DESIGN.md`](./tui/DESIGN.md) and the relevant implementation-plan task. In `tui/`, keep Taskwarrior as the source of truth. Do not add persistence, a shell, a background service, telemetry, or direct access to `~/.task`. The backend in ADR 0002 is the planned exception and follows its own plan.
 
 ## Tests and safety
 
