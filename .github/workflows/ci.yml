@@ -12,15 +12,19 @@ jobs:
   verify:
     name: format, test, vet, build
     runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        module: [core, tui]
     defaults:
       run:
-        working-directory: tui
+        working-directory: ${{ matrix.module }}
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-go@v5
         with:
-          go-version-file: tui/go.mod
-          cache-dependency-path: tui/go.sum
+          go-version-file: ${{ matrix.module }}/go.mod
+          cache-dependency-path: "**/go.sum"
           cache: true
       - name: Format
         run: test -z "$(gofmt -l .)"
@@ -31,10 +35,14 @@ jobs:
       - name: Vet
         run: go vet ./...
       - name: Linux amd64 build
+        if: matrix.module == 'tui'
         run: GOOS=linux GOARCH=amd64 go build ./cmd/momentum
       - name: Linux arm64 build
+        if: matrix.module == 'tui'
         run: GOOS=linux GOARCH=arm64 go build ./cmd/momentum
       - name: macOS amd64 build
+        if: matrix.module == 'tui'
         run: GOOS=darwin GOARCH=amd64 go build ./cmd/momentum
       - name: macOS arm64 build
+        if: matrix.module == 'tui'
         run: GOOS=darwin GOARCH=arm64 go build ./cmd/momentum
