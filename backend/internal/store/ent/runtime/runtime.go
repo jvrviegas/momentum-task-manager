@@ -34,7 +34,7 @@ func init() {
 	// deviceauthorization.UserCodeValidator is a validator for the "user_code" field. It is called by the builders before save.
 	deviceauthorization.UserCodeValidator = deviceauthorizationDescUserCode.Validators[0].(func(string) error)
 	// deviceauthorizationDescCreatedAt is the schema descriptor for created_at field.
-	deviceauthorizationDescCreatedAt := deviceauthorizationFields[3].Descriptor()
+	deviceauthorizationDescCreatedAt := deviceauthorizationFields[9].Descriptor()
 	// deviceauthorization.DefaultCreatedAt holds the default value on creation for the created_at field.
 	deviceauthorization.DefaultCreatedAt = deviceauthorizationDescCreatedAt.Default.(func() time.Time)
 	identityFields := schema.Identity{}.Fields()
