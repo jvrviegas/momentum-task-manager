@@ -201,8 +201,6 @@ func (s *Server) captureReview(ctx context.Context, p reviewParams) error {
 	if err != nil {
 		return err
 	}
-	task.Due = taskwarriorDate(task.Due)
-	task.Scheduled = taskwarriorDate(task.Scheduled)
 	if err := s.client.Add(ctx, task); err != nil {
 		return err
 	}
@@ -258,12 +256,6 @@ func (s *Server) modify(ctx context.Context, p modifyParams) (*modifyResult, err
 	if diff.Empty() {
 		return &modifyResult{}, nil
 	}
-	if diff.Due.Kind == domain.Set {
-		diff.Due.Value = taskwarriorDate(diff.Due.Value)
-	}
-	if diff.Scheduled.Kind == domain.Set {
-		diff.Scheduled.Value = taskwarriorDate(diff.Scheduled.Value)
-	}
 	if err := s.client.Modify(ctx, p.UUID, diff); err != nil {
 		return nil, err
 	}
@@ -305,16 +297,6 @@ func validateEdit(before domain.EditSnapshot, fields editFields) (domain.EditSna
 		}
 	}
 	return after, nil
-}
-
-// taskwarriorDate rewrites the editor's "YYYY-MM-DD HH:MM" form as ISO 8601.
-// Taskwarrior 3.5 reads "2026-10-15 09:30" as midnight and silently drops the
-// time, while "2026-10-15T09:30" keeps it. Other expressions pass through.
-func taskwarriorDate(value string) string {
-	if parsed, err := time.Parse("2006-01-02 15:04", strings.TrimSpace(value)); err == nil {
-		return parsed.Format("2006-01-02T15:04")
-	}
-	return value
 }
 
 // validateEstimate accepts a new value within the 24-hour limit, or an
