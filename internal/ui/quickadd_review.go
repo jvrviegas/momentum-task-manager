@@ -13,15 +13,15 @@ import (
 )
 
 const (
-	quickAddReviewDescription = iota
-	quickAddReviewDue
-	quickAddReviewRecurrence
-	quickAddReviewEstimate
-	quickAddReviewPriority
-	quickAddReviewProject
-	quickAddReviewScheduled
-	quickAddReviewTags
-	quickAddReviewFieldCount
+	quickAddReviewDescription = quickadd.ReviewDescription
+	quickAddReviewDue         = quickadd.ReviewDue
+	quickAddReviewRecurrence  = quickadd.ReviewRecurrence
+	quickAddReviewEstimate    = quickadd.ReviewEstimate
+	quickAddReviewPriority    = quickadd.ReviewPriority
+	quickAddReviewProject     = quickadd.ReviewProject
+	quickAddReviewScheduled   = quickadd.ReviewScheduled
+	quickAddReviewTags        = quickadd.ReviewTags
+	quickAddReviewFieldCount  = quickadd.ReviewFieldCount
 )
 
 var quickAddReviewFieldNames = [...]string{
@@ -44,7 +44,7 @@ func (q *QuickAddModel) openReview(value quickadd.Interpretation) {
 }
 
 func (q *QuickAddModel) setReviewInputValues(task domain.NewTask) {
-	values := reviewTaskValues(task)
+	values := quickadd.ReviewValues(task)
 	for index := range q.ReviewInputs {
 		q.ReviewInputs[index].SetValue(values[index])
 		q.ReviewInputs[index].Blur()
@@ -192,32 +192,9 @@ func (q *QuickAddModel) submitReview() tea.Cmd {
 		if width > 0 && height > 0 && !reviewConfirmationAccessible(width, height) {
 			return QuickAddErrorMsg{Err: fmt.Errorf("review is too small to confirm safely; enlarge the terminal or use explicit syntax only"), Revision: revision, Source: review.Source}
 		}
-		if err := validateReviewValues(review, values, touched, decisions); err != nil {
+		task, err := quickadd.FinalizeReview(review, values, touched, decisions)
+		if err != nil {
 			return QuickAddErrorMsg{Err: err, Revision: revision, Source: review.Source}
-		}
-		if strings.TrimSpace(values[quickAddReviewDescription]) == "" {
-			return QuickAddErrorMsg{Err: fmt.Errorf("task description cannot be empty"), Revision: revision, Source: review.Source}
-		}
-		if estimateValue := strings.TrimSpace(values[quickAddReviewEstimate]); estimateValue != "" {
-			if _, err := domain.ParseEstimate(estimateValue); err != nil {
-				return QuickAddErrorMsg{Err: err, Revision: revision, Source: review.Source}
-			}
-		}
-		switch normalizeReviewPriority(values[quickAddReviewPriority]) {
-		case "", "H", "M", "L":
-		default:
-			return QuickAddErrorMsg{Err: fmt.Errorf("priority must be H, M, L, or empty"), Revision: revision, Source: review.Source}
-		}
-		task := applyReviewValues(review.Task, values)
-		if task.Recurrence != "" {
-			recurrence, err := domain.ParseRecurrence(task.Recurrence)
-			if err != nil {
-				return QuickAddErrorMsg{Err: err, Revision: revision, Source: review.Source}
-			}
-			task.Recurrence = recurrence
-			if task.Due == "" {
-				return QuickAddErrorMsg{Err: fmt.Errorf("recurring tasks need a first due date"), Revision: revision, Source: review.Source}
-			}
 		}
 		return QuickAddSubmitMsg{Task: cloneNewTask(task), Revision: revision, Source: review.Source, Review: true}
 	}
@@ -227,206 +204,7 @@ func (q *QuickAddModel) submitReview() tea.Cmd {
 // current edited values and explicit clear/touch decisions, never the original
 // presence of a candidate alone.
 func (q QuickAddModel) reviewValidForValues(values []string) bool {
-	return validateReviewValues(q.Review, values, q.ReviewTouched, q.ReviewDecisions) == nil
-}
-
-func validateReviewValues(review quickadd.Interpretation, values []string, touched [quickAddReviewFieldCount]bool, decisionArgs ...[quickAddReviewFieldCount]bool) error {
-	if len(values) < quickAddReviewFieldCount {
-		return fmt.Errorf("review fields are incomplete")
-	}
-	original := reviewTaskValues(review.Task)
-	decisions := [quickAddReviewFieldCount]bool{}
-	if len(decisionArgs) > 0 {
-		decisions = decisionArgs[0]
-	}
-	semanticChanged := func(index int) bool {
-		if index == quickAddReviewRecurrence {
-			return recurrenceValueChanged(original[index], values[index])
-		}
-		return strings.TrimSpace(values[index]) != strings.TrimSpace(original[index])
-	}
-	explicitClear := func(index int) bool {
-		return touched[index] && strings.TrimSpace(original[index]) != "" && strings.TrimSpace(values[index]) == ""
-	}
-	fieldResolved := func(index int) bool {
-		if decisions[index] || semanticChanged(index) || explicitClear(index) {
-			return true
-		}
-		if touched[index] && strings.TrimSpace(original[index]) == "" && strings.TrimSpace(values[index]) == "" {
-			for _, candidate := range review.Candidates {
-				for _, candidateIndex := range reviewFieldIndexes(candidate.Field) {
-					if candidateIndex == index && candidateAllowsExplicitClear(candidate) {
-						return true
-					}
-				}
-			}
-		}
-		return false
-	}
-	candidateResolved := func(candidate quickadd.Candidate, index int) bool {
-		if fieldResolved(index) {
-			return true
-		}
-		// Invalid recognized metadata can be deliberately cleared even when its
-		// original task field was empty. A type/delete round trip is not such a
-		// decision: the final semantic value is still unchanged.
-		return touched[index] && strings.TrimSpace(original[index]) == "" && strings.TrimSpace(values[index]) == "" && candidateAllowsExplicitClear(candidate)
-	}
-
-	reference := review.ReferenceTime
-	if reference.IsZero() {
-		reference = time.Date(2000, 1, 1, 0, 0, 0, 0, time.Local)
-	}
-	for _, candidate := range review.Candidates {
-		if !candidate.Blocking {
-			continue
-		}
-		if candidate.Conflict && (candidate.Field == quickadd.FieldDue || candidate.Field == quickadd.FieldTime) {
-			// The original recurrence anchor is already compatible with its
-			// recurrence. The user must change the anchor semantically, change the
-			// recurrence semantics, explicitly clear a field, or press Ctrl+R to
-			// keep the candidate literal. Typing and deleting back to the same
-			// value is not resolution.
-			if decisions[quickAddReviewDue] || decisions[quickAddReviewRecurrence] || recurrenceValueChanged(original[quickAddReviewRecurrence], values[quickAddReviewRecurrence]) || explicitClear(quickAddReviewDue) {
-				continue
-			}
-			if !semanticChanged(quickAddReviewDue) || !reviewedRecurrenceAnchorMatches(review, values[quickAddReviewDue], reference) {
-				return fmt.Errorf("resolve the highlighted interpretation or choose explicit syntax only")
-			}
-			continue
-		}
-		for _, index := range reviewFieldIndexes(candidate.Field) {
-			if !candidateResolved(candidate, index) {
-				return fmt.Errorf("resolve the highlighted interpretation or choose explicit syntax only")
-			}
-		}
-	}
-	for _, diagnostic := range review.Diagnostics {
-		if !diagnostic.Blocking {
-			continue
-		}
-		indexes := diagnosticFieldIndexes(diagnostic.Message)
-		if len(indexes) == 0 {
-			resolved := false
-			for index := range values[:quickAddReviewFieldCount] {
-				if fieldResolved(index) {
-					resolved = true
-					break
-				}
-			}
-			if !resolved {
-				return fmt.Errorf("resolve the highlighted interpretation or choose explicit syntax only")
-			}
-			continue
-		}
-		resolved := false
-		for _, index := range indexes {
-			if fieldResolved(index) {
-				resolved = true
-				break
-			}
-		}
-		if !resolved {
-			return fmt.Errorf("resolve the highlighted interpretation or choose explicit syntax only")
-		}
-	}
-	if !review.Valid {
-		resolved := false
-		for index := range values[:quickAddReviewFieldCount] {
-			if fieldResolved(index) {
-				resolved = true
-				break
-			}
-		}
-		if !resolved {
-			return fmt.Errorf("resolve the highlighted interpretation or choose explicit syntax only")
-		}
-	}
-	return nil
-}
-
-func reviewFieldIndexes(field quickadd.CandidateField) []int {
-	switch field {
-	case quickadd.FieldDue, quickadd.FieldTime:
-		return []int{quickAddReviewDue}
-	case quickadd.FieldRecurrence:
-		return []int{quickAddReviewRecurrence}
-	case quickadd.FieldEstimate:
-		return []int{quickAddReviewEstimate}
-	case quickadd.FieldPriority:
-		return []int{quickAddReviewPriority}
-	case quickadd.FieldProject:
-		return []int{quickAddReviewProject}
-	case quickadd.FieldScheduled:
-		return []int{quickAddReviewScheduled}
-	case quickadd.FieldTag:
-		return []int{quickAddReviewTags}
-	default:
-		return nil
-	}
-}
-
-func recurrenceValueChanged(original, current string) bool {
-	originalCanonical, originalErr := domain.ParseRecurrence(original)
-	currentCanonical, currentErr := domain.ParseRecurrence(current)
-	if originalErr == nil && currentErr == nil {
-		return originalCanonical != currentCanonical
-	}
-	return strings.TrimSpace(original) != strings.TrimSpace(current)
-}
-
-func candidateAllowsExplicitClear(candidate quickadd.Candidate) bool {
-	text := strings.ToLower(candidate.Diagnostic)
-	for _, marker := range []string{"invalid", "does not exist", "ambiguous", "incomplete", "needs a supported"} {
-		if strings.Contains(text, marker) {
-			return true
-		}
-	}
-	return false
-}
-
-func reviewedRecurrenceAnchorMatches(review quickadd.Interpretation, value string, reference time.Time) bool {
-	original, ok := reviewAnchor(review.Task.Due, reference)
-	if !ok {
-		return false
-	}
-	current, ok := reviewAnchor(value, reference)
-	return ok && current.Weekday() == original.Weekday()
-}
-
-func diagnosticFieldIndexes(message string) []int {
-	text := strings.ToLower(message)
-	switch {
-	case strings.Contains(text, "estimate"), strings.Contains(text, "effort"):
-		return []int{quickAddReviewEstimate}
-	case strings.Contains(text, "priority"):
-		return []int{quickAddReviewPriority}
-	case strings.Contains(text, "recurrence"), strings.Contains(text, "anchor"):
-		return []int{quickAddReviewRecurrence, quickAddReviewDue}
-	case strings.Contains(text, "date"), strings.Contains(text, "time"), strings.Contains(text, "due"):
-		return []int{quickAddReviewDue}
-	case strings.Contains(text, "description"):
-		return []int{quickAddReviewDescription}
-	default:
-		return nil
-	}
-}
-
-func reviewTaskValues(task domain.NewTask) []string {
-	estimate := ""
-	if task.Estimate != nil {
-		estimate = task.Estimate.InputValue()
-	}
-	return []string{
-		task.Description,
-		task.Due,
-		task.Recurrence,
-		estimate,
-		task.Priority,
-		task.Project,
-		task.Scheduled,
-		strings.Join(task.Tags, " "),
-	}
+	return quickadd.ValidateReview(q.Review, values, q.ReviewTouched, q.ReviewDecisions) == nil
 }
 
 func (q QuickAddModel) reviewValues() []string {
@@ -437,83 +215,11 @@ func (q QuickAddModel) reviewValues() []string {
 	return values
 }
 
-func applyReviewValues(task domain.NewTask, values []string) domain.NewTask {
-	task = cloneNewTask(task)
-	task.Description = strings.TrimSpace(values[quickAddReviewDescription])
-	task.Due = strings.TrimSpace(values[quickAddReviewDue])
-	task.Recurrence = strings.TrimSpace(values[quickAddReviewRecurrence])
-	task.Estimate = nil
-	if value := strings.TrimSpace(values[quickAddReviewEstimate]); value != "" {
-		if estimate, err := domain.ParseEstimate(value); err == nil {
-			task.Estimate = &estimate
-		}
-	}
-	task.Priority = normalizeReviewPriority(values[quickAddReviewPriority])
-	task.Project = strings.TrimSpace(values[quickAddReviewProject])
-	task.Scheduled = strings.TrimSpace(values[quickAddReviewScheduled])
-	task.Tags = splitReviewTags(values[quickAddReviewTags])
-	return task
-}
-
-func splitReviewTags(value string) []string {
-	fields := strings.Fields(value)
-	result := make([]string, 0, len(fields))
-	seen := make(map[string]struct{}, len(fields))
-	for _, field := range fields {
-		field = strings.TrimPrefix(strings.TrimSpace(field), "+")
-		if field == "" {
-			continue
-		}
-		if _, ok := seen[field]; ok {
-			continue
-		}
-		seen[field] = struct{}{}
-		result = append(result, field)
-	}
-	return result
-}
-
-func reviewAnchor(value string, now time.Time) (time.Time, bool) {
-	value = strings.TrimSpace(value)
-	if parsed, err := time.ParseInLocation("20060102T150405", value, now.Location()); err == nil {
-		return parsed, true
-	}
-	if parsed, err := domain.ParseTaskwarriorTime(value); err == nil {
-		return parsed.In(now.Location()), true
-	}
-	for _, candidate := range []string{"today", "tomorrow"} {
-		if strings.EqualFold(strings.TrimSpace(value), candidate) {
-			offset := 0
-			if candidate == "tomorrow" {
-				offset = 1
-			}
-			base := now.In(now.Location())
-			return time.Date(base.Year(), base.Month(), base.Day(), 0, 0, 0, 0, base.Location()).AddDate(0, 0, offset), true
-		}
-	}
-	return time.Time{}, false
-}
-
-func normalizeReviewPriority(value string) string {
-	switch strings.ToLower(strings.TrimSpace(value)) {
-	case "", "none":
-		return ""
-	case "h", "high":
-		return "H"
-	case "m", "medium":
-		return "M"
-	case "l", "low":
-		return "L"
-	default:
-		return strings.TrimSpace(value)
-	}
-}
-
 func (q QuickAddModel) reviewProvenance(index int) string {
 	var explicit, inferred bool
 	for _, candidate := range q.Review.Candidates {
 		matches := false
-		for _, field := range reviewFieldIndexes(candidate.Field) {
+		for _, field := range quickadd.ReviewFieldIndexes(candidate.Field) {
 			if field == index {
 				matches = true
 				break
@@ -611,7 +317,7 @@ func (q QuickAddModel) reviewDetailRows(width int) []FrameRow {
 		if reference.IsZero() {
 			reference = q.currentTime()
 		}
-		if anchor, ok := reviewAnchor(q.ReviewInputs[quickAddReviewDue].Value(), reference); ok {
+		if anchor, ok := quickadd.ReviewAnchor(q.ReviewInputs[quickAddReviewDue].Value(), reference); ok {
 			if next, ok := domain.RecurrenceNext(anchor, recurrence); ok {
 				appendWrapped("Next occurrence: "+next.Format("2006-01-02 15:04 MST"), ToneMuted)
 			}
@@ -626,7 +332,7 @@ func (q QuickAddModel) reviewDetailRows(width int) []FrameRow {
 		} else if candidate.Accepted {
 			status = "accepted"
 		}
-		for _, index := range reviewFieldIndexes(candidate.Field) {
+		for _, index := range quickadd.ReviewFieldIndexes(candidate.Field) {
 			if q.ReviewDecisions[index] {
 				status = "literal"
 				break
@@ -638,7 +344,7 @@ func (q QuickAddModel) reviewDetailRows(width int) []FrameRow {
 		}
 		tone := ToneMuted
 		resolved := false
-		for _, index := range reviewFieldIndexes(candidate.Field) {
+		for _, index := range quickadd.ReviewFieldIndexes(candidate.Field) {
 			if q.ReviewDecisions[index] {
 				resolved = true
 				break
