@@ -33,7 +33,13 @@ var schemaGraph = func() *sqlgraph.Schema {
 		Fields: map[string]*sqlgraph.FieldSpec{
 			deviceauthorization.FieldDeviceCodeHash: {Type: field.TypeBytes, Column: deviceauthorization.FieldDeviceCodeHash},
 			deviceauthorization.FieldUserCode:       {Type: field.TypeString, Column: deviceauthorization.FieldUserCode},
+			deviceauthorization.FieldStatus:         {Type: field.TypeEnum, Column: deviceauthorization.FieldStatus},
 			deviceauthorization.FieldUserID:         {Type: field.TypeUUID, Column: deviceauthorization.FieldUserID},
+			deviceauthorization.FieldProvider:       {Type: field.TypeString, Column: deviceauthorization.FieldProvider},
+			deviceauthorization.FieldStateHash:      {Type: field.TypeBytes, Column: deviceauthorization.FieldStateHash},
+			deviceauthorization.FieldCodeVerifier:   {Type: field.TypeString, Column: deviceauthorization.FieldCodeVerifier},
+			deviceauthorization.FieldNonce:          {Type: field.TypeString, Column: deviceauthorization.FieldNonce},
+			deviceauthorization.FieldLastPolledAt:   {Type: field.TypeTime, Column: deviceauthorization.FieldLastPolledAt},
 			deviceauthorization.FieldCreatedAt:      {Type: field.TypeTime, Column: deviceauthorization.FieldCreatedAt},
 			deviceauthorization.FieldExpiresAt:      {Type: field.TypeTime, Column: deviceauthorization.FieldExpiresAt},
 		},
@@ -345,9 +351,39 @@ func (f *DeviceAuthorizationFilter) WhereUserCode(p entql.StringP) {
 	f.Where(p.Field(deviceauthorization.FieldUserCode))
 }
 
+// WhereStatus applies the entql string predicate on the status field.
+func (f *DeviceAuthorizationFilter) WhereStatus(p entql.StringP) {
+	f.Where(p.Field(deviceauthorization.FieldStatus))
+}
+
 // WhereUserID applies the entql [16]byte predicate on the user_id field.
 func (f *DeviceAuthorizationFilter) WhereUserID(p entql.ValueP) {
 	f.Where(p.Field(deviceauthorization.FieldUserID))
+}
+
+// WhereProvider applies the entql string predicate on the provider field.
+func (f *DeviceAuthorizationFilter) WhereProvider(p entql.StringP) {
+	f.Where(p.Field(deviceauthorization.FieldProvider))
+}
+
+// WhereStateHash applies the entql []byte predicate on the state_hash field.
+func (f *DeviceAuthorizationFilter) WhereStateHash(p entql.BytesP) {
+	f.Where(p.Field(deviceauthorization.FieldStateHash))
+}
+
+// WhereCodeVerifier applies the entql string predicate on the code_verifier field.
+func (f *DeviceAuthorizationFilter) WhereCodeVerifier(p entql.StringP) {
+	f.Where(p.Field(deviceauthorization.FieldCodeVerifier))
+}
+
+// WhereNonce applies the entql string predicate on the nonce field.
+func (f *DeviceAuthorizationFilter) WhereNonce(p entql.StringP) {
+	f.Where(p.Field(deviceauthorization.FieldNonce))
+}
+
+// WhereLastPolledAt applies the entql time.Time predicate on the last_polled_at field.
+func (f *DeviceAuthorizationFilter) WhereLastPolledAt(p entql.TimeP) {
+	f.Where(p.Field(deviceauthorization.FieldLastPolledAt))
 }
 
 // WhereCreatedAt applies the entql time.Time predicate on the created_at field.
