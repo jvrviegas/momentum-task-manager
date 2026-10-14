@@ -158,6 +158,10 @@ Keep `secrets.rc` untracked, create it with mode `0600`, and transfer it through
 
 `momentum doctor` checks availability, export decoding, configuration, sync readiness, Estimate UDA readiness, terminal support, and writable state paths without mutating tasks or printing secret values. `--debug` writes redacted structured logs under the XDG state directory.
 
+## macOS app (preview)
+
+[`macos/`](./macos/README.md) contains a native SwiftUI frontend that shares this repository's Go code through `cmd/momentum-bridge`. It covers the Today, Inbox and Completed views, capture with correction review, editing, task actions, sync and undo; Plan Today and Settings come next.
+
 ## Development
 
 ```sh
