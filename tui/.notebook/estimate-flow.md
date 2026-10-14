@@ -1,7 +1,7 @@
 # Estimate Flow
 > Optional focused-effort estimate across domain, Taskwarrior, capture, edit, and presentation
 
-Entry: `internal/domain/estimate.go:ParseEstimate()` and `internal/quickadd/parser.go:Parse()`
+Entry: `../core/domain/estimate.go:ParseEstimate()` and `internal/quickadd/parser.go:Parse()`
 
 Domain: `domain.Estimate` stores positive whole minutes. User-created values are 1–1440 minutes; `ParseTaskwarriorEstimate()` accepts precise ISO days/hours/minutes/whole-minute seconds without treating calendar `M` as minutes. Unsupported external values remain in `Task.RawFields` with `EstimateWarning`.
 
