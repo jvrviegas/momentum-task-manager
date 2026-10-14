@@ -1,7 +1,7 @@
 # Implementation plan — Go backend replacing Taskwarrior
 
 **Created:** 2026-10-14  
-**Status:** P1–P4 and D1–D10 are approved (2026-10-14). T02–T05 are complete; the other tasks have not started.  
+**Status:** P1–P4 and D1–D10 are approved (2026-10-14). T02–T06 are complete; the other tasks have not started.  
 **Baseline:** `d9bce06` on `main`. Recheck HEAD and the working tree before starting.  
 **Decision record:** [ADR 0002 / P1–P4](../adr/0002-go-postgres-backend.md)
 
@@ -87,7 +87,7 @@ Approved by the user on 2026-10-14. D9 was revised from the recommendation; the 
 | [x] | T03 | Date resolution in `core` | T00 (D3), T02 | Table tests with an injected clock and zone, DST cases, comparison with Taskwarrior |
 | [x] | T04 | Urgency in `core` | T00 (D4), T02 | Matches Taskwarrior's exported urgency on fixture tasks |
 | [x] | T05 | API contract in `core/api` | T00 (D2), T02 | JSON round-trip tests for every type and the error format |
-| [ ] | T06 | Backend skeleton | T05 | Health check, config, shutdown, and log redaction tests; CI job |
+| [x] | T06 | Backend skeleton | T05 | Health check, config, shutdown, and log redaction tests; CI job |
 | [ ] | T07 | Schema, migrations, and store | T06, T00 (D9) | Migrations apply to an empty database and match the `ent` schema; privacy-rule and store tests on disposable PostgreSQL |
 | [ ] | T08 | Sign-in, sessions, and per-user access | T07, T01 | Device-flow, token-revocation, allowlist, and cross-user isolation tests |
 | [ ] | T09 | Task API | T03, T07, T08 | Handler and store tests per endpoint, including idempotent retries |
@@ -176,6 +176,13 @@ T02 does not depend on any decision and can start now.
 
 - `backend/cmd/momentum-server`: configuration from environment variables, `/healthz`, structured logs that never include task contents or tokens, graceful shutdown.
 - Container image and a CI job with a PostgreSQL service container.
+- Done 2026-10-14, with one departure. The health check is `GET /health`, not `/healthz`, because Cloud Run's known issues reserve "some paths ending with `z`" and recommend avoiding all of them.
+  - Config: `PORT` only, defaulting to 8080. Later tasks add their own variables.
+  - Logs: JSON with Cloud Logging's `severity` and `message` keys. Only allowlisted attribute keys keep their values (`addr`, `duration_ms`, `method`, `route`, `status`); every other value becomes `[redacted]`. Requests are logged by route pattern, and a panic is logged without its value.
+  - Errors: unknown routes answer with an `api.Error`. Each error code maps to one HTTP status in `httpapi`.
+  - Shutdown: SIGINT or SIGTERM stops accepting connections and gives requests in flight 8 seconds, inside Cloud Run's 10.
+  - Image: a static `CGO_ENABLED=0` binary on `distroless/static-debian12:nonroot`, built from the repository root because of `replace ../core`.
+  - CI: a `backend` job runs gofmt, tests, race tests, vet, and the image build next to a `postgres:17-alpine` service. T17 should match that major version to the Neon project's.
 
 ### T07 — Schema, migrations, and store
 
@@ -266,3 +273,4 @@ Not started.
 | 2026-10-14 | T03 | `b01b50f`, `b8f15f9`, `4d6dbb3` | The `core/domain` table tests use `task calc` output from Taskwarrior 3.5.0 at 2026-10-14 17:08:27 Europe/Lisbon as expected values. They also cover DST changes in Lisbon and Santiago (a skipped midnight, a repeated hour, and the spring and autumn changes), month, year, and ordinal edges, and every rejected form. `TestIntegrationResolveDateMatchesTaskwarrior` adds 84 expressions through the Taskwarrior adapter in an isolated profile, in Europe/Lisbon and in two POSIX-rule zones whose DST ends or starts three days after the run date. Every result equals `ResolveDate` except `next-week`, which equals Taskwarrior's seconds arithmetic as described in T03. Two deliberate breaks each failed it: removing that `next-week` allowance, and resolving today's weekday name to today. gofmt, tests, race tests, and vet pass in `core` and `tui`, and `cmd/momentum` builds with and without `go.work`. The comparison skips where `task` is not installed, as in CI. |
 | 2026-10-14 | T04 | `f4eba68`, `48cd185`, `2ab1f83` | `TestSetUrgencyMatchesTaskwarrior` has 48 fixtures, imported into an isolated Taskwarrior 3.5.0 profile with offsets from one second and exported in that second (2026-10-14 17:37:29 UTC). They cover every term, the 14-day and 7-day due limits, `scheduled` equal to now, blocking chains, blockers that are waiting, completed, or deleted, age limits, and six due dates where float64 sums or fused products change the sixth digit. `TestIntegrationSetUrgencyMatchesTaskwarrior` checks 35 fixtures live through `task import` and `task export`, at every second the export could have used. Deliberate breaks each failed a test: `scheduled` at or before now, no rounding, a fused or float64 product, float64 day counts, age rounded up, finished dependencies blocking, and waiting tasks not blocking. gofmt, tests, race tests, and vet pass in `core` and `tui`, and `cmd/momentum` builds with and without `go.work`. |
 | 2026-10-14 | T05 | `fe63472`–`a053780` (7 commits) | `core/api` tests encode every type to golden JSON and decode it back to an equal value: a fully populated and a minimal task, task list, create, modify (set, clear, set to empty, unchanged), projects, tags, project migration and its apply request, result, version, and errors with and without a field. `TestRoutesAreDistinctV1Patterns` registers every route in one ServeMux, which panics on a bad or conflicting pattern. Deliberate breaks each failed a test: dropping `omitzero`, decoding `null` as a set, and a wildcard other than `{uuid}`. gofmt, tests, race tests, and vet pass in `core` and `tui`. |
+| 2026-10-14 | T06 | `3d245fe`–`06bc383` (16 commits) | `backend/internal` tests cover the config (default, valid, invalid `PORT`), logging (Cloud Logging fields, `WARNING`, redaction of task text, a token, an email, an error, and a nested group), the handler (`/health`; 404 errors for `/healthz`, a wrong method, and unknown paths; a request log without path, query, `Authorization`, or body; a panic answering 500 without logging its value), and shutdown (finishes a request in flight while refusing new connections; gives up after the drain time). Deliberate breaks each failed a test: no allowlist, logging the URL, and `Close` instead of `Shutdown`. Logging a panic value under an unlisted key stayed hidden, because the allowlist redacted it. The image built locally (11.6 MB) and its container answered `/health`, logged a request with a token and query string without either, and exited 0 on SIGTERM. gofmt, tests, race tests, and vet pass in `core`, `tui`, and `backend`; `GOWORK=off` builds pass and `go mod tidy` leaves `backend/go.mod` unchanged. The CI job has not run on GitHub yet. |
