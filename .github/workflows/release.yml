@@ -3,14 +3,17 @@ name: Release
 on:
   push:
     tags:
-      - "v*"
+      - "tui/v*"
 
 permissions:
   contents: write
 
 jobs:
-  goreleaser:
+  tui:
     runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: tui
     steps:
       - uses: actions/checkout@v4
         with:
@@ -20,11 +23,30 @@ jobs:
           go-version-file: tui/go.mod
           cache-dependency-path: tui/go.sum
           cache: true
+      # GoReleaser OSS cannot parse prefixed tags such as tui/v1.2.3, so it
+      # builds from a local, unpushed v1.2.3 tag and gh publishes the release
+      # on the prefixed tag.
+      - name: Tag the version for GoReleaser
+        run: |
+          version_tag=${GITHUB_REF_NAME#tui/}
+          git tag "$version_tag"
+          echo "GORELEASER_CURRENT_TAG=$version_tag" >> "$GITHUB_ENV"
       - uses: goreleaser/goreleaser-action@v7
         with:
           distribution: goreleaser
           version: "~> v2"
-          args: release --clean
+          args: release --clean --skip=publish
           workdir: tui
+      - name: Publish the GitHub release
         env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          version=${GITHUB_REF_NAME#tui/v}
+          if ! gh release view "$GITHUB_REF_NAME" >/dev/null 2>&1; then
+            awk -v v="$version" '/^## \[/ { p = index($0, "[" v "]") > 0; next } p' CHANGELOG.md > "$RUNNER_TEMP/notes.md"
+            prerelease=
+            case $version in *-*) prerelease=--prerelease ;; esac
+            gh release create "$GITHUB_REF_NAME" --verify-tag --title "$GITHUB_REF_NAME" \
+              --notes-file "$RUNNER_TEMP/notes.md" $prerelease
+          fi
+          gh release upload "$GITHUB_REF_NAME" dist/*.tar.gz dist/checksums.txt --clobber
