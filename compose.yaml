@@ -1,18 +1,22 @@
-# Local development for the backend: a disposable PostgreSQL server and the
-# server image. Never point anything here at Neon. See backend/README.md.
+# Local development for the backend: a disposable PostgreSQL server, the
+# migrations, and the server. Never point anything here at Neon. See
+# backend/README.md for signing in locally.
 #
 #   docker compose up -d --build
 #   docker compose down        # removes the containers and their data
 name: momentum
 
 services:
-  # The store tests create a database each through "postgres"; migration-diff
-  # needs the empty "momentum_dev".
+  # The server uses "momentum". The store tests create a database each
+  # through "postgres", and migration-diff needs the empty "momentum_dev".
   postgres:
     image: postgres:17-alpine
     environment:
       POSTGRES_PASSWORD: postgres
       POSTGRES_DB: momentum_dev
+    configs:
+      - source: create-momentum-database
+        target: /docker-entrypoint-initdb.d/momentum.sql
     ports:
       - "127.0.0.1:5432:5432"
     healthcheck:
@@ -21,12 +25,37 @@ services:
       timeout: 5s
       retries: 15
 
-  # The server does not use the database yet; T09 adds DATABASE_URL.
-  server:
-    build:
+  migrate:
+    build: &server-image
       context: .
       dockerfile: backend/Dockerfile
+    command: ["migrate"]
+    environment:
+      DATABASE_URL: postgres://postgres:postgres@postgres:5432/momentum?sslmode=disable
+    depends_on:
+      postgres:
+        condition: service_healthy
+
+  # Sign-in reads ALLOWED_EMAILS and the provider credentials from your
+  # shell or an .env file next to this one.
+  server:
+    build: *server-image
     environment:
       PORT: "8080"
+      DATABASE_URL: postgres://postgres:postgres@postgres:5432/momentum?sslmode=disable
+      PUBLIC_URL: http://localhost:8080
+      ALLOWED_EMAILS: ${ALLOWED_EMAILS:-}
+      GOOGLE_CLIENT_ID: ${GOOGLE_CLIENT_ID:-}
+      GOOGLE_CLIENT_SECRET: ${GOOGLE_CLIENT_SECRET:-}
+      GITHUB_CLIENT_ID: ${GITHUB_CLIENT_ID:-}
+      GITHUB_CLIENT_SECRET: ${GITHUB_CLIENT_SECRET:-}
     ports:
       - "127.0.0.1:8080:8080"
+    depends_on:
+      migrate:
+        condition: service_completed_successfully
+
+configs:
+  create-momentum-database:
+    content: |
+      CREATE DATABASE momentum;
