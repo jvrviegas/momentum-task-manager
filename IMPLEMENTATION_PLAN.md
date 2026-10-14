@@ -721,7 +721,7 @@ The UI follows the "Momentum TUI redesign" canvas (foundations, glyph vocabulary
 - **Capture review moved to `internal/quickadd`.** The pure review rules (`ValidateReview`, `FinalizeReview`, review field order) moved out of `internal/ui/quickadd_review.go` unchanged so the bridge can use them; the TUI delegates to them.
 - **Edit validation** in the bridge mirrors `internal/ui/edit.go`'s submit rules on the same `domain` parsers.
 - **UI-only state stays in Swift.** The sync state machine (`internal/app/sync_state.go`), the search filter and literal-span shifting are ported to Swift with tests that mirror the Go ones; the app process owns them so unsynced state survives a bridge restart.
-- **Date times.** Taskwarrior 3.5 reads `due:2026-10-15 09:30` as midnight and drops the time without an error, while `2026-10-15T09:30` keeps it. The bridge rewrites the editor's `YYYY-MM-DD HH:MM` form to ISO before `modify` and reviewed `add`. The TUI editor still sends the space-separated form and is affected; fixing it in `internal/taskwarrior` would cover both frontends.
+- **Date times.** Taskwarrior 3.5 reads `due:2026-10-15 09:30` as midnight and drops the time without an error, while `2026-10-15T09:30` keeps it. `internal/taskwarrior` rewrites the editor's `YYYY-MM-DD HH:MM` form to ISO for due and scheduled on every `add` and `modify`, so the TUI and the bridge both keep the time.
 
 ## Completion Log
 
