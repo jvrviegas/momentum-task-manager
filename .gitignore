@@ -1,6 +1,6 @@
 # Build artifacts
-/bin/
-/momentum
+/tui/bin/
+/tui/momentum
 
 # Go coverage and profiles
 coverage.out
