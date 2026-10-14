@@ -113,12 +113,27 @@ func TestErrorJSON(t *testing.T) {
 	}
 }
 
+func TestAuthJSON(t *testing.T) {
+	roundTrip(t, DeviceSignIn{
+		DeviceCode: "device-code", UserCode: "BCDF-GHJK", VerificationURL: "https://momentum.example/device",
+		VerificationURLComplete: "https://momentum.example/device?code=BCDF-GHJK", ExpiresAt: at(9), IntervalSeconds: 5,
+	}, `{"deviceCode":"device-code","userCode":"BCDF-GHJK","verificationUrl":"https://momentum.example/device",`+
+		`"verificationUrlComplete":"https://momentum.example/device?code=BCDF-GHJK","expiresAt":"2026-10-14T09:30:00Z","intervalSeconds":5}`)
+	roundTrip(t, PollDeviceSignInRequest{DeviceCode: "device-code"}, `{"deviceCode":"device-code"}`)
+	roundTrip(t, Token{Token: "mtk_secret", ExpiresAt: at(9), Email: "alice@example.com"},
+		`{"token":"mtk_secret","expiresAt":"2026-10-14T09:30:00Z","email":"alice@example.com"}`)
+	roundTrip(t, Session{Email: "alice@example.com", ExpiresAt: at(9)}, `{"email":"alice@example.com","expiresAt":"2026-10-14T09:30:00Z"}`)
+	roundTrip(t, Error{Code: CodeAuthorizationPending, Message: "finish signing in in the browser"},
+		`{"code":"authorization_pending","message":"finish signing in in the browser"}`)
+}
+
 func TestRoutesAreDistinctV1Patterns(t *testing.T) {
 	mux := http.NewServeMux()
 	for _, route := range []string{
 		RouteVersion, RouteListTasks, RouteCreateTask, RouteModifyTask, RouteDeleteTask, RouteCompleteTask,
 		RouteStartTask, RouteStopTask, RouteStopRecurrence, RouteUndo, RouteListProjects, RouteListTags,
 		RoutePreviewProjectMigration, RouteApplyProjectMigration,
+		RouteStartDeviceSignIn, RoutePollDeviceSignIn, RouteSession, RouteSignOut,
 	} {
 		method, path, _ := strings.Cut(route, " ")
 		if method == "" || !strings.HasPrefix(path, "/v1/") {
