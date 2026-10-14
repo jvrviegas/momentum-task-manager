@@ -1,7 +1,7 @@
 # Implementation plan — Go backend replacing Taskwarrior
 
 **Created:** 2026-10-14  
-**Status:** P1–P4 and D1–D10 are approved (2026-10-14). T02 is complete; the other tasks have not started.  
+**Status:** P1–P4 and D1–D10 are approved (2026-10-14). T02 and T03 are complete; the other tasks have not started.  
 **Baseline:** `d9bce06` on `main`. Recheck HEAD and the working tree before starting.  
 **Decision record:** [ADR 0002 / P1–P4](../adr/0002-go-postgres-backend.md)
 
@@ -84,7 +84,7 @@ Approved by the user on 2026-10-14. D9 was revised from the recommendation; the 
 | [x] | T00 | Approve D1–D10 | — | All approved 2026-10-14; D9 revised to `ent` with Atlas |
 | [ ] | T01 | Feasibility spike: Neon, Cloud Run, sign-in | T00 | Evidence recorded below; spike code not merged |
 | [x] | T02 | Create `core/` and `go.work`; move `domain` | — | Every existing Go test passes unchanged; CI runs `core` and `tui` |
-| [ ] | T03 | Date resolution in `core` | T00 (D3), T02 | Table tests with an injected clock and zone, DST cases, comparison with Taskwarrior |
+| [x] | T03 | Date resolution in `core` | T00 (D3), T02 | Table tests with an injected clock and zone, DST cases, comparison with Taskwarrior |
 | [ ] | T04 | Urgency in `core` | T00 (D4), T02 | Matches Taskwarrior's exported urgency on fixture tasks |
 | [ ] | T05 | API contract in `core/api` | T00 (D2), T02 | JSON round-trip tests for every type and the error format |
 | [ ] | T06 | Backend skeleton | T05 | Health check, config, shutdown, and log redaction tests; CI job |
@@ -125,6 +125,27 @@ T02 does not depend on any decision and can start now.
 - Inventory every expression Momentum suggests, documents, or produces (edit suggestions, capture triggers, natural-language capture, `next-week`).
 - Resolve them to absolute instants with an injected clock and time zone; reject anything outside the list with a message the apps can show.
 - Compare each supported expression with Taskwarrior's result in an isolated profile, across a DST change.
+- Done 2026-10-14: `domain.ResolveDate(expression, now)` in `core/domain/dates.go`, where `now` carries both the clock and the zone. Nothing calls it yet; T13 wires it into the backend client.
+- Inventory of what Momentum suggests or sends:
+  - Capture suggestions (`quickadd/suggest.go`): `today`, `tomorrow`, the next seven weekday names, `next-week`, and the ISO date a week ahead.
+  - TUI edit form (`ui/edit.go`): `today`, `tomorrow`, `monday`–`friday`, `next-week`, today's ISO date. The field shows and steps `YYYY-MM-DD HH:MM`.
+  - macOS edit field (`EditTaskView.swift`): `today`, `tomorrow`, `monday`, `friday`, `next-week`, and the picker's `YYYY-MM-DD HH:MM`.
+  - Natural-language capture (`quickadd/interpret.go`) resolves its own phrases and sends local `YYYYMMDDTHHMMSS`. `^weekday` sends the weekday name, and a recurrence without a due date sends `today` (`quickadd/parser.go`).
+  - Stop-series sends `until:today` (`taskwarrior/mutations.go`). In backend mode the server sets it (T11), so the apps do not resolve it.
+- Supported, per D3 and the user's choices on 2026-10-14. Names ignore case.
+  - Momentum's forms: `today`, `tomorrow`, weekday names, `next-week` (Friday of the next Monday-to-Sunday week), `YYYY-MM-DD`, `YYYY-MM-DD HH:MM`, `YYYY-MM-DDTHH:MM[:SS]`, `YYYYMMDDTHHMMSS`, and the ISO forms with `Z` or an offset.
+  - Taskwarrior's documented named dates: `now`, `today`/`sod`, `eod`, `yesterday`, `tomorrow`, weekday and month names (or any prefix of three or more letters), `later`/`someday`, the start and end of the current, previous, and next week, month, quarter, and year (`sow`, `eopm`, `sonq`, …), the previous and next work week (`sopww`, `eonww`), and the ordinals `1st`–`31st`.
+- Rejected with a message:
+  - Holidays (`easter`, `goodfriday`, `eastermonday`, `ascension`, `pentecost`, `midsommar`, `midsommarafton`), by the user's choice. Taskwarrior 3.5's `midsommarafton` for 2027 is June 18, a week early.
+  - Prefixes of other names (`tom`, `yes`, `lat`, `some`), by the user's choice.
+  - Names that work in Taskwarrior 3.5 but are undocumented: `soww`, `eoww`, `sopd`, `eopd`, `sond`, `eond`, `juhannus`, and informal times such as `9am`.
+  - Arithmetic and durations (`eom-1d`, `3d`), epoch seconds, and ISO week or ordinal dates (`2026-W43`, `2026-293`).
+- Where the result differs from Taskwarrior 3.5:
+  - `next-week` stays on Friday midnight across a DST change. Taskwarrior adds the TUI's `sow+1w+4d` as seconds, so Taskwarrior mode lands on Thursday 23:00 or Friday 01:00 in those weeks. That Taskwarrior-mode bug is unchanged.
+  - An ordinal missing from its month is an error, as Taskwarrior's documentation says. For example, `31st` on 31 October, or `30th` in February. Taskwarrior 3.5 rolls it into the next month.
+  - A typed time that a DST change skips or repeats is rejected, by the user's choice. This matches capture review. Taskwarrior moves a skipped time forward and picks one occurrence of a repeated time.
+  - `Today` resolves; Taskwarrior accepts `Monday` but not `Today`.
+- Day boundaries: if a DST change skips midnight, the day starts at the change, as in Taskwarrior. If 23:59:59 happens twice, the end of day is the later one. A day that is skipped entirely (Pacific/Apia, 2011-12-30) is an error.
 
 ### T04 — Urgency
 
@@ -227,3 +248,4 @@ Not started.
 |---|---|---|---|
 | 2026-10-14 | T00 | — | D1–D10 approved in conversation; D9 revised from `pgx` + `sqlc` + `goose` to `ent` with Atlas. |
 | 2026-10-14 | T02 | `71db93a` | `git mv tui/internal/domain core/domain`; 78 files changed one import line each. `go test -count=1 -json` passed the same 754 tests and subtests before and after (Taskwarrior 3.5.0 integration tests included). gofmt, race tests, and vet are clean in `core` and `tui`; the four `cmd/momentum` cross-builds, the bridge build, and `GOWORK=off` builds pass; `go mod tidy` with `GOPROXY=off` leaves `go.mod` and `go.sum` unchanged. The CI matrix (`core`, `tui`) has not run on GitHub yet. |
+| 2026-10-14 | T03 | `b01b50f`, `b8f15f9`, `4d6dbb3` | The `core/domain` table tests use `task calc` output from Taskwarrior 3.5.0 at 2026-10-14 17:08:27 Europe/Lisbon as expected values. They also cover DST changes in Lisbon and Santiago (a skipped midnight, a repeated hour, and the spring and autumn changes), month, year, and ordinal edges, and every rejected form. `TestIntegrationResolveDateMatchesTaskwarrior` adds 84 expressions through the Taskwarrior adapter in an isolated profile, in Europe/Lisbon and in two POSIX-rule zones whose DST ends or starts three days after the run date. Every result equals `ResolveDate` except `next-week`, which equals Taskwarrior's seconds arithmetic as described in T03. Two deliberate breaks each failed it: removing that `next-week` allowance, and resolving today's weekday name to today. gofmt, tests, race tests, and vet pass in `core` and `tui`, and `cmd/momentum` builds with and without `go.work`. The comparison skips where `task` is not installed, as in CI. |
