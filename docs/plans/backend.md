@@ -1,7 +1,7 @@
 # Implementation plan — Go backend replacing Taskwarrior
 
 **Created:** 2026-10-14  
-**Status:** P1–P4 and D1–D10 are approved (2026-10-14). T02 and T03 are complete; the other tasks have not started.  
+**Status:** P1–P4 and D1–D10 are approved (2026-10-14). T02, T03, and T04 are complete; the other tasks have not started.  
 **Baseline:** `d9bce06` on `main`. Recheck HEAD and the working tree before starting.  
 **Decision record:** [ADR 0002 / P1–P4](../adr/0002-go-postgres-backend.md)
 
@@ -85,7 +85,7 @@ Approved by the user on 2026-10-14. D9 was revised from the recommendation; the 
 | [ ] | T01 | Feasibility spike: Neon, Cloud Run, sign-in | T00 | Evidence recorded below; spike code not merged |
 | [x] | T02 | Create `core/` and `go.work`; move `domain` | — | Every existing Go test passes unchanged; CI runs `core` and `tui` |
 | [x] | T03 | Date resolution in `core` | T00 (D3), T02 | Table tests with an injected clock and zone, DST cases, comparison with Taskwarrior |
-| [ ] | T04 | Urgency in `core` | T00 (D4), T02 | Matches Taskwarrior's exported urgency on fixture tasks |
+| [x] | T04 | Urgency in `core` | T00 (D4), T02 | Matches Taskwarrior's exported urgency on fixture tasks |
 | [ ] | T05 | API contract in `core/api` | T00 (D2), T02 | JSON round-trip tests for every type and the error format |
 | [ ] | T06 | Backend skeleton | T05 | Health check, config, shutdown, and log redaction tests; CI job |
 | [ ] | T07 | Schema, migrations, and store | T06, T00 (D9) | Migrations apply to an empty database and match the `ent` schema; privacy-rule and store tests on disposable PostgreSQL |
@@ -151,6 +151,11 @@ T02 does not depend on any decision and can start now.
 
 - Port Taskwarrior's default urgency coefficients and terms for the fields Momentum stores.
 - Build fixtures in an isolated Taskwarrior profile and assert equality with the exported `urgency` values.
+- Done 2026-10-14: `domain.SetUrgency(tasks, now)` in `core/domain/urgency.go`. Nothing calls it yet; T09 does.
+  - It uses Taskwarrior 3.5's default coefficients, as `task show urgency` lists them. User coefficients from a `.taskrc` do not apply in backend mode, so a user who changed them sees a different order there.
+  - Blocking: a dependency counts only when both tasks are in the list and neither is completed or deleted. T09 must pass every unfinished task, including waiting ones. `status:pending` hides waiting tasks, but Taskwarrior still counts them as blockers.
+  - Precision: the result is identical to the exported number. Taskwarrior adds float32 terms and prints six significant digits, so `SetUrgency` does the same. Tasks that tie in Taskwarrior mode tie in backend mode too, and the views break the tie the same way. On arm64, Go fuses a multiply into the following add unless the product is converted explicitly. That changed the sixth digit of one recorded value, so the code converts it.
+  - Not compared with Taskwarrior: a task without `entry` scores the full age term, as in Taskwarrior's source. Taskwarrior adds `entry` on import, so it cannot be compared.
 
 ### T05 — API contract
 
@@ -249,3 +254,4 @@ Not started.
 | 2026-10-14 | T00 | — | D1–D10 approved in conversation; D9 revised from `pgx` + `sqlc` + `goose` to `ent` with Atlas. |
 | 2026-10-14 | T02 | `71db93a` | `git mv tui/internal/domain core/domain`; 78 files changed one import line each. `go test -count=1 -json` passed the same 754 tests and subtests before and after (Taskwarrior 3.5.0 integration tests included). gofmt, race tests, and vet are clean in `core` and `tui`; the four `cmd/momentum` cross-builds, the bridge build, and `GOWORK=off` builds pass; `go mod tidy` with `GOPROXY=off` leaves `go.mod` and `go.sum` unchanged. The CI matrix (`core`, `tui`) has not run on GitHub yet. |
 | 2026-10-14 | T03 | `b01b50f`, `b8f15f9`, `4d6dbb3` | The `core/domain` table tests use `task calc` output from Taskwarrior 3.5.0 at 2026-10-14 17:08:27 Europe/Lisbon as expected values. They also cover DST changes in Lisbon and Santiago (a skipped midnight, a repeated hour, and the spring and autumn changes), month, year, and ordinal edges, and every rejected form. `TestIntegrationResolveDateMatchesTaskwarrior` adds 84 expressions through the Taskwarrior adapter in an isolated profile, in Europe/Lisbon and in two POSIX-rule zones whose DST ends or starts three days after the run date. Every result equals `ResolveDate` except `next-week`, which equals Taskwarrior's seconds arithmetic as described in T03. Two deliberate breaks each failed it: removing that `next-week` allowance, and resolving today's weekday name to today. gofmt, tests, race tests, and vet pass in `core` and `tui`, and `cmd/momentum` builds with and without `go.work`. The comparison skips where `task` is not installed, as in CI. |
+| 2026-10-14 | T04 | `f4eba68`, `48cd185`, `2ab1f83` | `TestSetUrgencyMatchesTaskwarrior` has 48 fixtures, imported into an isolated Taskwarrior 3.5.0 profile with offsets from one second and exported in that second (2026-10-14 17:37:29 UTC). They cover every term, the 14-day and 7-day due limits, `scheduled` equal to now, blocking chains, blockers that are waiting, completed, or deleted, age limits, and six due dates where float64 sums or fused products change the sixth digit. `TestIntegrationSetUrgencyMatchesTaskwarrior` checks 35 fixtures live through `task import` and `task export`, at every second the export could have used. Deliberate breaks each failed a test: `scheduled` at or before now, no rounding, a fused or float64 product, float64 day counts, age rounded up, finished dependencies blocking, and waiting tasks not blocking. gofmt, tests, race tests, and vet pass in `core` and `tui`, and `cmd/momentum` builds with and without `go.work`. |
