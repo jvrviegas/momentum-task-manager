@@ -43,4 +43,4 @@ Keep commits focused and explain any design departure in `tui/IMPLEMENTATION_PLA
 
 ## Release
 
-Releases are tag-driven and use GoReleaser. Do not create a GitHub repository, publish a release, or add a Homebrew tap without explicit approval. Release targets are Linux/macOS on AMD64/ARM64.
+TUI releases are tag-driven: pushing `tui/vX.Y.Z` builds with GoReleaser and publishes a GitHub release on that tag, with the version's `tui/CHANGELOG.md` section as notes. The `tui/` prefix lets Go resolve `go install …/tui/cmd/momentum@vX.Y.Z` and leaves room for macOS and backend releases. Do not create a GitHub repository, publish a release, or add a Homebrew tap without explicit approval. Release targets are Linux/macOS on AMD64/ARM64.
