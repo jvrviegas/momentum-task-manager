@@ -4,7 +4,7 @@
 
 Momentum is a monorepo. The root `go.work` joins its Go modules for local builds, and `tui/go.mod` points at `../core` with a `replace` directive.
 
-- `core/` — Go code shared by the apps and the planned backend (module `github.com/jvrviegas/momentum-task-manager/core`)
+- `core/` — Go code shared by the apps and the backend (module `github.com/jvrviegas/momentum-task-manager/core`)
   - `domain` — task decoding, view classification, sorting, and edit diffs
   - `api` — the backend's HTTP contract: routes, request and response types, and errors
 - `tui/` — the terminal app, and the Go code the macOS app shares (module `github.com/jvrviegas/momentum-task-manager/tui`)
@@ -17,7 +17,11 @@ Momentum is a monorepo. The root `go.work` joins its Go modules for local builds
   - `internal/diagnostics` — doctor checks and redacted logging
   - `internal/bridge`, `cmd/momentum-bridge` — JSON-lines service that exposes the packages above to the macOS app
 - `macos/` — native SwiftUI app (see [`macos/README.md`](./macos/README.md)); run `xcodebuild -scheme Momentum test` there when it changes
-- `backend/` — planned Go and PostgreSQL replacement for Taskwarrior; not started ([ADR 0002](./docs/adr/0002-go-postgres-backend.md), [plan](./docs/plans/backend.md))
+- `backend/` — Go and PostgreSQL replacement for Taskwarrior, in progress (module `github.com/jvrviegas/momentum-task-manager/backend`; [ADR 0002](./docs/adr/0002-go-postgres-backend.md), [plan](./docs/plans/backend.md), [README](./backend/README.md))
+  - `cmd/momentum-server` — configuration, listening, and graceful shutdown
+  - `internal/httpapi` — routes, JSON errors, and request logging
+  - `internal/logging` — JSON logs that redact every attribute outside an allowlist
+  - `internal/config` — environment variables
 - `docs/` — decisions and plans that span more than one folder
 
 ## Before a change
@@ -26,7 +30,7 @@ Read [`tui/DESIGN.md`](./tui/DESIGN.md) and the relevant implementation-plan tas
 
 ## Tests and safety
 
-Run in each Go module (`core/` and `tui/`):
+Run in each Go module (`core/`, `tui/`, and `backend/`):
 
 ```sh
 test -z "$(gofmt -l .)"
@@ -39,6 +43,12 @@ Then build from `tui/`:
 
 ```sh
 go build ./cmd/momentum
+```
+
+When `backend/` or `core/` changes, also build the server image from the repository root:
+
+```sh
+docker build -f backend/Dockerfile .
 ```
 
 Taskwarrior integration tests must use temporary `TASKRC` and `TASKDATA` values. They must not run in parallel and must retain the guard that rejects `~/.taskrc` and `~/.task`. Never use a real sync server or production task database in tests.
