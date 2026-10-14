@@ -34,6 +34,20 @@ func (_c *DeviceAuthorizationCreate) SetUserCode(v string) *DeviceAuthorizationC
 	return _c
 }
 
+// SetStatus sets the "status" field.
+func (_c *DeviceAuthorizationCreate) SetStatus(v deviceauthorization.Status) *DeviceAuthorizationCreate {
+	_c.mutation.SetStatus(v)
+	return _c
+}
+
+// SetNillableStatus sets the "status" field if the given value is not nil.
+func (_c *DeviceAuthorizationCreate) SetNillableStatus(v *deviceauthorization.Status) *DeviceAuthorizationCreate {
+	if v != nil {
+		_c.SetStatus(*v)
+	}
+	return _c
+}
+
 // SetUserID sets the "user_id" field.
 func (_c *DeviceAuthorizationCreate) SetUserID(v uuid.UUID) *DeviceAuthorizationCreate {
 	_c.mutation.SetUserID(v)
@@ -44,6 +58,68 @@ func (_c *DeviceAuthorizationCreate) SetUserID(v uuid.UUID) *DeviceAuthorization
 func (_c *DeviceAuthorizationCreate) SetNillableUserID(v *uuid.UUID) *DeviceAuthorizationCreate {
 	if v != nil {
 		_c.SetUserID(*v)
+	}
+	return _c
+}
+
+// SetProvider sets the "provider" field.
+func (_c *DeviceAuthorizationCreate) SetProvider(v string) *DeviceAuthorizationCreate {
+	_c.mutation.SetProvider(v)
+	return _c
+}
+
+// SetNillableProvider sets the "provider" field if the given value is not nil.
+func (_c *DeviceAuthorizationCreate) SetNillableProvider(v *string) *DeviceAuthorizationCreate {
+	if v != nil {
+		_c.SetProvider(*v)
+	}
+	return _c
+}
+
+// SetStateHash sets the "state_hash" field.
+func (_c *DeviceAuthorizationCreate) SetStateHash(v []byte) *DeviceAuthorizationCreate {
+	_c.mutation.SetStateHash(v)
+	return _c
+}
+
+// SetCodeVerifier sets the "code_verifier" field.
+func (_c *DeviceAuthorizationCreate) SetCodeVerifier(v string) *DeviceAuthorizationCreate {
+	_c.mutation.SetCodeVerifier(v)
+	return _c
+}
+
+// SetNillableCodeVerifier sets the "code_verifier" field if the given value is not nil.
+func (_c *DeviceAuthorizationCreate) SetNillableCodeVerifier(v *string) *DeviceAuthorizationCreate {
+	if v != nil {
+		_c.SetCodeVerifier(*v)
+	}
+	return _c
+}
+
+// SetNonce sets the "nonce" field.
+func (_c *DeviceAuthorizationCreate) SetNonce(v string) *DeviceAuthorizationCreate {
+	_c.mutation.SetNonce(v)
+	return _c
+}
+
+// SetNillableNonce sets the "nonce" field if the given value is not nil.
+func (_c *DeviceAuthorizationCreate) SetNillableNonce(v *string) *DeviceAuthorizationCreate {
+	if v != nil {
+		_c.SetNonce(*v)
+	}
+	return _c
+}
+
+// SetLastPolledAt sets the "last_polled_at" field.
+func (_c *DeviceAuthorizationCreate) SetLastPolledAt(v time.Time) *DeviceAuthorizationCreate {
+	_c.mutation.SetLastPolledAt(v)
+	return _c
+}
+
+// SetNillableLastPolledAt sets the "last_polled_at" field if the given value is not nil.
+func (_c *DeviceAuthorizationCreate) SetNillableLastPolledAt(v *time.Time) *DeviceAuthorizationCreate {
+	if v != nil {
+		_c.SetLastPolledAt(*v)
 	}
 	return _c
 }
@@ -108,6 +184,10 @@ func (_c *DeviceAuthorizationCreate) ExecX(ctx context.Context) {
 
 // defaults sets the default values of the builder before save.
 func (_c *DeviceAuthorizationCreate) defaults() {
+	if _, ok := _c.mutation.Status(); !ok {
+		v := deviceauthorization.DefaultStatus
+		_c.mutation.SetStatus(v)
+	}
 	if _, ok := _c.mutation.CreatedAt(); !ok {
 		v := deviceauthorization.DefaultCreatedAt()
 		_c.mutation.SetCreatedAt(v)
@@ -130,6 +210,14 @@ func (_c *DeviceAuthorizationCreate) check() error {
 	if v, ok := _c.mutation.UserCode(); ok {
 		if err := deviceauthorization.UserCodeValidator(v); err != nil {
 			return &ValidationError{Name: "user_code", err: fmt.Errorf(`ent: validator failed for field "DeviceAuthorization.user_code": %w`, err)}
+		}
+	}
+	if _, ok := _c.mutation.Status(); !ok {
+		return &ValidationError{Name: "status", err: errors.New(`ent: missing required field "DeviceAuthorization.status"`)}
+	}
+	if v, ok := _c.mutation.Status(); ok {
+		if err := deviceauthorization.StatusValidator(v); err != nil {
+			return &ValidationError{Name: "status", err: fmt.Errorf(`ent: validator failed for field "DeviceAuthorization.status": %w`, err)}
 		}
 	}
 	if _, ok := _c.mutation.CreatedAt(); !ok {
@@ -171,6 +259,30 @@ func (_c *DeviceAuthorizationCreate) createSpec() (*DeviceAuthorization, *sqlgra
 	if value, ok := _c.mutation.UserCode(); ok {
 		_spec.SetField(deviceauthorization.FieldUserCode, field.TypeString, value)
 		_node.UserCode = value
+	}
+	if value, ok := _c.mutation.Status(); ok {
+		_spec.SetField(deviceauthorization.FieldStatus, field.TypeEnum, value)
+		_node.Status = value
+	}
+	if value, ok := _c.mutation.Provider(); ok {
+		_spec.SetField(deviceauthorization.FieldProvider, field.TypeString, value)
+		_node.Provider = value
+	}
+	if value, ok := _c.mutation.StateHash(); ok {
+		_spec.SetField(deviceauthorization.FieldStateHash, field.TypeBytes, value)
+		_node.StateHash = &value
+	}
+	if value, ok := _c.mutation.CodeVerifier(); ok {
+		_spec.SetField(deviceauthorization.FieldCodeVerifier, field.TypeString, value)
+		_node.CodeVerifier = value
+	}
+	if value, ok := _c.mutation.Nonce(); ok {
+		_spec.SetField(deviceauthorization.FieldNonce, field.TypeString, value)
+		_node.Nonce = value
+	}
+	if value, ok := _c.mutation.LastPolledAt(); ok {
+		_spec.SetField(deviceauthorization.FieldLastPolledAt, field.TypeTime, value)
+		_node.LastPolledAt = &value
 	}
 	if value, ok := _c.mutation.CreatedAt(); ok {
 		_spec.SetField(deviceauthorization.FieldCreatedAt, field.TypeTime, value)
