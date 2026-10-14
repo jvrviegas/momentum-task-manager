@@ -12,11 +12,15 @@ jobs:
   verify:
     name: format, test, vet, build
     runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: tui
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-go@v5
         with:
-          go-version-file: go.mod
+          go-version-file: tui/go.mod
+          cache-dependency-path: tui/go.sum
           cache: true
       - name: Format
         run: test -z "$(gofmt -l .)"
