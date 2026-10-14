@@ -1,0 +1,55 @@
+name: Momentum
+options:
+  bundleIdPrefix: dev.jvrviegas
+  deploymentTarget:
+    macOS: "15.0"
+  createIntermediateGroups: true
+settings:
+  base:
+    SWIFT_VERSION: "6.0"
+    SWIFT_STRICT_CONCURRENCY: complete
+    MARKETING_VERSION: "0.1.0"
+    CURRENT_PROJECT_VERSION: "1"
+    CODE_SIGN_IDENTITY: "-"
+    CODE_SIGN_STYLE: Manual
+    ENABLE_HARDENED_RUNTIME: NO
+targets:
+  Momentum:
+    type: application
+    platform: macOS
+    sources: [Momentum]
+    settings:
+      base:
+        PRODUCT_NAME: Momentum
+        PRODUCT_BUNDLE_IDENTIFIER: dev.jvrviegas.momentum
+        GENERATE_INFOPLIST_FILE: YES
+        INFOPLIST_KEY_CFBundleDisplayName: Momentum
+        INFOPLIST_KEY_LSApplicationCategoryType: public.app-category.productivity
+        # The app runs `task` and lets Taskwarrior read ~/.taskrc and its data,
+        # so it is not sandboxed.
+        ENABLE_APP_SANDBOX: NO
+        # The bridge build reads the Go module outside the target's inputs.
+        ENABLE_USER_SCRIPT_SANDBOXING: NO
+    postCompileScripts:
+      - name: Build momentum-bridge
+        script: '"${SRCROOT}/scripts/build-bridge.sh"'
+        basedOnDependencyAnalysis: false
+  MomentumTests:
+    type: bundle.unit-test
+    platform: macOS
+    sources: [MomentumTests]
+    dependencies:
+      - target: Momentum
+    settings:
+      base:
+        GENERATE_INFOPLIST_FILE: YES
+        TEST_HOST: "$(BUILT_PRODUCTS_DIR)/Momentum.app/Contents/MacOS/Momentum"
+        BUNDLE_LOADER: "$(TEST_HOST)"
+schemes:
+  Momentum:
+    build:
+      targets:
+        Momentum: all
+        MomentumTests: [test]
+    test:
+      targets: [MomentumTests]
