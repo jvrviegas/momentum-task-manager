@@ -1,7 +1,7 @@
 # Implementation plan — Go backend replacing Taskwarrior
 
 **Created:** 2026-10-14  
-**Status:** P1–P4 and D1–D10 are approved (2026-10-14). T02, T03, and T04 are complete; the other tasks have not started.  
+**Status:** P1–P4 and D1–D10 are approved (2026-10-14). T02–T05 are complete; the other tasks have not started.  
 **Baseline:** `d9bce06` on `main`. Recheck HEAD and the working tree before starting.  
 **Decision record:** [ADR 0002 / P1–P4](../adr/0002-go-postgres-backend.md)
 
@@ -86,7 +86,7 @@ Approved by the user on 2026-10-14. D9 was revised from the recommendation; the 
 | [x] | T02 | Create `core/` and `go.work`; move `domain` | — | Every existing Go test passes unchanged; CI runs `core` and `tui` |
 | [x] | T03 | Date resolution in `core` | T00 (D3), T02 | Table tests with an injected clock and zone, DST cases, comparison with Taskwarrior |
 | [x] | T04 | Urgency in `core` | T00 (D4), T02 | Matches Taskwarrior's exported urgency on fixture tasks |
-| [ ] | T05 | API contract in `core/api` | T00 (D2), T02 | JSON round-trip tests for every type and the error format |
+| [x] | T05 | API contract in `core/api` | T00 (D2), T02 | JSON round-trip tests for every type and the error format |
 | [ ] | T06 | Backend skeleton | T05 | Health check, config, shutdown, and log redaction tests; CI job |
 | [ ] | T07 | Schema, migrations, and store | T06, T00 (D9) | Migrations apply to an empty database and match the `ent` schema; privacy-rule and store tests on disposable PostgreSQL |
 | [ ] | T08 | Sign-in, sessions, and per-user access | T07, T01 | Device-flow, token-revocation, allowlist, and cross-user isolation tests |
@@ -161,6 +161,16 @@ T02 does not depend on any decision and can start now.
 
 - Define request and response types for every operation in the interfaces above, a single error shape with field-level messages (matching the bridge's field errors), and `/v1` versioning.
 - Mutations carry a client-generated idempotency key so retries after a timeout are safe.
+- Done 2026-10-14: `core/api` has the routes as ServeMux patterns, the types, and the `Error` shape. Choices made here, which T09 and T12 implement:
+  - Routes: list tasks by `status` (`pending`, `recurring`, or `completed` with `ended_after`), create, `PATCH` to modify, `DELETE`, complete, start, stop, stop-recurrence, undo, projects, tags, version, and project-migration preview and apply.
+  - The same `status:pending` meaning as Taskwarrior: pending excludes tasks that are waiting.
+  - Modify works like a JSON merge patch: a field left out stays, `null` clears it, and a value sets it. `Change[T]` carries `domain.ChangeKind`. Tags are `add` and `remove` lists, as in `TaskDiff`, so a modify never replaces tags it did not touch.
+  - Every task mutation, and undo, answers with the task as it is afterwards.
+  - Idempotency uses the `Idempotency-Key` header, not a body field, so one middleware handles every mutation. A reused key with a different request is a conflict.
+  - Errors: the body is `{"code","message","field"}`. The codes are `invalid`, `unauthorized`, `not_found`, `conflict`, and `internal`. `field` is the request's JSON field name; the bridge maps `estimateMinutes` back to its `estimate` field.
+  - The task leaves out Taskwarrior's numeric `id`, `mask`, `imask`, and `rtype`; T16 keeps imported values in `extra`. Estimates are whole minutes.
+  - The project-migration preview returns the task mappings, not only counts. Apply sends them back, and the server refuses with `conflict`, changing nothing, if the mappings no longer match.
+  - Sign-in types are left to T08, because T01 can still change D1. `Sync`, `SyncConfigured`, `Context`, `EstimateUDAReadiness`, and `RecurrenceGeneration` have no routes; T13's client answers them locally.
 
 ### T06 — Backend skeleton
 
@@ -255,3 +265,4 @@ Not started.
 | 2026-10-14 | T02 | `71db93a` | `git mv tui/internal/domain core/domain`; 78 files changed one import line each. `go test -count=1 -json` passed the same 754 tests and subtests before and after (Taskwarrior 3.5.0 integration tests included). gofmt, race tests, and vet are clean in `core` and `tui`; the four `cmd/momentum` cross-builds, the bridge build, and `GOWORK=off` builds pass; `go mod tidy` with `GOPROXY=off` leaves `go.mod` and `go.sum` unchanged. The CI matrix (`core`, `tui`) has not run on GitHub yet. |
 | 2026-10-14 | T03 | `b01b50f`, `b8f15f9`, `4d6dbb3` | The `core/domain` table tests use `task calc` output from Taskwarrior 3.5.0 at 2026-10-14 17:08:27 Europe/Lisbon as expected values. They also cover DST changes in Lisbon and Santiago (a skipped midnight, a repeated hour, and the spring and autumn changes), month, year, and ordinal edges, and every rejected form. `TestIntegrationResolveDateMatchesTaskwarrior` adds 84 expressions through the Taskwarrior adapter in an isolated profile, in Europe/Lisbon and in two POSIX-rule zones whose DST ends or starts three days after the run date. Every result equals `ResolveDate` except `next-week`, which equals Taskwarrior's seconds arithmetic as described in T03. Two deliberate breaks each failed it: removing that `next-week` allowance, and resolving today's weekday name to today. gofmt, tests, race tests, and vet pass in `core` and `tui`, and `cmd/momentum` builds with and without `go.work`. The comparison skips where `task` is not installed, as in CI. |
 | 2026-10-14 | T04 | `f4eba68`, `48cd185`, `2ab1f83` | `TestSetUrgencyMatchesTaskwarrior` has 48 fixtures, imported into an isolated Taskwarrior 3.5.0 profile with offsets from one second and exported in that second (2026-10-14 17:37:29 UTC). They cover every term, the 14-day and 7-day due limits, `scheduled` equal to now, blocking chains, blockers that are waiting, completed, or deleted, age limits, and six due dates where float64 sums or fused products change the sixth digit. `TestIntegrationSetUrgencyMatchesTaskwarrior` checks 35 fixtures live through `task import` and `task export`, at every second the export could have used. Deliberate breaks each failed a test: `scheduled` at or before now, no rounding, a fused or float64 product, float64 day counts, age rounded up, finished dependencies blocking, and waiting tasks not blocking. gofmt, tests, race tests, and vet pass in `core` and `tui`, and `cmd/momentum` builds with and without `go.work`. |
+| 2026-10-14 | T05 | `fe63472`–`a053780` (7 commits) | `core/api` tests encode every type to golden JSON and decode it back to an equal value: a fully populated and a minimal task, task list, create, modify (set, clear, set to empty, unchanged), projects, tags, project migration and its apply request, result, version, and errors with and without a field. `TestRoutesAreDistinctV1Patterns` registers every route in one ServeMux, which panics on a bad or conflicting pattern. Deliberate breaks each failed a test: dropping `omitzero`, decoding `null` as a set, and a wildcard other than `{uuid}`. gofmt, tests, race tests, and vet pass in `core` and `tui`. |
