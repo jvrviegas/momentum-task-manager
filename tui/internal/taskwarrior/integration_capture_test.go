@@ -5,7 +5,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/jvrviegas/momentum-task-manager/tui/internal/domain"
+	"github.com/jvrviegas/momentum-task-manager/core/domain"
 )
 
 func TestIntegrationAbsoluteCaptureDateRoundTripsLocalInstant(t *testing.T) {

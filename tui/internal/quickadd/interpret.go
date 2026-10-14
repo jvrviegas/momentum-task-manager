@@ -8,7 +8,7 @@ import (
 	"time"
 	"unicode"
 
-	"github.com/jvrviegas/momentum-task-manager/tui/internal/domain"
+	"github.com/jvrviegas/momentum-task-manager/core/domain"
 )
 
 // CandidateProvenance explains why one draft field has a value.

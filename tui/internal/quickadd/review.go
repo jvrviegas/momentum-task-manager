@@ -5,7 +5,7 @@ import (
 	"strings"
 	"time"
 
-	"github.com/jvrviegas/momentum-task-manager/tui/internal/domain"
+	"github.com/jvrviegas/momentum-task-manager/core/domain"
 )
 
 // Correction-review field indexes, in review form order. Every frontend

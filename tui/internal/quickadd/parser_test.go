@@ -5,7 +5,7 @@ import (
 	"reflect"
 	"testing"
 
-	"github.com/jvrviegas/momentum-task-manager/tui/internal/domain"
+	"github.com/jvrviegas/momentum-task-manager/core/domain"
 )
 
 func TestParseAllMetadataTriggers(t *testing.T) {

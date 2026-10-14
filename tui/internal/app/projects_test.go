@@ -5,8 +5,8 @@ import (
 	"reflect"
 	"testing"
 
+	"github.com/jvrviegas/momentum-task-manager/core/domain"
 	"github.com/jvrviegas/momentum-task-manager/tui/internal/config"
-	"github.com/jvrviegas/momentum-task-manager/tui/internal/domain"
 )
 
 func TestConfiguredProjectsAvailableBeforeDiscoveryAndSurviveRefresh(t *testing.T) {

@@ -7,7 +7,7 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/jvrviegas/momentum-task-manager/tui/internal/domain"
+	"github.com/jvrviegas/momentum-task-manager/core/domain"
 )
 
 const migrationExportFixture = `[{"uuid":"one","description":"One","status":"pending","project":"work"},{"uuid":"two","description":"Two","status":"pending","project":"work.client"}]`

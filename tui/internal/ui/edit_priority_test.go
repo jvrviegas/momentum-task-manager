@@ -3,7 +3,7 @@ package ui
 import (
 	"testing"
 
-	"github.com/jvrviegas/momentum-task-manager/tui/internal/domain"
+	"github.com/jvrviegas/momentum-task-manager/core/domain"
 )
 
 func TestPriorityNoneClearsTheTaskPriority(t *testing.T) {

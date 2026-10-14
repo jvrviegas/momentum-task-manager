@@ -8,6 +8,7 @@ require (
 	charm.land/lipgloss/v2 v2.0.6
 	github.com/BurntSushi/toml v1.6.0
 	github.com/charmbracelet/x/ansi v0.11.8
+	github.com/jvrviegas/momentum-task-manager/core v0.0.0-00010101000000-000000000000
 	github.com/smm-h/go-toml-edit v0.4.3
 )
 
@@ -28,3 +29,5 @@ require (
 	golang.org/x/sync v0.22.0 // indirect
 	golang.org/x/sys v0.47.0 // indirect
 )
+
+replace github.com/jvrviegas/momentum-task-manager/core => ../core

@@ -9,7 +9,7 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/jvrviegas/momentum-task-manager/tui/internal/domain"
+	"github.com/jvrviegas/momentum-task-manager/core/domain"
 )
 
 func TestThemeStoreAddsRootKeyWithoutTouchingTablesOrComments(t *testing.T) {

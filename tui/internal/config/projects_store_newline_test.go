@@ -5,7 +5,7 @@ import (
 	"os"
 	"testing"
 
-	"github.com/jvrviegas/momentum-task-manager/tui/internal/domain"
+	"github.com/jvrviegas/momentum-task-manager/core/domain"
 )
 
 func TestProjectCatalogStorePreservesCRLFForNewArrayTables(t *testing.T) {

@@ -6,7 +6,7 @@ import (
 	"time"
 	"unicode"
 
-	"github.com/jvrviegas/momentum-task-manager/tui/internal/domain"
+	"github.com/jvrviegas/momentum-task-manager/core/domain"
 )
 
 // SuggestionKind identifies the source field for a completion.
