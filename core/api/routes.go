@@ -1,0 +1,43 @@
+package api
+
+// Routes are net/http ServeMux patterns. A change that breaks existing clients
+// gets a new version prefix instead of changing these. Each task mutation,
+// and RouteUndo, answers with the Task as it is afterwards.
+const (
+	RouteVersion                 = "GET /v1/version"
+	RouteListTasks               = "GET /v1/tasks"
+	RouteCreateTask              = "POST /v1/tasks"
+	RouteModifyTask              = "PATCH /v1/tasks/{uuid}"
+	RouteDeleteTask              = "DELETE /v1/tasks/{uuid}"
+	RouteCompleteTask            = "POST /v1/tasks/{uuid}/complete"
+	RouteStartTask               = "POST /v1/tasks/{uuid}/start"
+	RouteStopTask                = "POST /v1/tasks/{uuid}/stop"
+	RouteStopRecurrence          = "POST /v1/tasks/{uuid}/stop-recurrence"
+	RouteUndo                    = "POST /v1/undo"
+	RouteListProjects            = "GET /v1/projects"
+	RouteListTags                = "GET /v1/tags"
+	RoutePreviewProjectMigration = "POST /v1/project-migrations/preview"
+	RouteApplyProjectMigration   = "POST /v1/project-migrations/apply"
+)
+
+// PathUUID is the wildcard in the task routes.
+const PathUUID = "uuid"
+
+// Query parameters of RouteListTasks. QueryStatus is StatusPending,
+// StatusRecurring, or StatusCompleted. Pending excludes tasks whose wait date
+// is in the future, as Taskwarrior's status:pending does. Completed needs
+// QueryEndedAfter, an RFC 3339 instant.
+const (
+	QueryStatus     = "status"
+	QueryEndedAfter = "ended_after"
+)
+
+// IdempotencyKeyHeader carries a key the client generates once per mutation
+// and repeats on each retry of it. The server applies a key once and answers
+// a retry with the first response.
+const IdempotencyKeyHeader = "Idempotency-Key"
+
+// Version answers RouteVersion.
+type Version struct {
+	Server string `json:"server"`
+}
