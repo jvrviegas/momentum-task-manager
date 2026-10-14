@@ -41,7 +41,8 @@ macOS app ──▶ bridge (Go) ───┘
 go.work          joins core, tui, backend
 core/            module …/core: domain (moved from tui/internal/domain), api (wire types and client)
 tui/             TUI and bridge; the Taskwarrior adapter stays until T19
-backend/         module …/backend: cmd/momentum-server, internal/{httpapi,auth,store,recur}, migrations/
+backend/         module …/backend: cmd/{momentum-server,migration-diff}, internal/{config,httpapi,logging,store}, migrations/;
+                 internal/auth (T08) and internal/recur (T11) to come
 macos/           unchanged apart from sign-in
 ```
 
@@ -102,7 +103,7 @@ Approved by the user on 2026-10-14. D9 was revised from the recommendation; the 
 | [ ] | T18 | Parity check with both storage modes | T14, T15, T16, T17 | DESIGN requirement checklist per mode; gaps recorded |
 | [ ] | T19 | Cutover and Taskwarrior removal | T18 | Backend is the default; Taskwarrior adapter, sync docs, and TaskChampion retirement each approved separately |
 
-T02 does not depend on any decision and can start now.
+Next: T01 needs the user's go-ahead and access to Neon, a Google Cloud project, and the Google and GitHub OAuth apps. T08 and every task after it wait on T01, directly or through T08.
 
 ## Task details
 
