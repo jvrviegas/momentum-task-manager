@@ -48,6 +48,12 @@ type DeviceAuthorizationMutation struct {
 	id               *int
 	device_code_hash *[]byte
 	user_code        *string
+	status           *deviceauthorization.Status
+	provider         *string
+	state_hash       *[]byte
+	code_verifier    *string
+	nonce            *string
+	last_polled_at   *time.Time
 	created_at       *time.Time
 	expires_at       *time.Time
 	clearedFields    map[string]struct{}
@@ -228,6 +234,42 @@ func (m *DeviceAuthorizationMutation) ResetUserCode() {
 	m.user_code = nil
 }
 
+// SetStatus sets the "status" field.
+func (m *DeviceAuthorizationMutation) SetStatus(d deviceauthorization.Status) {
+	m.status = &d
+}
+
+// Status returns the value of the "status" field in the mutation.
+func (m *DeviceAuthorizationMutation) Status() (r deviceauthorization.Status, exists bool) {
+	v := m.status
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldStatus returns the old "status" field's value of the DeviceAuthorization entity.
+// If the DeviceAuthorization object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *DeviceAuthorizationMutation) OldStatus(ctx context.Context) (v deviceauthorization.Status, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldStatus is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldStatus requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldStatus: %w", err)
+	}
+	return oldValue.Status, nil
+}
+
+// ResetStatus resets all changes to the "status" field.
+func (m *DeviceAuthorizationMutation) ResetStatus() {
+	m.status = nil
+}
+
 // SetUserID sets the "user_id" field.
 func (m *DeviceAuthorizationMutation) SetUserID(u uuid.UUID) {
 	m.user = &u
@@ -275,6 +317,251 @@ func (m *DeviceAuthorizationMutation) UserIDCleared() bool {
 func (m *DeviceAuthorizationMutation) ResetUserID() {
 	m.user = nil
 	delete(m.clearedFields, deviceauthorization.FieldUserID)
+}
+
+// SetProvider sets the "provider" field.
+func (m *DeviceAuthorizationMutation) SetProvider(s string) {
+	m.provider = &s
+}
+
+// Provider returns the value of the "provider" field in the mutation.
+func (m *DeviceAuthorizationMutation) Provider() (r string, exists bool) {
+	v := m.provider
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldProvider returns the old "provider" field's value of the DeviceAuthorization entity.
+// If the DeviceAuthorization object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *DeviceAuthorizationMutation) OldProvider(ctx context.Context) (v string, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldProvider is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldProvider requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldProvider: %w", err)
+	}
+	return oldValue.Provider, nil
+}
+
+// ClearProvider clears the value of the "provider" field.
+func (m *DeviceAuthorizationMutation) ClearProvider() {
+	m.provider = nil
+	m.clearedFields[deviceauthorization.FieldProvider] = struct{}{}
+}
+
+// ProviderCleared returns if the "provider" field was cleared in this mutation.
+func (m *DeviceAuthorizationMutation) ProviderCleared() bool {
+	_, ok := m.clearedFields[deviceauthorization.FieldProvider]
+	return ok
+}
+
+// ResetProvider resets all changes to the "provider" field.
+func (m *DeviceAuthorizationMutation) ResetProvider() {
+	m.provider = nil
+	delete(m.clearedFields, deviceauthorization.FieldProvider)
+}
+
+// SetStateHash sets the "state_hash" field.
+func (m *DeviceAuthorizationMutation) SetStateHash(b []byte) {
+	m.state_hash = &b
+}
+
+// StateHash returns the value of the "state_hash" field in the mutation.
+func (m *DeviceAuthorizationMutation) StateHash() (r []byte, exists bool) {
+	v := m.state_hash
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldStateHash returns the old "state_hash" field's value of the DeviceAuthorization entity.
+// If the DeviceAuthorization object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *DeviceAuthorizationMutation) OldStateHash(ctx context.Context) (v *[]byte, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldStateHash is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldStateHash requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldStateHash: %w", err)
+	}
+	return oldValue.StateHash, nil
+}
+
+// ClearStateHash clears the value of the "state_hash" field.
+func (m *DeviceAuthorizationMutation) ClearStateHash() {
+	m.state_hash = nil
+	m.clearedFields[deviceauthorization.FieldStateHash] = struct{}{}
+}
+
+// StateHashCleared returns if the "state_hash" field was cleared in this mutation.
+func (m *DeviceAuthorizationMutation) StateHashCleared() bool {
+	_, ok := m.clearedFields[deviceauthorization.FieldStateHash]
+	return ok
+}
+
+// ResetStateHash resets all changes to the "state_hash" field.
+func (m *DeviceAuthorizationMutation) ResetStateHash() {
+	m.state_hash = nil
+	delete(m.clearedFields, deviceauthorization.FieldStateHash)
+}
+
+// SetCodeVerifier sets the "code_verifier" field.
+func (m *DeviceAuthorizationMutation) SetCodeVerifier(s string) {
+	m.code_verifier = &s
+}
+
+// CodeVerifier returns the value of the "code_verifier" field in the mutation.
+func (m *DeviceAuthorizationMutation) CodeVerifier() (r string, exists bool) {
+	v := m.code_verifier
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldCodeVerifier returns the old "code_verifier" field's value of the DeviceAuthorization entity.
+// If the DeviceAuthorization object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *DeviceAuthorizationMutation) OldCodeVerifier(ctx context.Context) (v string, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldCodeVerifier is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldCodeVerifier requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldCodeVerifier: %w", err)
+	}
+	return oldValue.CodeVerifier, nil
+}
+
+// ClearCodeVerifier clears the value of the "code_verifier" field.
+func (m *DeviceAuthorizationMutation) ClearCodeVerifier() {
+	m.code_verifier = nil
+	m.clearedFields[deviceauthorization.FieldCodeVerifier] = struct{}{}
+}
+
+// CodeVerifierCleared returns if the "code_verifier" field was cleared in this mutation.
+func (m *DeviceAuthorizationMutation) CodeVerifierCleared() bool {
+	_, ok := m.clearedFields[deviceauthorization.FieldCodeVerifier]
+	return ok
+}
+
+// ResetCodeVerifier resets all changes to the "code_verifier" field.
+func (m *DeviceAuthorizationMutation) ResetCodeVerifier() {
+	m.code_verifier = nil
+	delete(m.clearedFields, deviceauthorization.FieldCodeVerifier)
+}
+
+// SetNonce sets the "nonce" field.
+func (m *DeviceAuthorizationMutation) SetNonce(s string) {
+	m.nonce = &s
+}
+
+// Nonce returns the value of the "nonce" field in the mutation.
+func (m *DeviceAuthorizationMutation) Nonce() (r string, exists bool) {
+	v := m.nonce
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldNonce returns the old "nonce" field's value of the DeviceAuthorization entity.
+// If the DeviceAuthorization object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *DeviceAuthorizationMutation) OldNonce(ctx context.Context) (v string, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldNonce is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldNonce requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldNonce: %w", err)
+	}
+	return oldValue.Nonce, nil
+}
+
+// ClearNonce clears the value of the "nonce" field.
+func (m *DeviceAuthorizationMutation) ClearNonce() {
+	m.nonce = nil
+	m.clearedFields[deviceauthorization.FieldNonce] = struct{}{}
+}
+
+// NonceCleared returns if the "nonce" field was cleared in this mutation.
+func (m *DeviceAuthorizationMutation) NonceCleared() bool {
+	_, ok := m.clearedFields[deviceauthorization.FieldNonce]
+	return ok
+}
+
+// ResetNonce resets all changes to the "nonce" field.
+func (m *DeviceAuthorizationMutation) ResetNonce() {
+	m.nonce = nil
+	delete(m.clearedFields, deviceauthorization.FieldNonce)
+}
+
+// SetLastPolledAt sets the "last_polled_at" field.
+func (m *DeviceAuthorizationMutation) SetLastPolledAt(t time.Time) {
+	m.last_polled_at = &t
+}
+
+// LastPolledAt returns the value of the "last_polled_at" field in the mutation.
+func (m *DeviceAuthorizationMutation) LastPolledAt() (r time.Time, exists bool) {
+	v := m.last_polled_at
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldLastPolledAt returns the old "last_polled_at" field's value of the DeviceAuthorization entity.
+// If the DeviceAuthorization object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *DeviceAuthorizationMutation) OldLastPolledAt(ctx context.Context) (v *time.Time, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldLastPolledAt is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldLastPolledAt requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldLastPolledAt: %w", err)
+	}
+	return oldValue.LastPolledAt, nil
+}
+
+// ClearLastPolledAt clears the value of the "last_polled_at" field.
+func (m *DeviceAuthorizationMutation) ClearLastPolledAt() {
+	m.last_polled_at = nil
+	m.clearedFields[deviceauthorization.FieldLastPolledAt] = struct{}{}
+}
+
+// LastPolledAtCleared returns if the "last_polled_at" field was cleared in this mutation.
+func (m *DeviceAuthorizationMutation) LastPolledAtCleared() bool {
+	_, ok := m.clearedFields[deviceauthorization.FieldLastPolledAt]
+	return ok
+}
+
+// ResetLastPolledAt resets all changes to the "last_polled_at" field.
+func (m *DeviceAuthorizationMutation) ResetLastPolledAt() {
+	m.last_polled_at = nil
+	delete(m.clearedFields, deviceauthorization.FieldLastPolledAt)
 }
 
 // SetCreatedAt sets the "created_at" field.
@@ -410,15 +697,33 @@ func (m *DeviceAuthorizationMutation) Type() string {
 // order to get all numeric fields that were incremented/decremented, call
 // AddedFields().
 func (m *DeviceAuthorizationMutation) Fields() []string {
-	fields := make([]string, 0, 5)
+	fields := make([]string, 0, 11)
 	if m.device_code_hash != nil {
 		fields = append(fields, deviceauthorization.FieldDeviceCodeHash)
 	}
 	if m.user_code != nil {
 		fields = append(fields, deviceauthorization.FieldUserCode)
 	}
+	if m.status != nil {
+		fields = append(fields, deviceauthorization.FieldStatus)
+	}
 	if m.user != nil {
 		fields = append(fields, deviceauthorization.FieldUserID)
+	}
+	if m.provider != nil {
+		fields = append(fields, deviceauthorization.FieldProvider)
+	}
+	if m.state_hash != nil {
+		fields = append(fields, deviceauthorization.FieldStateHash)
+	}
+	if m.code_verifier != nil {
+		fields = append(fields, deviceauthorization.FieldCodeVerifier)
+	}
+	if m.nonce != nil {
+		fields = append(fields, deviceauthorization.FieldNonce)
+	}
+	if m.last_polled_at != nil {
+		fields = append(fields, deviceauthorization.FieldLastPolledAt)
 	}
 	if m.created_at != nil {
 		fields = append(fields, deviceauthorization.FieldCreatedAt)
@@ -438,8 +743,20 @@ func (m *DeviceAuthorizationMutation) Field(name string) (ent.Value, bool) {
 		return m.DeviceCodeHash()
 	case deviceauthorization.FieldUserCode:
 		return m.UserCode()
+	case deviceauthorization.FieldStatus:
+		return m.Status()
 	case deviceauthorization.FieldUserID:
 		return m.UserID()
+	case deviceauthorization.FieldProvider:
+		return m.Provider()
+	case deviceauthorization.FieldStateHash:
+		return m.StateHash()
+	case deviceauthorization.FieldCodeVerifier:
+		return m.CodeVerifier()
+	case deviceauthorization.FieldNonce:
+		return m.Nonce()
+	case deviceauthorization.FieldLastPolledAt:
+		return m.LastPolledAt()
 	case deviceauthorization.FieldCreatedAt:
 		return m.CreatedAt()
 	case deviceauthorization.FieldExpiresAt:
@@ -457,8 +774,20 @@ func (m *DeviceAuthorizationMutation) OldField(ctx context.Context, name string)
 		return m.OldDeviceCodeHash(ctx)
 	case deviceauthorization.FieldUserCode:
 		return m.OldUserCode(ctx)
+	case deviceauthorization.FieldStatus:
+		return m.OldStatus(ctx)
 	case deviceauthorization.FieldUserID:
 		return m.OldUserID(ctx)
+	case deviceauthorization.FieldProvider:
+		return m.OldProvider(ctx)
+	case deviceauthorization.FieldStateHash:
+		return m.OldStateHash(ctx)
+	case deviceauthorization.FieldCodeVerifier:
+		return m.OldCodeVerifier(ctx)
+	case deviceauthorization.FieldNonce:
+		return m.OldNonce(ctx)
+	case deviceauthorization.FieldLastPolledAt:
+		return m.OldLastPolledAt(ctx)
 	case deviceauthorization.FieldCreatedAt:
 		return m.OldCreatedAt(ctx)
 	case deviceauthorization.FieldExpiresAt:
@@ -486,12 +815,54 @@ func (m *DeviceAuthorizationMutation) SetField(name string, value ent.Value) err
 		}
 		m.SetUserCode(v)
 		return nil
+	case deviceauthorization.FieldStatus:
+		v, ok := value.(deviceauthorization.Status)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetStatus(v)
+		return nil
 	case deviceauthorization.FieldUserID:
 		v, ok := value.(uuid.UUID)
 		if !ok {
 			return fmt.Errorf("unexpected type %T for field %s", value, name)
 		}
 		m.SetUserID(v)
+		return nil
+	case deviceauthorization.FieldProvider:
+		v, ok := value.(string)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetProvider(v)
+		return nil
+	case deviceauthorization.FieldStateHash:
+		v, ok := value.([]byte)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetStateHash(v)
+		return nil
+	case deviceauthorization.FieldCodeVerifier:
+		v, ok := value.(string)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetCodeVerifier(v)
+		return nil
+	case deviceauthorization.FieldNonce:
+		v, ok := value.(string)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetNonce(v)
+		return nil
+	case deviceauthorization.FieldLastPolledAt:
+		v, ok := value.(time.Time)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetLastPolledAt(v)
 		return nil
 	case deviceauthorization.FieldCreatedAt:
 		v, ok := value.(time.Time)
@@ -540,6 +911,21 @@ func (m *DeviceAuthorizationMutation) ClearedFields() []string {
 	if m.FieldCleared(deviceauthorization.FieldUserID) {
 		fields = append(fields, deviceauthorization.FieldUserID)
 	}
+	if m.FieldCleared(deviceauthorization.FieldProvider) {
+		fields = append(fields, deviceauthorization.FieldProvider)
+	}
+	if m.FieldCleared(deviceauthorization.FieldStateHash) {
+		fields = append(fields, deviceauthorization.FieldStateHash)
+	}
+	if m.FieldCleared(deviceauthorization.FieldCodeVerifier) {
+		fields = append(fields, deviceauthorization.FieldCodeVerifier)
+	}
+	if m.FieldCleared(deviceauthorization.FieldNonce) {
+		fields = append(fields, deviceauthorization.FieldNonce)
+	}
+	if m.FieldCleared(deviceauthorization.FieldLastPolledAt) {
+		fields = append(fields, deviceauthorization.FieldLastPolledAt)
+	}
 	return fields
 }
 
@@ -557,6 +943,21 @@ func (m *DeviceAuthorizationMutation) ClearField(name string) error {
 	case deviceauthorization.FieldUserID:
 		m.ClearUserID()
 		return nil
+	case deviceauthorization.FieldProvider:
+		m.ClearProvider()
+		return nil
+	case deviceauthorization.FieldStateHash:
+		m.ClearStateHash()
+		return nil
+	case deviceauthorization.FieldCodeVerifier:
+		m.ClearCodeVerifier()
+		return nil
+	case deviceauthorization.FieldNonce:
+		m.ClearNonce()
+		return nil
+	case deviceauthorization.FieldLastPolledAt:
+		m.ClearLastPolledAt()
+		return nil
 	}
 	return fmt.Errorf("unknown DeviceAuthorization nullable field %s", name)
 }
@@ -571,8 +972,26 @@ func (m *DeviceAuthorizationMutation) ResetField(name string) error {
 	case deviceauthorization.FieldUserCode:
 		m.ResetUserCode()
 		return nil
+	case deviceauthorization.FieldStatus:
+		m.ResetStatus()
+		return nil
 	case deviceauthorization.FieldUserID:
 		m.ResetUserID()
+		return nil
+	case deviceauthorization.FieldProvider:
+		m.ResetProvider()
+		return nil
+	case deviceauthorization.FieldStateHash:
+		m.ResetStateHash()
+		return nil
+	case deviceauthorization.FieldCodeVerifier:
+		m.ResetCodeVerifier()
+		return nil
+	case deviceauthorization.FieldNonce:
+		m.ResetNonce()
+		return nil
+	case deviceauthorization.FieldLastPolledAt:
+		m.ResetLastPolledAt()
 		return nil
 	case deviceauthorization.FieldCreatedAt:
 		m.ResetCreatedAt()
