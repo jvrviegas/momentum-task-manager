@@ -265,7 +265,7 @@ func TestModifySendsOnlyChangedFieldsAndReportsFieldErrors(t *testing.T) {
 		t.Fatalf("modified = %v", client.modified)
 	}
 	diff := client.modified[0]
-	if diff.Priority.Value != "H" || diff.Estimate.Kind != domain.Clear || diff.Description.Kind != domain.Unchanged || diff.Due.Value != "2026-10-15T09:30" {
+	if diff.Priority.Value != "H" || diff.Estimate.Kind != domain.Clear || diff.Description.Kind != domain.Unchanged || diff.Due.Value != "2026-10-15 09:30" {
 		t.Fatalf("diff = %+v", diff)
 	}
 	if strings.Join(diff.Tags.Add, ",") != "c" || strings.Join(diff.Tags.Remove, ",") != "a" {
