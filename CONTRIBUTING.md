@@ -53,7 +53,7 @@ When `backend/` or `core/` changes, also build the server image from the reposit
 docker build -f backend/Dockerfile .
 ```
 
-Backend store tests run only against a local PostgreSQL server named by `MOMENTUM_TEST_DATABASE_URL` (see [`backend/README.md`](./backend/README.md)); each test uses a database of its own. Never point them, or `cmd/migration-diff`, at Neon. After changing `backend/internal/store/ent/schema`, run `go generate ./...` in `backend/` and commit the generated code with a reviewed migration.
+Backend store tests run only against a local PostgreSQL server named by `MOMENTUM_TEST_DATABASE_URL`; `docker compose up -d --wait postgres` starts one from [`compose.yaml`](./compose.yaml) (see [`backend/README.md`](./backend/README.md)), and each test uses a database of its own. Never point them, or `cmd/migration-diff`, at Neon. After changing `backend/internal/store/ent/schema`, run `go generate ./...` in `backend/` and commit the generated code with a reviewed migration.
 
 Taskwarrior integration tests must use temporary `TASKRC` and `TASKDATA` values. They must not run in parallel and must retain the guard that rejects `~/.taskrc` and `~/.task`. Never use a real sync server or production task database in tests.
 
