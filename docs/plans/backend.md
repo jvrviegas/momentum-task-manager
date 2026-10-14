@@ -1,7 +1,7 @@
 # Implementation plan — Go backend replacing Taskwarrior
 
 **Created:** 2026-10-14  
-**Status:** Planning complete. P1–P4 and D1–D10 are approved (2026-10-14). No implementation has started.  
+**Status:** P1–P4 and D1–D10 are approved (2026-10-14). T02 is complete; the other tasks have not started.  
 **Baseline:** `d9bce06` on `main`. Recheck HEAD and the working tree before starting.  
 **Decision record:** [ADR 0002 / P1–P4](../adr/0002-go-postgres-backend.md)
 
@@ -83,7 +83,7 @@ Approved by the user on 2026-10-14. D9 was revised from the recommendation; the 
 |---|---|---|---|---|
 | [x] | T00 | Approve D1–D10 | — | All approved 2026-10-14; D9 revised to `ent` with Atlas |
 | [ ] | T01 | Feasibility spike: Neon, Cloud Run, sign-in | T00 | Evidence recorded below; spike code not merged |
-| [ ] | T02 | Create `core/` and `go.work`; move `domain` | — | Every existing Go test passes unchanged; CI runs `core` and `tui` |
+| [x] | T02 | Create `core/` and `go.work`; move `domain` | — | Every existing Go test passes unchanged; CI runs `core` and `tui` |
 | [ ] | T03 | Date resolution in `core` | T00 (D3), T02 | Table tests with an injected clock and zone, DST cases, comparison with Taskwarrior |
 | [ ] | T04 | Urgency in `core` | T00 (D4), T02 | Matches Taskwarrior's exported urgency on fixture tasks |
 | [ ] | T05 | API contract in `core/api` | T00 (D2), T02 | JSON round-trip tests for every type and the error format |
@@ -118,6 +118,7 @@ T02 does not depend on any decision and can start now.
 - Create `core/` as module `github.com/jvrviegas/momentum-task-manager/core` and a root `go.work` with `core`, `tui`, and later `backend`.
 - Move `tui/internal/domain` to `core/domain` with `git mv`, then rewrite its imports. No behavior change.
 - Update CI to run the gates for every module, and update `CONTRIBUTING.md` and `macos/scripts/build-bridge.sh` if paths change.
+- Done 2026-10-14: `tui/go.mod` requires `core` through `replace … => ../core`, because `go mod tidy` ignores `go.work` and `core` is unpublished. `go install …@version` rejects a `replace`, so the first TUI release that includes `core/` must publish `core` or change the install instructions (see `CONTRIBUTING.md`, Release). `build-bridge.sh` needed no change; it builds from `tui/`, where the replace applies.
 
 ### T03 — Date resolution
 
@@ -225,3 +226,4 @@ Not started.
 | Date | Task | Commit | Evidence |
 |---|---|---|---|
 | 2026-10-14 | T00 | — | D1–D10 approved in conversation; D9 revised from `pgx` + `sqlc` + `goose` to `ent` with Atlas. |
+| 2026-10-14 | T02 | `71db93a` | `git mv tui/internal/domain core/domain`; 78 files changed one import line each. `go test -count=1 -json` passed the same 754 tests and subtests before and after (Taskwarrior 3.5.0 integration tests included). gofmt, race tests, and vet are clean in `core` and `tui`; the four `cmd/momentum` cross-builds, the bridge build, and `GOWORK=off` builds pass; `go mod tidy` with `GOPROXY=off` leaves `go.mod` and `go.sum` unchanged. The CI matrix (`core`, `tui`) has not run on GitHub yet. |
