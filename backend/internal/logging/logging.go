@@ -21,6 +21,7 @@ func New(w io.Writer) *slog.Logger {
 var allowed = map[string]bool{
 	"addr":        true,
 	"duration_ms": true,
+	"error_type":  true,
 	"method":      true,
 	"route":       true,
 	"status":      true,
