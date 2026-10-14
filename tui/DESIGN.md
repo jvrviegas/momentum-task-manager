@@ -374,7 +374,7 @@ internal/app/          Root Bubble Tea model, update loop, orchestration
 internal/ui/           Components, styles, responsive rendering
 internal/taskwarrior/  Process adapter, JSON decoding, mutations, sync
 internal/config/       TOML loading, XDG paths, defaults, validation
-internal/domain/       Task, view, grouping, sorting, edit-diff models
+../core/domain/        Task, view, grouping, sorting, edit-diff models (shared core module)
 internal/quickadd/     Trigger parser and autocomplete context
 internal/diagnostics/  Doctor checks and debug logging
 internal/calendar/     Read-only local ICS parsing and busy-interval merging
