@@ -1,5 +1,8 @@
 // Command momentum-server is Momentum's backend (ADR 0002). It reads its
 // configuration from environment variables and stops on SIGINT or SIGTERM.
+//
+//	momentum-server            serve
+//	momentum-server migrate    apply pending database migrations and exit
 package main
 
 import (
@@ -13,9 +16,11 @@ import (
 	"syscall"
 	"time"
 
+	"github.com/jvrviegas/momentum-task-manager/backend/internal/auth"
 	"github.com/jvrviegas/momentum-task-manager/backend/internal/config"
 	"github.com/jvrviegas/momentum-task-manager/backend/internal/httpapi"
 	"github.com/jvrviegas/momentum-task-manager/backend/internal/logging"
+	"github.com/jvrviegas/momentum-task-manager/backend/internal/store"
 )
 
 // drain leaves a margin inside the ten seconds Cloud Run waits between
@@ -23,13 +28,16 @@ import (
 const drain = 8 * time.Second
 
 func main() {
-	if err := run(); err != nil {
+	if err := run(os.Args[1:]); err != nil {
 		fmt.Fprintln(os.Stderr, "momentum-server:", err)
 		os.Exit(1)
 	}
 }
 
-func run() error {
+func run(args []string) error {
+	if len(args) > 1 || (len(args) == 1 && args[0] != "migrate") {
+		return fmt.Errorf("usage: momentum-server [migrate]")
+	}
 	settings, err := config.Load(os.Getenv)
 	if err != nil {
 		return err
@@ -37,14 +45,58 @@ func run() error {
 	logger := logging.New(os.Stdout)
 	ctx, stop := signal.NotifyContext(context.Background(), os.Interrupt, syscall.SIGTERM)
 	defer stop()
+	db, err := store.Open(settings.DatabaseURL)
+	if err != nil {
+		return err
+	}
+	defer db.Close()
+	if len(args) == 1 {
+		if err := store.Migrate(ctx, db); err != nil {
+			return err
+		}
+		logger.Info("migrated")
+		return nil
+	}
+
+	providers, err := signInProviders(ctx, settings)
+	if err != nil {
+		return err
+	}
+	if len(providers) == 0 {
+		logger.Warn("no sign-in provider is configured; nobody can sign in")
+	}
+	if len(settings.AllowedEmails) == 0 {
+		logger.Warn("ALLOWED_EMAILS is empty; nobody can sign in")
+	}
+	signIn := auth.New(store.NewClient(db), auth.Config{
+		PublicURL: settings.PublicURL, AllowedEmails: settings.AllowedEmails, Providers: providers,
+	})
 	listener, err := net.Listen("tcp", ":"+strconv.Itoa(settings.Port))
 	if err != nil {
 		return err
 	}
 	logger.Info("listening", slog.String("addr", listener.Addr().String()))
-	if err := httpapi.Serve(ctx, listener, httpapi.New(logger), drain); err != nil {
+	if err := httpapi.Serve(ctx, listener, httpapi.New(logger, signIn), drain); err != nil {
 		return err
 	}
 	logger.Info("stopped")
 	return nil
+}
+
+// signInProviders returns the providers the configuration has credentials
+// for, each calling back to PUBLIC_URL/auth/callback/<name>.
+func signInProviders(ctx context.Context, settings config.Config) ([]auth.Provider, error) {
+	callback := settings.PublicURL + "/auth/callback/"
+	var providers []auth.Provider
+	if settings.Google.Configured() {
+		google, err := auth.NewGoogle(ctx, auth.GoogleIssuer, settings.Google.ID, settings.Google.Secret, callback+auth.GoogleName)
+		if err != nil {
+			return nil, err
+		}
+		providers = append(providers, google)
+	}
+	if settings.GitHub.Configured() {
+		providers = append(providers, auth.NewGitHub(auth.GitHubDotCom, settings.GitHub.ID, settings.GitHub.Secret, callback+auth.GitHubName))
+	}
+	return providers, nil
 }
