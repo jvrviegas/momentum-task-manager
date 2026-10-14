@@ -23,8 +23,20 @@ type DeviceAuthorization struct {
 	DeviceCodeHash []byte `json:"-"`
 	// UserCode holds the value of the "user_code" field.
 	UserCode string `json:"user_code,omitempty"`
+	// Status holds the value of the "status" field.
+	Status deviceauthorization.Status `json:"status,omitempty"`
 	// UserID holds the value of the "user_id" field.
 	UserID *uuid.UUID `json:"user_id,omitempty"`
+	// Provider holds the value of the "provider" field.
+	Provider string `json:"provider,omitempty"`
+	// StateHash holds the value of the "state_hash" field.
+	StateHash *[]byte `json:"-"`
+	// CodeVerifier holds the value of the "code_verifier" field.
+	CodeVerifier string `json:"-"`
+	// Nonce holds the value of the "nonce" field.
+	Nonce string `json:"-"`
+	// LastPolledAt holds the value of the "last_polled_at" field.
+	LastPolledAt *time.Time `json:"last_polled_at,omitempty"`
 	// CreatedAt holds the value of the "created_at" field.
 	CreatedAt time.Time `json:"created_at,omitempty"`
 	// ExpiresAt holds the value of the "expires_at" field.
@@ -62,13 +74,13 @@ func (*DeviceAuthorization) scanValues(columns []string) ([]any, error) {
 		switch columns[i] {
 		case deviceauthorization.FieldUserID:
 			values[i] = &sql.NullScanner{S: new(uuid.UUID)}
-		case deviceauthorization.FieldDeviceCodeHash:
+		case deviceauthorization.FieldDeviceCodeHash, deviceauthorization.FieldStateHash:
 			values[i] = new([]byte)
 		case deviceauthorization.FieldID:
 			values[i] = new(sql.NullInt64)
-		case deviceauthorization.FieldUserCode:
+		case deviceauthorization.FieldUserCode, deviceauthorization.FieldStatus, deviceauthorization.FieldProvider, deviceauthorization.FieldCodeVerifier, deviceauthorization.FieldNonce:
 			values[i] = new(sql.NullString)
-		case deviceauthorization.FieldCreatedAt, deviceauthorization.FieldExpiresAt:
+		case deviceauthorization.FieldLastPolledAt, deviceauthorization.FieldCreatedAt, deviceauthorization.FieldExpiresAt:
 			values[i] = new(sql.NullTime)
 		default:
 			values[i] = new(sql.UnknownType)
@@ -103,12 +115,49 @@ func (_m *DeviceAuthorization) assignValues(columns []string, values []any) erro
 			} else if value.Valid {
 				_m.UserCode = value.String
 			}
+		case deviceauthorization.FieldStatus:
+			if value, ok := values[i].(*sql.NullString); !ok {
+				return fmt.Errorf("unexpected type %T for field status", values[i])
+			} else if value.Valid {
+				_m.Status = deviceauthorization.Status(value.String)
+			}
 		case deviceauthorization.FieldUserID:
 			if value, ok := values[i].(*sql.NullScanner); !ok {
 				return fmt.Errorf("unexpected type %T for field user_id", values[i])
 			} else if value.Valid {
 				_m.UserID = new(uuid.UUID)
 				*_m.UserID = *value.S.(*uuid.UUID)
+			}
+		case deviceauthorization.FieldProvider:
+			if value, ok := values[i].(*sql.NullString); !ok {
+				return fmt.Errorf("unexpected type %T for field provider", values[i])
+			} else if value.Valid {
+				_m.Provider = value.String
+			}
+		case deviceauthorization.FieldStateHash:
+			if value, ok := values[i].(*[]byte); !ok {
+				return fmt.Errorf("unexpected type %T for field state_hash", values[i])
+			} else if value != nil {
+				_m.StateHash = value
+			}
+		case deviceauthorization.FieldCodeVerifier:
+			if value, ok := values[i].(*sql.NullString); !ok {
+				return fmt.Errorf("unexpected type %T for field code_verifier", values[i])
+			} else if value.Valid {
+				_m.CodeVerifier = value.String
+			}
+		case deviceauthorization.FieldNonce:
+			if value, ok := values[i].(*sql.NullString); !ok {
+				return fmt.Errorf("unexpected type %T for field nonce", values[i])
+			} else if value.Valid {
+				_m.Nonce = value.String
+			}
+		case deviceauthorization.FieldLastPolledAt:
+			if value, ok := values[i].(*sql.NullTime); !ok {
+				return fmt.Errorf("unexpected type %T for field last_polled_at", values[i])
+			} else if value.Valid {
+				_m.LastPolledAt = new(time.Time)
+				*_m.LastPolledAt = value.Time
 			}
 		case deviceauthorization.FieldCreatedAt:
 			if value, ok := values[i].(*sql.NullTime); !ok {
@@ -168,9 +217,26 @@ func (_m *DeviceAuthorization) String() string {
 	builder.WriteString("user_code=")
 	builder.WriteString(_m.UserCode)
 	builder.WriteString(", ")
+	builder.WriteString("status=")
+	builder.WriteString(fmt.Sprintf("%v", _m.Status))
+	builder.WriteString(", ")
 	if v := _m.UserID; v != nil {
 		builder.WriteString("user_id=")
 		builder.WriteString(fmt.Sprintf("%v", *v))
+	}
+	builder.WriteString(", ")
+	builder.WriteString("provider=")
+	builder.WriteString(_m.Provider)
+	builder.WriteString(", ")
+	builder.WriteString("state_hash=<sensitive>")
+	builder.WriteString(", ")
+	builder.WriteString("code_verifier=<sensitive>")
+	builder.WriteString(", ")
+	builder.WriteString("nonce=<sensitive>")
+	builder.WriteString(", ")
+	if v := _m.LastPolledAt; v != nil {
+		builder.WriteString("last_polled_at=")
+		builder.WriteString(v.Format(time.ANSIC))
 	}
 	builder.WriteString(", ")
 	builder.WriteString("created_at=")
