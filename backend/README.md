@@ -6,10 +6,15 @@ See [ADR 0002](../docs/adr/0002-go-postgres-backend.md) for the decision and the
 
 ## Run
 
+[`compose.yaml`](../compose.yaml) at the repository root starts a disposable PostgreSQL server and the server image:
+
 ```sh
-go run ./cmd/momentum-server
+docker compose up -d --build   # from the repository root
 curl localhost:8080/health
+docker compose down            # removes the containers and their data
 ```
+
+PostgreSQL listens on `localhost:5432` (user and password `postgres`) with an empty `momentum_dev` database for `migration-diff`. The server does not use the database yet; T09 connects it. To run the server from source instead, stop the `server` service and run `go run ./cmd/momentum-server` here.
 
 | Variable | Meaning |
 |---|---|
@@ -39,7 +44,7 @@ Task reads and writes go through privacy rules: they need a signed-in user in th
 The store tests need a local PostgreSQL server. Each test creates its own database there and drops it afterwards. The tests refuse any host that is not this machine, and skip when the variable is unset:
 
 ```sh
-docker run -d --name momentum-pg -e POSTGRES_PASSWORD=postgres -p 127.0.0.1:5432:5432 postgres:17-alpine
+docker compose up -d --wait postgres   # from the repository root
 MOMENTUM_TEST_DATABASE_URL=postgres://postgres:postgres@localhost:5432/postgres?sslmode=disable go test ./...
 ```
 
