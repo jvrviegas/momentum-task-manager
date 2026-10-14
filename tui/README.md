@@ -13,10 +13,10 @@ Momentum is a keyboard-first terminal frontend for [Taskwarrior 3.x](https://tas
 Install the latest published command:
 
 ```sh
-go install github.com/jvrviegas/momentum-task-manager/cmd/momentum@latest
+go install github.com/jvrviegas/momentum-task-manager/tui/cmd/momentum@latest
 ```
 
-Or build locally:
+Or build locally from `tui/`:
 
 ```sh
 go build -o momentum ./cmd/momentum
@@ -160,7 +160,7 @@ Keep `secrets.rc` untracked, create it with mode `0600`, and transfer it through
 
 ## macOS app (preview)
 
-[`macos/`](./macos/README.md) contains a native SwiftUI frontend that shares this repository's Go code through `cmd/momentum-bridge`. It covers the Today, Inbox and Completed views, capture with correction review, editing, task actions, sync and undo; Plan Today and Settings come next.
+[`macos/`](../macos/README.md) contains a native SwiftUI frontend that shares this repository's Go code through `cmd/momentum-bridge`. It covers the Today, Inbox and Completed views, capture with correction review, editing, task actions, sync and undo; Plan Today and Settings come next.
 
 ## Development
 
@@ -171,4 +171,4 @@ go vet ./...
 go build ./cmd/momentum
 ```
 
-See [`CONTRIBUTING.md`](./CONTRIBUTING.md) for isolation and release rules.
+See [`CONTRIBUTING.md`](../CONTRIBUTING.md) for isolation and release rules.
