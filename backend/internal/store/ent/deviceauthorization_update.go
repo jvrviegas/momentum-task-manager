@@ -6,6 +6,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"time"
 
 	"entgo.io/ent/dialect/sql"
 	"entgo.io/ent/dialect/sql/sqlgraph"
@@ -29,6 +30,20 @@ func (_u *DeviceAuthorizationUpdate) Where(ps ...predicate.DeviceAuthorization) 
 	return _u
 }
 
+// SetStatus sets the "status" field.
+func (_u *DeviceAuthorizationUpdate) SetStatus(v deviceauthorization.Status) *DeviceAuthorizationUpdate {
+	_u.mutation.SetStatus(v)
+	return _u
+}
+
+// SetNillableStatus sets the "status" field if the given value is not nil.
+func (_u *DeviceAuthorizationUpdate) SetNillableStatus(v *deviceauthorization.Status) *DeviceAuthorizationUpdate {
+	if v != nil {
+		_u.SetStatus(*v)
+	}
+	return _u
+}
+
 // SetUserID sets the "user_id" field.
 func (_u *DeviceAuthorizationUpdate) SetUserID(v uuid.UUID) *DeviceAuthorizationUpdate {
 	_u.mutation.SetUserID(v)
@@ -46,6 +61,98 @@ func (_u *DeviceAuthorizationUpdate) SetNillableUserID(v *uuid.UUID) *DeviceAuth
 // ClearUserID clears the value of the "user_id" field.
 func (_u *DeviceAuthorizationUpdate) ClearUserID() *DeviceAuthorizationUpdate {
 	_u.mutation.ClearUserID()
+	return _u
+}
+
+// SetProvider sets the "provider" field.
+func (_u *DeviceAuthorizationUpdate) SetProvider(v string) *DeviceAuthorizationUpdate {
+	_u.mutation.SetProvider(v)
+	return _u
+}
+
+// SetNillableProvider sets the "provider" field if the given value is not nil.
+func (_u *DeviceAuthorizationUpdate) SetNillableProvider(v *string) *DeviceAuthorizationUpdate {
+	if v != nil {
+		_u.SetProvider(*v)
+	}
+	return _u
+}
+
+// ClearProvider clears the value of the "provider" field.
+func (_u *DeviceAuthorizationUpdate) ClearProvider() *DeviceAuthorizationUpdate {
+	_u.mutation.ClearProvider()
+	return _u
+}
+
+// SetStateHash sets the "state_hash" field.
+func (_u *DeviceAuthorizationUpdate) SetStateHash(v []byte) *DeviceAuthorizationUpdate {
+	_u.mutation.SetStateHash(v)
+	return _u
+}
+
+// ClearStateHash clears the value of the "state_hash" field.
+func (_u *DeviceAuthorizationUpdate) ClearStateHash() *DeviceAuthorizationUpdate {
+	_u.mutation.ClearStateHash()
+	return _u
+}
+
+// SetCodeVerifier sets the "code_verifier" field.
+func (_u *DeviceAuthorizationUpdate) SetCodeVerifier(v string) *DeviceAuthorizationUpdate {
+	_u.mutation.SetCodeVerifier(v)
+	return _u
+}
+
+// SetNillableCodeVerifier sets the "code_verifier" field if the given value is not nil.
+func (_u *DeviceAuthorizationUpdate) SetNillableCodeVerifier(v *string) *DeviceAuthorizationUpdate {
+	if v != nil {
+		_u.SetCodeVerifier(*v)
+	}
+	return _u
+}
+
+// ClearCodeVerifier clears the value of the "code_verifier" field.
+func (_u *DeviceAuthorizationUpdate) ClearCodeVerifier() *DeviceAuthorizationUpdate {
+	_u.mutation.ClearCodeVerifier()
+	return _u
+}
+
+// SetNonce sets the "nonce" field.
+func (_u *DeviceAuthorizationUpdate) SetNonce(v string) *DeviceAuthorizationUpdate {
+	_u.mutation.SetNonce(v)
+	return _u
+}
+
+// SetNillableNonce sets the "nonce" field if the given value is not nil.
+func (_u *DeviceAuthorizationUpdate) SetNillableNonce(v *string) *DeviceAuthorizationUpdate {
+	if v != nil {
+		_u.SetNonce(*v)
+	}
+	return _u
+}
+
+// ClearNonce clears the value of the "nonce" field.
+func (_u *DeviceAuthorizationUpdate) ClearNonce() *DeviceAuthorizationUpdate {
+	_u.mutation.ClearNonce()
+	return _u
+}
+
+// SetLastPolledAt sets the "last_polled_at" field.
+func (_u *DeviceAuthorizationUpdate) SetLastPolledAt(v time.Time) *DeviceAuthorizationUpdate {
+	_u.mutation.SetLastPolledAt(v)
+	return _u
+}
+
+// SetNillableLastPolledAt sets the "last_polled_at" field if the given value is not nil.
+func (_u *DeviceAuthorizationUpdate) SetNillableLastPolledAt(v *time.Time) *DeviceAuthorizationUpdate {
+	if v != nil {
+		_u.SetLastPolledAt(*v)
+	}
+	return _u
+}
+
+// ClearLastPolledAt clears the value of the "last_polled_at" field.
+func (_u *DeviceAuthorizationUpdate) ClearLastPolledAt() *DeviceAuthorizationUpdate {
+	_u.mutation.ClearLastPolledAt()
 	return _u
 }
 
@@ -92,7 +199,20 @@ func (_u *DeviceAuthorizationUpdate) ExecX(ctx context.Context) {
 	}
 }
 
+// check runs all checks and user-defined validators on the builder.
+func (_u *DeviceAuthorizationUpdate) check() error {
+	if v, ok := _u.mutation.Status(); ok {
+		if err := deviceauthorization.StatusValidator(v); err != nil {
+			return &ValidationError{Name: "status", err: fmt.Errorf(`ent: validator failed for field "DeviceAuthorization.status": %w`, err)}
+		}
+	}
+	return nil
+}
+
 func (_u *DeviceAuthorizationUpdate) sqlSave(ctx context.Context) (_node int, err error) {
+	if err := _u.check(); err != nil {
+		return _node, err
+	}
 	_spec := sqlgraph.NewUpdateSpec(deviceauthorization.Table, deviceauthorization.Columns, sqlgraph.NewFieldSpec(deviceauthorization.FieldID, field.TypeInt))
 	if ps := _u.mutation.predicates; len(ps) > 0 {
 		_spec.Predicate = func(selector *sql.Selector) {
@@ -100,6 +220,39 @@ func (_u *DeviceAuthorizationUpdate) sqlSave(ctx context.Context) (_node int, er
 				ps[i](selector)
 			}
 		}
+	}
+	if value, ok := _u.mutation.Status(); ok {
+		_spec.SetField(deviceauthorization.FieldStatus, field.TypeEnum, value)
+	}
+	if value, ok := _u.mutation.Provider(); ok {
+		_spec.SetField(deviceauthorization.FieldProvider, field.TypeString, value)
+	}
+	if _u.mutation.ProviderCleared() {
+		_spec.ClearField(deviceauthorization.FieldProvider, field.TypeString)
+	}
+	if value, ok := _u.mutation.StateHash(); ok {
+		_spec.SetField(deviceauthorization.FieldStateHash, field.TypeBytes, value)
+	}
+	if _u.mutation.StateHashCleared() {
+		_spec.ClearField(deviceauthorization.FieldStateHash, field.TypeBytes)
+	}
+	if value, ok := _u.mutation.CodeVerifier(); ok {
+		_spec.SetField(deviceauthorization.FieldCodeVerifier, field.TypeString, value)
+	}
+	if _u.mutation.CodeVerifierCleared() {
+		_spec.ClearField(deviceauthorization.FieldCodeVerifier, field.TypeString)
+	}
+	if value, ok := _u.mutation.Nonce(); ok {
+		_spec.SetField(deviceauthorization.FieldNonce, field.TypeString, value)
+	}
+	if _u.mutation.NonceCleared() {
+		_spec.ClearField(deviceauthorization.FieldNonce, field.TypeString)
+	}
+	if value, ok := _u.mutation.LastPolledAt(); ok {
+		_spec.SetField(deviceauthorization.FieldLastPolledAt, field.TypeTime, value)
+	}
+	if _u.mutation.LastPolledAtCleared() {
+		_spec.ClearField(deviceauthorization.FieldLastPolledAt, field.TypeTime)
 	}
 	if _u.mutation.UserCleared() {
 		edge := &sqlgraph.EdgeSpec{
@@ -150,6 +303,20 @@ type DeviceAuthorizationUpdateOne struct {
 	mutation *DeviceAuthorizationMutation
 }
 
+// SetStatus sets the "status" field.
+func (_u *DeviceAuthorizationUpdateOne) SetStatus(v deviceauthorization.Status) *DeviceAuthorizationUpdateOne {
+	_u.mutation.SetStatus(v)
+	return _u
+}
+
+// SetNillableStatus sets the "status" field if the given value is not nil.
+func (_u *DeviceAuthorizationUpdateOne) SetNillableStatus(v *deviceauthorization.Status) *DeviceAuthorizationUpdateOne {
+	if v != nil {
+		_u.SetStatus(*v)
+	}
+	return _u
+}
+
 // SetUserID sets the "user_id" field.
 func (_u *DeviceAuthorizationUpdateOne) SetUserID(v uuid.UUID) *DeviceAuthorizationUpdateOne {
 	_u.mutation.SetUserID(v)
@@ -167,6 +334,98 @@ func (_u *DeviceAuthorizationUpdateOne) SetNillableUserID(v *uuid.UUID) *DeviceA
 // ClearUserID clears the value of the "user_id" field.
 func (_u *DeviceAuthorizationUpdateOne) ClearUserID() *DeviceAuthorizationUpdateOne {
 	_u.mutation.ClearUserID()
+	return _u
+}
+
+// SetProvider sets the "provider" field.
+func (_u *DeviceAuthorizationUpdateOne) SetProvider(v string) *DeviceAuthorizationUpdateOne {
+	_u.mutation.SetProvider(v)
+	return _u
+}
+
+// SetNillableProvider sets the "provider" field if the given value is not nil.
+func (_u *DeviceAuthorizationUpdateOne) SetNillableProvider(v *string) *DeviceAuthorizationUpdateOne {
+	if v != nil {
+		_u.SetProvider(*v)
+	}
+	return _u
+}
+
+// ClearProvider clears the value of the "provider" field.
+func (_u *DeviceAuthorizationUpdateOne) ClearProvider() *DeviceAuthorizationUpdateOne {
+	_u.mutation.ClearProvider()
+	return _u
+}
+
+// SetStateHash sets the "state_hash" field.
+func (_u *DeviceAuthorizationUpdateOne) SetStateHash(v []byte) *DeviceAuthorizationUpdateOne {
+	_u.mutation.SetStateHash(v)
+	return _u
+}
+
+// ClearStateHash clears the value of the "state_hash" field.
+func (_u *DeviceAuthorizationUpdateOne) ClearStateHash() *DeviceAuthorizationUpdateOne {
+	_u.mutation.ClearStateHash()
+	return _u
+}
+
+// SetCodeVerifier sets the "code_verifier" field.
+func (_u *DeviceAuthorizationUpdateOne) SetCodeVerifier(v string) *DeviceAuthorizationUpdateOne {
+	_u.mutation.SetCodeVerifier(v)
+	return _u
+}
+
+// SetNillableCodeVerifier sets the "code_verifier" field if the given value is not nil.
+func (_u *DeviceAuthorizationUpdateOne) SetNillableCodeVerifier(v *string) *DeviceAuthorizationUpdateOne {
+	if v != nil {
+		_u.SetCodeVerifier(*v)
+	}
+	return _u
+}
+
+// ClearCodeVerifier clears the value of the "code_verifier" field.
+func (_u *DeviceAuthorizationUpdateOne) ClearCodeVerifier() *DeviceAuthorizationUpdateOne {
+	_u.mutation.ClearCodeVerifier()
+	return _u
+}
+
+// SetNonce sets the "nonce" field.
+func (_u *DeviceAuthorizationUpdateOne) SetNonce(v string) *DeviceAuthorizationUpdateOne {
+	_u.mutation.SetNonce(v)
+	return _u
+}
+
+// SetNillableNonce sets the "nonce" field if the given value is not nil.
+func (_u *DeviceAuthorizationUpdateOne) SetNillableNonce(v *string) *DeviceAuthorizationUpdateOne {
+	if v != nil {
+		_u.SetNonce(*v)
+	}
+	return _u
+}
+
+// ClearNonce clears the value of the "nonce" field.
+func (_u *DeviceAuthorizationUpdateOne) ClearNonce() *DeviceAuthorizationUpdateOne {
+	_u.mutation.ClearNonce()
+	return _u
+}
+
+// SetLastPolledAt sets the "last_polled_at" field.
+func (_u *DeviceAuthorizationUpdateOne) SetLastPolledAt(v time.Time) *DeviceAuthorizationUpdateOne {
+	_u.mutation.SetLastPolledAt(v)
+	return _u
+}
+
+// SetNillableLastPolledAt sets the "last_polled_at" field if the given value is not nil.
+func (_u *DeviceAuthorizationUpdateOne) SetNillableLastPolledAt(v *time.Time) *DeviceAuthorizationUpdateOne {
+	if v != nil {
+		_u.SetLastPolledAt(*v)
+	}
+	return _u
+}
+
+// ClearLastPolledAt clears the value of the "last_polled_at" field.
+func (_u *DeviceAuthorizationUpdateOne) ClearLastPolledAt() *DeviceAuthorizationUpdateOne {
+	_u.mutation.ClearLastPolledAt()
 	return _u
 }
 
@@ -226,7 +485,20 @@ func (_u *DeviceAuthorizationUpdateOne) ExecX(ctx context.Context) {
 	}
 }
 
+// check runs all checks and user-defined validators on the builder.
+func (_u *DeviceAuthorizationUpdateOne) check() error {
+	if v, ok := _u.mutation.Status(); ok {
+		if err := deviceauthorization.StatusValidator(v); err != nil {
+			return &ValidationError{Name: "status", err: fmt.Errorf(`ent: validator failed for field "DeviceAuthorization.status": %w`, err)}
+		}
+	}
+	return nil
+}
+
 func (_u *DeviceAuthorizationUpdateOne) sqlSave(ctx context.Context) (_node *DeviceAuthorization, err error) {
+	if err := _u.check(); err != nil {
+		return _node, err
+	}
 	_spec := sqlgraph.NewUpdateSpec(deviceauthorization.Table, deviceauthorization.Columns, sqlgraph.NewFieldSpec(deviceauthorization.FieldID, field.TypeInt))
 	id, ok := _u.mutation.ID()
 	if !ok {
@@ -251,6 +523,39 @@ func (_u *DeviceAuthorizationUpdateOne) sqlSave(ctx context.Context) (_node *Dev
 				ps[i](selector)
 			}
 		}
+	}
+	if value, ok := _u.mutation.Status(); ok {
+		_spec.SetField(deviceauthorization.FieldStatus, field.TypeEnum, value)
+	}
+	if value, ok := _u.mutation.Provider(); ok {
+		_spec.SetField(deviceauthorization.FieldProvider, field.TypeString, value)
+	}
+	if _u.mutation.ProviderCleared() {
+		_spec.ClearField(deviceauthorization.FieldProvider, field.TypeString)
+	}
+	if value, ok := _u.mutation.StateHash(); ok {
+		_spec.SetField(deviceauthorization.FieldStateHash, field.TypeBytes, value)
+	}
+	if _u.mutation.StateHashCleared() {
+		_spec.ClearField(deviceauthorization.FieldStateHash, field.TypeBytes)
+	}
+	if value, ok := _u.mutation.CodeVerifier(); ok {
+		_spec.SetField(deviceauthorization.FieldCodeVerifier, field.TypeString, value)
+	}
+	if _u.mutation.CodeVerifierCleared() {
+		_spec.ClearField(deviceauthorization.FieldCodeVerifier, field.TypeString)
+	}
+	if value, ok := _u.mutation.Nonce(); ok {
+		_spec.SetField(deviceauthorization.FieldNonce, field.TypeString, value)
+	}
+	if _u.mutation.NonceCleared() {
+		_spec.ClearField(deviceauthorization.FieldNonce, field.TypeString)
+	}
+	if value, ok := _u.mutation.LastPolledAt(); ok {
+		_spec.SetField(deviceauthorization.FieldLastPolledAt, field.TypeTime, value)
+	}
+	if _u.mutation.LastPolledAtCleared() {
+		_spec.ClearField(deviceauthorization.FieldLastPolledAt, field.TypeTime)
 	}
 	if _u.mutation.UserCleared() {
 		edge := &sqlgraph.EdgeSpec{
