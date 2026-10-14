@@ -713,6 +713,16 @@ The UI follows the "Momentum TUI redesign" canvas (foundations, glyph vocabulary
 - **Navigation:** the Completed count moved from the rail to the header ("N in the last 30 days"); counts are hidden until tasks load.
 - **Additions for small terminals:** the rename preview scrolls with `↑`/`↓`, and short confirms drop blank and explanatory rows before their choices.
 
+## In progress — native macOS frontend
+
+`macos/` is a SwiftUI app built from the `momentum-desktop` React prototype as a design reference. The first slice covers Today/Inbox/Completed, the inspector, capture with correction review, editing, task actions, search, sync with the undo window, and the unsynced-quit prompt. Plan Today, Settings, project migration and calendar awareness are next. Decisions:
+
+- **Shared Go, not a port.** The app talks to `cmd/momentum-bridge`, which serves `internal/taskwarrior`, `domain`, `quickadd` and `config` as newline-delimited JSON. The bridge is a child process that exits when the app closes its stdin, so it is not a background service. Taskwarrior operations run one at a time in arrival order; capture interpretation and suggestions answer immediately so highlighting never waits behind a sync.
+- **Capture review moved to `internal/quickadd`.** The pure review rules (`ValidateReview`, `FinalizeReview`, review field order) moved out of `internal/ui/quickadd_review.go` unchanged so the bridge can use them; the TUI delegates to them.
+- **Edit validation** in the bridge mirrors `internal/ui/edit.go`'s submit rules on the same `domain` parsers.
+- **UI-only state stays in Swift.** The sync state machine (`internal/app/sync_state.go`), the search filter and literal-span shifting are ported to Swift with tests that mirror the Go ones; the app process owns them so unsynced state survives a bridge restart.
+- **Date times.** Taskwarrior 3.5 reads `due:2026-10-15 09:30` as midnight and drops the time without an error, while `2026-10-15T09:30` keeps it. The bridge rewrites the editor's `YYYY-MM-DD HH:MM` form to ISO before `modify` and reviewed `add`. The TUI editor still sends the space-separated form and is affected; fixing it in `internal/taskwarrior` would cover both frontends.
+
 ## Completion Log
 
 | Date | Task | Commit | Verification | Notes |
