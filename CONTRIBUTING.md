@@ -2,24 +2,28 @@
 
 ## Project shape
 
-- `cmd/momentum` — CLI parsing, startup validation, and version metadata
-- `internal/app` — Bubble Tea model, messages, commands, actions, sync state, composition
-- `internal/ui` — pure rendering and overlay components
-- `internal/taskwarrior` — direct `task` argv adapter and captured errors
-- `internal/domain` — task decoding, view classification, sorting, and edit diffs
-- `internal/config` — strict TOML and XDG resolution
-- `internal/quickadd` — trigger parser and suggestions
-- `internal/diagnostics` — doctor checks and redacted logging
-- `internal/bridge`, `cmd/momentum-bridge` — JSON-lines service that exposes the packages above to the macOS app
+Momentum is a monorepo:
+
+- `tui/` — the terminal app, and the Go code the macOS app shares (module `github.com/jvrviegas/momentum-task-manager/tui`)
+  - `cmd/momentum` — CLI parsing, startup validation, and version metadata
+  - `internal/app` — Bubble Tea model, messages, commands, actions, sync state, composition
+  - `internal/ui` — pure rendering and overlay components
+  - `internal/taskwarrior` — direct `task` argv adapter and captured errors
+  - `internal/domain` — task decoding, view classification, sorting, and edit diffs
+  - `internal/config` — strict TOML and XDG resolution
+  - `internal/quickadd` — trigger parser and suggestions
+  - `internal/diagnostics` — doctor checks and redacted logging
+  - `internal/bridge`, `cmd/momentum-bridge` — JSON-lines service that exposes the packages above to the macOS app
 - `macos/` — native SwiftUI app (see [`macos/README.md`](./macos/README.md)); run `xcodebuild -scheme Momentum test` there when it changes
+- `backend/` — planned replacement for Taskwarrior; not started
 
 ## Before a change
 
-Read [`DESIGN.md`](./DESIGN.md) and the relevant implementation-plan task. Keep Taskwarrior as the source of truth. Do not add persistence, a shell, a background service, telemetry, or direct access to `~/.task`.
+Read [`tui/DESIGN.md`](./tui/DESIGN.md) and the relevant implementation-plan task. Keep Taskwarrior as the source of truth. Do not add persistence, a shell, a background service, telemetry, or direct access to `~/.task`.
 
 ## Tests and safety
 
-Run:
+Run from `tui/`:
 
 ```sh
 test -z "$(gofmt -l .)"
@@ -35,7 +39,7 @@ UI tests should assert terminal display width with Lip Gloss helpers and cover w
 
 ## Changes
 
-Keep commits focused and explain any design departure in `IMPLEMENTATION_PLAN.md`. Prefer small pure functions and typed messages over shared callbacks. Run the full local gates before opening a review.
+Keep commits focused and explain any design departure in `tui/IMPLEMENTATION_PLAN.md`. Prefer small pure functions and typed messages over shared callbacks. Run the full local gates before opening a review.
 
 ## Release
 
