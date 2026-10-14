@@ -119,6 +119,27 @@ func TestIntegrationNextWeekAliasSchedulesFridayOfNextCalendarWeek(t *testing.T)
 	}
 }
 
+// Taskwarrior 3.5 reads "YYYY-MM-DD HH:MM" as midnight without an error, so
+// the editor's form must keep its time through add and modify.
+func TestIntegrationEditorDateTimeKeepsTime(t *testing.T) {
+	client, _ := isolatedClient(t)
+	task := integrationTask(t, client, domain.NewTask{Description: "timed", Due: "2026-10-15 09:30"})
+	if want := time.Date(2026, 10, 15, 9, 30, 0, 0, time.Local); task.Due == nil || !task.Due.Equal(want) {
+		t.Fatalf("added due=%v want %v", task.Due, want)
+	}
+	diff := domain.TaskDiff{Due: domain.FieldChange{Kind: domain.Set, Value: "2026-10-16 17:45"}}
+	if err := client.Modify(context.Background(), task.UUID, diff); err != nil {
+		t.Fatal(err)
+	}
+	tasks, err := client.ExportPending(context.Background())
+	if err != nil {
+		t.Fatal(err)
+	}
+	if want := time.Date(2026, 10, 16, 17, 45, 0, 0, time.Local); len(tasks) != 1 || tasks[0].Due == nil || !tasks[0].Due.Equal(want) {
+		t.Fatalf("modified tasks=%#v want due %v", tasks, want)
+	}
+}
+
 func TestIntegrationEstimateAddModifyClearAndUndo(t *testing.T) {
 	client, env := isolatedClient(t)
 	enableEstimateUDA(t, env)
