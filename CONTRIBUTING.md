@@ -2,14 +2,15 @@
 
 ## Project shape
 
-Momentum is a monorepo:
+Momentum is a monorepo. The root `go.work` joins its Go modules for local builds, and `tui/go.mod` points at `../core` with a `replace` directive.
 
+- `core/` — Go code shared by the apps and the planned backend (module `github.com/jvrviegas/momentum-task-manager/core`)
+  - `domain` — task decoding, view classification, sorting, and edit diffs
 - `tui/` — the terminal app, and the Go code the macOS app shares (module `github.com/jvrviegas/momentum-task-manager/tui`)
   - `cmd/momentum` — CLI parsing, startup validation, and version metadata
   - `internal/app` — Bubble Tea model, messages, commands, actions, sync state, composition
   - `internal/ui` — pure rendering and overlay components
   - `internal/taskwarrior` — direct `task` argv adapter and captured errors
-  - `internal/domain` — task decoding, view classification, sorting, and edit diffs
   - `internal/config` — strict TOML and XDG resolution
   - `internal/quickadd` — trigger parser and suggestions
   - `internal/diagnostics` — doctor checks and redacted logging
@@ -24,13 +25,18 @@ Read [`tui/DESIGN.md`](./tui/DESIGN.md) and the relevant implementation-plan tas
 
 ## Tests and safety
 
-Run from `tui/`:
+Run in each Go module (`core/` and `tui/`):
 
 ```sh
 test -z "$(gofmt -l .)"
 go test ./...
 go test -race ./...
 go vet ./...
+```
+
+Then build from `tui/`:
+
+```sh
 go build ./cmd/momentum
 ```
 
@@ -44,4 +50,4 @@ Keep commits focused and explain any design departure in `tui/IMPLEMENTATION_PLA
 
 ## Release
 
-TUI releases are tag-driven: pushing `tui/vX.Y.Z` builds with GoReleaser and publishes a GitHub release on that tag, with the version's `tui/CHANGELOG.md` section as notes. The `tui/` prefix lets Go resolve `go install …/tui/cmd/momentum@vX.Y.Z` and leaves room for macOS and backend releases. Do not create a GitHub repository, publish a release, or add a Homebrew tap without explicit approval. Release targets are Linux/macOS on AMD64/ARM64.
+TUI releases are tag-driven: pushing `tui/vX.Y.Z` builds with GoReleaser and publishes a GitHub release on that tag, with the version's `tui/CHANGELOG.md` section as notes. The `tui/` prefix lets Go resolve `go install …/tui/cmd/momentum@vX.Y.Z` and leaves room for macOS and backend releases. `go install …@version` refuses a module whose `go.mod` has a `replace` directive, so before the first TUI release that includes `core/`, either publish `core` with `core/vX.Y.Z` tags and drop the replace, or change the install instructions to the release archives. Do not create a GitHub repository, publish a release, or add a Homebrew tap without explicit approval. Release targets are Linux/macOS on AMD64/ARM64.
