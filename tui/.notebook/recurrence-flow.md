@@ -1,7 +1,7 @@
 # Recurrence flow
 > Native Taskwarrior template/instance lifecycle
 
-Entry: `internal/domain/recurrence.go:ParseRecurrencePhrase()`
+Entry: `../core/domain/recurrence.go:ParseRecurrencePhrase()`
 Flow: quick-add explicit `^` or local `quickadd.Interpret()` phrase → validated expression + due anchor → `task add ... due:... recur:...` → Taskwarrior template + generated pending instance.
 
 Export: `domain.Task.Parent`, `MaskIndex`, `RecurrenceType`, and `Recurrence` distinguish generated instances. Details labels the parent UUID.
