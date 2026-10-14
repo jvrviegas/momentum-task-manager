@@ -6,6 +6,7 @@ Momentum is a monorepo. The root `go.work` joins its Go modules for local builds
 
 - `core/` — Go code shared by the apps and the planned backend (module `github.com/jvrviegas/momentum-task-manager/core`)
   - `domain` — task decoding, view classification, sorting, and edit diffs
+  - `api` — the backend's HTTP contract: routes, request and response types, and errors
 - `tui/` — the terminal app, and the Go code the macOS app shares (module `github.com/jvrviegas/momentum-task-manager/tui`)
   - `cmd/momentum` — CLI parsing, startup validation, and version metadata
   - `internal/app` — Bubble Tea model, messages, commands, actions, sync state, composition
