@@ -2,10 +2,10 @@
 
 ## Project shape
 
-Momentum is a monorepo. The root `go.work` joins its Go modules for local builds, and `tui/go.mod` points at `../core` with a `replace` directive.
+Momentum is a monorepo. The root `go.work` joins its Go modules for local builds, and `tui/go.mod` and `backend/go.mod` point at `../core` with a `replace` directive.
 
 - `core/` — Go code shared by the apps and the backend (module `github.com/jvrviegas/momentum-task-manager/core`)
-  - `domain` — task decoding, view classification, sorting, and edit diffs
+  - `domain` — task decoding, view classification, sorting, edit diffs, date resolution, and urgency
   - `api` — the backend's HTTP contract: routes, request and response types, and errors
 - `tui/` — the terminal app, and the Go code the macOS app shares (module `github.com/jvrviegas/momentum-task-manager/tui`)
   - `cmd/momentum` — CLI parsing, startup validation, and version metadata
@@ -61,7 +61,7 @@ UI tests should assert terminal display width with Lip Gloss helpers and cover w
 
 ## Changes
 
-Keep commits focused and explain any design departure in `tui/IMPLEMENTATION_PLAN.md`. Prefer small pure functions and typed messages over shared callbacks. Run the full local gates before opening a review.
+Keep commits focused and explain any design departure in the plan the work follows: `tui/IMPLEMENTATION_PLAN.md` for the TUI, `docs/plans/backend.md` for the backend. Prefer small pure functions and typed messages over shared callbacks. Run the full local gates before opening a review.
 
 ## Release
 
