@@ -52,7 +52,7 @@ GITHUB_CLIENT_SECRET=…
 
 ## Tasks
 
-The task routes in [`core/api`](../core/api/routes.go) need a token. `GET /v1/tasks?status=pending|recurring|completed` lists tasks with their urgency, as Taskwarrior computes it; pending leaves out waiting tasks, and completed needs `ended_after`. Create, modify, complete, delete, start, and stop change only pending tasks and answer with the task as it is afterwards. Each needs an `Idempotency-Key` header: the server applies a key once within 24 hours, answers a retry with the first response, and refuses the key for a different request. Each change is written to `task_events` in the same transaction. Recurring tasks are refused until the server generates their instances.
+The task routes in [`core/api`](../core/api/routes.go) need a token. `GET /v1/tasks?status=pending|recurring|completed` lists tasks with their urgency, as Taskwarrior computes it; pending leaves out waiting tasks, and completed needs `ended_after`. Create, modify, complete, delete, start, and stop change only pending tasks and answer with the task as it is afterwards. Each needs an `Idempotency-Key` header: the server applies a key once within 24 hours, answers a retry with the first response, and refuses the key for a different request. Each change is written to `task_events` in the same transaction. `POST /v1/undo`, also with a key, reverts the latest change made with the same token unless its task has changed since. It undoes one step only, and undoing a create removes the task. Recurring tasks are refused until the server generates their instances.
 
 ```sh
 curl -X POST localhost:8080/v1/tasks -H "Authorization: Bearer $TOKEN" \
