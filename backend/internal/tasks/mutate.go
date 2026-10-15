@@ -51,7 +51,8 @@ func (s *Service) Create(ctx context.Context, key string, input api.CreateTaskRe
 		if err != nil {
 			return nil, err
 		}
-		return created, record(ctx, tx, now, "create", created.ID, nil, toAPI(created))
+		after := toAPI(created)
+		return created, record(ctx, tx, now, "create", created.ID, nil, &after)
 	})
 }
 
@@ -136,29 +137,34 @@ func (s *Service) update(ctx context.Context, key, action string, id uuid.UUID, 
 			return nil, err
 		}
 		after.Modified = now
-		update := tx.Task.UpdateOne(row).
-			SetDescription(after.Description).SetStatus(task.Status(after.Status)).
-			SetProject(after.Project).SetPriority(after.Priority).SetModified(after.Modified)
-		if after.EstimateMinutes != 0 {
-			update.SetEstimateMinutes(after.EstimateMinutes)
-		} else {
-			update.ClearEstimateMinutes()
-		}
-		setOrClear(after.Due, update.SetDue, update.ClearDue)
-		setOrClear(after.Scheduled, update.SetScheduled, update.ClearScheduled)
-		setOrClear(after.Start, update.SetStart, update.ClearStart)
-		setOrClear(after.End, update.SetEnd, update.ClearEnd)
-		if len(after.Tags) > 0 {
-			update.SetTags(after.Tags)
-		} else {
-			update.ClearTags()
-		}
-		saved, err := update.Save(ctx)
+		saved, err := save(ctx, tx.Task.UpdateOne(row), after)
 		if err != nil {
 			return nil, err
 		}
-		return saved, record(ctx, tx, now, action, id, &before, toAPI(saved))
+		result := toAPI(saved)
+		return saved, record(ctx, tx, now, action, id, &before, &result)
 	})
+}
+
+// save stores the fields of t that a mutation can change.
+func save(ctx context.Context, update *ent.TaskUpdateOne, t api.Task) (*ent.Task, error) {
+	update.SetDescription(t.Description).SetStatus(task.Status(t.Status)).
+		SetProject(t.Project).SetPriority(t.Priority).SetModified(t.Modified)
+	if t.EstimateMinutes != 0 {
+		update.SetEstimateMinutes(t.EstimateMinutes)
+	} else {
+		update.ClearEstimateMinutes()
+	}
+	setOrClear(t.Due, update.SetDue, update.ClearDue)
+	setOrClear(t.Scheduled, update.SetScheduled, update.ClearScheduled)
+	setOrClear(t.Start, update.SetStart, update.ClearStart)
+	setOrClear(t.End, update.SetEnd, update.ClearEnd)
+	if len(t.Tags) > 0 {
+		update.SetTags(t.Tags)
+	} else {
+		update.ClearTags()
+	}
+	return update.Save(ctx)
 }
 
 // mutate runs change once per idempotency key. In one transaction, it claims
@@ -233,8 +239,9 @@ func (s *Service) replay(ctx context.Context, key string, fingerprint []byte) (a
 }
 
 // record writes the task_events row for one change to the task id, with the
-// session that made it. Before is nil for a created task.
-func record(ctx context.Context, tx *ent.Client, now time.Time, action string, id uuid.UUID, before *api.Task, after api.Task) error {
+// session that made it. Before is nil for a created task, and after for an
+// undone create.
+func record(ctx context.Context, tx *ent.Client, now time.Time, action string, id uuid.UUID, before, after *api.Task) error {
 	userID, _ := viewer.UserID(ctx)
 	event := tx.TaskEvent.Create().SetUserID(userID).SetTaskID(id).SetAction(action).SetCreatedAt(now)
 	if session, ok := auth.FromContext(ctx); ok {
@@ -247,11 +254,14 @@ func record(ctx context.Context, tx *ent.Client, now time.Time, action string, i
 		}
 		event.SetBefore(data)
 	}
-	data, err := json.Marshal(after)
-	if err != nil {
-		return err
+	if after != nil {
+		data, err := json.Marshal(after)
+		if err != nil {
+			return err
+		}
+		event.SetAfter(data)
 	}
-	return event.SetAfter(data).Exec(ctx)
+	return event.Exec(ctx)
 }
 
 func validateCreate(input api.CreateTaskRequest) error {
