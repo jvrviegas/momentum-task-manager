@@ -37,6 +37,36 @@ var (
 			},
 		},
 	}
+	// IdempotencyKeysColumns holds the columns for the "idempotency_keys" table.
+	IdempotencyKeysColumns = []*schema.Column{
+		{Name: "id", Type: field.TypeInt, Increment: true},
+		{Name: "key", Type: field.TypeString, Size: 255},
+		{Name: "fingerprint", Type: field.TypeBytes},
+		{Name: "response", Type: field.TypeJSON, Nullable: true},
+		{Name: "created_at", Type: field.TypeTime},
+		{Name: "user_id", Type: field.TypeUUID},
+	}
+	// IdempotencyKeysTable holds the schema information for the "idempotency_keys" table.
+	IdempotencyKeysTable = &schema.Table{
+		Name:       "idempotency_keys",
+		Columns:    IdempotencyKeysColumns,
+		PrimaryKey: []*schema.Column{IdempotencyKeysColumns[0]},
+		ForeignKeys: []*schema.ForeignKey{
+			{
+				Symbol:     "idempotency_keys_users_idempotency_keys",
+				Columns:    []*schema.Column{IdempotencyKeysColumns[5]},
+				RefColumns: []*schema.Column{UsersColumns[0]},
+				OnDelete:   schema.NoAction,
+			},
+		},
+		Indexes: []*schema.Index{
+			{
+				Name:    "idempotencykey_user_id_key",
+				Unique:  true,
+				Columns: []*schema.Column{IdempotencyKeysColumns[5], IdempotencyKeysColumns[1]},
+			},
+		},
+	}
 	// IdentitiesColumns holds the columns for the "identities" table.
 	IdentitiesColumns = []*schema.Column{
 		{Name: "id", Type: field.TypeInt, Increment: true},
@@ -198,6 +228,7 @@ var (
 	// Tables holds all the tables in the schema.
 	Tables = []*schema.Table{
 		DeviceAuthorizationsTable,
+		IdempotencyKeysTable,
 		IdentitiesTable,
 		SessionsTable,
 		TasksTable,
@@ -208,6 +239,7 @@ var (
 
 func init() {
 	DeviceAuthorizationsTable.ForeignKeys[0].RefTable = UsersTable
+	IdempotencyKeysTable.ForeignKeys[0].RefTable = UsersTable
 	IdentitiesTable.ForeignKeys[0].RefTable = UsersTable
 	SessionsTable.ForeignKeys[0].RefTable = UsersTable
 	TasksTable.ForeignKeys[0].RefTable = UsersTable
