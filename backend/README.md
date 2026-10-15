@@ -50,6 +50,15 @@ GITHUB_CLIENT_ID=…
 GITHUB_CLIENT_SECRET=…
 ```
 
+## Tasks
+
+The task routes in [`core/api`](../core/api/routes.go) need a token. `GET /v1/tasks?status=pending|recurring|completed` lists tasks with their urgency, as Taskwarrior computes it; pending leaves out waiting tasks, and completed needs `ended_after`. Create, modify, complete, delete, start, and stop change only pending tasks and answer with the task as it is afterwards. Each needs an `Idempotency-Key` header: the server applies a key once within 24 hours, answers a retry with the first response, and refuses the key for a different request. Each change is written to `task_events` in the same transaction. Recurring tasks are refused until the server generates their instances.
+
+```sh
+curl -X POST localhost:8080/v1/tasks -H "Authorization: Bearer $TOKEN" \
+  -H "Idempotency-Key: $(uuidgen)" -d '{"description":"Try the backend","tags":["next"]}'
+```
+
 ## Logs
 
 Logs are JSON lines in the shape Cloud Logging reads. Task contents, tokens, and email addresses must never reach them (ADR 0002, P3), so only the attribute keys listed in `internal/logging` keep their values; everything else is logged as `[redacted]`. Requests are logged by route pattern, never by path, query, headers, or body. Add a key to the list only for values that can never hold user data, and keep log messages constant.
