@@ -188,3 +188,52 @@ func TestTaskRoutesOverHTTP(t *testing.T) {
 		}
 	}
 }
+
+func TestUndoOverHTTP(t *testing.T) {
+	h := newHarness(t)
+	laptop := h.signIn("alice@example.com").Token
+	phone := h.signIn("alice@example.com").Token
+
+	status, body := h.send(http.MethodPost, "/v1/tasks", laptop, uuid.NewString(), api.CreateTaskRequest{Description: "Secret undo"})
+	created := decodeBody[api.Task](t, body)
+	taskPath := "/v1/tasks/" + created.UUID
+	if status, body = h.send(http.MethodPatch, taskPath, laptop, uuid.NewString(), `{"priority":"H"}`); status != http.StatusOK {
+		t.Fatalf("modify = %d %s", status, body)
+	}
+
+	status, body = h.send(http.MethodPost, "/v1/undo", laptop, "", nil)
+	wantAPIError(t, status, body, http.StatusBadRequest, api.CodeInvalid, "")
+	status, body = h.send(http.MethodPost, "/v1/undo", phone, uuid.NewString(), nil)
+	wantAPIError(t, status, body, http.StatusConflict, api.CodeConflict, "")
+
+	status, first := h.send(http.MethodPost, "/v1/undo", laptop, "secret-undo-key", nil)
+	if undone := decodeBody[api.Task](t, first); status != http.StatusOK || undone.UUID != created.UUID || undone.Priority != "" {
+		t.Errorf("undo = %d %s", status, first)
+	}
+	if status, again := h.send(http.MethodPost, "/v1/undo", laptop, "secret-undo-key", nil); status != http.StatusOK || again != first {
+		t.Errorf("retried undo = %d %s, want %s", status, again, first)
+	}
+	status, body = h.send(http.MethodPost, "/v1/undo", laptop, uuid.NewString(), nil)
+	wantAPIError(t, status, body, http.StatusConflict, api.CodeConflict, "")
+
+	// Undoing a create removes the task.
+	status, body = h.send(http.MethodPost, "/v1/tasks", phone, uuid.NewString(), api.CreateTaskRequest{Description: "Secret typo"})
+	typo := decodeBody[api.Task](t, body)
+	status, body = h.send(http.MethodPost, "/v1/undo", phone, uuid.NewString(), nil)
+	if undone := decodeBody[api.Task](t, body); status != http.StatusOK || undone.UUID != typo.UUID || undone.Status != api.StatusDeleted {
+		t.Errorf("undo of a create = %d %s", status, body)
+	}
+	status, body = h.send(http.MethodGet, "/v1/tasks?status=pending", phone, "", nil)
+	if listed := decodeBody[api.TaskList](t, body); status != http.StatusOK || len(listed.Tasks) != 1 || listed.Tasks[0].UUID != created.UUID {
+		t.Errorf("pending after undoing a create = %d %s", status, body)
+	}
+
+	status, body = h.send(http.MethodPost, "/v1/undo", "mtk_unknown", uuid.NewString(), nil)
+	wantAPIError(t, status, body, http.StatusUnauthorized, api.CodeUnauthorized, "")
+
+	for _, secret := range []string{"Secret undo", "Secret typo", "secret-undo-key", created.UUID, typo.UUID} {
+		if strings.Contains(h.logs.String(), secret) {
+			t.Errorf("log contains %q:\n%s", secret, h.logs.String())
+		}
+	}
+}
