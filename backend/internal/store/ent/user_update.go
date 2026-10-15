@@ -12,6 +12,7 @@ import (
 	"entgo.io/ent/schema/field"
 	"github.com/google/uuid"
 	"github.com/jvrviegas/momentum-task-manager/backend/internal/store/ent/deviceauthorization"
+	"github.com/jvrviegas/momentum-task-manager/backend/internal/store/ent/idempotencykey"
 	"github.com/jvrviegas/momentum-task-manager/backend/internal/store/ent/identity"
 	"github.com/jvrviegas/momentum-task-manager/backend/internal/store/ent/predicate"
 	"github.com/jvrviegas/momentum-task-manager/backend/internal/store/ent/session"
@@ -89,6 +90,21 @@ func (_u *UserUpdate) AddIdentities(v ...*Identity) *UserUpdate {
 		ids[i] = v[i].ID
 	}
 	return _u.AddIdentityIDs(ids...)
+}
+
+// AddIdempotencyKeyIDs adds the "idempotency_keys" edge to the IdempotencyKey entity by IDs.
+func (_u *UserUpdate) AddIdempotencyKeyIDs(ids ...int) *UserUpdate {
+	_u.mutation.AddIdempotencyKeyIDs(ids...)
+	return _u
+}
+
+// AddIdempotencyKeys adds the "idempotency_keys" edges to the IdempotencyKey entity.
+func (_u *UserUpdate) AddIdempotencyKeys(v ...*IdempotencyKey) *UserUpdate {
+	ids := make([]int, len(v))
+	for i := range v {
+		ids[i] = v[i].ID
+	}
+	return _u.AddIdempotencyKeyIDs(ids...)
 }
 
 // AddSessionIDs adds the "sessions" edge to the Session entity by IDs.
@@ -181,6 +197,27 @@ func (_u *UserUpdate) RemoveIdentities(v ...*Identity) *UserUpdate {
 		ids[i] = v[i].ID
 	}
 	return _u.RemoveIdentityIDs(ids...)
+}
+
+// ClearIdempotencyKeys clears all "idempotency_keys" edges to the IdempotencyKey entity.
+func (_u *UserUpdate) ClearIdempotencyKeys() *UserUpdate {
+	_u.mutation.ClearIdempotencyKeys()
+	return _u
+}
+
+// RemoveIdempotencyKeyIDs removes the "idempotency_keys" edge to IdempotencyKey entities by IDs.
+func (_u *UserUpdate) RemoveIdempotencyKeyIDs(ids ...int) *UserUpdate {
+	_u.mutation.RemoveIdempotencyKeyIDs(ids...)
+	return _u
+}
+
+// RemoveIdempotencyKeys removes "idempotency_keys" edges to IdempotencyKey entities.
+func (_u *UserUpdate) RemoveIdempotencyKeys(v ...*IdempotencyKey) *UserUpdate {
+	ids := make([]int, len(v))
+	for i := range v {
+		ids[i] = v[i].ID
+	}
+	return _u.RemoveIdempotencyKeyIDs(ids...)
 }
 
 // ClearSessions clears all "sessions" edges to the Session entity.
@@ -384,6 +421,51 @@ func (_u *UserUpdate) sqlSave(ctx context.Context) (_node int, err error) {
 			Bidi:    false,
 			Target: &sqlgraph.EdgeTarget{
 				IDSpec: sqlgraph.NewFieldSpec(identity.FieldID, field.TypeInt),
+			},
+		}
+		for _, k := range nodes {
+			edge.Target.Nodes = append(edge.Target.Nodes, k)
+		}
+		_spec.Edges.Add = append(_spec.Edges.Add, edge)
+	}
+	if _u.mutation.IdempotencyKeysCleared() {
+		edge := &sqlgraph.EdgeSpec{
+			Rel:     sqlgraph.O2M,
+			Inverse: false,
+			Table:   user.IdempotencyKeysTable,
+			Columns: []string{user.IdempotencyKeysColumn},
+			Bidi:    false,
+			Target: &sqlgraph.EdgeTarget{
+				IDSpec: sqlgraph.NewFieldSpec(idempotencykey.FieldID, field.TypeInt),
+			},
+		}
+		_spec.Edges.Clear = append(_spec.Edges.Clear, edge)
+	}
+	if nodes := _u.mutation.RemovedIdempotencyKeysIDs(); len(nodes) > 0 && !_u.mutation.IdempotencyKeysCleared() {
+		edge := &sqlgraph.EdgeSpec{
+			Rel:     sqlgraph.O2M,
+			Inverse: false,
+			Table:   user.IdempotencyKeysTable,
+			Columns: []string{user.IdempotencyKeysColumn},
+			Bidi:    false,
+			Target: &sqlgraph.EdgeTarget{
+				IDSpec: sqlgraph.NewFieldSpec(idempotencykey.FieldID, field.TypeInt),
+			},
+		}
+		for _, k := range nodes {
+			edge.Target.Nodes = append(edge.Target.Nodes, k)
+		}
+		_spec.Edges.Clear = append(_spec.Edges.Clear, edge)
+	}
+	if nodes := _u.mutation.IdempotencyKeysIDs(); len(nodes) > 0 {
+		edge := &sqlgraph.EdgeSpec{
+			Rel:     sqlgraph.O2M,
+			Inverse: false,
+			Table:   user.IdempotencyKeysTable,
+			Columns: []string{user.IdempotencyKeysColumn},
+			Bidi:    false,
+			Target: &sqlgraph.EdgeTarget{
+				IDSpec: sqlgraph.NewFieldSpec(idempotencykey.FieldID, field.TypeInt),
 			},
 		}
 		for _, k := range nodes {
@@ -604,6 +686,21 @@ func (_u *UserUpdateOne) AddIdentities(v ...*Identity) *UserUpdateOne {
 	return _u.AddIdentityIDs(ids...)
 }
 
+// AddIdempotencyKeyIDs adds the "idempotency_keys" edge to the IdempotencyKey entity by IDs.
+func (_u *UserUpdateOne) AddIdempotencyKeyIDs(ids ...int) *UserUpdateOne {
+	_u.mutation.AddIdempotencyKeyIDs(ids...)
+	return _u
+}
+
+// AddIdempotencyKeys adds the "idempotency_keys" edges to the IdempotencyKey entity.
+func (_u *UserUpdateOne) AddIdempotencyKeys(v ...*IdempotencyKey) *UserUpdateOne {
+	ids := make([]int, len(v))
+	for i := range v {
+		ids[i] = v[i].ID
+	}
+	return _u.AddIdempotencyKeyIDs(ids...)
+}
+
 // AddSessionIDs adds the "sessions" edge to the Session entity by IDs.
 func (_u *UserUpdateOne) AddSessionIDs(ids ...int) *UserUpdateOne {
 	_u.mutation.AddSessionIDs(ids...)
@@ -694,6 +791,27 @@ func (_u *UserUpdateOne) RemoveIdentities(v ...*Identity) *UserUpdateOne {
 		ids[i] = v[i].ID
 	}
 	return _u.RemoveIdentityIDs(ids...)
+}
+
+// ClearIdempotencyKeys clears all "idempotency_keys" edges to the IdempotencyKey entity.
+func (_u *UserUpdateOne) ClearIdempotencyKeys() *UserUpdateOne {
+	_u.mutation.ClearIdempotencyKeys()
+	return _u
+}
+
+// RemoveIdempotencyKeyIDs removes the "idempotency_keys" edge to IdempotencyKey entities by IDs.
+func (_u *UserUpdateOne) RemoveIdempotencyKeyIDs(ids ...int) *UserUpdateOne {
+	_u.mutation.RemoveIdempotencyKeyIDs(ids...)
+	return _u
+}
+
+// RemoveIdempotencyKeys removes "idempotency_keys" edges to IdempotencyKey entities.
+func (_u *UserUpdateOne) RemoveIdempotencyKeys(v ...*IdempotencyKey) *UserUpdateOne {
+	ids := make([]int, len(v))
+	for i := range v {
+		ids[i] = v[i].ID
+	}
+	return _u.RemoveIdempotencyKeyIDs(ids...)
 }
 
 // ClearSessions clears all "sessions" edges to the Session entity.
@@ -927,6 +1045,51 @@ func (_u *UserUpdateOne) sqlSave(ctx context.Context) (_node *User, err error) {
 			Bidi:    false,
 			Target: &sqlgraph.EdgeTarget{
 				IDSpec: sqlgraph.NewFieldSpec(identity.FieldID, field.TypeInt),
+			},
+		}
+		for _, k := range nodes {
+			edge.Target.Nodes = append(edge.Target.Nodes, k)
+		}
+		_spec.Edges.Add = append(_spec.Edges.Add, edge)
+	}
+	if _u.mutation.IdempotencyKeysCleared() {
+		edge := &sqlgraph.EdgeSpec{
+			Rel:     sqlgraph.O2M,
+			Inverse: false,
+			Table:   user.IdempotencyKeysTable,
+			Columns: []string{user.IdempotencyKeysColumn},
+			Bidi:    false,
+			Target: &sqlgraph.EdgeTarget{
+				IDSpec: sqlgraph.NewFieldSpec(idempotencykey.FieldID, field.TypeInt),
+			},
+		}
+		_spec.Edges.Clear = append(_spec.Edges.Clear, edge)
+	}
+	if nodes := _u.mutation.RemovedIdempotencyKeysIDs(); len(nodes) > 0 && !_u.mutation.IdempotencyKeysCleared() {
+		edge := &sqlgraph.EdgeSpec{
+			Rel:     sqlgraph.O2M,
+			Inverse: false,
+			Table:   user.IdempotencyKeysTable,
+			Columns: []string{user.IdempotencyKeysColumn},
+			Bidi:    false,
+			Target: &sqlgraph.EdgeTarget{
+				IDSpec: sqlgraph.NewFieldSpec(idempotencykey.FieldID, field.TypeInt),
+			},
+		}
+		for _, k := range nodes {
+			edge.Target.Nodes = append(edge.Target.Nodes, k)
+		}
+		_spec.Edges.Clear = append(_spec.Edges.Clear, edge)
+	}
+	if nodes := _u.mutation.IdempotencyKeysIDs(); len(nodes) > 0 {
+		edge := &sqlgraph.EdgeSpec{
+			Rel:     sqlgraph.O2M,
+			Inverse: false,
+			Table:   user.IdempotencyKeysTable,
+			Columns: []string{user.IdempotencyKeysColumn},
+			Bidi:    false,
+			Target: &sqlgraph.EdgeTarget{
+				IDSpec: sqlgraph.NewFieldSpec(idempotencykey.FieldID, field.TypeInt),
 			},
 		}
 		for _, k := range nodes {
