@@ -9,6 +9,9 @@ import (
 // DeviceAuthorization is the predicate function for deviceauthorization builders.
 type DeviceAuthorization func(*sql.Selector)
 
+// IdempotencyKey is the predicate function for idempotencykey builders.
+type IdempotencyKey func(*sql.Selector)
+
 // Identity is the predicate function for identity builders.
 type Identity func(*sql.Selector)
 
