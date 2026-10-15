@@ -14,6 +14,8 @@ type Tx struct {
 	config
 	// DeviceAuthorization is the client for interacting with the DeviceAuthorization builders.
 	DeviceAuthorization *DeviceAuthorizationClient
+	// IdempotencyKey is the client for interacting with the IdempotencyKey builders.
+	IdempotencyKey *IdempotencyKeyClient
 	// Identity is the client for interacting with the Identity builders.
 	Identity *IdentityClient
 	// Session is the client for interacting with the Session builders.
@@ -156,6 +158,7 @@ func (tx *Tx) Client() *Client {
 
 func (tx *Tx) init() {
 	tx.DeviceAuthorization = NewDeviceAuthorizationClient(tx.config)
+	tx.IdempotencyKey = NewIdempotencyKeyClient(tx.config)
 	tx.Identity = NewIdentityClient(tx.config)
 	tx.Session = NewSessionClient(tx.config)
 	tx.Task = NewTaskClient(tx.config)
