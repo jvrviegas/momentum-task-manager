@@ -13,6 +13,7 @@ import (
 	"entgo.io/ent/dialect/sql"
 	"entgo.io/ent/dialect/sql/sqlgraph"
 	"github.com/jvrviegas/momentum-task-manager/backend/internal/store/ent/deviceauthorization"
+	"github.com/jvrviegas/momentum-task-manager/backend/internal/store/ent/idempotencykey"
 	"github.com/jvrviegas/momentum-task-manager/backend/internal/store/ent/identity"
 	"github.com/jvrviegas/momentum-task-manager/backend/internal/store/ent/session"
 	"github.com/jvrviegas/momentum-task-manager/backend/internal/store/ent/task"
@@ -79,6 +80,7 @@ func checkColumn(t, c string) error {
 	initCheck.Do(func() {
 		columnCheck = sql.NewColumnCheck(map[string]func(string) bool{
 			deviceauthorization.Table: deviceauthorization.ValidColumn,
+			idempotencykey.Table:      idempotencykey.ValidColumn,
 			identity.Table:            identity.ValidColumn,
 			session.Table:             session.ValidColumn,
 			task.Table:                task.ValidColumn,
