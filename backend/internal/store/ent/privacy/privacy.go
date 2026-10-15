@@ -135,6 +135,30 @@ func (f DeviceAuthorizationMutationRuleFunc) EvalMutation(ctx context.Context, m
 	return Denyf("ent/privacy: unexpected mutation type %T, expect *ent.DeviceAuthorizationMutation", m)
 }
 
+// The IdempotencyKeyQueryRuleFunc type is an adapter to allow the use of ordinary
+// functions as a query rule.
+type IdempotencyKeyQueryRuleFunc func(context.Context, *ent.IdempotencyKeyQuery) error
+
+// EvalQuery return f(ctx, q).
+func (f IdempotencyKeyQueryRuleFunc) EvalQuery(ctx context.Context, q ent.Query) error {
+	if q, ok := q.(*ent.IdempotencyKeyQuery); ok {
+		return f(ctx, q)
+	}
+	return Denyf("ent/privacy: unexpected query type %T, expect *ent.IdempotencyKeyQuery", q)
+}
+
+// The IdempotencyKeyMutationRuleFunc type is an adapter to allow the use of ordinary
+// functions as a mutation rule.
+type IdempotencyKeyMutationRuleFunc func(context.Context, *ent.IdempotencyKeyMutation) error
+
+// EvalMutation calls f(ctx, m).
+func (f IdempotencyKeyMutationRuleFunc) EvalMutation(ctx context.Context, m ent.Mutation) error {
+	if m, ok := m.(*ent.IdempotencyKeyMutation); ok {
+		return f(ctx, m)
+	}
+	return Denyf("ent/privacy: unexpected mutation type %T, expect *ent.IdempotencyKeyMutation", m)
+}
+
 // The IdentityQueryRuleFunc type is an adapter to allow the use of ordinary
 // functions as a query rule.
 type IdentityQueryRuleFunc func(context.Context, *ent.IdentityQuery) error
@@ -292,6 +316,8 @@ func queryFilter(q ent.Query) (Filter, error) {
 	switch q := q.(type) {
 	case *ent.DeviceAuthorizationQuery:
 		return q.Filter(), nil
+	case *ent.IdempotencyKeyQuery:
+		return q.Filter(), nil
 	case *ent.IdentityQuery:
 		return q.Filter(), nil
 	case *ent.SessionQuery:
@@ -310,6 +336,8 @@ func queryFilter(q ent.Query) (Filter, error) {
 func mutationFilter(m ent.Mutation) (Filter, error) {
 	switch m := m.(type) {
 	case *ent.DeviceAuthorizationMutation:
+		return m.Filter(), nil
+	case *ent.IdempotencyKeyMutation:
 		return m.Filter(), nil
 	case *ent.IdentityMutation:
 		return m.Filter(), nil
