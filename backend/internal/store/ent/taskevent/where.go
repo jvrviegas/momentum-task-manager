@@ -71,6 +71,11 @@ func TaskID(v uuid.UUID) predicate.TaskEvent {
 	return predicate.TaskEvent(sql.FieldEQ(FieldTaskID, v))
 }
 
+// ChangeID applies equality check predicate on the "change_id" field. It's identical to ChangeIDEQ.
+func ChangeID(v uuid.UUID) predicate.TaskEvent {
+	return predicate.TaskEvent(sql.FieldEQ(FieldChangeID, v))
+}
+
 // Action applies equality check predicate on the "action" field. It's identical to ActionEQ.
 func Action(v string) predicate.TaskEvent {
 	return predicate.TaskEvent(sql.FieldEQ(FieldAction, v))
@@ -169,6 +174,46 @@ func TaskIDLT(v uuid.UUID) predicate.TaskEvent {
 // TaskIDLTE applies the LTE predicate on the "task_id" field.
 func TaskIDLTE(v uuid.UUID) predicate.TaskEvent {
 	return predicate.TaskEvent(sql.FieldLTE(FieldTaskID, v))
+}
+
+// ChangeIDEQ applies the EQ predicate on the "change_id" field.
+func ChangeIDEQ(v uuid.UUID) predicate.TaskEvent {
+	return predicate.TaskEvent(sql.FieldEQ(FieldChangeID, v))
+}
+
+// ChangeIDNEQ applies the NEQ predicate on the "change_id" field.
+func ChangeIDNEQ(v uuid.UUID) predicate.TaskEvent {
+	return predicate.TaskEvent(sql.FieldNEQ(FieldChangeID, v))
+}
+
+// ChangeIDIn applies the In predicate on the "change_id" field.
+func ChangeIDIn(vs ...uuid.UUID) predicate.TaskEvent {
+	return predicate.TaskEvent(sql.FieldIn(FieldChangeID, vs...))
+}
+
+// ChangeIDNotIn applies the NotIn predicate on the "change_id" field.
+func ChangeIDNotIn(vs ...uuid.UUID) predicate.TaskEvent {
+	return predicate.TaskEvent(sql.FieldNotIn(FieldChangeID, vs...))
+}
+
+// ChangeIDGT applies the GT predicate on the "change_id" field.
+func ChangeIDGT(v uuid.UUID) predicate.TaskEvent {
+	return predicate.TaskEvent(sql.FieldGT(FieldChangeID, v))
+}
+
+// ChangeIDGTE applies the GTE predicate on the "change_id" field.
+func ChangeIDGTE(v uuid.UUID) predicate.TaskEvent {
+	return predicate.TaskEvent(sql.FieldGTE(FieldChangeID, v))
+}
+
+// ChangeIDLT applies the LT predicate on the "change_id" field.
+func ChangeIDLT(v uuid.UUID) predicate.TaskEvent {
+	return predicate.TaskEvent(sql.FieldLT(FieldChangeID, v))
+}
+
+// ChangeIDLTE applies the LTE predicate on the "change_id" field.
+func ChangeIDLTE(v uuid.UUID) predicate.TaskEvent {
+	return predicate.TaskEvent(sql.FieldLTE(FieldChangeID, v))
 }
 
 // ActionEQ applies the EQ predicate on the "action" field.
