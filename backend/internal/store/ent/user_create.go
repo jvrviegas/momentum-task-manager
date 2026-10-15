@@ -12,6 +12,7 @@ import (
 	"entgo.io/ent/schema/field"
 	"github.com/google/uuid"
 	"github.com/jvrviegas/momentum-task-manager/backend/internal/store/ent/deviceauthorization"
+	"github.com/jvrviegas/momentum-task-manager/backend/internal/store/ent/idempotencykey"
 	"github.com/jvrviegas/momentum-task-manager/backend/internal/store/ent/identity"
 	"github.com/jvrviegas/momentum-task-manager/backend/internal/store/ent/session"
 	"github.com/jvrviegas/momentum-task-manager/backend/internal/store/ent/task"
@@ -102,6 +103,21 @@ func (_c *UserCreate) AddIdentities(v ...*Identity) *UserCreate {
 		ids[i] = v[i].ID
 	}
 	return _c.AddIdentityIDs(ids...)
+}
+
+// AddIdempotencyKeyIDs adds the "idempotency_keys" edge to the IdempotencyKey entity by IDs.
+func (_c *UserCreate) AddIdempotencyKeyIDs(ids ...int) *UserCreate {
+	_c.mutation.AddIdempotencyKeyIDs(ids...)
+	return _c
+}
+
+// AddIdempotencyKeys adds the "idempotency_keys" edges to the IdempotencyKey entity.
+func (_c *UserCreate) AddIdempotencyKeys(v ...*IdempotencyKey) *UserCreate {
+	ids := make([]int, len(v))
+	for i := range v {
+		ids[i] = v[i].ID
+	}
+	return _c.AddIdempotencyKeyIDs(ids...)
 }
 
 // AddSessionIDs adds the "sessions" edge to the Session entity by IDs.
@@ -286,6 +302,22 @@ func (_c *UserCreate) createSpec() (*User, *sqlgraph.CreateSpec) {
 			Bidi:    false,
 			Target: &sqlgraph.EdgeTarget{
 				IDSpec: sqlgraph.NewFieldSpec(identity.FieldID, field.TypeInt),
+			},
+		}
+		for _, k := range nodes {
+			edge.Target.Nodes = append(edge.Target.Nodes, k)
+		}
+		_spec.Edges = append(_spec.Edges, edge)
+	}
+	if nodes := _c.mutation.IdempotencyKeysIDs(); len(nodes) > 0 {
+		edge := &sqlgraph.EdgeSpec{
+			Rel:     sqlgraph.O2M,
+			Inverse: false,
+			Table:   user.IdempotencyKeysTable,
+			Columns: []string{user.IdempotencyKeysColumn},
+			Bidi:    false,
+			Target: &sqlgraph.EdgeTarget{
+				IDSpec: sqlgraph.NewFieldSpec(idempotencykey.FieldID, field.TypeInt),
 			},
 		}
 		for _, k := range nodes {
