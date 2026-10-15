@@ -21,6 +21,8 @@ const (
 	FieldSessionID = "session_id"
 	// FieldTaskID holds the string denoting the task_id field in the database.
 	FieldTaskID = "task_id"
+	// FieldChangeID holds the string denoting the change_id field in the database.
+	FieldChangeID = "change_id"
 	// FieldAction holds the string denoting the action field in the database.
 	FieldAction = "action"
 	// FieldBefore holds the string denoting the before field in the database.
@@ -57,6 +59,7 @@ var Columns = []string{
 	FieldUserID,
 	FieldSessionID,
 	FieldTaskID,
+	FieldChangeID,
 	FieldAction,
 	FieldBefore,
 	FieldAfter,
@@ -108,6 +111,11 @@ func BySessionID(opts ...sql.OrderTermOption) OrderOption {
 // ByTaskID orders the results by the task_id field.
 func ByTaskID(opts ...sql.OrderTermOption) OrderOption {
 	return sql.OrderByField(FieldTaskID, opts...).ToFunc()
+}
+
+// ByChangeID orders the results by the change_id field.
+func ByChangeID(opts ...sql.OrderTermOption) OrderOption {
+	return sql.OrderByField(FieldChangeID, opts...).ToFunc()
 }
 
 // ByAction orders the results by the action field.
