@@ -72,6 +72,11 @@ func (s *server) taskAction(action func(ctx context.Context, key string, id uuid
 	}
 }
 
+func (s *server) undo(w http.ResponseWriter, r *http.Request) {
+	undone, err := s.tasks.Undo(r.Context(), r.Header.Get(api.IdempotencyKeyHeader))
+	s.respond(w, r, http.StatusOK, undone, err)
+}
+
 // respond answers with body, or with err: an api.Error as it is, and any
 // other error as CodeInternal.
 func (s *server) respond(w http.ResponseWriter, r *http.Request, status int, body any, err error) {
