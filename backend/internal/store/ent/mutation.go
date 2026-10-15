@@ -14,6 +14,7 @@ import (
 	"entgo.io/ent/dialect/sql"
 	"github.com/google/uuid"
 	"github.com/jvrviegas/momentum-task-manager/backend/internal/store/ent/deviceauthorization"
+	"github.com/jvrviegas/momentum-task-manager/backend/internal/store/ent/idempotencykey"
 	"github.com/jvrviegas/momentum-task-manager/backend/internal/store/ent/identity"
 	"github.com/jvrviegas/momentum-task-manager/backend/internal/store/ent/predicate"
 	"github.com/jvrviegas/momentum-task-manager/backend/internal/store/ent/session"
@@ -33,6 +34,7 @@ const (
 
 	// Node types.
 	TypeDeviceAuthorization = "DeviceAuthorization"
+	TypeIdempotencyKey      = "IdempotencyKey"
 	TypeIdentity            = "Identity"
 	TypeSession             = "Session"
 	TypeTask                = "Task"
@@ -1075,6 +1077,641 @@ func (m *DeviceAuthorizationMutation) ResetEdge(name string) error {
 		return nil
 	}
 	return fmt.Errorf("unknown DeviceAuthorization edge %s", name)
+}
+
+// IdempotencyKeyMutation represents an operation that mutates the IdempotencyKey nodes in the graph.
+type IdempotencyKeyMutation struct {
+	config
+	op             Op
+	typ            string
+	id             *int
+	key            *string
+	fingerprint    *[]byte
+	response       *jsontext.Value
+	appendresponse jsontext.Value
+	created_at     *time.Time
+	clearedFields  map[string]struct{}
+	user           *uuid.UUID
+	cleareduser    bool
+	done           bool
+	oldValue       func(context.Context) (*IdempotencyKey, error)
+	predicates     []predicate.IdempotencyKey
+}
+
+var _ ent.Mutation = (*IdempotencyKeyMutation)(nil)
+
+// idempotencykeyOption allows management of the mutation configuration using functional options.
+type idempotencykeyOption func(*IdempotencyKeyMutation)
+
+// newIdempotencyKeyMutation creates new mutation for the IdempotencyKey entity.
+func newIdempotencyKeyMutation(c config, op Op, opts ...idempotencykeyOption) *IdempotencyKeyMutation {
+	m := &IdempotencyKeyMutation{
+		config:        c,
+		op:            op,
+		typ:           TypeIdempotencyKey,
+		clearedFields: make(map[string]struct{}),
+	}
+	for _, opt := range opts {
+		opt(m)
+	}
+	return m
+}
+
+// withIdempotencyKeyID sets the ID field of the mutation.
+func withIdempotencyKeyID(id int) idempotencykeyOption {
+	return func(m *IdempotencyKeyMutation) {
+		var (
+			err   error
+			once  sync.Once
+			value *IdempotencyKey
+		)
+		m.oldValue = func(ctx context.Context) (*IdempotencyKey, error) {
+			once.Do(func() {
+				if m.done {
+					err = errors.New("querying old values post mutation is not allowed")
+				} else {
+					value, err = m.Client().IdempotencyKey.Get(ctx, id)
+				}
+			})
+			return value, err
+		}
+		m.id = &id
+	}
+}
+
+// withIdempotencyKey sets the old IdempotencyKey of the mutation.
+func withIdempotencyKey(node *IdempotencyKey) idempotencykeyOption {
+	return func(m *IdempotencyKeyMutation) {
+		m.oldValue = func(context.Context) (*IdempotencyKey, error) {
+			return node, nil
+		}
+		m.id = &node.ID
+	}
+}
+
+// Client returns a new `ent.Client` from the mutation. If the mutation was
+// executed in a transaction (ent.Tx), a transactional client is returned.
+func (m IdempotencyKeyMutation) Client() *Client {
+	client := &Client{config: m.config}
+	client.init()
+	return client
+}
+
+// Tx returns an `ent.Tx` for mutations that were executed in transactions;
+// it returns an error otherwise.
+func (m IdempotencyKeyMutation) Tx() (*Tx, error) {
+	if _, ok := m.driver.(*txDriver); !ok {
+		return nil, errors.New("ent: mutation is not running in a transaction")
+	}
+	tx := &Tx{config: m.config}
+	tx.init()
+	return tx, nil
+}
+
+// ID returns the ID value in the mutation. Note that the ID is only available
+// if it was provided to the builder or after it was returned from the database.
+func (m *IdempotencyKeyMutation) ID() (id int, exists bool) {
+	if m.id == nil {
+		return
+	}
+	return *m.id, true
+}
+
+// IDs queries the database and returns the entity ids that match the mutation's predicate.
+// That means, if the mutation is applied within a transaction with an isolation level such
+// as sql.LevelSerializable, the returned ids match the ids of the rows that will be updated
+// or updated by the mutation.
+func (m *IdempotencyKeyMutation) IDs(ctx context.Context) ([]int, error) {
+	switch {
+	case m.op.Is(OpUpdateOne | OpDeleteOne):
+		id, exists := m.ID()
+		if exists {
+			return []int{id}, nil
+		}
+		fallthrough
+	case m.op.Is(OpUpdate | OpDelete):
+		return m.Client().IdempotencyKey.Query().Where(m.predicates...).IDs(ctx)
+	default:
+		return nil, fmt.Errorf("IDs is not allowed on %s operations", m.op)
+	}
+}
+
+// SetUserID sets the "user_id" field.
+func (m *IdempotencyKeyMutation) SetUserID(u uuid.UUID) {
+	m.user = &u
+}
+
+// UserID returns the value of the "user_id" field in the mutation.
+func (m *IdempotencyKeyMutation) UserID() (r uuid.UUID, exists bool) {
+	v := m.user
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldUserID returns the old "user_id" field's value of the IdempotencyKey entity.
+// If the IdempotencyKey object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *IdempotencyKeyMutation) OldUserID(ctx context.Context) (v uuid.UUID, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldUserID is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldUserID requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldUserID: %w", err)
+	}
+	return oldValue.UserID, nil
+}
+
+// ResetUserID resets all changes to the "user_id" field.
+func (m *IdempotencyKeyMutation) ResetUserID() {
+	m.user = nil
+}
+
+// SetKey sets the "key" field.
+func (m *IdempotencyKeyMutation) SetKey(s string) {
+	m.key = &s
+}
+
+// Key returns the value of the "key" field in the mutation.
+func (m *IdempotencyKeyMutation) Key() (r string, exists bool) {
+	v := m.key
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldKey returns the old "key" field's value of the IdempotencyKey entity.
+// If the IdempotencyKey object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *IdempotencyKeyMutation) OldKey(ctx context.Context) (v string, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldKey is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldKey requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldKey: %w", err)
+	}
+	return oldValue.Key, nil
+}
+
+// ResetKey resets all changes to the "key" field.
+func (m *IdempotencyKeyMutation) ResetKey() {
+	m.key = nil
+}
+
+// SetFingerprint sets the "fingerprint" field.
+func (m *IdempotencyKeyMutation) SetFingerprint(b []byte) {
+	m.fingerprint = &b
+}
+
+// Fingerprint returns the value of the "fingerprint" field in the mutation.
+func (m *IdempotencyKeyMutation) Fingerprint() (r []byte, exists bool) {
+	v := m.fingerprint
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldFingerprint returns the old "fingerprint" field's value of the IdempotencyKey entity.
+// If the IdempotencyKey object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *IdempotencyKeyMutation) OldFingerprint(ctx context.Context) (v []byte, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldFingerprint is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldFingerprint requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldFingerprint: %w", err)
+	}
+	return oldValue.Fingerprint, nil
+}
+
+// ResetFingerprint resets all changes to the "fingerprint" field.
+func (m *IdempotencyKeyMutation) ResetFingerprint() {
+	m.fingerprint = nil
+}
+
+// SetResponse sets the "response" field.
+func (m *IdempotencyKeyMutation) SetResponse(j jsontext.Value) {
+	m.response = &j
+	m.appendresponse = nil
+}
+
+// Response returns the value of the "response" field in the mutation.
+func (m *IdempotencyKeyMutation) Response() (r jsontext.Value, exists bool) {
+	v := m.response
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldResponse returns the old "response" field's value of the IdempotencyKey entity.
+// If the IdempotencyKey object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *IdempotencyKeyMutation) OldResponse(ctx context.Context) (v jsontext.Value, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldResponse is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldResponse requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldResponse: %w", err)
+	}
+	return oldValue.Response, nil
+}
+
+// AppendResponse adds j to the "response" field.
+func (m *IdempotencyKeyMutation) AppendResponse(j jsontext.Value) {
+	m.appendresponse = append(m.appendresponse, j...)
+}
+
+// AppendedResponse returns the list of values that were appended to the "response" field in this mutation.
+func (m *IdempotencyKeyMutation) AppendedResponse() (jsontext.Value, bool) {
+	if len(m.appendresponse) == 0 {
+		return nil, false
+	}
+	return m.appendresponse, true
+}
+
+// ClearResponse clears the value of the "response" field.
+func (m *IdempotencyKeyMutation) ClearResponse() {
+	m.response = nil
+	m.appendresponse = nil
+	m.clearedFields[idempotencykey.FieldResponse] = struct{}{}
+}
+
+// ResponseCleared returns if the "response" field was cleared in this mutation.
+func (m *IdempotencyKeyMutation) ResponseCleared() bool {
+	_, ok := m.clearedFields[idempotencykey.FieldResponse]
+	return ok
+}
+
+// ResetResponse resets all changes to the "response" field.
+func (m *IdempotencyKeyMutation) ResetResponse() {
+	m.response = nil
+	m.appendresponse = nil
+	delete(m.clearedFields, idempotencykey.FieldResponse)
+}
+
+// SetCreatedAt sets the "created_at" field.
+func (m *IdempotencyKeyMutation) SetCreatedAt(t time.Time) {
+	m.created_at = &t
+}
+
+// CreatedAt returns the value of the "created_at" field in the mutation.
+func (m *IdempotencyKeyMutation) CreatedAt() (r time.Time, exists bool) {
+	v := m.created_at
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldCreatedAt returns the old "created_at" field's value of the IdempotencyKey entity.
+// If the IdempotencyKey object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *IdempotencyKeyMutation) OldCreatedAt(ctx context.Context) (v time.Time, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldCreatedAt is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldCreatedAt requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldCreatedAt: %w", err)
+	}
+	return oldValue.CreatedAt, nil
+}
+
+// ResetCreatedAt resets all changes to the "created_at" field.
+func (m *IdempotencyKeyMutation) ResetCreatedAt() {
+	m.created_at = nil
+}
+
+// ClearUser clears the "user" edge to the User entity.
+func (m *IdempotencyKeyMutation) ClearUser() {
+	m.cleareduser = true
+	m.clearedFields[idempotencykey.FieldUserID] = struct{}{}
+}
+
+// UserCleared reports if the "user" edge to the User entity was cleared.
+func (m *IdempotencyKeyMutation) UserCleared() bool {
+	return m.cleareduser
+}
+
+// UserIDs returns the "user" edge IDs in the mutation.
+// Note that IDs always returns len(IDs) <= 1 for unique edges, and you should use
+// UserID instead. It exists only for internal usage by the builders.
+func (m *IdempotencyKeyMutation) UserIDs() (ids []uuid.UUID) {
+	if id := m.user; id != nil {
+		ids = append(ids, *id)
+	}
+	return
+}
+
+// ResetUser resets all changes to the "user" edge.
+func (m *IdempotencyKeyMutation) ResetUser() {
+	m.user = nil
+	m.cleareduser = false
+}
+
+// Where appends a list predicates to the IdempotencyKeyMutation builder.
+func (m *IdempotencyKeyMutation) Where(ps ...predicate.IdempotencyKey) {
+	m.predicates = append(m.predicates, ps...)
+}
+
+// WhereP appends storage-level predicates to the IdempotencyKeyMutation builder. Using this method,
+// users can use type-assertion to append predicates that do not depend on any generated package.
+func (m *IdempotencyKeyMutation) WhereP(ps ...func(*sql.Selector)) {
+	p := make([]predicate.IdempotencyKey, len(ps))
+	for i := range ps {
+		p[i] = ps[i]
+	}
+	m.Where(p...)
+}
+
+// Op returns the operation name.
+func (m *IdempotencyKeyMutation) Op() Op {
+	return m.op
+}
+
+// SetOp allows setting the mutation operation.
+func (m *IdempotencyKeyMutation) SetOp(op Op) {
+	m.op = op
+}
+
+// Type returns the node type of this mutation (IdempotencyKey).
+func (m *IdempotencyKeyMutation) Type() string {
+	return m.typ
+}
+
+// Fields returns all fields that were changed during this mutation. Note that in
+// order to get all numeric fields that were incremented/decremented, call
+// AddedFields().
+func (m *IdempotencyKeyMutation) Fields() []string {
+	fields := make([]string, 0, 5)
+	if m.user != nil {
+		fields = append(fields, idempotencykey.FieldUserID)
+	}
+	if m.key != nil {
+		fields = append(fields, idempotencykey.FieldKey)
+	}
+	if m.fingerprint != nil {
+		fields = append(fields, idempotencykey.FieldFingerprint)
+	}
+	if m.response != nil {
+		fields = append(fields, idempotencykey.FieldResponse)
+	}
+	if m.created_at != nil {
+		fields = append(fields, idempotencykey.FieldCreatedAt)
+	}
+	return fields
+}
+
+// Field returns the value of a field with the given name. The second boolean
+// return value indicates that this field was not set, or was not defined in the
+// schema.
+func (m *IdempotencyKeyMutation) Field(name string) (ent.Value, bool) {
+	switch name {
+	case idempotencykey.FieldUserID:
+		return m.UserID()
+	case idempotencykey.FieldKey:
+		return m.Key()
+	case idempotencykey.FieldFingerprint:
+		return m.Fingerprint()
+	case idempotencykey.FieldResponse:
+		return m.Response()
+	case idempotencykey.FieldCreatedAt:
+		return m.CreatedAt()
+	}
+	return nil, false
+}
+
+// OldField returns the old value of the field from the database. An error is
+// returned if the mutation operation is not UpdateOne, or the query to the
+// database failed.
+func (m *IdempotencyKeyMutation) OldField(ctx context.Context, name string) (ent.Value, error) {
+	switch name {
+	case idempotencykey.FieldUserID:
+		return m.OldUserID(ctx)
+	case idempotencykey.FieldKey:
+		return m.OldKey(ctx)
+	case idempotencykey.FieldFingerprint:
+		return m.OldFingerprint(ctx)
+	case idempotencykey.FieldResponse:
+		return m.OldResponse(ctx)
+	case idempotencykey.FieldCreatedAt:
+		return m.OldCreatedAt(ctx)
+	}
+	return nil, fmt.Errorf("unknown IdempotencyKey field %s", name)
+}
+
+// SetField sets the value of a field with the given name. It returns an error if
+// the field is not defined in the schema, or if the type mismatched the field
+// type.
+func (m *IdempotencyKeyMutation) SetField(name string, value ent.Value) error {
+	switch name {
+	case idempotencykey.FieldUserID:
+		v, ok := value.(uuid.UUID)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetUserID(v)
+		return nil
+	case idempotencykey.FieldKey:
+		v, ok := value.(string)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetKey(v)
+		return nil
+	case idempotencykey.FieldFingerprint:
+		v, ok := value.([]byte)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetFingerprint(v)
+		return nil
+	case idempotencykey.FieldResponse:
+		v, ok := value.(jsontext.Value)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetResponse(v)
+		return nil
+	case idempotencykey.FieldCreatedAt:
+		v, ok := value.(time.Time)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetCreatedAt(v)
+		return nil
+	}
+	return fmt.Errorf("unknown IdempotencyKey field %s", name)
+}
+
+// AddedFields returns all numeric fields that were incremented/decremented during
+// this mutation.
+func (m *IdempotencyKeyMutation) AddedFields() []string {
+	return nil
+}
+
+// AddedField returns the numeric value that was incremented/decremented on a field
+// with the given name. The second boolean return value indicates that this field
+// was not set, or was not defined in the schema.
+func (m *IdempotencyKeyMutation) AddedField(name string) (ent.Value, bool) {
+	return nil, false
+}
+
+// AddField adds the value to the field with the given name. It returns an error if
+// the field is not defined in the schema, or if the type mismatched the field
+// type.
+func (m *IdempotencyKeyMutation) AddField(name string, value ent.Value) error {
+	switch name {
+	}
+	return fmt.Errorf("unknown IdempotencyKey numeric field %s", name)
+}
+
+// ClearedFields returns all nullable fields that were cleared during this
+// mutation.
+func (m *IdempotencyKeyMutation) ClearedFields() []string {
+	var fields []string
+	if m.FieldCleared(idempotencykey.FieldResponse) {
+		fields = append(fields, idempotencykey.FieldResponse)
+	}
+	return fields
+}
+
+// FieldCleared returns a boolean indicating if a field with the given name was
+// cleared in this mutation.
+func (m *IdempotencyKeyMutation) FieldCleared(name string) bool {
+	_, ok := m.clearedFields[name]
+	return ok
+}
+
+// ClearField clears the value of the field with the given name. It returns an
+// error if the field is not defined in the schema.
+func (m *IdempotencyKeyMutation) ClearField(name string) error {
+	switch name {
+	case idempotencykey.FieldResponse:
+		m.ClearResponse()
+		return nil
+	}
+	return fmt.Errorf("unknown IdempotencyKey nullable field %s", name)
+}
+
+// ResetField resets all changes in the mutation for the field with the given name.
+// It returns an error if the field is not defined in the schema.
+func (m *IdempotencyKeyMutation) ResetField(name string) error {
+	switch name {
+	case idempotencykey.FieldUserID:
+		m.ResetUserID()
+		return nil
+	case idempotencykey.FieldKey:
+		m.ResetKey()
+		return nil
+	case idempotencykey.FieldFingerprint:
+		m.ResetFingerprint()
+		return nil
+	case idempotencykey.FieldResponse:
+		m.ResetResponse()
+		return nil
+	case idempotencykey.FieldCreatedAt:
+		m.ResetCreatedAt()
+		return nil
+	}
+	return fmt.Errorf("unknown IdempotencyKey field %s", name)
+}
+
+// AddedEdges returns all edge names that were set/added in this mutation.
+func (m *IdempotencyKeyMutation) AddedEdges() []string {
+	edges := make([]string, 0, 1)
+	if m.user != nil {
+		edges = append(edges, idempotencykey.EdgeUser)
+	}
+	return edges
+}
+
+// AddedIDs returns all IDs (to other nodes) that were added for the given edge
+// name in this mutation.
+func (m *IdempotencyKeyMutation) AddedIDs(name string) []ent.Value {
+	switch name {
+	case idempotencykey.EdgeUser:
+		if id := m.user; id != nil {
+			return []ent.Value{*id}
+		}
+	}
+	return nil
+}
+
+// RemovedEdges returns all edge names that were removed in this mutation.
+func (m *IdempotencyKeyMutation) RemovedEdges() []string {
+	edges := make([]string, 0, 1)
+	return edges
+}
+
+// RemovedIDs returns all IDs (to other nodes) that were removed for the edge with
+// the given name in this mutation.
+func (m *IdempotencyKeyMutation) RemovedIDs(name string) []ent.Value {
+	return nil
+}
+
+// ClearedEdges returns all edge names that were cleared in this mutation.
+func (m *IdempotencyKeyMutation) ClearedEdges() []string {
+	edges := make([]string, 0, 1)
+	if m.cleareduser {
+		edges = append(edges, idempotencykey.EdgeUser)
+	}
+	return edges
+}
+
+// EdgeCleared returns a boolean which indicates if the edge with the given name
+// was cleared in this mutation.
+func (m *IdempotencyKeyMutation) EdgeCleared(name string) bool {
+	switch name {
+	case idempotencykey.EdgeUser:
+		return m.cleareduser
+	}
+	return false
+}
+
+// ClearEdge clears the value of the edge with the given name. It returns an error
+// if that edge is not defined in the schema.
+func (m *IdempotencyKeyMutation) ClearEdge(name string) error {
+	switch name {
+	case idempotencykey.EdgeUser:
+		m.ClearUser()
+		return nil
+	}
+	return fmt.Errorf("unknown IdempotencyKey unique edge %s", name)
+}
+
+// ResetEdge resets all changes to the edge with the given name in this mutation.
+// It returns an error if the edge is not defined in the schema.
+func (m *IdempotencyKeyMutation) ResetEdge(name string) error {
+	switch name {
+	case idempotencykey.EdgeUser:
+		m.ResetUser()
+		return nil
+	}
+	return fmt.Errorf("unknown IdempotencyKey edge %s", name)
 }
 
 // IdentityMutation represents an operation that mutates the Identity nodes in the graph.
@@ -4916,6 +5553,9 @@ type UserMutation struct {
 	identities                   map[int]struct{}
 	removedidentities            map[int]struct{}
 	clearedidentities            bool
+	idempotency_keys             map[int]struct{}
+	removedidempotency_keys      map[int]struct{}
+	clearedidempotency_keys      bool
 	sessions                     map[int]struct{}
 	removedsessions              map[int]struct{}
 	clearedsessions              bool
@@ -5250,6 +5890,60 @@ func (m *UserMutation) ResetIdentities() {
 	m.removedidentities = nil
 }
 
+// AddIdempotencyKeyIDs adds the "idempotency_keys" edge to the IdempotencyKey entity by ids.
+func (m *UserMutation) AddIdempotencyKeyIDs(ids ...int) {
+	if m.idempotency_keys == nil {
+		m.idempotency_keys = make(map[int]struct{})
+	}
+	for i := range ids {
+		m.idempotency_keys[ids[i]] = struct{}{}
+	}
+}
+
+// ClearIdempotencyKeys clears the "idempotency_keys" edge to the IdempotencyKey entity.
+func (m *UserMutation) ClearIdempotencyKeys() {
+	m.clearedidempotency_keys = true
+}
+
+// IdempotencyKeysCleared reports if the "idempotency_keys" edge to the IdempotencyKey entity was cleared.
+func (m *UserMutation) IdempotencyKeysCleared() bool {
+	return m.clearedidempotency_keys
+}
+
+// RemoveIdempotencyKeyIDs removes the "idempotency_keys" edge to the IdempotencyKey entity by IDs.
+func (m *UserMutation) RemoveIdempotencyKeyIDs(ids ...int) {
+	if m.removedidempotency_keys == nil {
+		m.removedidempotency_keys = make(map[int]struct{})
+	}
+	for i := range ids {
+		delete(m.idempotency_keys, ids[i])
+		m.removedidempotency_keys[ids[i]] = struct{}{}
+	}
+}
+
+// RemovedIdempotencyKeys returns the removed IDs of the "idempotency_keys" edge to the IdempotencyKey entity.
+func (m *UserMutation) RemovedIdempotencyKeysIDs() (ids []int) {
+	for id := range m.removedidempotency_keys {
+		ids = append(ids, id)
+	}
+	return
+}
+
+// IdempotencyKeysIDs returns the "idempotency_keys" edge IDs in the mutation.
+func (m *UserMutation) IdempotencyKeysIDs() (ids []int) {
+	for id := range m.idempotency_keys {
+		ids = append(ids, id)
+	}
+	return
+}
+
+// ResetIdempotencyKeys resets all changes to the "idempotency_keys" edge.
+func (m *UserMutation) ResetIdempotencyKeys() {
+	m.idempotency_keys = nil
+	m.clearedidempotency_keys = false
+	m.removedidempotency_keys = nil
+}
+
 // AddSessionIDs adds the "sessions" edge to the Session entity by ids.
 func (m *UserMutation) AddSessionIDs(ids ...int) {
 	if m.sessions == nil {
@@ -5579,12 +6273,15 @@ func (m *UserMutation) ResetField(name string) error {
 
 // AddedEdges returns all edge names that were set/added in this mutation.
 func (m *UserMutation) AddedEdges() []string {
-	edges := make([]string, 0, 5)
+	edges := make([]string, 0, 6)
 	if m.device_authorizations != nil {
 		edges = append(edges, user.EdgeDeviceAuthorizations)
 	}
 	if m.identities != nil {
 		edges = append(edges, user.EdgeIdentities)
+	}
+	if m.idempotency_keys != nil {
+		edges = append(edges, user.EdgeIdempotencyKeys)
 	}
 	if m.sessions != nil {
 		edges = append(edges, user.EdgeSessions)
@@ -5614,6 +6311,12 @@ func (m *UserMutation) AddedIDs(name string) []ent.Value {
 			ids = append(ids, id)
 		}
 		return ids
+	case user.EdgeIdempotencyKeys:
+		ids := make([]ent.Value, 0, len(m.idempotency_keys))
+		for id := range m.idempotency_keys {
+			ids = append(ids, id)
+		}
+		return ids
 	case user.EdgeSessions:
 		ids := make([]ent.Value, 0, len(m.sessions))
 		for id := range m.sessions {
@@ -5638,12 +6341,15 @@ func (m *UserMutation) AddedIDs(name string) []ent.Value {
 
 // RemovedEdges returns all edge names that were removed in this mutation.
 func (m *UserMutation) RemovedEdges() []string {
-	edges := make([]string, 0, 5)
+	edges := make([]string, 0, 6)
 	if m.removeddevice_authorizations != nil {
 		edges = append(edges, user.EdgeDeviceAuthorizations)
 	}
 	if m.removedidentities != nil {
 		edges = append(edges, user.EdgeIdentities)
+	}
+	if m.removedidempotency_keys != nil {
+		edges = append(edges, user.EdgeIdempotencyKeys)
 	}
 	if m.removedsessions != nil {
 		edges = append(edges, user.EdgeSessions)
@@ -5673,6 +6379,12 @@ func (m *UserMutation) RemovedIDs(name string) []ent.Value {
 			ids = append(ids, id)
 		}
 		return ids
+	case user.EdgeIdempotencyKeys:
+		ids := make([]ent.Value, 0, len(m.removedidempotency_keys))
+		for id := range m.removedidempotency_keys {
+			ids = append(ids, id)
+		}
+		return ids
 	case user.EdgeSessions:
 		ids := make([]ent.Value, 0, len(m.removedsessions))
 		for id := range m.removedsessions {
@@ -5697,12 +6409,15 @@ func (m *UserMutation) RemovedIDs(name string) []ent.Value {
 
 // ClearedEdges returns all edge names that were cleared in this mutation.
 func (m *UserMutation) ClearedEdges() []string {
-	edges := make([]string, 0, 5)
+	edges := make([]string, 0, 6)
 	if m.cleareddevice_authorizations {
 		edges = append(edges, user.EdgeDeviceAuthorizations)
 	}
 	if m.clearedidentities {
 		edges = append(edges, user.EdgeIdentities)
+	}
+	if m.clearedidempotency_keys {
+		edges = append(edges, user.EdgeIdempotencyKeys)
 	}
 	if m.clearedsessions {
 		edges = append(edges, user.EdgeSessions)
@@ -5724,6 +6439,8 @@ func (m *UserMutation) EdgeCleared(name string) bool {
 		return m.cleareddevice_authorizations
 	case user.EdgeIdentities:
 		return m.clearedidentities
+	case user.EdgeIdempotencyKeys:
+		return m.clearedidempotency_keys
 	case user.EdgeSessions:
 		return m.clearedsessions
 	case user.EdgeTasks:
@@ -5751,6 +6468,9 @@ func (m *UserMutation) ResetEdge(name string) error {
 		return nil
 	case user.EdgeIdentities:
 		m.ResetIdentities()
+		return nil
+	case user.EdgeIdempotencyKeys:
+		m.ResetIdempotencyKeys()
 		return nil
 	case user.EdgeSessions:
 		m.ResetSessions()
