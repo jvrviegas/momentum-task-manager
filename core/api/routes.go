@@ -4,10 +4,18 @@ package api
 // gets a new version prefix instead of changing these. Each task mutation,
 // and RouteUndo, answers with the Task as it is afterwards.
 //
-// RouteUndo reverts the latest change the signed-in device made, if its task
-// has not changed since; otherwise, or after an undo, it answers
-// CodeConflict. Undoing a create removes the task, so the answer is then its
-// last state with StatusDeleted.
+// RouteUndo reverts the latest change the signed-in device made, if its tasks
+// have not changed since; otherwise, or after an undo, it answers
+// CodeConflict. A change can reach several tasks, such as completing an
+// instance and creating the next one, and undo reverts all of them. Undoing
+// a create removes the task, so the answer is then its last state with
+// StatusDeleted.
+//
+// RouteStopRecurrence ends the series of the task in its path, a template or
+// one of its instances: the template's Until becomes the start of today in
+// the user's time zone, and the pending instance stays as the last one. It
+// answers with the template, or CodeConflict for a task that does not repeat
+// or a series already stopped.
 const (
 	RouteVersion                 = "GET /v1/version"
 	RouteListTasks               = "GET /v1/tasks"
