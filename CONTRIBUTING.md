@@ -5,7 +5,7 @@
 Momentum is a monorepo. The root `go.work` joins its Go modules for local builds, and `tui/go.mod` and `backend/go.mod` point at `../core` with a `replace` directive.
 
 - `core/` — Go code shared by the apps and the backend (module `github.com/jvrviegas/momentum-task-manager/core`)
-  - `domain` — task decoding, view classification, sorting, edit diffs, date resolution, and urgency
+  - `domain` — task decoding, view classification, sorting, edit diffs, date resolution, urgency, and the backend's recurring series
   - `api` — the backend's HTTP contract: routes, request and response types, and errors
 - `tui/` — the terminal app, and the Go code the macOS app shares (module `github.com/jvrviegas/momentum-task-manager/tui`)
   - `cmd/momentum` — CLI parsing, startup validation, and version metadata
@@ -21,7 +21,7 @@ Momentum is a monorepo. The root `go.work` joins its Go modules for local builds
   - `cmd/momentum-server` — configuration, listening, graceful shutdown, and the `migrate` command
   - `internal/httpapi` — routes, JSON errors, request logging, and the sign-in pages
   - `internal/auth` — device sign-in, Google and GitHub providers, and sessions
-  - `internal/tasks` — task reads and changes, idempotency keys, the `task_events` history, and undo
+  - `internal/tasks` — task reads and changes, recurring series, idempotency keys, the `task_events` history, and undo
   - `internal/logging` — JSON logs that redact every attribute outside an allowlist
   - `internal/config` — environment variables
   - `internal/store` — PostgreSQL access, migrations, and the local-only test database guard; `ent/schema` is the schema, the rest of `ent/` is generated, and `rule` and `viewer` limit task access to the signed-in user
