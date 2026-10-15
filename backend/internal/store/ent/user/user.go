@@ -25,6 +25,8 @@ const (
 	EdgeDeviceAuthorizations = "device_authorizations"
 	// EdgeIdentities holds the string denoting the identities edge name in mutations.
 	EdgeIdentities = "identities"
+	// EdgeIdempotencyKeys holds the string denoting the idempotency_keys edge name in mutations.
+	EdgeIdempotencyKeys = "idempotency_keys"
 	// EdgeSessions holds the string denoting the sessions edge name in mutations.
 	EdgeSessions = "sessions"
 	// EdgeTasks holds the string denoting the tasks edge name in mutations.
@@ -47,6 +49,13 @@ const (
 	IdentitiesInverseTable = "identities"
 	// IdentitiesColumn is the table column denoting the identities relation/edge.
 	IdentitiesColumn = "user_id"
+	// IdempotencyKeysTable is the table that holds the idempotency_keys relation/edge.
+	IdempotencyKeysTable = "idempotency_keys"
+	// IdempotencyKeysInverseTable is the table name for the IdempotencyKey entity.
+	// It exists in this package in order to avoid circular dependency with the "idempotencykey" package.
+	IdempotencyKeysInverseTable = "idempotency_keys"
+	// IdempotencyKeysColumn is the table column denoting the idempotency_keys relation/edge.
+	IdempotencyKeysColumn = "user_id"
 	// SessionsTable is the table that holds the sessions relation/edge.
 	SessionsTable = "sessions"
 	// SessionsInverseTable is the table name for the Session entity.
@@ -150,6 +159,20 @@ func ByIdentities(term sql.OrderTerm, terms ...sql.OrderTerm) OrderOption {
 	}
 }
 
+// ByIdempotencyKeysCount orders the results by idempotency_keys count.
+func ByIdempotencyKeysCount(opts ...sql.OrderTermOption) OrderOption {
+	return func(s *sql.Selector) {
+		sqlgraph.OrderByNeighborsCount(s, newIdempotencyKeysStep(), opts...)
+	}
+}
+
+// ByIdempotencyKeys orders the results by idempotency_keys terms.
+func ByIdempotencyKeys(term sql.OrderTerm, terms ...sql.OrderTerm) OrderOption {
+	return func(s *sql.Selector) {
+		sqlgraph.OrderByNeighborTerms(s, newIdempotencyKeysStep(), append([]sql.OrderTerm{term}, terms...)...)
+	}
+}
+
 // BySessionsCount orders the results by sessions count.
 func BySessionsCount(opts ...sql.OrderTermOption) OrderOption {
 	return func(s *sql.Selector) {
@@ -203,6 +226,13 @@ func newIdentitiesStep() *sqlgraph.Step {
 		sqlgraph.From(Table, FieldID),
 		sqlgraph.To(IdentitiesInverseTable, FieldID),
 		sqlgraph.Edge(sqlgraph.O2M, false, IdentitiesTable, IdentitiesColumn),
+	)
+}
+func newIdempotencyKeysStep() *sqlgraph.Step {
+	return sqlgraph.NewStep(
+		sqlgraph.From(Table, FieldID),
+		sqlgraph.To(IdempotencyKeysInverseTable, FieldID),
+		sqlgraph.Edge(sqlgraph.O2M, false, IdempotencyKeysTable, IdempotencyKeysColumn),
 	)
 }
 func newSessionsStep() *sqlgraph.Step {
