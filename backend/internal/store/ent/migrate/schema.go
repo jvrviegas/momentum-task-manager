@@ -173,6 +173,7 @@ var (
 	TaskEventsColumns = []*schema.Column{
 		{Name: "id", Type: field.TypeInt, Increment: true},
 		{Name: "task_id", Type: field.TypeUUID},
+		{Name: "change_id", Type: field.TypeUUID},
 		{Name: "action", Type: field.TypeString},
 		{Name: "before", Type: field.TypeJSON, Nullable: true},
 		{Name: "after", Type: field.TypeJSON, Nullable: true},
@@ -188,13 +189,13 @@ var (
 		ForeignKeys: []*schema.ForeignKey{
 			{
 				Symbol:     "task_events_sessions_task_events",
-				Columns:    []*schema.Column{TaskEventsColumns[6]},
+				Columns:    []*schema.Column{TaskEventsColumns[7]},
 				RefColumns: []*schema.Column{SessionsColumns[0]},
 				OnDelete:   schema.SetNull,
 			},
 			{
 				Symbol:     "task_events_users_task_events",
-				Columns:    []*schema.Column{TaskEventsColumns[7]},
+				Columns:    []*schema.Column{TaskEventsColumns[8]},
 				RefColumns: []*schema.Column{UsersColumns[0]},
 				OnDelete:   schema.NoAction,
 			},
@@ -203,12 +204,17 @@ var (
 			{
 				Name:    "taskevent_user_id_task_id",
 				Unique:  false,
-				Columns: []*schema.Column{TaskEventsColumns[7], TaskEventsColumns[1]},
+				Columns: []*schema.Column{TaskEventsColumns[8], TaskEventsColumns[1]},
 			},
 			{
 				Name:    "taskevent_session_id",
 				Unique:  false,
-				Columns: []*schema.Column{TaskEventsColumns[6]},
+				Columns: []*schema.Column{TaskEventsColumns[7]},
+			},
+			{
+				Name:    "taskevent_change_id",
+				Unique:  false,
+				Columns: []*schema.Column{TaskEventsColumns[2]},
 			},
 		},
 	}
