@@ -1,4 +1,5 @@
-h1:NOwA5c3SO2NNKNfiQ3kxp0paERjDLbUsswxY9KVwcYM=
+h1:ZO50p9I1YffS1CU/jeFOfV9IFbTzontN3rxAYaIT3mw=
 20261014175612_init.sql h1:bXwm4mh5ORaHI7Uq/355mh8LOdNAIQW05FEKRQaN/v4=
 20261014214921_device_sign_in.sql h1:oexGfhv6ghPcqDOy6/yHc2RbvHhyVf2sZURqBK9ATHk=
 20261015213017_idempotency_keys.sql h1:DrzDWblqCfrdGt34qwo7T0W59KcfUPk/GkBFtJ7A60g=
+20261015224234_task_event_changes.sql h1:HnWLZ1TQhlkWSJr0mSPxnxCOflyFPUYCgj38fiWeUBY=
