@@ -30,16 +30,23 @@ const (
 	keyLifetime = 24 * time.Hour
 )
 
-// Create adds a pending task, under the idempotency key.
+// Create adds a pending task, under the idempotency key. With a recurrence,
+// it adds a series: a recurring template and its first instance, due when
+// the template is, and answers with the instance (backend plan D5).
 func (s *Service) Create(ctx context.Context, key string, input api.CreateTaskRequest) (api.Task, error) {
-	if err := validateCreate(input); err != nil {
+	rule, err := validateCreate(input)
+	if err != nil {
 		return api.Task{}, err
 	}
-	return s.mutate(ctx, key, "create", uuid.Nil, input, func(tx *ent.Client, now time.Time) (*ent.Task, error) {
+	return s.mutate(ctx, key, "create", uuid.Nil, input, func(c *change) (*ent.Task, error) {
 		userID, _ := viewer.UserID(ctx)
-		create := tx.Task.Create().SetUserID(userID).SetStatus(task.StatusPending).
+		status := task.StatusPending
+		if rule != "" {
+			status = task.StatusRecurring
+		}
+		create := c.tx.Task.Create().SetUserID(userID).SetStatus(status).
 			SetDescription(input.Description).SetProject(input.Project).SetPriority(input.Priority).
-			SetEntry(now).SetModified(now).
+			SetEntry(c.now).SetModified(c.now).SetRecurrence(rule).
 			SetNillableDue(instantOf(input.Due)).SetNillableScheduled(instantOf(input.Scheduled))
 		if input.EstimateMinutes != 0 {
 			create.SetEstimateMinutes(input.EstimateMinutes)
@@ -51,18 +58,31 @@ func (s *Service) Create(ctx context.Context, key string, input api.CreateTaskRe
 		if err != nil {
 			return nil, err
 		}
-		after := toAPI(created)
-		return created, record(ctx, tx, now, "create", created.ID, nil, &after)
+		if rule == "" {
+			return created, c.recordCreate(ctx, "create", created)
+		}
+		instance, err := c.createInstance(ctx, created, *created.Due, created.Scheduled, created.Wait)
+		if err != nil {
+			return nil, err
+		}
+		// The answer's event comes first, as undo expects.
+		if err := c.recordCreate(ctx, "create", instance); err != nil {
+			return nil, err
+		}
+		return instance, c.recordCreate(ctx, "create", created)
 	})
 }
 
 // Modify changes the fields input names on a pending task, as a
-// domain.TaskDiff does, under the idempotency key.
+// domain.TaskDiff does, under the idempotency key. A recurrence turns a task
+// into the first instance of a new series, or changes the rule of the series
+// an instance or template belongs to.
 func (s *Service) Modify(ctx context.Context, key string, id uuid.UUID, input api.ModifyTaskRequest) (api.Task, error) {
-	if err := validateModify(input); err != nil {
+	rule, err := validateModify(input)
+	if err != nil {
 		return api.Task{}, err
 	}
-	return s.update(ctx, key, "modify", id, input, func(t *api.Task, _ time.Time) error {
+	edit := func(t *api.Task, _ time.Time) error {
 		t.Description = changed(t.Description, input.Description)
 		t.Project = changed(t.Project, input.Project)
 		t.Priority = changed(t.Priority, input.Priority)
@@ -73,25 +93,62 @@ func (s *Service) Modify(ctx context.Context, key string, id uuid.UUID, input ap
 			kept := slices.DeleteFunc(slices.Clone(t.Tags), func(tag string) bool { return slices.Contains(input.Tags.Remove, tag) })
 			t.Tags = uniqueTags(append(kept, input.Tags.Add...))
 		}
+		if rule != "" {
+			t.Recurrence = rule
+		}
 		return nil
+	}
+	return s.mutate(ctx, key, "modify", id, input, func(c *change) (*ent.Task, error) {
+		row, err := c.lock(ctx, id)
+		if err != nil {
+			return nil, err
+		}
+		switch {
+		case rule == "":
+			return c.updatePending(ctx, "modify", row, edit)
+		case row.Status == task.StatusRecurring && onlyRecurrence(input):
+			return c.changeSeries(ctx, row, rule, uuid.Nil)
+		case row.Parent != nil:
+			return c.changeInstanceSeries(ctx, row, rule, edit)
+		default:
+			return c.startSeries(ctx, row, edit)
+		}
 	})
 }
 
 // Complete completes a pending task and stops it, as Taskwarrior's done
-// does, under the idempotency key.
+// does, under the idempotency key. Completing an instance creates the next
+// one of its series.
 func (s *Service) Complete(ctx context.Context, key string, id uuid.UUID) (api.Task, error) {
-	return s.update(ctx, key, "complete", id, nil, func(t *api.Task, now time.Time) error {
+	return s.close(ctx, key, "complete", id, func(t *api.Task, now time.Time) error {
 		t.Status, t.End, t.Start = api.StatusCompleted, &now, nil
 		return nil
 	})
 }
 
 // Delete deletes a pending task under the idempotency key. Like
-// Taskwarrior's delete, it keeps the start time of a started task.
+// Taskwarrior's delete, it keeps the start time of a started task. Deleting
+// an instance creates the next one of its series.
 func (s *Service) Delete(ctx context.Context, key string, id uuid.UUID) (api.Task, error) {
-	return s.update(ctx, key, "delete", id, nil, func(t *api.Task, now time.Time) error {
+	return s.close(ctx, key, "delete", id, func(t *api.Task, now time.Time) error {
 		t.Status, t.End = api.StatusDeleted, &now
 		return nil
+	})
+}
+
+// close ends the pending task id with edit, recorded as action, and creates
+// the next instance if the task is one.
+func (s *Service) close(ctx context.Context, key, action string, id uuid.UUID, edit func(t *api.Task, now time.Time) error) (api.Task, error) {
+	return s.mutate(ctx, key, action, id, nil, func(c *change) (*ent.Task, error) {
+		row, err := c.lock(ctx, id)
+		if err != nil {
+			return nil, err
+		}
+		closed, err := c.updatePending(ctx, action, row, edit)
+		if err != nil {
+			return nil, err
+		}
+		return closed, c.next(ctx, closed)
 	})
 }
 
@@ -117,39 +174,66 @@ func (s *Service) Stop(ctx context.Context, key string, id uuid.UUID) (api.Task,
 	})
 }
 
-// update applies edit to the pending task id and records it as action. The
-// task stays locked until the transaction ends, so concurrent changes apply
-// one after the other.
+// update applies edit to the pending task id and records it as action.
 func (s *Service) update(ctx context.Context, key, action string, id uuid.UUID, input any, edit func(t *api.Task, now time.Time) error) (api.Task, error) {
-	return s.mutate(ctx, key, action, id, input, func(tx *ent.Client, now time.Time) (*ent.Task, error) {
-		row, err := tx.Task.Query().Where(task.ID(id)).ForUpdate().Only(ctx)
-		if ent.IsNotFound(err) {
-			return nil, &api.Error{Code: api.CodeNotFound, Message: "no such task"}
-		} else if err != nil {
-			return nil, err
-		}
-		if row.Status != task.StatusPending {
-			return nil, conflict(fmt.Sprintf("the task is %s; only pending tasks can change", row.Status))
-		}
-		before := toAPI(row)
-		after := before
-		if err := edit(&after, now); err != nil {
-			return nil, err
-		}
-		after.Modified = now
-		saved, err := save(ctx, tx.Task.UpdateOne(row), after)
+	return s.mutate(ctx, key, action, id, input, func(c *change) (*ent.Task, error) {
+		row, err := c.lock(ctx, id)
 		if err != nil {
 			return nil, err
 		}
-		result := toAPI(saved)
-		return saved, record(ctx, tx, now, action, id, &before, &result)
+		return c.updatePending(ctx, action, row, edit)
 	})
+}
+
+// change is one mutation in progress: its transaction, its time, and the id
+// that every task_events row it writes shares.
+type change struct {
+	tx  *ent.Client
+	now time.Time
+	id  uuid.UUID
+}
+
+var errNoSuchTask = &api.Error{Code: api.CodeNotFound, Message: "no such task"}
+
+// lock returns the task id, locked until the change ends, so concurrent
+// changes to it apply one after the other.
+func (c *change) lock(ctx context.Context, id uuid.UUID) (*ent.Task, error) {
+	row, err := c.tx.Task.Query().Where(task.ID(id)).ForUpdate().Only(ctx)
+	if ent.IsNotFound(err) {
+		return nil, errNoSuchTask
+	}
+	return row, err
+}
+
+// updatePending applies edit to row, which must be pending, as update does.
+func (c *change) updatePending(ctx context.Context, action string, row *ent.Task, edit func(t *api.Task, now time.Time) error) (*ent.Task, error) {
+	if row.Status != task.StatusPending {
+		return nil, conflict(fmt.Sprintf("the task is %s; only pending tasks can change", row.Status))
+	}
+	return c.update(ctx, action, row, edit)
+}
+
+// update applies edit to the locked row, stores the result, and records it
+// as action.
+func (c *change) update(ctx context.Context, action string, row *ent.Task, edit func(t *api.Task, now time.Time) error) (*ent.Task, error) {
+	before := toAPI(row)
+	after := before
+	if err := edit(&after, c.now); err != nil {
+		return nil, err
+	}
+	after.Modified = c.now
+	saved, err := save(ctx, c.tx.Task.UpdateOne(row), after)
+	if err != nil {
+		return nil, err
+	}
+	result := toAPI(saved)
+	return saved, c.record(ctx, action, row.ID, &before, &result)
 }
 
 // save stores the fields of t that a mutation can change.
 func save(ctx context.Context, update *ent.TaskUpdateOne, t api.Task) (*ent.Task, error) {
 	update.SetDescription(t.Description).SetStatus(task.Status(t.Status)).
-		SetProject(t.Project).SetPriority(t.Priority).SetModified(t.Modified)
+		SetProject(t.Project).SetPriority(t.Priority).SetModified(t.Modified).SetRecurrence(t.Recurrence)
 	if t.EstimateMinutes != 0 {
 		update.SetEstimateMinutes(t.EstimateMinutes)
 	} else {
@@ -158,23 +242,29 @@ func save(ctx context.Context, update *ent.TaskUpdateOne, t api.Task) (*ent.Task
 	setOrClear(t.Due, update.SetDue, update.ClearDue)
 	setOrClear(t.Scheduled, update.SetScheduled, update.ClearScheduled)
 	setOrClear(t.Start, update.SetStart, update.ClearStart)
+	setOrClear(t.Until, update.SetUntil, update.ClearUntil)
 	setOrClear(t.End, update.SetEnd, update.ClearEnd)
 	if len(t.Tags) > 0 {
 		update.SetTags(t.Tags)
 	} else {
 		update.ClearTags()
 	}
+	if parent, err := uuid.Parse(t.Parent); err == nil {
+		update.SetParent(parent)
+	} else {
+		update.ClearParent()
+	}
 	return update.Save(ctx)
 }
 
 // mutate runs change once per idempotency key. In one transaction, it claims
-// key for the user, runs change, and stores the answer: the changed task
-// with its urgency. A request that sends the key again gets that answer
-// instead. Claiming a key waits for a transaction that has claimed it
+// key for the user, runs change, and stores the answer: the task change
+// returns, with its urgency. A request that sends the key again gets that
+// answer instead. Claiming a key waits for a transaction that has claimed it
 // already, so a retry sent while the first attempt is still running does not
 // run change again. A key sent with a different request is a conflict. A
 // failed change claims nothing.
-func (s *Service) mutate(ctx context.Context, key, action string, id uuid.UUID, input any, change func(tx *ent.Client, now time.Time) (*ent.Task, error)) (api.Task, error) {
+func (s *Service) mutate(ctx context.Context, key, action string, id uuid.UUID, input any, run func(c *change) (*ent.Task, error)) (api.Task, error) {
 	if key == "" || len(key) > maxKeyLength {
 		return api.Task{}, invalid("", fmt.Sprintf("send an %s header of 1 to %d characters", api.IdempotencyKeyHeader, maxKeyLength))
 	}
@@ -205,7 +295,7 @@ func (s *Service) mutate(ctx context.Context, key, action string, id uuid.UUID, 
 	} else if err != nil {
 		return api.Task{}, err
 	}
-	saved, err := change(tx.Client(), now)
+	saved, err := run(&change{tx: tx.Client(), now: now, id: uuid.New()})
 	if err != nil {
 		return api.Task{}, err
 	}
@@ -238,12 +328,18 @@ func (s *Service) replay(ctx context.Context, key string, fingerprint []byte) (a
 	return answer, err
 }
 
-// record writes the task_events row for one change to the task id, with the
+// recordCreate records the creation of row as action.
+func (c *change) recordCreate(ctx context.Context, action string, row *ent.Task) error {
+	after := toAPI(row)
+	return c.record(ctx, action, row.ID, nil, &after)
+}
+
+// record writes the task_events row for this change to the task id, with the
 // session that made it. Before is nil for a created task, and after for an
 // undone create.
-func record(ctx context.Context, tx *ent.Client, now time.Time, action string, id uuid.UUID, before, after *api.Task) error {
+func (c *change) record(ctx context.Context, action string, id uuid.UUID, before, after *api.Task) error {
 	userID, _ := viewer.UserID(ctx)
-	event := tx.TaskEvent.Create().SetUserID(userID).SetTaskID(id).SetAction(action).SetCreatedAt(now)
+	event := c.tx.TaskEvent.Create().SetUserID(userID).SetTaskID(id).SetChangeID(c.id).SetAction(action).SetCreatedAt(c.now)
 	if session, ok := auth.FromContext(ctx); ok {
 		event.SetSessionID(session.ID)
 	}
@@ -264,55 +360,84 @@ func record(ctx context.Context, tx *ent.Client, now time.Time, action string, i
 	return event.Exec(ctx)
 }
 
-func validateCreate(input api.CreateTaskRequest) error {
+// validateCreate checks input and returns its recurrence rule in canonical
+// form, or "" for a task that does not repeat.
+func validateCreate(input api.CreateTaskRequest) (string, error) {
 	if strings.TrimSpace(input.Description) == "" {
-		return invalid("description", "description cannot be empty")
+		return "", invalid("description", "description cannot be empty")
 	}
-	if input.Recurrence != "" {
-		return errRecurrence
+	rule, err := checkRecurrence(input.Recurrence)
+	if err != nil {
+		return "", err
+	}
+	if rule != "" && input.Due == nil {
+		return "", errNoFirstDue
 	}
 	if err := checkPriority(input.Priority); err != nil {
-		return err
+		return "", err
 	}
 	if input.EstimateMinutes != 0 {
 		if err := checkEstimate(input.EstimateMinutes); err != nil {
-			return err
+			return "", err
 		}
 	}
-	return checkTags(input.Tags)
+	return rule, checkTags(input.Tags)
 }
 
-func validateModify(input api.ModifyTaskRequest) error {
-	if input.Description.IsZero() && input.Project.IsZero() && input.Priority.IsZero() &&
-		input.Due.IsZero() && input.Scheduled.IsZero() && input.Recurrence.IsZero() &&
-		input.EstimateMinutes.IsZero() && (input.Tags == nil || len(input.Tags.Add)+len(input.Tags.Remove) == 0) {
-		return invalid("", "the request changes nothing")
+// validateModify checks input and returns the recurrence rule it sets in
+// canonical form, or "" if it sets none.
+func validateModify(input api.ModifyTaskRequest) (string, error) {
+	if onlyRecurrence(input) && input.Recurrence.IsZero() {
+		return "", invalid("", "the request changes nothing")
 	}
 	if input.Description.Kind == domain.Clear || (input.Description.Kind == domain.Set && strings.TrimSpace(input.Description.Value) == "") {
-		return invalid("description", "description cannot be empty")
+		return "", invalid("description", "description cannot be empty")
 	}
-	if !input.Recurrence.IsZero() {
-		return errRecurrence
+	var rule string
+	if input.Recurrence.Kind != domain.Unchanged {
+		var err error
+		if rule, err = checkRecurrence(input.Recurrence.Value); err != nil {
+			return "", err
+		}
+		// As in Taskwarrior, which refuses to remove a recurrence.
+		if rule == "" {
+			return "", invalid("recurrence", "a recurrence cannot be removed; stop the series instead")
+		}
 	}
 	if input.Priority.Kind == domain.Set {
 		if err := checkPriority(input.Priority.Value); err != nil {
-			return err
+			return "", err
 		}
 	}
 	if input.EstimateMinutes.Kind == domain.Set {
 		if err := checkEstimate(input.EstimateMinutes.Value); err != nil {
-			return err
+			return "", err
 		}
 	}
 	if input.Tags != nil {
-		return checkTags(input.Tags.Add)
+		return rule, checkTags(input.Tags.Add)
 	}
-	return nil
+	return rule, nil
 }
 
-// errRecurrence refuses recurring series until the server generates their
-// instances (backend plan T11).
-var errRecurrence = invalid("recurrence", "recurring tasks are not available on the server yet")
+// onlyRecurrence reports whether input changes no field but the recurrence.
+func onlyRecurrence(input api.ModifyTaskRequest) bool {
+	return input.Description.IsZero() && input.Project.IsZero() && input.Priority.IsZero() &&
+		input.Due.IsZero() && input.Scheduled.IsZero() && input.EstimateMinutes.IsZero() &&
+		(input.Tags == nil || len(input.Tags.Add)+len(input.Tags.Remove) == 0)
+}
+
+var errNoFirstDue = invalid("due", "recurring tasks need a first due date")
+
+// checkRecurrence returns the canonical form of a recurrence rule, "" for
+// none.
+func checkRecurrence(value string) (string, error) {
+	rule, err := domain.ParseRecurrence(value)
+	if err != nil {
+		return "", invalid("recurrence", err.Error())
+	}
+	return rule, nil
+}
 
 func checkPriority(priority string) error {
 	switch priority {
