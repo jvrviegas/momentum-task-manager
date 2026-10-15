@@ -156,11 +156,11 @@ func init() {
 	taskeventFields := schema.TaskEvent{}.Fields()
 	_ = taskeventFields
 	// taskeventDescAction is the schema descriptor for action field.
-	taskeventDescAction := taskeventFields[3].Descriptor()
+	taskeventDescAction := taskeventFields[4].Descriptor()
 	// taskevent.ActionValidator is a validator for the "action" field. It is called by the builders before save.
 	taskevent.ActionValidator = taskeventDescAction.Validators[0].(func(string) error)
 	// taskeventDescCreatedAt is the schema descriptor for created_at field.
-	taskeventDescCreatedAt := taskeventFields[6].Descriptor()
+	taskeventDescCreatedAt := taskeventFields[7].Descriptor()
 	// taskevent.DefaultCreatedAt holds the default value on creation for the created_at field.
 	taskevent.DefaultCreatedAt = taskeventDescCreatedAt.Default.(func() time.Time)
 	userFields := schema.User{}.Fields()
