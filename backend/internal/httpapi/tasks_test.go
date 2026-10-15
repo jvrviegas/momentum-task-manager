@@ -237,3 +237,56 @@ func TestUndoOverHTTP(t *testing.T) {
 		}
 	}
 }
+
+func TestRecurrenceOverHTTP(t *testing.T) {
+	h := newHarness(t)
+	alice := h.signIn("alice@example.com").Token
+	bob := h.signIn("bob@example.com").Token
+	due := time.Now().Add(24 * time.Hour).UTC().Truncate(time.Second)
+
+	status, body := h.send(http.MethodPost, "/v1/tasks", alice, uuid.NewString(), api.CreateTaskRequest{Description: "Secret series", Due: &due, Recurrence: "weekly"})
+	instance := decodeBody[api.Task](t, body)
+	if status != http.StatusCreated || instance.Status != api.StatusPending || instance.Parent == "" || instance.Recurrence != "weekly" {
+		t.Fatalf("create = %d %s", status, body)
+	}
+	status, body = h.send(http.MethodPost, "/v1/tasks", alice, uuid.NewString(), api.CreateTaskRequest{Description: "No anchor", Recurrence: "weekly"})
+	wantAPIError(t, status, body, http.StatusBadRequest, api.CodeInvalid, "due")
+	status, body = h.send(http.MethodGet, "/v1/tasks?status=recurring", alice, "", nil)
+	if listed := decodeBody[api.TaskList](t, body); status != http.StatusOK || len(listed.Tasks) != 1 || listed.Tasks[0].UUID != instance.Parent {
+		t.Errorf("recurring = %d %s", status, body)
+	}
+
+	stopPath := "/v1/tasks/" + instance.UUID + "/stop-recurrence"
+	status, body = h.send(http.MethodPost, stopPath, alice, "", nil)
+	wantAPIError(t, status, body, http.StatusBadRequest, api.CodeInvalid, "")
+	status, first := h.send(http.MethodPost, stopPath, alice, "secret-stop-key", nil)
+	if stopped := decodeBody[api.Task](t, first); status != http.StatusOK || stopped.UUID != instance.Parent || stopped.Until == nil {
+		t.Errorf("stop = %d %s", status, first)
+	}
+	if status, again := h.send(http.MethodPost, stopPath, alice, "secret-stop-key", nil); status != http.StatusOK || again != first {
+		t.Errorf("retried stop = %d %s, want %s", status, again, first)
+	}
+	status, body = h.send(http.MethodPost, stopPath, alice, uuid.NewString(), nil)
+	wantAPIError(t, status, body, http.StatusConflict, api.CodeConflict, "")
+	for _, path := range []string{stopPath, "/v1/tasks/" + uuid.NewString() + "/stop-recurrence", "/v1/tasks/not-a-uuid/stop-recurrence"} {
+		status, body = h.send(http.MethodPost, path, bob, uuid.NewString(), nil)
+		wantAPIError(t, status, body, http.StatusNotFound, api.CodeNotFound, "")
+	}
+	status, body = h.send(http.MethodPost, stopPath, "mtk_unknown", uuid.NewString(), nil)
+	wantAPIError(t, status, body, http.StatusUnauthorized, api.CodeUnauthorized, "")
+
+	// The stopped series makes no instance after this one.
+	if status, body = h.send(http.MethodPost, "/v1/tasks/"+instance.UUID+"/complete", alice, uuid.NewString(), nil); status != http.StatusOK {
+		t.Fatalf("complete = %d %s", status, body)
+	}
+	status, body = h.send(http.MethodGet, "/v1/tasks?status=pending", alice, "", nil)
+	if status != http.StatusOK || body != "{\"tasks\":[]}\n" {
+		t.Errorf("pending after the last instance = %d %s", status, body)
+	}
+
+	for _, secret := range []string{"Secret series", "secret-stop-key", instance.UUID, instance.Parent} {
+		if strings.Contains(h.logs.String(), secret) {
+			t.Errorf("log contains %q:\n%s", secret, h.logs.String())
+		}
+	}
+}
