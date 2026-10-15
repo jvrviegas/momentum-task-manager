@@ -28,6 +28,7 @@ func (User) Edges() []ent.Edge {
 	return []ent.Edge{
 		edge.To("device_authorizations", DeviceAuthorization.Type),
 		edge.To("identities", Identity.Type),
+		edge.To("idempotency_keys", IdempotencyKey.Type),
 		edge.To("sessions", Session.Type),
 		edge.To("tasks", Task.Type),
 		edge.To("task_events", TaskEvent.Type),
