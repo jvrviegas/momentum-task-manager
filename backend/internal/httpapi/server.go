@@ -11,15 +11,16 @@ import (
 	"time"
 
 	"github.com/jvrviegas/momentum-task-manager/backend/internal/auth"
+	"github.com/jvrviegas/momentum-task-manager/backend/internal/tasks"
 	"github.com/jvrviegas/momentum-task-manager/core/api"
 )
 
 // New returns the server's handler. GET /health reports that the server is
 // up; Cloud Run reserves some paths that end in z, so it is not /healthz.
-// Sign-in has JSON routes for the apps and pages for the browser. Any other
-// route answers with an api.Error.
-func New(logger *slog.Logger, signIn *auth.Service) http.Handler {
-	s := &server{logger: logger, auth: signIn, secure: strings.HasPrefix(signIn.PublicURL(), "https://")}
+// Sign-in has JSON routes for the apps and pages for the browser; the task
+// routes need a signed-in user. Any other route answers with an api.Error.
+func New(logger *slog.Logger, signIn *auth.Service, userTasks *tasks.Service) http.Handler {
+	s := &server{logger: logger, auth: signIn, tasks: userTasks, secure: strings.HasPrefix(signIn.PublicURL(), "https://")}
 	mux := http.NewServeMux()
 	mux.HandleFunc("GET /health", func(w http.ResponseWriter, r *http.Request) {
 		writeJSON(w, http.StatusOK, map[string]string{"status": "ok"})
@@ -28,6 +29,15 @@ func New(logger *slog.Logger, signIn *auth.Service) http.Handler {
 	mux.HandleFunc(api.RoutePollDeviceSignIn, s.pollDeviceSignIn)
 	mux.HandleFunc(api.RouteSession, s.authenticated(s.session))
 	mux.HandleFunc(api.RouteSignOut, s.authenticated(s.signOut))
+	mux.HandleFunc(api.RouteListTasks, s.authenticated(s.listTasks))
+	mux.HandleFunc(api.RouteCreateTask, s.authenticated(s.createTask))
+	mux.HandleFunc(api.RouteModifyTask, s.authenticated(s.modifyTask))
+	mux.HandleFunc(api.RouteDeleteTask, s.authenticated(s.taskAction(userTasks.Delete)))
+	mux.HandleFunc(api.RouteCompleteTask, s.authenticated(s.taskAction(userTasks.Complete)))
+	mux.HandleFunc(api.RouteStartTask, s.authenticated(s.taskAction(userTasks.Start)))
+	mux.HandleFunc(api.RouteStopTask, s.authenticated(s.taskAction(userTasks.Stop)))
+	mux.HandleFunc(api.RouteListProjects, s.authenticated(s.listProjects))
+	mux.HandleFunc(api.RouteListTags, s.authenticated(s.listTags))
 	mux.HandleFunc("GET "+devicePath, s.devicePage)
 	mux.HandleFunc("POST "+devicePath, s.deviceSubmit)
 	mux.HandleFunc("GET "+callbackPath+"{provider}", s.callback)
@@ -40,6 +50,7 @@ func New(logger *slog.Logger, signIn *auth.Service) http.Handler {
 type server struct {
 	logger *slog.Logger
 	auth   *auth.Service
+	tasks  *tasks.Service
 	// secure marks cookies Secure when browsers reach the server over HTTPS.
 	secure bool
 }
