@@ -36,6 +36,7 @@ func New(logger *slog.Logger, signIn *auth.Service, userTasks *tasks.Service) ht
 	mux.HandleFunc(api.RouteCompleteTask, s.authenticated(s.taskAction(userTasks.Complete)))
 	mux.HandleFunc(api.RouteStartTask, s.authenticated(s.taskAction(userTasks.Start)))
 	mux.HandleFunc(api.RouteStopTask, s.authenticated(s.taskAction(userTasks.Stop)))
+	mux.HandleFunc(api.RouteStopRecurrence, s.authenticated(s.taskAction(userTasks.StopRecurrence)))
 	mux.HandleFunc(api.RouteUndo, s.authenticated(s.undo))
 	mux.HandleFunc(api.RouteListProjects, s.authenticated(s.listProjects))
 	mux.HandleFunc(api.RouteListTags, s.authenticated(s.listTags))
