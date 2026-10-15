@@ -50,6 +50,12 @@ func (_c *TaskEventCreate) SetTaskID(v uuid.UUID) *TaskEventCreate {
 	return _c
 }
 
+// SetChangeID sets the "change_id" field.
+func (_c *TaskEventCreate) SetChangeID(v uuid.UUID) *TaskEventCreate {
+	_c.mutation.SetChangeID(v)
+	return _c
+}
+
 // SetAction sets the "action" field.
 func (_c *TaskEventCreate) SetAction(v string) *TaskEventCreate {
 	_c.mutation.SetAction(v)
@@ -147,6 +153,9 @@ func (_c *TaskEventCreate) check() error {
 	if _, ok := _c.mutation.TaskID(); !ok {
 		return &ValidationError{Name: "task_id", err: errors.New(`ent: missing required field "TaskEvent.task_id"`)}
 	}
+	if _, ok := _c.mutation.ChangeID(); !ok {
+		return &ValidationError{Name: "change_id", err: errors.New(`ent: missing required field "TaskEvent.change_id"`)}
+	}
 	if _, ok := _c.mutation.Action(); !ok {
 		return &ValidationError{Name: "action", err: errors.New(`ent: missing required field "TaskEvent.action"`)}
 	}
@@ -190,6 +199,10 @@ func (_c *TaskEventCreate) createSpec() (*TaskEvent, *sqlgraph.CreateSpec) {
 	if value, ok := _c.mutation.TaskID(); ok {
 		_spec.SetField(taskevent.FieldTaskID, field.TypeUUID, value)
 		_node.TaskID = value
+	}
+	if value, ok := _c.mutation.ChangeID(); ok {
+		_spec.SetField(taskevent.FieldChangeID, field.TypeUUID, value)
+		_node.ChangeID = value
 	}
 	if value, ok := _c.mutation.Action(); ok {
 		_spec.SetField(taskevent.FieldAction, field.TypeString, value)
