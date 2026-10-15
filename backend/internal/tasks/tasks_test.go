@@ -172,7 +172,8 @@ func TestCreateRejectsInvalidFields(t *testing.T) {
 		{"estimate over a day", func(r *api.CreateTaskRequest) { r.EstimateMinutes = 24*60 + 1 }, "estimateMinutes"},
 		{"tag with a space", func(r *api.CreateTaskRequest) { r.Tags = []string{"ok", "two words"} }, "tags"},
 		{"empty tag", func(r *api.CreateTaskRequest) { r.Tags = []string{""} }, "tags"},
-		{"recurrence before T11", func(r *api.CreateTaskRequest) { r.Recurrence, r.Due = "weekly", at("2026-10-16T09:00:00Z") }, "recurrence"},
+		{"unsupported recurrence", func(r *api.CreateTaskRequest) { r.Recurrence, r.Due = "hourly", at("2026-10-16T09:00:00Z") }, "recurrence"},
+		{"recurrence without a due date", func(r *api.CreateTaskRequest) { r.Recurrence = "weekly" }, "due"},
 	} {
 		t.Run(test.name, func(t *testing.T) {
 			request := valid
@@ -252,8 +253,10 @@ func TestModifyRejectsInvalidChanges(t *testing.T) {
 		{"unknown priority", api.ModifyTaskRequest{Priority: set("low")}, "priority"},
 		{"zero estimate", api.ModifyTaskRequest{EstimateMinutes: set(0)}, "estimateMinutes"},
 		{"tag with a space", api.ModifyTaskRequest{Tags: &api.TagChange{Add: []string{"two words"}}}, "tags"},
-		{"recurrence before T11", api.ModifyTaskRequest{Recurrence: set("weekly")}, "recurrence"},
-		{"cleared recurrence before T11", api.ModifyTaskRequest{Recurrence: cleared[string]()}, "recurrence"},
+		{"unsupported recurrence", api.ModifyTaskRequest{Recurrence: set("hourly")}, "recurrence"},
+		{"cleared recurrence", api.ModifyTaskRequest{Recurrence: cleared[string]()}, "recurrence"},
+		{"recurrence set to none", api.ModifyTaskRequest{Recurrence: set("none")}, "recurrence"},
+		{"recurrence without a due date", api.ModifyTaskRequest{Recurrence: set("weekly")}, "due"},
 	} {
 		t.Run(test.name, func(t *testing.T) {
 			_, err := f.service.Modify(f.alice, uuid.NewString(), id, test.request)
