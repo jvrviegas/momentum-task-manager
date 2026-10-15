@@ -21,6 +21,18 @@ func (f DeviceAuthorizationFunc) Mutate(ctx context.Context, m ent.Mutation) (en
 	return nil, fmt.Errorf("unexpected mutation type %T. expect *ent.DeviceAuthorizationMutation", m)
 }
 
+// The IdempotencyKeyFunc type is an adapter to allow the use of ordinary
+// function as IdempotencyKey mutator.
+type IdempotencyKeyFunc func(context.Context, *ent.IdempotencyKeyMutation) (ent.Value, error)
+
+// Mutate calls f(ctx, m).
+func (f IdempotencyKeyFunc) Mutate(ctx context.Context, m ent.Mutation) (ent.Value, error) {
+	if mv, ok := m.(*ent.IdempotencyKeyMutation); ok {
+		return f(ctx, mv)
+	}
+	return nil, fmt.Errorf("unexpected mutation type %T. expect *ent.IdempotencyKeyMutation", m)
+}
+
 // The IdentityFunc type is an adapter to allow the use of ordinary
 // function as Identity mutator.
 type IdentityFunc func(context.Context, *ent.IdentityMutation) (ent.Value, error)
