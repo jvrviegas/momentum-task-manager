@@ -82,7 +82,7 @@ func TestUsersCannotReachEachOthersTasks(t *testing.T) {
 	aliceID, _ := viewer.UserID(asAlice)
 	bobID, _ := viewer.UserID(asBob)
 	own := client.Task.Create().SetUserID(aliceID).SetDescription("Alice's task").SetStatus(task.StatusPending).SaveX(asAlice)
-	client.TaskEvent.Create().SetUserID(aliceID).SetTaskID(own.ID).SetAction("create").SetAfter(json.RawMessage(`{}`)).SaveX(asAlice)
+	client.TaskEvent.Create().SetUserID(aliceID).SetTaskID(own.ID).SetChangeID(uuid.New()).SetAction("create").SetAfter(json.RawMessage(`{}`)).SaveX(asAlice)
 
 	if tasks := client.Task.Query().AllX(asBob); len(tasks) != 0 {
 		t.Errorf("Bob lists %d of Alice's tasks", len(tasks))
@@ -114,7 +114,7 @@ func TestUsersCannotReachEachOthersTasks(t *testing.T) {
 	if _, err := client.Task.Create().SetUserID(aliceID).SetDescription("planted by Bob").SetStatus(task.StatusPending).Save(asBob); !errors.Is(err, privacy.Deny) {
 		t.Errorf("Bob creates a task for Alice: %v", err)
 	}
-	if _, err := client.TaskEvent.Create().SetUserID(aliceID).SetTaskID(own.ID).SetAction("undo").Save(asBob); !errors.Is(err, privacy.Deny) {
+	if _, err := client.TaskEvent.Create().SetUserID(aliceID).SetTaskID(own.ID).SetChangeID(uuid.New()).SetAction("undo").Save(asBob); !errors.Is(err, privacy.Deny) {
 		t.Errorf("Bob creates a task event for Alice: %v", err)
 	}
 	if _, err := client.Task.Create().SetUserID(bobID).SetDescription("Bob's task").SetStatus(task.StatusPending).Save(asBob); err != nil {
