@@ -145,6 +145,7 @@ var schemaGraph = func() *sqlgraph.Schema {
 			taskevent.FieldUserID:    {Type: field.TypeUUID, Column: taskevent.FieldUserID},
 			taskevent.FieldSessionID: {Type: field.TypeInt, Column: taskevent.FieldSessionID},
 			taskevent.FieldTaskID:    {Type: field.TypeUUID, Column: taskevent.FieldTaskID},
+			taskevent.FieldChangeID:  {Type: field.TypeUUID, Column: taskevent.FieldChangeID},
 			taskevent.FieldAction:    {Type: field.TypeString, Column: taskevent.FieldAction},
 			taskevent.FieldBefore:    {Type: field.TypeJSON, Column: taskevent.FieldBefore},
 			taskevent.FieldAfter:     {Type: field.TypeJSON, Column: taskevent.FieldAfter},
@@ -906,6 +907,11 @@ func (f *TaskEventFilter) WhereSessionID(p entql.IntP) {
 // WhereTaskID applies the entql [16]byte predicate on the task_id field.
 func (f *TaskEventFilter) WhereTaskID(p entql.ValueP) {
 	f.Where(p.Field(taskevent.FieldTaskID))
+}
+
+// WhereChangeID applies the entql [16]byte predicate on the change_id field.
+func (f *TaskEventFilter) WhereChangeID(p entql.ValueP) {
+	f.Where(p.Field(taskevent.FieldChangeID))
 }
 
 // WhereAction applies the entql string predicate on the action field.
