@@ -4697,6 +4697,7 @@ type TaskEventMutation struct {
 	typ            string
 	id             *int
 	task_id        *uuid.UUID
+	change_id      *uuid.UUID
 	action         *string
 	before         *jsontext.Value
 	appendbefore   jsontext.Value
@@ -4930,6 +4931,42 @@ func (m *TaskEventMutation) OldTaskID(ctx context.Context) (v uuid.UUID, err err
 // ResetTaskID resets all changes to the "task_id" field.
 func (m *TaskEventMutation) ResetTaskID() {
 	m.task_id = nil
+}
+
+// SetChangeID sets the "change_id" field.
+func (m *TaskEventMutation) SetChangeID(u uuid.UUID) {
+	m.change_id = &u
+}
+
+// ChangeID returns the value of the "change_id" field in the mutation.
+func (m *TaskEventMutation) ChangeID() (r uuid.UUID, exists bool) {
+	v := m.change_id
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldChangeID returns the old "change_id" field's value of the TaskEvent entity.
+// If the TaskEvent object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *TaskEventMutation) OldChangeID(ctx context.Context) (v uuid.UUID, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldChangeID is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldChangeID requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldChangeID: %w", err)
+	}
+	return oldValue.ChangeID, nil
+}
+
+// ResetChangeID resets all changes to the "change_id" field.
+func (m *TaskEventMutation) ResetChangeID() {
+	m.change_id = nil
 }
 
 // SetAction sets the "action" field.
@@ -5222,7 +5259,7 @@ func (m *TaskEventMutation) Type() string {
 // order to get all numeric fields that were incremented/decremented, call
 // AddedFields().
 func (m *TaskEventMutation) Fields() []string {
-	fields := make([]string, 0, 7)
+	fields := make([]string, 0, 8)
 	if m.user != nil {
 		fields = append(fields, taskevent.FieldUserID)
 	}
@@ -5231,6 +5268,9 @@ func (m *TaskEventMutation) Fields() []string {
 	}
 	if m.task_id != nil {
 		fields = append(fields, taskevent.FieldTaskID)
+	}
+	if m.change_id != nil {
+		fields = append(fields, taskevent.FieldChangeID)
 	}
 	if m.action != nil {
 		fields = append(fields, taskevent.FieldAction)
@@ -5258,6 +5298,8 @@ func (m *TaskEventMutation) Field(name string) (ent.Value, bool) {
 		return m.SessionID()
 	case taskevent.FieldTaskID:
 		return m.TaskID()
+	case taskevent.FieldChangeID:
+		return m.ChangeID()
 	case taskevent.FieldAction:
 		return m.Action()
 	case taskevent.FieldBefore:
@@ -5281,6 +5323,8 @@ func (m *TaskEventMutation) OldField(ctx context.Context, name string) (ent.Valu
 		return m.OldSessionID(ctx)
 	case taskevent.FieldTaskID:
 		return m.OldTaskID(ctx)
+	case taskevent.FieldChangeID:
+		return m.OldChangeID(ctx)
 	case taskevent.FieldAction:
 		return m.OldAction(ctx)
 	case taskevent.FieldBefore:
@@ -5318,6 +5362,13 @@ func (m *TaskEventMutation) SetField(name string, value ent.Value) error {
 			return fmt.Errorf("unexpected type %T for field %s", value, name)
 		}
 		m.SetTaskID(v)
+		return nil
+	case taskevent.FieldChangeID:
+		v, ok := value.(uuid.UUID)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetChangeID(v)
 		return nil
 	case taskevent.FieldAction:
 		v, ok := value.(string)
@@ -5428,6 +5479,9 @@ func (m *TaskEventMutation) ResetField(name string) error {
 		return nil
 	case taskevent.FieldTaskID:
 		m.ResetTaskID()
+		return nil
+	case taskevent.FieldChangeID:
+		m.ResetChangeID()
 		return nil
 	case taskevent.FieldAction:
 		m.ResetAction()
