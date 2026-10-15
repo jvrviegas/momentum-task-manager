@@ -3,6 +3,11 @@ package api
 // Routes are net/http ServeMux patterns. A change that breaks existing clients
 // gets a new version prefix instead of changing these. Each task mutation,
 // and RouteUndo, answers with the Task as it is afterwards.
+//
+// RouteUndo reverts the latest change the signed-in device made, if its task
+// has not changed since; otherwise, or after an undo, it answers
+// CodeConflict. Undoing a create removes the task, so the answer is then its
+// last state with StatusDeleted.
 const (
 	RouteVersion                 = "GET /v1/version"
 	RouteListTasks               = "GET /v1/tasks"
