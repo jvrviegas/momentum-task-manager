@@ -17,8 +17,10 @@ const (
 )
 
 // Task is a task as the backend returns it. A recurring series is a template
-// with StatusRecurring; each instance names it in Parent. Extra holds fields
-// imported from Taskwarrior that Momentum does not use.
+// with StatusRecurring, which keeps the series' fields, and one pending
+// instance at a time, which names the template in Parent and copies its
+// Recurrence. Completing or deleting the instance creates the next one.
+// Extra holds fields imported from Taskwarrior that Momentum does not use.
 type Task struct {
 	UUID            string                     `json:"uuid"`
 	Description     string                     `json:"description"`
@@ -55,7 +57,8 @@ type TaskList struct {
 }
 
 // CreateTaskRequest is the body of RouteCreateTask, the fields of a
-// domain.NewTask. With Recurrence, it creates a recurring series.
+// domain.NewTask. With Recurrence, which needs Due, it creates a recurring
+// series due first at Due, and the answer is its first instance.
 type CreateTaskRequest struct {
 	Description     string     `json:"description"`
 	Project         string     `json:"project,omitempty"`
@@ -69,7 +72,10 @@ type CreateTaskRequest struct {
 
 // ModifyTaskRequest is the body of RouteModifyTask, the fields of a
 // domain.TaskDiff. A field left out stays as it is, null clears it, and a
-// value sets it.
+// value sets it. Recurrence on a task that does not repeat makes it the first
+// instance of a new series; on an instance or a template, it changes the
+// series' rule, and a template takes no other field. A recurrence cannot be
+// cleared; RouteStopRecurrence ends a series instead.
 type ModifyTaskRequest struct {
 	Description     Change[string]    `json:"description,omitzero"`
 	Project         Change[string]    `json:"project,omitzero"`
