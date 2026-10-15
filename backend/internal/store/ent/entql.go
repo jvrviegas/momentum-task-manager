@@ -4,6 +4,7 @@ package ent
 
 import (
 	"github.com/jvrviegas/momentum-task-manager/backend/internal/store/ent/deviceauthorization"
+	"github.com/jvrviegas/momentum-task-manager/backend/internal/store/ent/idempotencykey"
 	"github.com/jvrviegas/momentum-task-manager/backend/internal/store/ent/identity"
 	"github.com/jvrviegas/momentum-task-manager/backend/internal/store/ent/predicate"
 	"github.com/jvrviegas/momentum-task-manager/backend/internal/store/ent/session"
@@ -19,7 +20,7 @@ import (
 
 // schemaGraph holds a representation of ent/schema at runtime.
 var schemaGraph = func() *sqlgraph.Schema {
-	graph := &sqlgraph.Schema{Nodes: make([]*sqlgraph.Node, 6)}
+	graph := &sqlgraph.Schema{Nodes: make([]*sqlgraph.Node, 7)}
 	graph.Nodes[0] = &sqlgraph.Node{
 		NodeSpec: sqlgraph.NodeSpec{
 			Table:   deviceauthorization.Table,
@@ -46,6 +47,24 @@ var schemaGraph = func() *sqlgraph.Schema {
 	}
 	graph.Nodes[1] = &sqlgraph.Node{
 		NodeSpec: sqlgraph.NodeSpec{
+			Table:   idempotencykey.Table,
+			Columns: idempotencykey.Columns,
+			ID: &sqlgraph.FieldSpec{
+				Type:   field.TypeInt,
+				Column: idempotencykey.FieldID,
+			},
+		},
+		Type: "IdempotencyKey",
+		Fields: map[string]*sqlgraph.FieldSpec{
+			idempotencykey.FieldUserID:      {Type: field.TypeUUID, Column: idempotencykey.FieldUserID},
+			idempotencykey.FieldKey:         {Type: field.TypeString, Column: idempotencykey.FieldKey},
+			idempotencykey.FieldFingerprint: {Type: field.TypeBytes, Column: idempotencykey.FieldFingerprint},
+			idempotencykey.FieldResponse:    {Type: field.TypeJSON, Column: idempotencykey.FieldResponse},
+			idempotencykey.FieldCreatedAt:   {Type: field.TypeTime, Column: idempotencykey.FieldCreatedAt},
+		},
+	}
+	graph.Nodes[2] = &sqlgraph.Node{
+		NodeSpec: sqlgraph.NodeSpec{
 			Table:   identity.Table,
 			Columns: identity.Columns,
 			ID: &sqlgraph.FieldSpec{
@@ -61,7 +80,7 @@ var schemaGraph = func() *sqlgraph.Schema {
 			identity.FieldCreatedAt: {Type: field.TypeTime, Column: identity.FieldCreatedAt},
 		},
 	}
-	graph.Nodes[2] = &sqlgraph.Node{
+	graph.Nodes[3] = &sqlgraph.Node{
 		NodeSpec: sqlgraph.NodeSpec{
 			Table:   session.Table,
 			Columns: session.Columns,
@@ -79,7 +98,7 @@ var schemaGraph = func() *sqlgraph.Schema {
 			session.FieldRevokedAt: {Type: field.TypeTime, Column: session.FieldRevokedAt},
 		},
 	}
-	graph.Nodes[3] = &sqlgraph.Node{
+	graph.Nodes[4] = &sqlgraph.Node{
 		NodeSpec: sqlgraph.NodeSpec{
 			Table:   task.Table,
 			Columns: task.Columns,
@@ -112,7 +131,7 @@ var schemaGraph = func() *sqlgraph.Schema {
 			task.FieldExtra:           {Type: field.TypeJSON, Column: task.FieldExtra},
 		},
 	}
-	graph.Nodes[4] = &sqlgraph.Node{
+	graph.Nodes[5] = &sqlgraph.Node{
 		NodeSpec: sqlgraph.NodeSpec{
 			Table:   taskevent.Table,
 			Columns: taskevent.Columns,
@@ -132,7 +151,7 @@ var schemaGraph = func() *sqlgraph.Schema {
 			taskevent.FieldCreatedAt: {Type: field.TypeTime, Column: taskevent.FieldCreatedAt},
 		},
 	}
-	graph.Nodes[5] = &sqlgraph.Node{
+	graph.Nodes[6] = &sqlgraph.Node{
 		NodeSpec: sqlgraph.NodeSpec{
 			Table:   user.Table,
 			Columns: user.Columns,
@@ -158,6 +177,18 @@ var schemaGraph = func() *sqlgraph.Schema {
 			Bidi:    false,
 		},
 		"DeviceAuthorization",
+		"User",
+	)
+	graph.MustAddE(
+		"user",
+		&sqlgraph.EdgeSpec{
+			Rel:     sqlgraph.M2O,
+			Inverse: true,
+			Table:   idempotencykey.UserTable,
+			Columns: []string{idempotencykey.UserColumn},
+			Bidi:    false,
+		},
+		"IdempotencyKey",
 		"User",
 	)
 	graph.MustAddE(
@@ -255,6 +286,18 @@ var schemaGraph = func() *sqlgraph.Schema {
 		},
 		"User",
 		"Identity",
+	)
+	graph.MustAddE(
+		"idempotency_keys",
+		&sqlgraph.EdgeSpec{
+			Rel:     sqlgraph.O2M,
+			Inverse: false,
+			Table:   user.IdempotencyKeysTable,
+			Columns: []string{user.IdempotencyKeysColumn},
+			Bidi:    false,
+		},
+		"User",
+		"IdempotencyKey",
 	)
 	graph.MustAddE(
 		"sessions",
@@ -411,6 +454,85 @@ func (f *DeviceAuthorizationFilter) WhereHasUserWith(preds ...predicate.User) {
 }
 
 // addPredicate implements the predicateAdder interface.
+func (_q *IdempotencyKeyQuery) addPredicate(pred func(s *sql.Selector)) {
+	_q.predicates = append(_q.predicates, pred)
+}
+
+// Filter returns a Filter implementation to apply filters on the IdempotencyKeyQuery builder.
+func (_q *IdempotencyKeyQuery) Filter() *IdempotencyKeyFilter {
+	return &IdempotencyKeyFilter{config: _q.config, predicateAdder: _q}
+}
+
+// addPredicate implements the predicateAdder interface.
+func (m *IdempotencyKeyMutation) addPredicate(pred func(s *sql.Selector)) {
+	m.predicates = append(m.predicates, pred)
+}
+
+// Filter returns an entql.Where implementation to apply filters on the IdempotencyKeyMutation builder.
+func (m *IdempotencyKeyMutation) Filter() *IdempotencyKeyFilter {
+	return &IdempotencyKeyFilter{config: m.config, predicateAdder: m}
+}
+
+// IdempotencyKeyFilter provides a generic filtering capability at runtime for IdempotencyKeyQuery.
+type IdempotencyKeyFilter struct {
+	predicateAdder
+	config
+}
+
+// Where applies the entql predicate on the query filter.
+func (f *IdempotencyKeyFilter) Where(p entql.P) {
+	f.addPredicate(func(s *sql.Selector) {
+		if err := schemaGraph.EvalP(schemaGraph.Nodes[1].Type, p, s); err != nil {
+			s.AddError(err)
+		}
+	})
+}
+
+// WhereID applies the entql int predicate on the id field.
+func (f *IdempotencyKeyFilter) WhereID(p entql.IntP) {
+	f.Where(p.Field(idempotencykey.FieldID))
+}
+
+// WhereUserID applies the entql [16]byte predicate on the user_id field.
+func (f *IdempotencyKeyFilter) WhereUserID(p entql.ValueP) {
+	f.Where(p.Field(idempotencykey.FieldUserID))
+}
+
+// WhereKey applies the entql string predicate on the key field.
+func (f *IdempotencyKeyFilter) WhereKey(p entql.StringP) {
+	f.Where(p.Field(idempotencykey.FieldKey))
+}
+
+// WhereFingerprint applies the entql []byte predicate on the fingerprint field.
+func (f *IdempotencyKeyFilter) WhereFingerprint(p entql.BytesP) {
+	f.Where(p.Field(idempotencykey.FieldFingerprint))
+}
+
+// WhereResponse applies the entql json.RawMessage predicate on the response field.
+func (f *IdempotencyKeyFilter) WhereResponse(p entql.BytesP) {
+	f.Where(p.Field(idempotencykey.FieldResponse))
+}
+
+// WhereCreatedAt applies the entql time.Time predicate on the created_at field.
+func (f *IdempotencyKeyFilter) WhereCreatedAt(p entql.TimeP) {
+	f.Where(p.Field(idempotencykey.FieldCreatedAt))
+}
+
+// WhereHasUser applies a predicate to check if query has an edge user.
+func (f *IdempotencyKeyFilter) WhereHasUser() {
+	f.Where(entql.HasEdge("user"))
+}
+
+// WhereHasUserWith applies a predicate to check if query has an edge user with a given conditions (other predicates).
+func (f *IdempotencyKeyFilter) WhereHasUserWith(preds ...predicate.User) {
+	f.Where(entql.HasEdgeWith("user", sqlgraph.WrapFunc(func(s *sql.Selector) {
+		for _, p := range preds {
+			p(s)
+		}
+	})))
+}
+
+// addPredicate implements the predicateAdder interface.
 func (_q *IdentityQuery) addPredicate(pred func(s *sql.Selector)) {
 	_q.predicates = append(_q.predicates, pred)
 }
@@ -439,7 +561,7 @@ type IdentityFilter struct {
 // Where applies the entql predicate on the query filter.
 func (f *IdentityFilter) Where(p entql.P) {
 	f.addPredicate(func(s *sql.Selector) {
-		if err := schemaGraph.EvalP(schemaGraph.Nodes[1].Type, p, s); err != nil {
+		if err := schemaGraph.EvalP(schemaGraph.Nodes[2].Type, p, s); err != nil {
 			s.AddError(err)
 		}
 	})
@@ -513,7 +635,7 @@ type SessionFilter struct {
 // Where applies the entql predicate on the query filter.
 func (f *SessionFilter) Where(p entql.P) {
 	f.addPredicate(func(s *sql.Selector) {
-		if err := schemaGraph.EvalP(schemaGraph.Nodes[2].Type, p, s); err != nil {
+		if err := schemaGraph.EvalP(schemaGraph.Nodes[3].Type, p, s); err != nil {
 			s.AddError(err)
 		}
 	})
@@ -606,7 +728,7 @@ type TaskFilter struct {
 // Where applies the entql predicate on the query filter.
 func (f *TaskFilter) Where(p entql.P) {
 	f.addPredicate(func(s *sql.Selector) {
-		if err := schemaGraph.EvalP(schemaGraph.Nodes[3].Type, p, s); err != nil {
+		if err := schemaGraph.EvalP(schemaGraph.Nodes[4].Type, p, s); err != nil {
 			s.AddError(err)
 		}
 	})
@@ -760,7 +882,7 @@ type TaskEventFilter struct {
 // Where applies the entql predicate on the query filter.
 func (f *TaskEventFilter) Where(p entql.P) {
 	f.addPredicate(func(s *sql.Selector) {
-		if err := schemaGraph.EvalP(schemaGraph.Nodes[4].Type, p, s); err != nil {
+		if err := schemaGraph.EvalP(schemaGraph.Nodes[5].Type, p, s); err != nil {
 			s.AddError(err)
 		}
 	})
@@ -863,7 +985,7 @@ type UserFilter struct {
 // Where applies the entql predicate on the query filter.
 func (f *UserFilter) Where(p entql.P) {
 	f.addPredicate(func(s *sql.Selector) {
-		if err := schemaGraph.EvalP(schemaGraph.Nodes[5].Type, p, s); err != nil {
+		if err := schemaGraph.EvalP(schemaGraph.Nodes[6].Type, p, s); err != nil {
 			s.AddError(err)
 		}
 	})
@@ -911,6 +1033,20 @@ func (f *UserFilter) WhereHasIdentities() {
 // WhereHasIdentitiesWith applies a predicate to check if query has an edge identities with a given conditions (other predicates).
 func (f *UserFilter) WhereHasIdentitiesWith(preds ...predicate.Identity) {
 	f.Where(entql.HasEdgeWith("identities", sqlgraph.WrapFunc(func(s *sql.Selector) {
+		for _, p := range preds {
+			p(s)
+		}
+	})))
+}
+
+// WhereHasIdempotencyKeys applies a predicate to check if query has an edge idempotency_keys.
+func (f *UserFilter) WhereHasIdempotencyKeys() {
+	f.Where(entql.HasEdge("idempotency_keys"))
+}
+
+// WhereHasIdempotencyKeysWith applies a predicate to check if query has an edge idempotency_keys with a given conditions (other predicates).
+func (f *UserFilter) WhereHasIdempotencyKeysWith(preds ...predicate.IdempotencyKey) {
+	f.Where(entql.HasEdgeWith("idempotency_keys", sqlgraph.WrapFunc(func(s *sql.Selector) {
 		for _, p := range preds {
 			p(s)
 		}
