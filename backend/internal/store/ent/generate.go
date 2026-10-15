@@ -2,4 +2,4 @@
 // changing ./schema.
 package ent
 
-//go:generate go tool ent generate --feature privacy,entql,sql/versioned-migration ./schema
+//go:generate go tool ent generate --feature privacy,entql,sql/lock,sql/versioned-migration ./schema
