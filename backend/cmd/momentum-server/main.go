@@ -21,6 +21,7 @@ import (
 	"github.com/jvrviegas/momentum-task-manager/backend/internal/httpapi"
 	"github.com/jvrviegas/momentum-task-manager/backend/internal/logging"
 	"github.com/jvrviegas/momentum-task-manager/backend/internal/store"
+	"github.com/jvrviegas/momentum-task-manager/backend/internal/tasks"
 )
 
 // drain leaves a margin inside the ten seconds Cloud Run waits between
@@ -68,7 +69,8 @@ func run(args []string) error {
 	if len(settings.AllowedEmails) == 0 {
 		logger.Warn("ALLOWED_EMAILS is empty; nobody can sign in")
 	}
-	signIn := auth.New(store.NewClient(db), auth.Config{
+	client := store.NewClient(db)
+	signIn := auth.New(client, auth.Config{
 		PublicURL: settings.PublicURL, AllowedEmails: settings.AllowedEmails, Providers: providers,
 	})
 	listener, err := net.Listen("tcp", ":"+strconv.Itoa(settings.Port))
@@ -76,7 +78,7 @@ func run(args []string) error {
 		return err
 	}
 	logger.Info("listening", slog.String("addr", listener.Addr().String()))
-	if err := httpapi.Serve(ctx, listener, httpapi.New(logger, signIn), drain); err != nil {
+	if err := httpapi.Serve(ctx, listener, httpapi.New(logger, signIn, tasks.New(client)), drain); err != nil {
 		return err
 	}
 	logger.Info("stopped")
