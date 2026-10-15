@@ -9,11 +9,13 @@ import (
 	"math"
 
 	"entgo.io/ent"
+	"entgo.io/ent/dialect"
 	"entgo.io/ent/dialect/sql"
 	"entgo.io/ent/dialect/sql/sqlgraph"
 	"entgo.io/ent/schema/field"
 	"github.com/google/uuid"
 	"github.com/jvrviegas/momentum-task-manager/backend/internal/store/ent/deviceauthorization"
+	"github.com/jvrviegas/momentum-task-manager/backend/internal/store/ent/idempotencykey"
 	"github.com/jvrviegas/momentum-task-manager/backend/internal/store/ent/identity"
 	"github.com/jvrviegas/momentum-task-manager/backend/internal/store/ent/predicate"
 	"github.com/jvrviegas/momentum-task-manager/backend/internal/store/ent/session"
@@ -31,9 +33,11 @@ type UserQuery struct {
 	predicates               []predicate.User
 	withDeviceAuthorizations *DeviceAuthorizationQuery
 	withIdentities           *IdentityQuery
+	withIdempotencyKeys      *IdempotencyKeyQuery
 	withSessions             *SessionQuery
 	withTasks                *TaskQuery
 	withTaskEvents           *TaskEventQuery
+	modifiers                []func(*sql.Selector)
 	// intermediate query (i.e. traversal path).
 	sql  *sql.Selector
 	path func(context.Context) (*sql.Selector, error)
@@ -107,6 +111,28 @@ func (_q *UserQuery) QueryIdentities() *IdentityQuery {
 			sqlgraph.From(user.Table, user.FieldID, selector),
 			sqlgraph.To(identity.Table, identity.FieldID),
 			sqlgraph.Edge(sqlgraph.O2M, false, user.IdentitiesTable, user.IdentitiesColumn),
+		)
+		fromU = sqlgraph.SetNeighbors(_q.driver.Dialect(), step)
+		return fromU, nil
+	}
+	return query
+}
+
+// QueryIdempotencyKeys chains the current query on the "idempotency_keys" edge.
+func (_q *UserQuery) QueryIdempotencyKeys() *IdempotencyKeyQuery {
+	query := (&IdempotencyKeyClient{config: _q.config}).Query()
+	query.path = func(ctx context.Context) (fromU *sql.Selector, err error) {
+		if err := _q.prepareQuery(ctx); err != nil {
+			return nil, err
+		}
+		selector := _q.sqlQuery(ctx)
+		if err := selector.Err(); err != nil {
+			return nil, err
+		}
+		step := sqlgraph.NewStep(
+			sqlgraph.From(user.Table, user.FieldID, selector),
+			sqlgraph.To(idempotencykey.Table, idempotencykey.FieldID),
+			sqlgraph.Edge(sqlgraph.O2M, false, user.IdempotencyKeysTable, user.IdempotencyKeysColumn),
 		)
 		fromU = sqlgraph.SetNeighbors(_q.driver.Dialect(), step)
 		return fromU, nil
@@ -374,6 +400,7 @@ func (_q *UserQuery) Clone() *UserQuery {
 		predicates:               append([]predicate.User{}, _q.predicates...),
 		withDeviceAuthorizations: _q.withDeviceAuthorizations.Clone(),
 		withIdentities:           _q.withIdentities.Clone(),
+		withIdempotencyKeys:      _q.withIdempotencyKeys.Clone(),
 		withSessions:             _q.withSessions.Clone(),
 		withTasks:                _q.withTasks.Clone(),
 		withTaskEvents:           _q.withTaskEvents.Clone(),
@@ -402,6 +429,17 @@ func (_q *UserQuery) WithIdentities(opts ...func(*IdentityQuery)) *UserQuery {
 		opt(query)
 	}
 	_q.withIdentities = query
+	return _q
+}
+
+// WithIdempotencyKeys tells the query-builder to eager-load the nodes that are connected to
+// the "idempotency_keys" edge. The optional arguments are used to configure the query builder of the edge.
+func (_q *UserQuery) WithIdempotencyKeys(opts ...func(*IdempotencyKeyQuery)) *UserQuery {
+	query := (&IdempotencyKeyClient{config: _q.config}).Query()
+	for _, opt := range opts {
+		opt(query)
+	}
+	_q.withIdempotencyKeys = query
 	return _q
 }
 
@@ -516,9 +554,10 @@ func (_q *UserQuery) sqlAll(ctx context.Context, hooks ...queryHook) ([]*User, e
 	var (
 		nodes       = []*User{}
 		_spec       = _q.querySpec()
-		loadedTypes = [5]bool{
+		loadedTypes = [6]bool{
 			_q.withDeviceAuthorizations != nil,
 			_q.withIdentities != nil,
+			_q.withIdempotencyKeys != nil,
 			_q.withSessions != nil,
 			_q.withTasks != nil,
 			_q.withTaskEvents != nil,
@@ -532,6 +571,9 @@ func (_q *UserQuery) sqlAll(ctx context.Context, hooks ...queryHook) ([]*User, e
 		nodes = append(nodes, node)
 		node.Edges.loadedTypes = loadedTypes
 		return node.assignValues(columns, values)
+	}
+	if len(_q.modifiers) > 0 {
+		_spec.Modifiers = _q.modifiers
 	}
 	for i := range hooks {
 		hooks[i](ctx, _spec)
@@ -555,6 +597,13 @@ func (_q *UserQuery) sqlAll(ctx context.Context, hooks ...queryHook) ([]*User, e
 		if err := _q.loadIdentities(ctx, query, nodes,
 			func(n *User) { n.Edges.Identities = []*Identity{} },
 			func(n *User, e *Identity) { n.Edges.Identities = append(n.Edges.Identities, e) }); err != nil {
+			return nil, err
+		}
+	}
+	if query := _q.withIdempotencyKeys; query != nil {
+		if err := _q.loadIdempotencyKeys(ctx, query, nodes,
+			func(n *User) { n.Edges.IdempotencyKeys = []*IdempotencyKey{} },
+			func(n *User, e *IdempotencyKey) { n.Edges.IdempotencyKeys = append(n.Edges.IdempotencyKeys, e) }); err != nil {
 			return nil, err
 		}
 	}
@@ -630,6 +679,36 @@ func (_q *UserQuery) loadIdentities(ctx context.Context, query *IdentityQuery, n
 	}
 	query.Where(predicate.Identity(func(s *sql.Selector) {
 		s.Where(sql.InValues(s.C(user.IdentitiesColumn), fks...))
+	}))
+	neighbors, err := query.All(ctx)
+	if err != nil {
+		return err
+	}
+	for _, n := range neighbors {
+		fk := n.UserID
+		node, ok := nodeids[fk]
+		if !ok {
+			return fmt.Errorf(`unexpected referenced foreign-key "user_id" returned %v for node %v`, fk, n.ID)
+		}
+		assign(node, n)
+	}
+	return nil
+}
+func (_q *UserQuery) loadIdempotencyKeys(ctx context.Context, query *IdempotencyKeyQuery, nodes []*User, init func(*User), assign func(*User, *IdempotencyKey)) error {
+	fks := make([]driver.Value, 0, len(nodes))
+	nodeids := make(map[uuid.UUID]*User)
+	for i := range nodes {
+		fks = append(fks, nodes[i].ID)
+		nodeids[nodes[i].ID] = nodes[i]
+		if init != nil {
+			init(nodes[i])
+		}
+	}
+	if len(query.ctx.Fields) > 0 {
+		query.ctx.AppendFieldOnce(idempotencykey.FieldUserID)
+	}
+	query.Where(predicate.IdempotencyKey(func(s *sql.Selector) {
+		s.Where(sql.InValues(s.C(user.IdempotencyKeysColumn), fks...))
 	}))
 	neighbors, err := query.All(ctx)
 	if err != nil {
@@ -738,6 +817,9 @@ func (_q *UserQuery) loadTaskEvents(ctx context.Context, query *TaskEventQuery, 
 
 func (_q *UserQuery) sqlCount(ctx context.Context) (int, error) {
 	_spec := _q.querySpec()
+	if len(_q.modifiers) > 0 {
+		_spec.Modifiers = _q.modifiers
+	}
 	_spec.Node.Columns = _q.ctx.Fields
 	if len(_q.ctx.Fields) > 0 {
 		_spec.Unique = _q.ctx.Unique != nil && *_q.ctx.Unique
@@ -800,6 +882,9 @@ func (_q *UserQuery) sqlQuery(ctx context.Context) *sql.Selector {
 	if _q.ctx.Unique != nil && *_q.ctx.Unique {
 		selector.Distinct()
 	}
+	for _, m := range _q.modifiers {
+		m(selector)
+	}
 	for _, p := range _q.predicates {
 		p(selector)
 	}
@@ -815,6 +900,32 @@ func (_q *UserQuery) sqlQuery(ctx context.Context) *sql.Selector {
 		selector.Limit(*limit)
 	}
 	return selector
+}
+
+// ForUpdate locks the selected rows against concurrent updates, and prevent them from being
+// updated, deleted or "selected ... for update" by other sessions, until the transaction is
+// either committed or rolled-back.
+func (_q *UserQuery) ForUpdate(opts ...sql.LockOption) *UserQuery {
+	if _q.driver.Dialect() == dialect.Postgres {
+		_q.Unique(false)
+	}
+	_q.modifiers = append(_q.modifiers, func(s *sql.Selector) {
+		s.ForUpdate(opts...)
+	})
+	return _q
+}
+
+// ForShare behaves similarly to ForUpdate, except that it acquires a shared mode lock
+// on any rows that are read. Other sessions can read the rows, but cannot modify them
+// until your transaction commits.
+func (_q *UserQuery) ForShare(opts ...sql.LockOption) *UserQuery {
+	if _q.driver.Dialect() == dialect.Postgres {
+		_q.Unique(false)
+	}
+	_q.modifiers = append(_q.modifiers, func(s *sql.Selector) {
+		s.ForShare(opts...)
+	})
+	return _q
 }
 
 // UserGroupBy is the group-by builder for User entities.
