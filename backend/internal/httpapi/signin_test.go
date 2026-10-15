@@ -20,6 +20,7 @@ import (
 	"github.com/jvrviegas/momentum-task-manager/backend/internal/store/ent/task"
 	"github.com/jvrviegas/momentum-task-manager/backend/internal/store/storetest"
 	"github.com/jvrviegas/momentum-task-manager/backend/internal/store/viewer"
+	"github.com/jvrviegas/momentum-task-manager/backend/internal/tasks"
 	"github.com/jvrviegas/momentum-task-manager/core/api"
 )
 
@@ -58,10 +59,11 @@ func newHarness(t *testing.T) *harness {
 	})
 	var logs bytes.Buffer
 	logger := logging.New(&logs)
-	httpServer := httptest.NewServer(New(logger, service))
+	userTasks := tasks.New(client)
+	httpServer := httptest.NewServer(New(logger, service, userTasks))
 	t.Cleanup(httpServer.Close)
 	return &harness{t: t, url: httpServer.URL, logs: &logs, provider: provider, client: client,
-		server: &server{logger: logger, auth: service}}
+		server: &server{logger: logger, auth: service, tasks: userTasks}}
 }
 
 // browser returns a client that keeps cookies and does not follow redirects.
