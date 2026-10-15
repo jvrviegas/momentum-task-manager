@@ -36,6 +36,8 @@ type UserEdges struct {
 	DeviceAuthorizations []*DeviceAuthorization `json:"device_authorizations,omitempty"`
 	// Identities holds the value of the identities edge.
 	Identities []*Identity `json:"identities,omitempty"`
+	// IdempotencyKeys holds the value of the idempotency_keys edge.
+	IdempotencyKeys []*IdempotencyKey `json:"idempotency_keys,omitempty"`
 	// Sessions holds the value of the sessions edge.
 	Sessions []*Session `json:"sessions,omitempty"`
 	// Tasks holds the value of the tasks edge.
@@ -44,7 +46,7 @@ type UserEdges struct {
 	TaskEvents []*TaskEvent `json:"task_events,omitempty"`
 	// loadedTypes holds the information for reporting if a
 	// type was loaded (or requested) in eager-loading or not.
-	loadedTypes [5]bool
+	loadedTypes [6]bool
 }
 
 // DeviceAuthorizationsOrErr returns the DeviceAuthorizations value or an error if the edge
@@ -65,10 +67,19 @@ func (e UserEdges) IdentitiesOrErr() ([]*Identity, error) {
 	return nil, &NotLoadedError{edge: "identities"}
 }
 
+// IdempotencyKeysOrErr returns the IdempotencyKeys value or an error if the edge
+// was not loaded in eager-loading.
+func (e UserEdges) IdempotencyKeysOrErr() ([]*IdempotencyKey, error) {
+	if e.loadedTypes[2] {
+		return e.IdempotencyKeys, nil
+	}
+	return nil, &NotLoadedError{edge: "idempotency_keys"}
+}
+
 // SessionsOrErr returns the Sessions value or an error if the edge
 // was not loaded in eager-loading.
 func (e UserEdges) SessionsOrErr() ([]*Session, error) {
-	if e.loadedTypes[2] {
+	if e.loadedTypes[3] {
 		return e.Sessions, nil
 	}
 	return nil, &NotLoadedError{edge: "sessions"}
@@ -77,7 +88,7 @@ func (e UserEdges) SessionsOrErr() ([]*Session, error) {
 // TasksOrErr returns the Tasks value or an error if the edge
 // was not loaded in eager-loading.
 func (e UserEdges) TasksOrErr() ([]*Task, error) {
-	if e.loadedTypes[3] {
+	if e.loadedTypes[4] {
 		return e.Tasks, nil
 	}
 	return nil, &NotLoadedError{edge: "tasks"}
@@ -86,7 +97,7 @@ func (e UserEdges) TasksOrErr() ([]*Task, error) {
 // TaskEventsOrErr returns the TaskEvents value or an error if the edge
 // was not loaded in eager-loading.
 func (e UserEdges) TaskEventsOrErr() ([]*TaskEvent, error) {
-	if e.loadedTypes[4] {
+	if e.loadedTypes[5] {
 		return e.TaskEvents, nil
 	}
 	return nil, &NotLoadedError{edge: "task_events"}
@@ -163,6 +174,11 @@ func (_m *User) QueryDeviceAuthorizations() *DeviceAuthorizationQuery {
 // QueryIdentities queries the "identities" edge of the User entity.
 func (_m *User) QueryIdentities() *IdentityQuery {
 	return NewUserClient(_m.config).QueryIdentities(_m)
+}
+
+// QueryIdempotencyKeys queries the "idempotency_keys" edge of the User entity.
+func (_m *User) QueryIdempotencyKeys() *IdempotencyKeyQuery {
+	return NewUserClient(_m.config).QueryIdempotencyKeys(_m)
 }
 
 // QuerySessions queries the "sessions" edge of the User entity.
