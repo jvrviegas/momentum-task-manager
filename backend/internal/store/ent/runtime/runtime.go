@@ -8,6 +8,7 @@ import (
 
 	"github.com/google/uuid"
 	"github.com/jvrviegas/momentum-task-manager/backend/internal/store/ent/deviceauthorization"
+	"github.com/jvrviegas/momentum-task-manager/backend/internal/store/ent/idempotencykey"
 	"github.com/jvrviegas/momentum-task-manager/backend/internal/store/ent/identity"
 	"github.com/jvrviegas/momentum-task-manager/backend/internal/store/ent/schema"
 	"github.com/jvrviegas/momentum-task-manager/backend/internal/store/ent/session"
@@ -37,6 +38,43 @@ func init() {
 	deviceauthorizationDescCreatedAt := deviceauthorizationFields[9].Descriptor()
 	// deviceauthorization.DefaultCreatedAt holds the default value on creation for the created_at field.
 	deviceauthorization.DefaultCreatedAt = deviceauthorizationDescCreatedAt.Default.(func() time.Time)
+	idempotencykey.Policy = privacy.NewPolicies(schema.IdempotencyKey{})
+	idempotencykey.Hooks[0] = func(next ent.Mutator) ent.Mutator {
+		return ent.MutateFunc(func(ctx context.Context, m ent.Mutation) (ent.Value, error) {
+			if err := idempotencykey.Policy.EvalMutation(ctx, m); err != nil {
+				return nil, err
+			}
+			return next.Mutate(ctx, m)
+		})
+	}
+	idempotencykeyFields := schema.IdempotencyKey{}.Fields()
+	_ = idempotencykeyFields
+	// idempotencykeyDescKey is the schema descriptor for key field.
+	idempotencykeyDescKey := idempotencykeyFields[1].Descriptor()
+	// idempotencykey.KeyValidator is a validator for the "key" field. It is called by the builders before save.
+	idempotencykey.KeyValidator = func() func(string) error {
+		validators := idempotencykeyDescKey.Validators
+		fns := [...]func(string) error{
+			validators[0].(func(string) error),
+			validators[1].(func(string) error),
+		}
+		return func(key string) error {
+			for _, fn := range fns {
+				if err := fn(key); err != nil {
+					return err
+				}
+			}
+			return nil
+		}
+	}()
+	// idempotencykeyDescFingerprint is the schema descriptor for fingerprint field.
+	idempotencykeyDescFingerprint := idempotencykeyFields[2].Descriptor()
+	// idempotencykey.FingerprintValidator is a validator for the "fingerprint" field. It is called by the builders before save.
+	idempotencykey.FingerprintValidator = idempotencykeyDescFingerprint.Validators[0].(func([]byte) error)
+	// idempotencykeyDescCreatedAt is the schema descriptor for created_at field.
+	idempotencykeyDescCreatedAt := idempotencykeyFields[4].Descriptor()
+	// idempotencykey.DefaultCreatedAt holds the default value on creation for the created_at field.
+	idempotencykey.DefaultCreatedAt = idempotencykeyDescCreatedAt.Default.(func() time.Time)
 	identityFields := schema.Identity{}.Fields()
 	_ = identityFields
 	// identityDescProvider is the schema descriptor for provider field.
