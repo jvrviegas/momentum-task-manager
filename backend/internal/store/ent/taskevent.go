@@ -28,6 +28,8 @@ type TaskEvent struct {
 	SessionID *int `json:"session_id,omitempty"`
 	// TaskID holds the value of the "task_id" field.
 	TaskID uuid.UUID `json:"task_id,omitempty"`
+	// ChangeID holds the value of the "change_id" field.
+	ChangeID uuid.UUID `json:"change_id,omitempty"`
 	// Action holds the value of the "action" field.
 	Action string `json:"action,omitempty"`
 	// Before holds the value of the "before" field.
@@ -88,7 +90,7 @@ func (*TaskEvent) scanValues(columns []string) ([]any, error) {
 			values[i] = new(sql.NullString)
 		case taskevent.FieldCreatedAt:
 			values[i] = new(sql.NullTime)
-		case taskevent.FieldUserID, taskevent.FieldTaskID:
+		case taskevent.FieldUserID, taskevent.FieldTaskID, taskevent.FieldChangeID:
 			values[i] = new(uuid.UUID)
 		default:
 			values[i] = new(sql.UnknownType)
@@ -129,6 +131,12 @@ func (_m *TaskEvent) assignValues(columns []string, values []any) error {
 				return fmt.Errorf("unexpected type %T for field task_id", values[i])
 			} else if value != nil {
 				_m.TaskID = *value
+			}
+		case taskevent.FieldChangeID:
+			if value, ok := values[i].(*uuid.UUID); !ok {
+				return fmt.Errorf("unexpected type %T for field change_id", values[i])
+			} else if value != nil {
+				_m.ChangeID = *value
 			}
 		case taskevent.FieldAction:
 			if value, ok := values[i].(*sql.NullString); !ok {
@@ -214,6 +222,9 @@ func (_m *TaskEvent) String() string {
 	builder.WriteString(", ")
 	builder.WriteString("task_id=")
 	builder.WriteString(fmt.Sprintf("%v", _m.TaskID))
+	builder.WriteString(", ")
+	builder.WriteString("change_id=")
+	builder.WriteString(fmt.Sprintf("%v", _m.ChangeID))
 	builder.WriteString(", ")
 	builder.WriteString("action=")
 	builder.WriteString(_m.Action)
