@@ -8,16 +8,21 @@ actor FakeBridge: TaskBridge {
     var snapshots: [Snapshot]
     private(set) var calls: [String] = []
     var failNext: BridgeError?
+    var failLoad: BridgeError?
+    var polls: [Result<SignInPoll, BridgeError>] = []
 
-    init(syncConfigured: Bool = true, snapshots: [Snapshot]) {
+    init(syncConfigured: Bool = true, backendURL: String? = nil, mutationDelay: Int = 15, snapshots: [Snapshot]) {
         statusValue = BridgeStatus(
-            taskwarriorVersion: "3.5.0", syncConfigured: syncConfigured, estimateUDA: "configured", configPath: "/tmp/config.toml",
-            sync: SyncSettings(enabled: true, startup: false, shutdown: true, intervalSeconds: 300, mutationDelaySeconds: 15),
-            refreshIntervalSeconds: 0)
+            taskwarriorVersion: backendURL == nil ? "3.5.0" : "", syncConfigured: syncConfigured && backendURL == nil,
+            estimateUDA: "configured", configPath: "/tmp/config.toml",
+            sync: SyncSettings(enabled: true, startup: false, shutdown: true, intervalSeconds: 300, mutationDelaySeconds: mutationDelay),
+            refreshIntervalSeconds: 0, backendUrl: backendURL)
         self.snapshots = snapshots
     }
 
     func setFailure(_ error: BridgeError?) { failNext = error }
+    func setLoadFailure(_ error: BridgeError?) { failLoad = error }
+    func setPolls(_ polls: [Result<SignInPoll, BridgeError>]) { self.polls = polls }
 
     private func record(_ call: String) throws {
         calls.append(call)
@@ -30,6 +35,10 @@ actor FakeBridge: TaskBridge {
     func status() async throws -> BridgeStatus { statusValue }
     func load() async throws -> Snapshot {
         calls.append("load")
+        if let error = failLoad {
+            failLoad = nil
+            throw error
+        }
         return snapshots.count > 1 ? snapshots.removeFirst() : snapshots[0]
     }
     func interpret(_ input: String, literals: [TextSpan]) async throws -> Interpretation {
@@ -49,6 +58,18 @@ actor FakeBridge: TaskBridge {
     func perform(_ action: TaskAction, uuid: String) async throws { try record("\(action.rawValue) \(uuid)") }
     func undo() async throws { try record("undo") }
     func sync() async throws { try record("sync") }
+    func setToken(_ token: String) async throws { try record("setToken \(token)") }
+    func startSignIn() async throws -> DeviceSignIn {
+        try record("signInStart")
+        return DeviceSignIn(
+            deviceCode: "dc", userCode: "BCDFGHJK", verificationUrl: "https://momentum.example/device",
+            verificationUrlComplete: "https://momentum.example/device?code=BCDFGHJK", expiresAt: .now.addingTimeInterval(600), intervalSeconds: 5)
+    }
+    func pollSignIn(deviceCode: String) async throws -> SignInPoll {
+        calls.append("poll \(deviceCode)")
+        return try polls.removeFirst().get()
+    }
+    func revoke(token: String) async throws { try record("revoke \(token)") }
 }
 
 func snapshot(today: [TaskItem] = [], inbox: [TaskItem] = []) -> Snapshot {
