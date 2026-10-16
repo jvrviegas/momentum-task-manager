@@ -358,3 +358,33 @@ func TestProjectMigrationOverHTTP(t *testing.T) {
 		}
 	}
 }
+
+func TestVersionAndTimeZoneOverHTTP(t *testing.T) {
+	h := newHarness(t)
+	alice := h.signIn("alice@example.com").Token
+
+	status, body := h.send(http.MethodGet, "/v1/version", alice, "", nil)
+	if status != http.StatusOK || decodeBody[api.Version](t, body) != (api.Version{Server: "v1.2.3"}) {
+		t.Errorf("version = %d %s", status, body)
+	}
+
+	status, body = h.send(http.MethodPut, "/v1/time-zone", alice, "", api.TimeZone{TimeZone: "Pacific/Auckland"})
+	if status != http.StatusOK || decodeBody[api.TimeZone](t, body) != (api.TimeZone{TimeZone: "Pacific/Auckland"}) {
+		t.Errorf("set time zone = %d %s", status, body)
+	}
+	if zone := h.client.User.Query().OnlyX(t.Context()).TimeZone; zone != "Pacific/Auckland" {
+		t.Errorf("stored zone = %q", zone)
+	}
+	status, body = h.send(http.MethodPut, "/v1/time-zone", alice, "", api.TimeZone{TimeZone: "Mars/Olympus_Mons"})
+	wantAPIError(t, status, body, http.StatusBadRequest, api.CodeInvalid, "timeZone")
+	status, body = h.send(http.MethodPut, "/v1/time-zone", alice, "", `{"timeZone":7}`)
+	wantAPIError(t, status, body, http.StatusBadRequest, api.CodeInvalid, "timeZone")
+
+	for _, route := range []struct{ method, path string }{{http.MethodGet, "/v1/version"}, {http.MethodPut, "/v1/time-zone"}} {
+		status, body := h.send(route.method, route.path, "mtk_unknown", "", api.TimeZone{TimeZone: "UTC"})
+		wantAPIError(t, status, body, http.StatusUnauthorized, api.CodeUnauthorized, "")
+	}
+	if strings.Contains(h.logs.String(), "Auckland") {
+		t.Errorf("log holds the time zone:\n%s", h.logs.String())
+	}
+}
