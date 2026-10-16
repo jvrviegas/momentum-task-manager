@@ -16,7 +16,9 @@ import (
 	tea "charm.land/bubbletea/v2"
 	"charm.land/lipgloss/v2"
 
+	"github.com/jvrviegas/momentum-task-manager/core/api"
 	"github.com/jvrviegas/momentum-task-manager/tui/internal/app"
+	"github.com/jvrviegas/momentum-task-manager/tui/internal/backend"
 	"github.com/jvrviegas/momentum-task-manager/tui/internal/config"
 	"github.com/jvrviegas/momentum-task-manager/tui/internal/diagnostics"
 	"github.com/jvrviegas/momentum-task-manager/tui/internal/taskwarrior"
@@ -65,16 +67,26 @@ func run(args []string, stdout, stderr io.Writer) int {
 	}
 	client := taskwarrior.NewClient("task")
 	if command == "doctor" {
-		report := diagnostics.Run(context.Background(), diagnostics.DoctorOptions{
-			Client: client, Binary: client.Binary, Config: settings, ConfigPath: resolvedPath,
-		})
+		options := diagnostics.DoctorOptions{Client: client, Binary: client.Binary, Config: settings, ConfigPath: resolvedPath}
+		if settings.Backend.Enabled() {
+			options.Backend = backendDoctor(settings.Backend.URL)
+		}
+		report := diagnostics.Run(context.Background(), options)
 		report.Print(stdout)
 		if report.OK() {
 			return 0
 		}
 		return 1
 	}
-	if err := validateTaskwarrior(context.Background(), client); err != nil {
+	var storage taskwarrior.Client = client
+	if settings.Backend.Enabled() {
+		credentials, err := backend.SavedCredentials(settings.Backend.URL)
+		if err != nil {
+			fmt.Fprintln(stderr, "momentum:", err)
+			return 1
+		}
+		storage = backend.New(settings.Backend.URL, credentials.Token, backend.DeviceZone())
+	} else if err := validateTaskwarrior(context.Background(), client); err != nil {
 		fmt.Fprintln(stderr, "momentum:", err)
 		return 1
 	}
@@ -106,7 +118,7 @@ func run(args []string, stdout, stderr io.Writer) int {
 		return 2
 	}
 	darkBackground := lipgloss.HasDarkBackground(os.Stdin, os.Stdout)
-	model := newAppModel(client, settings, resolvedPath, initial, &darkBackground)
+	model := newAppModel(storage, settings, resolvedPath, initial, &darkBackground)
 	program := tea.NewProgram(model)
 	if _, err := program.Run(); err != nil {
 		fmt.Fprintln(stderr, "momentum:", err)
@@ -128,6 +140,14 @@ func newAppModel(client taskwarrior.Client, settings config.Config, resolvedPath
 		ProjectConfigPath:    resolvedPath,
 		MigrationCoordinator: coordinator,
 	})
+}
+
+// backendDoctor describes backend mode's server to momentum doctor.
+func backendDoctor(url string) *diagnostics.BackendOptions {
+	credentials, err := backend.SavedCredentials(url)
+	return &diagnostics.BackendOptions{
+		URL: url, Server: api.NewClient(url, credentials.Token), CredentialsErr: err, Zone: backend.DeviceZone(),
+	}
 }
 
 func extractCommand(args []string) (string, []string, error) {
