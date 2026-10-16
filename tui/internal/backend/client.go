@@ -113,6 +113,30 @@ func (c *Client) Undo(ctx context.Context) error {
 	return c.change(ctx, func() (api.Task, error) { return c.server.Undo(ctx) })
 }
 
+// ExportPendingInContext returns the tasks a project migration preview maps.
+// Backend mode has no contexts (D6), so the scope is empty.
+func (c *Client) ExportPendingInContext(ctx context.Context) (taskwarrior.ProjectMigrationExport, error) {
+	tasks, err := c.ExportPending(ctx)
+	return taskwarrior.ProjectMigrationExport{Tasks: tasks}, err
+}
+
+// ApplyProjectMigration moves plan's tasks as tasks map them, in one request:
+// the server changes all of them or, with api.CodeConflict when they no
+// longer match, none.
+func (c *Client) ApplyProjectMigration(ctx context.Context, plan domain.ProjectCatalogPlan, tasks []domain.ProjectTaskMapping) error {
+	request := api.ApplyProjectMigrationRequest{
+		ProjectMigration: api.ProjectMigration{Source: plan.SourceValue, Destination: plan.DestinationValue, IncludeSubprojects: plan.IncludeSubprojects},
+		Tasks:            make([]api.ProjectTaskMapping, len(tasks)),
+	}
+	for i, task := range tasks {
+		request.Tasks[i] = api.ProjectTaskMapping(task)
+	}
+	return c.change(ctx, func() (api.Task, error) {
+		_, err := c.server.ApplyProjectMigration(ctx, request)
+		return api.Task{}, err
+	})
+}
+
 // change sets the user's time zone if this client has not yet, then sends.
 func (c *Client) change(ctx context.Context, send func() (api.Task, error)) error {
 	if err := c.sendZone(ctx); err != nil {
