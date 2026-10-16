@@ -26,6 +26,26 @@ func TestNewSyncStateSchedulesStartupOrPeriodicWork(t *testing.T) {
 	}
 }
 
+func TestBackendSyncStateClosesUndoAfterTheMutationDelay(t *testing.T) {
+	now := time.Date(2026, 9, 8, 10, 0, 0, 0, time.UTC)
+	state, effect := NewBackendSyncState(15 * time.Second).Mutation(now)
+	if !state.UndoAvailable || !state.UndoUntil.Equal(now.Add(15*time.Second)) || state.Phase != SyncDisabled || !state.NextAt.IsZero() || state.Unsynced || effect.Action != SyncNoAction {
+		t.Fatalf("after a change: state=%#v effect=%#v", state, effect)
+	}
+	if early, _ := state.Timer(now.Add(14 * time.Second)); !early.UndoAvailable {
+		t.Fatalf("closed early: %#v", early)
+	}
+	if undone, effect := state.Apply(SyncEvent{Kind: SyncUndo, At: now.Add(14 * time.Second)}); undone.UndoAvailable || !undone.UndoUntil.IsZero() || effect.Action != SyncRefresh {
+		t.Fatalf("undo: state=%#v effect=%#v", undone, effect)
+	}
+	if closed, _ := state.Timer(now.Add(15 * time.Second)); closed.UndoAvailable || !closed.UndoUntil.IsZero() {
+		t.Fatalf("still open: %#v", closed)
+	}
+	if none, _ := NewBackendSyncState(0).Mutation(now); none.UndoAvailable {
+		t.Fatalf("mutation_delay 0 offered undo: %#v", none)
+	}
+}
+
 func TestDisabledSyncSchedulesNoWork(t *testing.T) {
 	settings := syncSettings()
 	settings.Enabled = false
