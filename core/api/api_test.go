@@ -101,6 +101,7 @@ func TestProjectJSON(t *testing.T) {
 
 func TestVersionJSON(t *testing.T) {
 	roundTrip(t, Version{Server: "v0.1.0"}, `{"server":"v0.1.0"}`)
+	roundTrip(t, TimeZone{TimeZone: "Europe/Lisbon"}, `{"timeZone":"Europe/Lisbon"}`)
 }
 
 func TestErrorJSON(t *testing.T) {
@@ -132,7 +133,7 @@ func TestRoutesAreDistinctV1Patterns(t *testing.T) {
 	for _, route := range []string{
 		RouteVersion, RouteListTasks, RouteCreateTask, RouteModifyTask, RouteDeleteTask, RouteCompleteTask,
 		RouteStartTask, RouteStopTask, RouteStopRecurrence, RouteUndo, RouteListProjects, RouteListTags,
-		RoutePreviewProjectMigration, RouteApplyProjectMigration,
+		RoutePreviewProjectMigration, RouteApplyProjectMigration, RouteSetTimeZone,
 		RouteStartDeviceSignIn, RoutePollDeviceSignIn, RouteSession, RouteSignOut,
 	} {
 		method, path, _ := strings.Cut(route, " ")
