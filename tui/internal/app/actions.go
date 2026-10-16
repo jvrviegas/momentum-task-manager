@@ -109,6 +109,9 @@ func (m *Model) StopRecurrenceSelected() tea.Cmd {
 }
 
 func (m *Model) UndoLast() tea.Cmd {
+	if m.Backend {
+		m.Sync, _ = m.Sync.Timer(m.now()) // close a window whose timer has not fired yet
+	}
 	if !m.Sync.UndoAvailable || m.MutationRunning || m.MigrationRunning {
 		return nil
 	}
