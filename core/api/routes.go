@@ -16,6 +16,10 @@ package api
 // the user's time zone, and the pending instance stays as the last one. It
 // answers with the template, or CodeConflict for a task that does not repeat
 // or a series already stopped.
+//
+// RouteSetTimeZone sets the user's time zone, which anchors their recurring
+// series, and answers with it. It needs no IdempotencyKeyHeader, because
+// sending the same zone again changes nothing.
 const (
 	RouteVersion                 = "GET /v1/version"
 	RouteListTasks               = "GET /v1/tasks"
@@ -31,6 +35,7 @@ const (
 	RouteListTags                = "GET /v1/tags"
 	RoutePreviewProjectMigration = "POST /v1/project-migrations/preview"
 	RouteApplyProjectMigration   = "POST /v1/project-migrations/apply"
+	RouteSetTimeZone             = "PUT /v1/time-zone"
 )
 
 // PathUUID is the wildcard in the task routes.
@@ -53,4 +58,10 @@ const IdempotencyKeyHeader = "Idempotency-Key"
 // Version answers RouteVersion.
 type Version struct {
 	Server string `json:"server"`
+}
+
+// TimeZone is the request and answer of RouteSetTimeZone: an IANA name such
+// as "Europe/Lisbon".
+type TimeZone struct {
+	TimeZone string `json:"timeZone"`
 }
