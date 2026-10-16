@@ -376,9 +376,11 @@ Run 2026-10-16 against the server at `2993d19`, with no spike code: the existing
 - Sign-in, end to end with the real providers: `momentum login` (Google) saved a `0600` sign-in and `momentum doctor` was ready; the macOS app signed in with Google, then again with GitHub, which revoked its earlier sessions. GitHub's identity joined the user Google had created, by the verified address. Sign Out in the app revoked its session on the server and removed its Keychain item. Google warns that the app is unverified while the client is in Testing; only test users can sign in then.
 - Findings for T17 and the security review:
   - Cloud Run's own request log records full URLs, so it holds the device user codes (`/device?code=…`) and the providers' one-time authorization codes and state (`/auth/callback/…?code=…&state=…`). They are single-use and short-lived, and the server's own log has none of them, as T08 requires. T17 can exclude Cloud Run's request log and rely on the server's redacted one.
-  - The service is public: the browser and the providers' callbacks reach it without Google identity tokens. The unauthenticated sign-in routes still have no rate limits (T08).
+  - The service has to be public: the browser and the providers' callbacks reach it without Google identity tokens. The unauthenticated sign-in routes still have no rate limits (T08).
   - `gcloud run deploy --allow-unauthenticated` was refused by the coding agent's permission check, so the service was deployed private and the user granted `allUsers` the invoker role. The deploy guide should state that step.
   - Neither the server's log nor any request log holds a token, an email, or a secret. The email appears only in Cloud Run's audit and configuration records, as the deployer and in `ALLOWED_EMAILS`.
+  - Cloud Run also serves the service at an older-style address (`momentum-server-vg7ekzwpmq-ey.a.run.app`); the callbacks and `PUBLIC_URL` use the fixed form above.
+- Afterwards, at the user's request on 2026-10-16, the spike's sign-ins were revoked and the Cloud Run service, the `momentum_t01` database, and the two `momentum-t01-*` secrets were deleted. What stays for T17: the project and its enabled services, the `momentum` image repository with the `t01-2993d19` image, the `momentum-server@` service account (it can still read the two client secrets), the Neon project with an empty `neondb`, both OAuth clients, and the four other secrets.
 
 ## Execution log
 
