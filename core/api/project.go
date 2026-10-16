@@ -12,7 +12,10 @@ type TagList struct {
 
 // ProjectMigration is the body of RoutePreviewProjectMigration: move pending
 // tasks from Source to Destination and, with IncludeSubprojects, from Source's
-// dotted subprojects to the same subprojects of Destination (ADR 0001).
+// dotted subprojects to the same subprojects of Destination (ADR 0001). As in
+// Taskwarrior mode, tasks that are waiting or repeat keep their project, and
+// so do completed and deleted ones. Source and Destination must differ and
+// not be empty.
 type ProjectMigration struct {
 	Source             string `json:"source"`
 	Destination        string `json:"destination"`
@@ -35,7 +38,8 @@ type ProjectTaskMapping struct {
 // ApplyProjectMigrationRequest is the body of RouteApplyProjectMigration: the
 // migration and the preview's tasks. The server changes all of them in one
 // transaction, or none with CodeConflict when the migration would no longer
-// change exactly those tasks.
+// change exactly those tasks. RouteUndo refuses to revert a migration, with
+// CodeConflict, as ADR 0001 has no batch undo.
 type ApplyProjectMigrationRequest struct {
 	ProjectMigration
 	Tasks []ProjectTaskMapping `json:"tasks"`
