@@ -30,6 +30,8 @@ momentum inbox
 momentum today
 momentum completed
 momentum doctor
+momentum login
+momentum logout
 momentum --config PATH
 momentum --debug
 momentum --version
@@ -146,6 +148,25 @@ Momentum does not implement or provision synchronization. It runs Taskwarrior's 
 
 For local-only use, set `[sync].enabled = false`. Local-only tasks still support `u` to undo the latest in-app mutation; with no sync timer, that undo remains available until another mutation or exit.
 
+## Backend mode (preview)
+
+Instead of Taskwarrior, Momentum can keep tasks on a Momentum server ([ADR 0002](../docs/adr/0002-go-postgres-backend.md)). Name the server in the config:
+
+```toml
+[backend]
+url = "https://momentum.example"
+```
+
+The URL is the server's address, without a path, query, or credentials, over HTTPS, or over HTTP to `localhost` or a loopback address. With it, the TUI, `momentum doctor`, and the macOS bridge use the server; without it, Momentum uses Taskwarrior.
+
+`momentum login` signs in: it shows a code, opens the browser, and waits while you enter the code and sign in with Google or GitHub. The sign-in lasts 90 days and is saved in `credentials.json` in the default config directory (`$XDG_CONFIG_HOME/momentum` or `~/.config/momentum`, whatever `--config` says), readable only by you. Signing in again replaces it and revokes the old one. `momentum logout` revokes the sign-in on the server and deletes the file; when the server cannot revoke it, the file is still deleted, and the token keeps working until it expires.
+
+In backend mode:
+
+- A change is saved once the server answers, so there is no sync, sync countdown, or unsynced-changes prompt. `u` undoes the latest change for `[sync].mutation_delay` (15 seconds by default), unless the task changed since.
+- The status bar shows `✓ Online`, `• Saved · u to undo`, `! Server unreachable · r to retry`, or `! Signed out · run momentum login`. Nothing is queued while the server is unreachable: press `r` to load again, and repeat a change once it answers.
+- Dates are resolved on this device, in its time zone; expressions Momentum does not support are refused instead of sent. Contexts and hooks do not apply, and a project migration moves all of its tasks or none.
+
 ## Dotfiles and privacy
 
 A shared `.taskrc` may include a non-secret file:
@@ -154,7 +175,7 @@ A shared `.taskrc` may include a non-secret file:
 include ~/.config/taskwarrior/secrets.rc
 ```
 
-Keep `secrets.rc` untracked, create it with mode `0600`, and transfer it through a password manager. Never commit a sync URL, client UUID, encryption secret, or database credential. Momentum has no telemetry, crash reporting, automatic update checks, or network activity outside a user-initiated/native Taskwarrior sync.
+Keep `secrets.rc` untracked, create it with mode `0600`, and transfer it through a password manager. Never commit a sync URL, client UUID, encryption secret, or database credential. Momentum has no telemetry, crash reporting, automatic update checks, or network activity outside a user-initiated/native Taskwarrior sync or, in backend mode, the configured server.
 
 `momentum doctor` checks availability, export decoding, configuration, sync readiness, Estimate UDA readiness, terminal support, and writable state paths without mutating tasks or printing secret values. `--debug` writes redacted structured logs under the XDG state directory.
 
