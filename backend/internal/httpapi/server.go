@@ -40,6 +40,8 @@ func New(logger *slog.Logger, signIn *auth.Service, userTasks *tasks.Service) ht
 	mux.HandleFunc(api.RouteUndo, s.authenticated(s.undo))
 	mux.HandleFunc(api.RouteListProjects, s.authenticated(s.listProjects))
 	mux.HandleFunc(api.RouteListTags, s.authenticated(s.listTags))
+	mux.HandleFunc(api.RoutePreviewProjectMigration, s.authenticated(s.previewProjectMigration))
+	mux.HandleFunc(api.RouteApplyProjectMigration, s.authenticated(s.applyProjectMigration))
 	mux.HandleFunc("GET "+devicePath, s.devicePage)
 	mux.HandleFunc("POST "+devicePath, s.deviceSubmit)
 	mux.HandleFunc("GET "+callbackPath+"{provider}", s.callback)
