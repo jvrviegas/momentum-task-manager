@@ -1,6 +1,6 @@
 // Package api is the contract between Momentum's apps and its backend: JSON
 // over HTTPS under /v1 (backend plan D2). The server and the client share
-// these types, so neither restates the other's.
+// these types, so neither restates the other's, and Client is the apps' side.
 //
 // Every operation of the apps' storage interfaces has a route here, except
 // sync, contexts, and Taskwarrior's configuration checks: backend mode is
