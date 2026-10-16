@@ -6,6 +6,7 @@ import (
 	"io"
 	"net/http"
 	"net/url"
+	"slices"
 	"strings"
 	"testing"
 	"time"
@@ -285,6 +286,73 @@ func TestRecurrenceOverHTTP(t *testing.T) {
 	}
 
 	for _, secret := range []string{"Secret series", "secret-stop-key", instance.UUID, instance.Parent} {
+		if strings.Contains(h.logs.String(), secret) {
+			t.Errorf("log contains %q:\n%s", secret, h.logs.String())
+		}
+	}
+}
+
+func TestProjectMigrationOverHTTP(t *testing.T) {
+	h := newHarness(t)
+	alice := h.signIn("alice@example.com").Token
+	bob := h.signIn("bob@example.com").Token
+	var created []api.Task
+	for _, project := range []string{"secret-project", "secret-project.child"} {
+		status, body := h.send(http.MethodPost, "/v1/tasks", alice, uuid.NewString(), api.CreateTaskRequest{Description: "Secret plans", Project: project})
+		if status != http.StatusCreated {
+			t.Fatalf("create = %d %s", status, body)
+		}
+		created = append(created, decodeBody[api.Task](t, body))
+	}
+	migration := api.ProjectMigration{Source: "secret-project", Destination: "secret-destination", IncludeSubprojects: true}
+
+	// A preview changes nothing, so it needs no key.
+	status, body := h.send(http.MethodPost, "/v1/project-migrations/preview", alice, "", migration)
+	// Both tasks were entered in one second, so either can come first.
+	preview := decodeBody[api.ProjectMigrationPreview](t, body)
+	if status != http.StatusOK || len(preview.Tasks) != 2 || !slices.Contains(preview.Tasks, api.ProjectTaskMapping{
+		UUID: created[1].UUID, OldValue: "secret-project.child", NewValue: "secret-destination.child",
+	}) {
+		t.Fatalf("preview = %d %s", status, body)
+	}
+	status, body = h.send(http.MethodPost, "/v1/project-migrations/preview", alice, "", `{"source":"","destination":"secret-destination"}`)
+	wantAPIError(t, status, body, http.StatusBadRequest, api.CodeInvalid, "source")
+	status, body = h.send(http.MethodPost, "/v1/project-migrations/preview", alice, "", `{"source":`)
+	wantAPIError(t, status, body, http.StatusBadRequest, api.CodeInvalid, "")
+	status, body = h.send(http.MethodPost, "/v1/project-migrations/preview", alice, "", `{"includeSubprojects":"yes"}`)
+	wantAPIError(t, status, body, http.StatusBadRequest, api.CodeInvalid, "includeSubprojects")
+
+	apply := api.ApplyProjectMigrationRequest{ProjectMigration: migration, Tasks: preview.Tasks}
+	status, body = h.send(http.MethodPost, "/v1/project-migrations/apply", bob, uuid.NewString(), apply)
+	wantAPIError(t, status, body, http.StatusConflict, api.CodeConflict, "")
+	status, body = h.send(http.MethodPost, "/v1/project-migrations/apply", alice, "", apply)
+	wantAPIError(t, status, body, http.StatusBadRequest, api.CodeInvalid, "")
+	status, first := h.send(http.MethodPost, "/v1/project-migrations/apply", alice, "secret-migration-key", apply)
+	if status != http.StatusOK || first != "{\"changed\":2}\n" {
+		t.Fatalf("apply = %d %s", status, first)
+	}
+	if status, again := h.send(http.MethodPost, "/v1/project-migrations/apply", alice, "secret-migration-key", apply); status != http.StatusOK || again != first {
+		t.Errorf("retried apply = %d %s, want %s", status, again, first)
+	}
+	status, body = h.send(http.MethodPost, "/v1/project-migrations/apply", alice, uuid.NewString(), apply)
+	wantAPIError(t, status, body, http.StatusConflict, api.CodeConflict, "")
+	status, body = h.send(http.MethodPost, "/v1/undo", alice, uuid.NewString(), nil)
+	wantAPIError(t, status, body, http.StatusConflict, api.CodeConflict, "")
+
+	status, body = h.send(http.MethodGet, "/v1/projects", alice, "", nil)
+	if status != http.StatusOK || body != "{\"projects\":[\"secret-destination\",\"secret-destination.child\"]}\n" {
+		t.Errorf("projects = %d %s", status, body)
+	}
+	status, body = h.send(http.MethodPost, "/v1/project-migrations/preview", bob, "", api.ProjectMigration{Source: "secret-destination", Destination: "x"})
+	if status != http.StatusOK || body != "{\"tasks\":[]}\n" {
+		t.Errorf("Bob's preview = %d %s", status, body)
+	}
+	for _, path := range []string{"/v1/project-migrations/preview", "/v1/project-migrations/apply"} {
+		status, body = h.send(http.MethodPost, path, "mtk_unknown", uuid.NewString(), apply)
+		wantAPIError(t, status, body, http.StatusUnauthorized, api.CodeUnauthorized, "")
+	}
+
+	for _, secret := range []string{"Secret plans", "secret-project", "secret-destination", "secret-migration-key", created[0].UUID, created[1].UUID} {
 		if strings.Contains(h.logs.String(), secret) {
 			t.Errorf("log contains %q:\n%s", secret, h.logs.String())
 		}
