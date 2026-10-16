@@ -63,6 +63,34 @@ struct WireTests {
         #expect(task.edit.due == "2026-10-14 17:00" && task.annotations.first?.entry != nil)
         #expect(task.extra?["client"] == "\"acme\"")
     }
+
+    @Test func decodesBackendStatusSignInAndErrors() throws {
+        let decoder = JSONDecoder()
+        decoder.dateDecodingStrategy = .iso8601
+        let status = try decoder.decode(BridgeStatus.self, from: Data("""
+        {"taskwarriorVersion":"","syncConfigured":false,"estimateUDA":"configured","configPath":"/tmp/config.toml",
+        "sync":{"enabled":true,"startup":true,"shutdown":true,"intervalSeconds":300,"mutationDelaySeconds":15},
+        "refreshIntervalSeconds":60,"backendUrl":"https://momentum.example"}
+        """.utf8))
+        #expect(status.backendUrl == "https://momentum.example")
+        let start = try decoder.decode(DeviceSignIn.self, from: Data("""
+        {"deviceCode":"dc","userCode":"BCDFGHJK","verificationUrl":"https://m.example/device",
+        "verificationUrlComplete":"https://m.example/device?code=BCDFGHJK","expiresAt":"2026-10-16T11:10:00Z","intervalSeconds":5}
+        """.utf8))
+        #expect(start.userCode == "BCDFGHJK" && start.expiresAt == Date(timeIntervalSince1970: 1_792_149_000) && start.intervalSeconds == 5)
+        let poll = try decoder.decode(SignInPoll.self, from: Data("""
+        {"state":"signedIn","token":"mtk_new","email":"ana@example.com","expiresAt":"2027-01-14T12:00:00Z"}
+        """.utf8))
+        #expect(poll.token == "mtk_new" && poll.expiresAt == Date(timeIntervalSince1970: 1_799_928_000))
+        #expect(try decoder.decode(SignInPoll.self, from: Data(#"{"state":"pending"}"#.utf8)) == SignInPoll(state: "pending"))
+        let error = try decoder.decode(BridgeError.self, from: Data(#"{"message":"sign in again","code":"unauthorized"}"#.utf8))
+        #expect(error == BridgeError(message: "sign in again", code: "unauthorized"))
+        let tw = try decoder.decode(BridgeStatus.self, from: Data("""
+        {"taskwarriorVersion":"3.5.0","syncConfigured":true,"estimateUDA":"configured","configPath":"/tmp/config.toml",
+        "sync":{"enabled":true,"startup":true,"shutdown":true,"intervalSeconds":300,"mutationDelaySeconds":15},"refreshIntervalSeconds":60}
+        """.utf8))
+        #expect(tw.backendUrl == nil)
+    }
 }
 
 extension TaskItem {
