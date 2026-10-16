@@ -19,6 +19,8 @@ type statusResult struct {
 	ConfigPath             string       `json:"configPath"`
 	Sync                   syncSettings `json:"sync"`
 	RefreshIntervalSeconds int          `json:"refreshIntervalSeconds"`
+	// BackendURL is the [backend] server in backend mode, and empty otherwise.
+	BackendURL string `json:"backendUrl,omitempty"`
 }
 
 type syncSettings struct {
@@ -103,6 +105,36 @@ type editFields struct {
 type span struct {
 	Start int `json:"start"`
 	End   int `json:"end"`
+}
+
+type tokenParams struct {
+	Token string `json:"token"`
+}
+
+type signInPollParams struct {
+	DeviceCode string `json:"deviceCode"`
+}
+
+// signInStartResult is a started device sign-in (backend plan D1): the app
+// shows UserCode, opens VerificationURLComplete, and polls with DeviceCode
+// every IntervalSeconds until ExpiresAt.
+type signInStartResult struct {
+	DeviceCode              string `json:"deviceCode"`
+	UserCode                string `json:"userCode"`
+	VerificationURL         string `json:"verificationUrl"`
+	VerificationURLComplete string `json:"verificationUrlComplete"`
+	ExpiresAt               string `json:"expiresAt"`
+	IntervalSeconds         int    `json:"intervalSeconds"`
+}
+
+// signInPollResult answers one poll. State is "pending"; "slowDown", after
+// which the app waits five seconds longer between polls; or "signedIn", with
+// the sign-in, which the server gives only once.
+type signInPollResult struct {
+	State     string `json:"state"`
+	Token     string `json:"token,omitempty"`
+	Email     string `json:"email,omitempty"`
+	ExpiresAt string `json:"expiresAt,omitempty"`
 }
 
 type interpretParams struct {
