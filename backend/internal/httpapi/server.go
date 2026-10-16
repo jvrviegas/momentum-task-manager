@@ -15,16 +15,20 @@ import (
 	"github.com/jvrviegas/momentum-task-manager/core/api"
 )
 
-// New returns the server's handler. GET /health reports that the server is
-// up; Cloud Run reserves some paths that end in z, so it is not /healthz.
-// Sign-in has JSON routes for the apps and pages for the browser; the task
-// routes need a signed-in user. Any other route answers with an api.Error.
-func New(logger *slog.Logger, signIn *auth.Service, userTasks *tasks.Service) http.Handler {
+// New returns the server's handler, which reports version as the server's.
+// GET /health reports that the server is up; Cloud Run reserves some paths
+// that end in z, so it is not /healthz. Sign-in has JSON routes for the apps
+// and pages for the browser; the other /v1 routes need a signed-in user. Any
+// other route answers with an api.Error.
+func New(logger *slog.Logger, version string, signIn *auth.Service, userTasks *tasks.Service) http.Handler {
 	s := &server{logger: logger, auth: signIn, tasks: userTasks, secure: strings.HasPrefix(signIn.PublicURL(), "https://")}
 	mux := http.NewServeMux()
 	mux.HandleFunc("GET /health", func(w http.ResponseWriter, r *http.Request) {
 		writeJSON(w, http.StatusOK, map[string]string{"status": "ok"})
 	})
+	mux.HandleFunc(api.RouteVersion, s.authenticated(func(w http.ResponseWriter, r *http.Request) {
+		writeJSON(w, http.StatusOK, api.Version{Server: version})
+	}))
 	mux.HandleFunc(api.RouteStartDeviceSignIn, s.startDeviceSignIn)
 	mux.HandleFunc(api.RoutePollDeviceSignIn, s.pollDeviceSignIn)
 	mux.HandleFunc(api.RouteSession, s.authenticated(s.session))
@@ -42,6 +46,7 @@ func New(logger *slog.Logger, signIn *auth.Service, userTasks *tasks.Service) ht
 	mux.HandleFunc(api.RouteListTags, s.authenticated(s.listTags))
 	mux.HandleFunc(api.RoutePreviewProjectMigration, s.authenticated(s.previewProjectMigration))
 	mux.HandleFunc(api.RouteApplyProjectMigration, s.authenticated(s.applyProjectMigration))
+	mux.HandleFunc(api.RouteSetTimeZone, s.authenticated(s.setTimeZone))
 	mux.HandleFunc("GET "+devicePath, s.devicePage)
 	mux.HandleFunc("POST "+devicePath, s.deviceSubmit)
 	mux.HandleFunc("GET "+callbackPath+"{provider}", s.callback)
