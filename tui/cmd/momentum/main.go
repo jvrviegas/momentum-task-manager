@@ -56,7 +56,7 @@ func run(args []string, stdout, stderr io.Writer) int {
 		return 0
 	}
 	if remaining := flags.Args(); len(remaining) > 0 {
-		fmt.Fprintf(stderr, "momentum: unsupported argument %q; use inbox, today, completed, or doctor\n", remaining[0])
+		fmt.Fprintf(stderr, "momentum: unsupported argument %q; use inbox, today, completed, doctor, login, or logout\n", remaining[0])
 		return 2
 	}
 
@@ -64,6 +64,9 @@ func run(args []string, stdout, stderr io.Writer) int {
 	if err != nil {
 		fmt.Fprintln(stderr, "momentum:", err)
 		return 1
+	}
+	if command == "login" || command == "logout" {
+		return account(command, settings, resolvedPath, stdout, stderr)
 	}
 	client := taskwarrior.NewClient("task")
 	if command == "doctor" {
@@ -139,6 +142,7 @@ func newAppModel(client taskwarrior.Client, settings config.Config, resolvedPath
 		ProjectStore:         store,
 		ProjectConfigPath:    resolvedPath,
 		MigrationCoordinator: coordinator,
+		Backend:              settings.Backend.Enabled(),
 	})
 }
 
@@ -156,7 +160,7 @@ func extractCommand(args []string) (string, []string, error) {
 	for index := 0; index < len(args); index++ {
 		arg := args[index]
 		switch arg {
-		case "inbox", "today", "completed", "doctor":
+		case "inbox", "today", "completed", "doctor", "login", "logout":
 			if command != "" {
 				return "", nil, fmt.Errorf("multiple commands: %s and %s", command, arg)
 			}
@@ -187,6 +191,8 @@ func printUsage(w io.Writer) {
 	fmt.Fprintln(w, "Usage:")
 	fmt.Fprintln(w, "  momentum [inbox|today|completed]")
 	fmt.Fprintln(w, "  momentum doctor")
+	fmt.Fprintln(w, "  momentum login")
+	fmt.Fprintln(w, "  momentum logout")
 	fmt.Fprintln(w)
 	fmt.Fprintln(w, "Options:")
 	fmt.Fprintln(w, "  --config PATH   use another config file")
