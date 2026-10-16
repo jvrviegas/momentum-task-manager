@@ -99,6 +99,9 @@ func LoadWithOptions(options LoadOptions) (Config, string, error) {
 	if xdg == "" {
 		xdg = lookup(options.Env, "XDG_CONFIG_HOME")
 	}
+	if xdg == "" && options.Env == nil {
+		xdg = os.Getenv("XDG_CONFIG_HOME")
+	}
 	path := ResolvePathFor(options.PathOverride, home, xdg)
 
 	config := Defaults()
