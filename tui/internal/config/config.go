@@ -43,6 +43,7 @@ type Config struct {
 	Planning        PlanningConfig        `toml:"planning"`
 	Calendar        CalendarConfig        `toml:"calendar"`
 	Projects        domain.ProjectCatalog `toml:"projects"`
+	Backend         BackendConfig         `toml:"backend"`
 }
 
 // LoadOptions makes configuration loading deterministic in tests and callers
@@ -195,6 +196,9 @@ func (c Config) Validate() error {
 	if err := c.Calendar.Validate(); err != nil {
 		return err
 	}
+	if err := c.Backend.Validate(); err != nil {
+		return err
+	}
 	return c.Projects.Validate()
 }
 
@@ -203,7 +207,7 @@ func (c Config) IsZero() bool {
 	return c.RefreshInterval == 0 && c.Theme == "" && c.Icons == "" && c.Sync == (SyncConfig{}) &&
 		!c.Planning.Enabled && c.Planning.DailyCapacity == 0 && c.Planning.Buffer == 0 && len(c.Planning.WeekdayCapacity) == 0 &&
 		!c.Calendar.Enabled && len(c.Calendar.Paths) == 0 && c.Calendar.WorkingStart == "" && c.Calendar.WorkingEnd == "" && c.Calendar.StaleAfter == 0 &&
-		c.Projects == nil
+		c.Projects == nil && c.Backend == BackendConfig{}
 }
 
 func lookup(values map[string]string, key string) string {
