@@ -12,10 +12,19 @@ struct MomentumCommands: Commands {
     }
 
     var body: some Commands {
+        CommandGroup(after: .appInfo) {
+            if store.isBackend {
+                Divider()
+                Button("Sign In…") { store.beginSignIn() }
+                    .disabled(store.hasOverlay)
+                Button("Sign Out") { Task { await store.signOut() } }
+                    .disabled(store.account == nil || store.hasOverlay)
+            }
+        }
         CommandGroup(replacing: .newItem) {
             Button("New Task") { store.showCapture = true }
                 .keyboardShortcut("n")
-                .disabled(store.status == nil || store.hasOverlay)
+                .disabled(store.status == nil || (store.isBackend && store.account == nil) || store.hasOverlay)
         }
         CommandGroup(replacing: .undoRedo) {
             Button("Undo") { undo() }
@@ -48,10 +57,12 @@ struct MomentumCommands: Commands {
                 .disabled(actionable?.recurrenceTarget == nil)
             Button("Delete…") { store.pendingDelete = actionable }
                 .disabled(actionable == nil)
-            Divider()
-            Button("Sync Now") { store.syncNow() }
-                .keyboardShortcut("r")
-                .disabled(store.status == nil)
+            if !store.isBackend {
+                Divider()
+                Button("Sync Now") { store.syncNow() }
+                    .keyboardShortcut("r")
+                    .disabled(store.status == nil)
+            }
         }
         CommandGroup(replacing: .help) {
             Button("Keyboard Shortcuts") { store.showShortcuts = true }
