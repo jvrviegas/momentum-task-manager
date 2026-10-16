@@ -4,11 +4,14 @@ import (
 	"bytes"
 	"context"
 	"errors"
+	"fmt"
 	"os"
 	"path/filepath"
 	"strings"
 	"testing"
+	"time"
 
+	"github.com/jvrviegas/momentum-task-manager/core/api"
 	"github.com/jvrviegas/momentum-task-manager/tui/internal/config"
 	"github.com/jvrviegas/momentum-task-manager/tui/internal/taskwarrior"
 )
@@ -198,5 +201,78 @@ func TestNewLoggerUsesXDGStatePathAndMode(t *testing.T) {
 	}
 	if info.Mode().Perm() != 0o600 {
 		t.Fatalf("mode=%o", info.Mode().Perm())
+	}
+}
+
+// fakeServer answers the doctor's backend checks.
+type fakeServer struct {
+	versionErr, sessionErr error
+	sessions               int
+}
+
+func (f *fakeServer) Version(context.Context) (api.Version, error) {
+	return api.Version{Server: "v1.2.3"}, f.versionErr
+}
+
+func (f *fakeServer) Session(context.Context) (api.Session, error) {
+	f.sessions++
+	return api.Session{Email: "ana@example.com", ExpiresAt: time.Date(2027, 1, 14, 12, 0, 0, 0, time.Local)}, f.sessionErr
+}
+
+func TestDoctorChecksTheBackendInsteadOfTaskwarrior(t *testing.T) {
+	unauthorized := &api.Error{Code: api.CodeUnauthorized, Message: "sign in again"}
+	unreachable := fmt.Errorf("%w: dial tcp: connection refused", api.ErrUnreachable)
+	for _, test := range []struct {
+		name           string
+		server         *fakeServer
+		credentialsErr error
+		zone           string
+		ok             bool
+		want           []string
+		sessions       int
+	}{
+		{name: "ready", server: &fakeServer{}, zone: "Europe/Lisbon", ok: true, sessions: 1, want: []string{
+			"[ok] Backend server           https://momentum.example answers; version v1.2.3",
+			"[ok] Sign-in                  ana@example.com until 2027-01-14",
+			"[ok] Time zone                Europe/Lisbon",
+		}},
+		{name: "not signed in", server: &fakeServer{versionErr: unauthorized}, zone: "Europe/Lisbon",
+			credentialsErr: errors.New("not signed in to https://momentum.example"), want: []string{
+				"[ok] Backend server           https://momentum.example answers",
+				"[fail] Sign-in                  not signed in to https://momentum.example",
+			}},
+		{name: "a revoked token", server: &fakeServer{versionErr: unauthorized, sessionErr: unauthorized}, zone: "Europe/Lisbon", sessions: 1,
+			want: []string{"[fail] Sign-in                  sign in again"}},
+		{name: "unreachable", server: &fakeServer{versionErr: unreachable}, zone: "Europe/Lisbon", want: []string{
+			"[fail] Backend server           cannot reach the Momentum server: dial tcp: connection refused",
+			"[skip] Sign-in                  needs the server",
+		}},
+		{name: "an unknown zone", server: &fakeServer{}, ok: false, sessions: 1,
+			want: []string{"[fail] Time zone                unknown; set TZ to an IANA name such as Europe/Lisbon"}},
+	} {
+		t.Run(test.name, func(t *testing.T) {
+			settings := config.Defaults()
+			settings.Backend.URL = "https://momentum.example"
+			report := Run(context.Background(), DoctorOptions{
+				Backend: &BackendOptions{URL: settings.Backend.URL, Server: test.server, CredentialsErr: test.credentialsErr, Zone: test.zone},
+				Config:  settings, StateDir: t.TempDir(), Terminal: "xterm-256color",
+				LookPath: func(string) (string, error) { return "", errors.New("missing") },
+			})
+			var output bytes.Buffer
+			report.Print(&output)
+			if report.OK() != test.ok || test.server.sessions != test.sessions {
+				t.Errorf("OK %v, %d session checks:\n%s", report.OK(), test.server.sessions, output.String())
+			}
+			for _, line := range test.want {
+				if !strings.Contains(output.String(), line) {
+					t.Errorf("report lacks %q:\n%s", line, output.String())
+				}
+			}
+			for _, check := range report.Checks {
+				if strings.HasPrefix(check.Name, "Taskwarrior") || check.Name == "Sync settings" || check.Name == "Estimate UDA" {
+					t.Errorf("report checks %s:\n%s", check.Name, output.String())
+				}
+			}
+		})
 	}
 }
