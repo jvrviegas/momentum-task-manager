@@ -31,6 +31,9 @@ struct SyncState: Equatable {
     var undoAvailable = false
     var undoUntil: Date?
     var quitPending = false
+    /// Backend mode: a change is on the server once it answers, so nothing
+    /// syncs, and undo stays available for mutationDelay.
+    var backend = false
 
     /// Sync runs only when Momentum's config enables it and Taskwarrior has a
     /// server configured; otherwise Momentum is local-only.
@@ -51,17 +54,38 @@ struct SyncState: Equatable {
         settings: SyncSettings(enabled: false, startup: false, shutdown: false, intervalSeconds: 0, mutationDelaySeconds: 0),
         configured: false, now: .now)
 
+    static func backend(mutationDelay: TimeInterval) -> SyncState {
+        var state = localOnly
+        state.backend = true
+        state.mutationDelay = max(0, mutationDelay)
+        return state
+    }
+
     mutating func apply(_ event: Event, at: Date) -> Effect {
         if !enabled {
+            // Taskwarrior's undo still works in local-only mode, until the
+            // next change replaces it. In backend mode it closes at undoUntil.
             phase = .disabled
             nextAt = nil
             unsynced = false
-            undoUntil = nil
+            if !backend {
+                undoUntil = nil
+            }
             switch event {
             case .mutation:
                 undoAvailable = true
+                if backend {
+                    undoUntil = at.addingTimeInterval(mutationDelay)
+                    undoAvailable = mutationDelay > 0
+                }
+            case .timer where backend:
+                if undoUntil.map({ $0 <= at }) ?? true {
+                    undoAvailable = false
+                    undoUntil = nil
+                }
             case .undo where undoAvailable:
                 undoAvailable = false
+                undoUntil = nil
                 return Effect(action: .refresh, message: "Last change undone")
             default:
                 break
