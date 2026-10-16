@@ -9,6 +9,7 @@ import (
 	"io"
 	"os"
 
+	"github.com/jvrviegas/momentum-task-manager/tui/internal/backend"
 	"github.com/jvrviegas/momentum-task-manager/tui/internal/bridge"
 	"github.com/jvrviegas/momentum-task-manager/tui/internal/config"
 	"github.com/jvrviegas/momentum-task-manager/tui/internal/taskwarrior"
@@ -38,7 +39,16 @@ func run(args []string, stdin io.Reader, stdout, stderr io.Writer) int {
 		fmt.Fprintln(stderr, "momentum-bridge:", err)
 		return 1
 	}
-	server := bridge.NewServer(taskwarrior.NewClient(*taskBinary), settings, resolvedPath)
+	var client bridge.Client = taskwarrior.NewClient(*taskBinary)
+	if settings.Backend.Enabled() {
+		credentials, err := backend.SavedCredentials(settings.Backend.URL)
+		if err != nil {
+			fmt.Fprintln(stderr, "momentum-bridge:", err)
+			return 1
+		}
+		client = backend.New(settings.Backend.URL, credentials.Token, backend.DeviceZone())
+	}
+	server := bridge.NewServer(client, settings, resolvedPath)
 	if err := server.Serve(context.Background(), stdin, stdout); err != nil {
 		fmt.Fprintln(stderr, "momentum-bridge:", err)
 		return 1
