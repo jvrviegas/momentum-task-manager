@@ -257,16 +257,32 @@ func save(ctx context.Context, update *ent.TaskUpdateOne, t api.Task) (*ent.Task
 	return update.Save(ctx)
 }
 
-// mutate runs change once per idempotency key. In one transaction, it claims
-// key for the user, runs change, and stores the answer: the task change
-// returns, with its urgency. A request that sends the key again gets that
-// answer instead. Claiming a key waits for a transaction that has claimed it
-// already, so a retry sent while the first attempt is still running does not
-// run change again. A key sent with a different request is a conflict. A
-// failed change claims nothing.
+// mutate runs change once per idempotency key, as once does, and answers
+// with the task change returns, with its urgency.
 func (s *Service) mutate(ctx context.Context, key, action string, id uuid.UUID, input any, run func(c *change) (*ent.Task, error)) (api.Task, error) {
+	return once(ctx, s, key, action, id, input, func(c *change) (api.Task, error) {
+		saved, err := run(c)
+		if err != nil {
+			return api.Task{}, err
+		}
+		pending, err := pendingTasks(ctx, c.tx)
+		if err != nil {
+			return api.Task{}, err
+		}
+		return withUrgency([]*ent.Task{saved}, pending, c.now)[0], nil
+	})
+}
+
+// once runs change once per idempotency key. In one transaction, it claims
+// key for the user, runs change, and stores its answer. A request that sends
+// the key again gets that answer instead. Claiming a key waits for a
+// transaction that has claimed it already, so a retry sent while the first
+// attempt is still running does not run change again. A key sent with a
+// different request is a conflict. A failed change claims nothing.
+func once[T any](ctx context.Context, s *Service, key, action string, id uuid.UUID, input any, run func(c *change) (T, error)) (T, error) {
+	var none T
 	if key == "" || len(key) > maxKeyLength {
-		return api.Task{}, invalid("", fmt.Sprintf("send an %s header of 1 to %d characters", api.IdempotencyKeyHeader, maxKeyLength))
+		return none, invalid("", fmt.Sprintf("send an %s header of 1 to %d characters", api.IdempotencyKeyHeader, maxKeyLength))
 	}
 	request, err := json.Marshal(struct {
 		Action string
@@ -274,7 +290,7 @@ func (s *Service) mutate(ctx context.Context, key, action string, id uuid.UUID, 
 		Input  any
 	}{action, id, input})
 	if err != nil {
-		return api.Task{}, err
+		return none, err
 	}
 	fingerprint := sha256.Sum256(request)
 	now := s.clock()
@@ -282,48 +298,43 @@ func (s *Service) mutate(ctx context.Context, key, action string, id uuid.UUID, 
 
 	tx, err := s.client.Tx(ctx)
 	if err != nil {
-		return api.Task{}, err
+		return none, err
 	}
 	defer tx.Rollback()
 	if _, err := tx.IdempotencyKey.Delete().Where(idempotencykey.CreatedAtLT(now.Add(-keyLifetime))).Exec(ctx); err != nil {
-		return api.Task{}, err
+		return none, err
 	}
 	claim, err := tx.IdempotencyKey.Create().SetUserID(userID).SetKey(key).SetFingerprint(fingerprint[:]).SetCreatedAt(now).Save(ctx)
 	if ent.IsConstraintError(err) {
 		_ = tx.Rollback()
-		return s.replay(ctx, key, fingerprint[:])
+		return replay[T](ctx, s, key, fingerprint[:])
 	} else if err != nil {
-		return api.Task{}, err
+		return none, err
 	}
-	saved, err := run(&change{tx: tx.Client(), now: now, id: uuid.New()})
+	answer, err := run(&change{tx: tx.Client(), now: now, id: uuid.New()})
 	if err != nil {
-		return api.Task{}, err
+		return none, err
 	}
-	pending, err := pendingTasks(ctx, tx.Client())
-	if err != nil {
-		return api.Task{}, err
-	}
-	answer := withUrgency([]*ent.Task{saved}, pending, now)[0]
 	response, err := json.Marshal(answer)
 	if err != nil {
-		return api.Task{}, err
+		return none, err
 	}
 	if err := tx.IdempotencyKey.UpdateOne(claim).SetResponse(response).Exec(ctx); err != nil {
-		return api.Task{}, err
+		return none, err
 	}
 	return answer, tx.Commit()
 }
 
 // replay returns the answer stored under key, if the same request claimed it.
-func (s *Service) replay(ctx context.Context, key string, fingerprint []byte) (api.Task, error) {
+func replay[T any](ctx context.Context, s *Service, key string, fingerprint []byte) (T, error) {
+	var answer T
 	claim, err := s.client.IdempotencyKey.Query().Where(idempotencykey.Key(key)).Only(ctx)
 	if err != nil {
-		return api.Task{}, err
+		return answer, err
 	}
 	if !bytes.Equal(claim.Fingerprint, fingerprint) {
-		return api.Task{}, conflict(fmt.Sprintf("this %s was already used for a different request", api.IdempotencyKeyHeader))
+		return answer, conflict(fmt.Sprintf("this %s was already used for a different request", api.IdempotencyKeyHeader))
 	}
-	var answer api.Task
 	err = json.Unmarshal(claim.Response, &answer)
 	return answer, err
 }
