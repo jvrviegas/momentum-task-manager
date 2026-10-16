@@ -43,7 +43,9 @@ func (m *Model) applyProjectMigration(message ProjectMigrationMsg) tea.Cmd {
 		}
 		m.ProjectSettings.ApplyMessage(ui.ProjectSettingsSavedMsg{Plan: request.Plan, Projects: m.Config.Projects})
 		if m.ProjectRename.Open {
-			m.ProjectRename.ApplyMessage(ui.ProjectRenameResultMsg{})
+			// A migration applied in one request that changed no task keeps the
+			// preview open, so a fresh one can retry it (SP-15).
+			m.ProjectRename.ApplyMessage(ui.ProjectRenameResultMsg{Stale: result.Stale, Err: result.TaskErr})
 		}
 		m.refreshProjectSuggestions()
 	} else if m.ProjectRename.Open {
@@ -61,8 +63,12 @@ func (m *Model) applyProjectMigration(message ProjectMigrationMsg) tea.Cmd {
 		m.finishProjectMigration()
 		m.Mode = ModeReady
 		switch {
+		case result.CatalogSaved && result.Stale:
+			m.Status = "Projects saved; no tasks moved because the preview is stale; review it again"
 		case result.Stale:
 			m.Status = "Project migration preview is stale; review it again"
+		case result.TaskErr != nil:
+			m.Status = "Projects saved; no tasks moved: " + conciseError(result.TaskErr)
 		case result.PreflightErr != nil:
 			m.Status = "Project migration preflight failed: " + conciseError(result.PreflightErr)
 		case result.CatalogErr != nil:
