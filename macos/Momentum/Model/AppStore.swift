@@ -48,10 +48,29 @@ struct EditRequest: Identifiable, Equatable {
     var id: String { task.uuid }
 }
 
+/// What backend mode last learned about its server, as in the TUI.
+enum ServerState: Equatable {
+    case unknown, online, unreachable, signedOut
+}
+
+/// A device sign-in in progress, which the sign-in sheet shows.
+struct SignInFlow: Identifiable, Equatable {
+    enum Phase: Equatable {
+        case starting
+        case waiting(DeviceSignIn)
+        case failed(String)
+    }
+
+    var server: String
+    var phase = Phase.starting
+    var id: String { server }
+}
+
 @MainActor
 @Observable
 final class AppStore {
     let bridge: any TaskBridge
+    let signIns: any SignInStore
 
     private(set) var status: BridgeStatus?
     private(set) var startupError: String?
@@ -78,12 +97,23 @@ final class AppStore {
     private(set) var mutating = false
     /// Advances once a minute so relative dates stay current.
     private(set) var now = Date()
+    private(set) var server = ServerState.unknown
+    /// This Mac's sign-in to the backend server; nil when signed out.
+    private(set) var account: SavedSignIn?
+    private(set) var signIn: SignInFlow?
 
     @ObservationIgnored private var clock: Task<Void, Never>?
     @ObservationIgnored private var lastRefresh = Date.distantPast
+    @ObservationIgnored private var signInTask: Task<Void, Never>?
+    private let sleep: @Sendable (TimeInterval) async throws -> Void
 
-    init(bridge: any TaskBridge) {
+    init(
+        bridge: any TaskBridge, signIns: any SignInStore = KeychainSignInStore(),
+        sleep: @escaping @Sendable (TimeInterval) async throws -> Void = { try await Task.sleep(for: .seconds($0)) }
+    ) {
         self.bridge = bridge
+        self.signIns = signIns
+        self.sleep = sleep
     }
 
     // MARK: Derived state
@@ -95,10 +125,21 @@ final class AppStore {
     var estimatesWritable: Bool { status?.estimatesWritable ?? true }
     var projects: [ProjectEntry] { snapshot?.projects ?? [] }
     var hasOverlay: Bool {
-        showCapture || showShortcuts || editing != nil || pendingDelete != nil || pendingStopRecurrence != nil
+        showCapture || showShortcuts || editing != nil || pendingDelete != nil || pendingStopRecurrence != nil || signIn != nil
     }
     var overdueCount: Int { snapshot?.today.first { $0.title == "Overdue" }?.uuids.count ?? 0 }
     var needsQuitPrompt: Bool { sync.enabled && sync.unsynced && sync.shutdown }
+    /// The [backend] server in backend mode; nil when Momentum uses Taskwarrior.
+    var backendURL: String? {
+        status?.backendUrl.map { $0.hasSuffix("/") ? String($0.dropLast()) : $0 }
+    }
+    var isBackend: Bool { backendURL != nil }
+    /// When the last change's undo window closes: when it syncs, or in
+    /// backend mode after mutation_delay. nil while no window counts down.
+    var undoClosesAt: Date? {
+        guard sync.undoAvailable, sync.phase == .grace || sync.backend else { return nil }
+        return sync.undoUntil
+    }
 
     func count(_ view: ViewName) -> Int {
         rawSections(view).reduce(0) { $0 + $1.uuids.count }
@@ -131,14 +172,38 @@ final class AppStore {
         do {
             let status = try await bridge.status()
             self.status = status
-            sync = SyncState(settings: status.sync, configured: status.syncConfigured, now: .now)
+            if status.backendUrl != nil {
+                sync = .backend(mutationDelay: TimeInterval(status.sync.mutationDelaySeconds))
+            } else {
+                sync = SyncState(settings: status.sync, configured: status.syncConfigured, now: .now)
+            }
         } catch {
             startupError = error.localizedDescription
             return
         }
+        if let url = backendURL {
+            guard let saved = savedSignIn(url) else {
+                server = .signedOut
+                startClock()
+                return
+            }
+            do {
+                try await bridge.setToken(saved.token)
+            } catch {
+                startupError = error.localizedDescription
+                return
+            }
+            account = saved
+        }
+        await open()
+    }
+
+    /// Loads tasks. The first load opens Today when it has work, otherwise
+    /// Inbox (VIEW-08).
+    private func open() async {
+        let first = snapshot == nil
         await refresh()
-        // Open Today when it has work, otherwise Inbox (VIEW-08).
-        if count(.today) == 0 {
+        if first && count(.today) == 0 {
             view = .inbox
         }
         perform(sync.apply(.startup, at: .now))
@@ -149,15 +214,17 @@ final class AppStore {
         lastRefresh = .now
         do {
             let snapshot = try await bridge.load()
+            noteServer(nil)
             let previousOrder = visibleTasks.map(\.uuid)
             self.snapshot = snapshot
             tasksByUUID = Dictionary(snapshot.tasks.map { ($0.uuid, $0) }, uniquingKeysWith: { first, _ in first })
             loadError = nil
             repairSelection(previousOrder: previousOrder)
             if announce {
-                show("Refreshed from Taskwarrior", .success)
+                show(isBackend ? "Refreshed from the server" : "Refreshed from Taskwarrior", .success)
             }
         } catch {
+            noteServer(error)
             if snapshot == nil {
                 loadError = error.localizedDescription
             } else {
@@ -192,15 +259,18 @@ final class AppStore {
         if let next = sync.nextAt, next <= date {
             perform(sync.apply(.timer, at: date))
         }
+        if sync.backend, let until = sync.undoUntil, until <= date {
+            _ = sync.apply(.timer, at: date)
+        }
         if let toast {
             if let expiry = toast.expiresAt, expiry <= date {
                 self.toast = nil
-            } else if toast.offersUndo, toast.expiresAt == nil, sync.phase != .grace {
+            } else if toast.offersUndo, toast.expiresAt == nil, undoClosesAt == nil {
                 self.toast?.expiresAt = date.addingTimeInterval(3)
             }
         }
         let interval = TimeInterval(status?.refreshIntervalSeconds ?? 0)
-        if interval > 0, date.timeIntervalSince(lastRefresh) >= interval, !mutating, !hasOverlay {
+        if interval > 0, date.timeIntervalSince(lastRefresh) >= interval, !mutating, !hasOverlay, !isBackend || account != nil {
             Task { await refresh() }
         }
     }
@@ -224,7 +294,12 @@ final class AppStore {
         }
         mutating = true
         defer { mutating = false }
-        return try await operation()
+        do {
+            return try await operation()
+        } catch {
+            noteServer(error) // a success reloads, which notes it
+            throw error
+        }
     }
 
     /// Reloads after a successful mutation and opens the undo window.
@@ -275,8 +350,15 @@ final class AppStore {
     }
 
     func undo() async {
+        if sync.backend {
+            _ = sync.apply(.timer, at: .now) // close a window whose tick has not come yet
+        }
         guard sync.undoAvailable else {
-            show(isLocalOnly ? "Nothing to undo" : "Undo is only available until changes sync")
+            if sync.backend && sync.mutationDelay > 0 {
+                show("Undo is only available for \(Duration.seconds(sync.mutationDelay).formatted(.units(width: .wide))) after a change")
+            } else {
+                show(isLocalOnly ? "Nothing to undo" : "Undo is only available until changes sync")
+            }
             return
         }
         do {
@@ -293,6 +375,11 @@ final class AppStore {
     // MARK: Sync
 
     func syncNow() {
+        if isBackend {
+            // Each change is on the server once it answers; this retries it (P1).
+            Task { await refresh(announce: true) }
+            return
+        }
         guard sync.enabled else {
             show("Local only — Taskwarrior sync is not configured")
             return
@@ -342,11 +429,156 @@ final class AppStore {
 
     func show(_ message: String, _ kind: Toast.Kind = .info, offersUndo: Bool = false) {
         let lifetime: TimeInterval = kind == .error ? 7 : offersUndo ? 8 : 3.2
-        let stays = offersUndo && sync.phase == .grace
+        let stays = offersUndo && undoClosesAt != nil
         toast = Toast(message: message, kind: kind, offersUndo: offersUndo, expiresAt: stays ? nil : .now.addingTimeInterval(lifetime))
     }
 
     func dismissToast() {
         toast = nil
+    }
+
+    // MARK: Backend sign-in
+
+    /// Records what a backend-mode request's outcome says about the server.
+    /// Other failures leave it alone: the bridge refuses some requests itself.
+    private func noteServer(_ error: (any Error)?) {
+        guard isBackend else { return }
+        guard let error else {
+            server = .online
+            return
+        }
+        switch (error as? BridgeError)?.code {
+        case "unreachable": server = .unreachable
+        case "unauthorized": server = .signedOut
+        default: break
+        }
+    }
+
+    /// The Keychain's sign-in to url, unless it has expired.
+    private func savedSignIn(_ url: String) -> SavedSignIn? {
+        do {
+            guard let saved = try signIns.read(server: url), saved.expiresAt > .now else { return nil }
+            return saved
+        } catch {
+            show("Couldn’t read the sign-in from the Keychain: \(error.localizedDescription)", .error)
+            return nil
+        }
+    }
+
+    /// Starts the device sign-in (D1) that the sign-in sheet shows, replacing
+    /// any in progress.
+    @discardableResult
+    func beginSignIn() -> Task<Void, Never> {
+        signInTask?.cancel()
+        guard let url = backendURL else { return Task {} }
+        signIn = SignInFlow(server: url)
+        let task = Task { await runSignIn(url) }
+        signInTask = task
+        return task
+    }
+
+    func cancelSignIn() {
+        signInTask?.cancel()
+        signInTask = nil
+        signIn = nil
+    }
+
+    /// Polls until the person finishes in the browser, as `momentum login`
+    /// does: every interval, five seconds longer after each slowDown.
+    private func runSignIn(_ url: String) async {
+        do {
+            let start = try await bridge.startSignIn()
+            try Task.checkCancellation()
+            signIn?.phase = .waiting(start)
+            var interval = TimeInterval(start.intervalSeconds > 0 ? start.intervalSeconds : 5)
+            while true {
+                try await sleep(interval)
+                let poll = try await bridge.pollSignIn(deviceCode: start.deviceCode)
+                try Task.checkCancellation()
+                switch poll.state {
+                case "signedIn":
+                    await finishSignIn(url, poll)
+                    return
+                case "slowDown":
+                    interval += 5
+                default:
+                    continue
+                }
+            }
+        } catch {
+            guard !Task.isCancelled else { return }
+            signIn?.phase = .failed(error.localizedDescription)
+        }
+    }
+
+    /// Saves the new sign-in, signs the bridge in, and revokes the sign-in it
+    /// replaces, so that token stops working.
+    private func finishSignIn(_ url: String, _ poll: SignInPoll) async {
+        guard let token = poll.token, let expiresAt = poll.expiresAt else {
+            signIn?.phase = .failed("The server answered without a sign-in.")
+            return
+        }
+        let saved = SavedSignIn(server: url, token: token, email: poll.email ?? "", expiresAt: expiresAt)
+        let previous = try? signIns.read(server: url)
+        do {
+            try signIns.save(saved)
+        } catch {
+            try? await bridge.revoke(token: token) // the server shows a token only once
+            signIn?.phase = .failed("Couldn’t save the sign-in in the Keychain: \(error.localizedDescription)")
+            return
+        }
+        do {
+            try await bridge.setToken(token)
+        } catch {
+            signIn?.phase = .failed(error.localizedDescription) // the saved sign-in is used at the next launch
+            return
+        }
+        account = saved
+        signIn = nil
+        signInTask = nil
+        show("Signed in as \(saved.email)", .success)
+        if let previous, previous.token != token {
+            do {
+                try await bridge.revoke(token: previous.token)
+            } catch {
+                show("Couldn’t revoke the previous sign-in, which works until \(previous.expiresAt.formatted(date: .abbreviated, time: .omitted)): \(error.localizedDescription)", .error)
+            }
+        }
+        await open()
+    }
+
+    /// Signs this Mac out of the backend server. The sign-in leaves the
+    /// Keychain even when the server cannot revoke it.
+    func signOut() async {
+        guard let url = backendURL else { return }
+        cancelSignIn()
+        var failure: String?
+        let saved = account ?? (try? signIns.read(server: url))
+        if let saved {
+            do {
+                try await bridge.revoke(token: saved.token)
+            } catch {
+                failure = error.localizedDescription
+            }
+        }
+        do {
+            try signIns.remove(server: url)
+        } catch {
+            show("Couldn’t remove the sign-in from the Keychain: \(error.localizedDescription)", .error)
+            return
+        }
+        try? await bridge.setToken("")
+        account = nil
+        server = .signedOut
+        snapshot = nil
+        tasksByUUID = [:]
+        selection = nil
+        loadError = nil
+        sync = .backend(mutationDelay: sync.mutationDelay)
+        if let failure, let saved {
+            show("Signed out. The server couldn’t revoke the sign-in, so its token works until \(saved.expiresAt.formatted(date: .abbreviated, time: .omitted)): \(failure)", .error)
+        } else {
+            show("Signed out")
+        }
     }
 }
