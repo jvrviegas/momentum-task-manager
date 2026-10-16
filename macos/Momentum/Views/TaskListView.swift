@@ -22,6 +22,15 @@ struct TaskListView: View {
             } actions: {
                 Button("Try Again") { Task { await store.start() } }
             }
+        } else if let url = store.backendURL, store.server == .signedOut, store.snapshot == nil {
+            ContentUnavailableView {
+                Label("Sign in to see your tasks", systemImage: "person.crop.circle")
+            } description: {
+                Text("Momentum keeps your tasks on \(url). Sign in with Google or GitHub in your browser.")
+            } actions: {
+                Button("Sign In…") { store.beginSignIn() }
+                    .keyboardShortcut(.defaultAction)
+            }
         } else if let error = store.loadError {
             ContentUnavailableView {
                 Label("Couldn’t load tasks", systemImage: "exclamationmark.triangle")
@@ -31,7 +40,7 @@ struct TaskListView: View {
                 Button("Try Again") { Task { await store.refresh() } }
             }
         } else if store.snapshot == nil {
-            ProgressView("Loading tasks…")
+            ProgressView(store.isBackend ? "Loading tasks from the server…" : "Loading tasks…")
                 .frame(maxWidth: .infinity, maxHeight: .infinity)
         } else {
             List(selection: $store.selection) {
