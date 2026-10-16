@@ -31,11 +31,21 @@ type Response struct {
 	Error  *Error `json:"error,omitempty"`
 }
 
-// Error is a user-facing failure. Field names the edit field that caused it.
+// Error is a user-facing failure. Field names the edit field that caused it,
+// and Code, in backend mode, what the failure says about the server.
 type Error struct {
 	Message string `json:"message"`
 	Field   string `json:"field,omitempty"`
+	Code    string `json:"code,omitempty"`
 }
+
+// Codes of backend-mode errors.
+const (
+	// CodeUnreachable: the server gave no answer of its own (api.ErrUnreachable).
+	CodeUnreachable = "unreachable"
+	// CodeUnauthorized: the server refused the token, or there is none.
+	CodeUnauthorized = "unauthorized"
+)
 
 func (e *Error) Error() string { return e.Message }
 
@@ -65,7 +75,10 @@ var pureOps = map[string]bool{"interpret": true, "suggest": true}
 const maxReviews = 8
 
 type Server struct {
-	client     Client
+	client Client
+	// connect returns a backend client signed in with a token; nil outside
+	// backend mode.
+	connect    func(token string) Client
 	config     config.Config
 	configPath string
 	now        func() time.Time
@@ -86,6 +99,15 @@ func NewServer(client Client, settings config.Config, configPath string) *Server
 		projects:   settings.Projects,
 		reviews:    map[int64]quickadd.Interpretation{},
 	}
+}
+
+// NewBackendServer returns a server for backend mode. It reaches the server
+// in settings' [backend] through connect(token), where token is the one the
+// app last sent with setToken; until then it has none.
+func NewBackendServer(connect func(token string) Client, settings config.Config, configPath string) *Server {
+	server := NewServer(connect(""), settings, configPath)
+	server.connect = connect
+	return server
 }
 
 // Serve answers requests until r is exhausted. Taskwarrior operations run one
@@ -142,8 +164,14 @@ func (s *Server) handle(ctx context.Context, request Request) Response {
 		case errors.As(err, &bridgeErr):
 		case errors.As(err, &apiErr):
 			bridgeErr = &Error{Message: apiErr.Message, Field: apiFields[apiErr.Field]}
+			if apiErr.Code == api.CodeUnauthorized {
+				bridgeErr.Code = CodeUnauthorized
+			}
 		default:
 			bridgeErr = &Error{Message: err.Error()}
+			if errors.Is(err, api.ErrUnreachable) {
+				bridgeErr.Code = CodeUnreachable
+			}
 		}
 		return Response{ID: request.ID, Error: bridgeErr}
 	}
@@ -209,6 +237,26 @@ func (s *Server) dispatch(ctx context.Context, op string, raw json.RawMessage) (
 			return nil, err
 		}
 		return syncResult{Changed: result.Changed}, nil
+	case "setToken":
+		var p tokenParams
+		if err := decode(raw, &p); err != nil {
+			return nil, err
+		}
+		return nil, s.setToken(p.Token)
+	case "signInStart":
+		return s.signInStart(ctx)
+	case "signInPoll":
+		var p signInPollParams
+		if err := decode(raw, &p); err != nil {
+			return nil, err
+		}
+		return s.signInPoll(ctx, p.DeviceCode)
+	case "revoke":
+		var p tokenParams
+		if err := decode(raw, &p); err != nil {
+			return nil, err
+		}
+		return nil, s.revoke(ctx, p.Token)
 	default:
 		return nil, fmt.Errorf("unknown operation %q", op)
 	}
