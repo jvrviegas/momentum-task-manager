@@ -56,6 +56,8 @@ The task routes in [`core/api`](../core/api/routes.go) need a token. `GET /v1/ta
 
 A task created with a `recurrence` and a `due` date starts a series: a template, listed with `status=recurring`, and its first pending instance, which is the answer. Completing or deleting the instance creates the next one, due at the series' next occurrence that is on or after today; missed ones are skipped. Occurrences keep their wall-clock time in the user's time zone across DST changes, and months count calendar months. The zone is UTC until the apps can set it. A `recurrence` sent to an instance or a template changes the series' rule, and one sent to another pending task makes it the first instance of a new series. `POST /v1/tasks/{uuid}/stop-recurrence` ends a series as Taskwarrior's `until:today` does; the pending instance stays as the last. Undo reverts every task a change reached, such as a completed instance and the next one.
 
+`POST /v1/project-migrations/preview` lists the pending tasks a project rename moves, with their old and new projects; with `includeSubprojects`, `work.client` moves with `work`, but `workshop` does not. Waiting and recurring tasks keep their project, as in Taskwarrior mode, and backend mode has no contexts, so every other pending task of the user is in scope. `POST /v1/project-migrations/apply`, with a key, sends the preview's tasks back and moves them all in one transaction, or none with a conflict if the rename would no longer move exactly those. Undo refuses a migration. The project catalog stays in the apps' config.
+
 ```sh
 curl -X POST localhost:8080/v1/tasks -H "Authorization: Bearer $TOKEN" \
   -H "Idempotency-Key: $(uuidgen)" -d '{"description":"Try the backend","tags":["next"]}'
