@@ -77,6 +77,24 @@ func (s *server) undo(w http.ResponseWriter, r *http.Request) {
 	s.respond(w, r, http.StatusOK, undone, err)
 }
 
+func (s *server) previewProjectMigration(w http.ResponseWriter, r *http.Request) {
+	var input api.ProjectMigration
+	if !decodeJSON(w, r, &input) {
+		return
+	}
+	preview, err := s.tasks.PreviewProjectMigration(r.Context(), input)
+	s.respond(w, r, http.StatusOK, preview, err)
+}
+
+func (s *server) applyProjectMigration(w http.ResponseWriter, r *http.Request) {
+	var input api.ApplyProjectMigrationRequest
+	if !decodeJSON(w, r, &input) {
+		return
+	}
+	result, err := s.tasks.ApplyProjectMigration(r.Context(), r.Header.Get(api.IdempotencyKeyHeader), input)
+	s.respond(w, r, http.StatusOK, result, err)
+}
+
 // respond answers with body, or with err: an api.Error as it is, and any
 // other error as CodeInternal.
 func (s *server) respond(w http.ResponseWriter, r *http.Request, status int, body any, err error) {
