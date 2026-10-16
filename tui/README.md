@@ -159,7 +159,7 @@ url = "https://momentum.example"
 
 The URL is the server's address, without a path, query, or credentials, over HTTPS, or over HTTP to `localhost` or a loopback address. With it, the TUI, `momentum doctor`, and the macOS bridge use the server; without it, Momentum uses Taskwarrior.
 
-`momentum login` signs in: it shows a code, opens the browser, and waits while you enter the code and sign in with Google or GitHub. The sign-in lasts 90 days and is saved in `credentials.json` in the default config directory (`$XDG_CONFIG_HOME/momentum` or `~/.config/momentum`, whatever `--config` says), readable only by you. Signing in again replaces it and revokes the old one. `momentum logout` revokes the sign-in on the server and deletes the file; when the server cannot revoke it, the file is still deleted, and the token keeps working until it expires.
+`momentum login` signs in: it shows a code, opens the browser, and waits while you enter the code and sign in with Google or GitHub. The sign-in lasts 90 days and is saved in `credentials.json` in the default config directory (`$XDG_CONFIG_HOME/momentum` or `~/.config/momentum`, whatever `--config` says), readable only by you. Signing in again replaces it and revokes the old one. `momentum logout` revokes the sign-in on the server and deletes the file; when the server cannot revoke it, the file is still deleted, and the token keeps working until it expires. The macOS app does not use this file: it signs in on its own and keeps its sign-in in the Keychain (see [`macos/README.md`](../macos/README.md#backend-mode)).
 
 In backend mode:
 
