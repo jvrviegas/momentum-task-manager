@@ -307,6 +307,8 @@ momentum inbox            Launch in Inbox
 momentum today            Launch in Today
 momentum completed        Launch in Completed
 momentum doctor           Run diagnostics
+momentum login            Sign in to the [backend] server (backend plan T14)
+momentum logout           Sign out of the [backend] server
 momentum --config PATH    Use another config file
 momentum --debug          Enable local diagnostic logging
 momentum --version        Print version
