@@ -57,7 +57,9 @@ struct EditTaskView: View {
                     TextField("Estimate", text: $fields.estimate, prompt: Text("none"))
                         .disabled(!store.estimatesWritable)
                 }
-                labeled(.recurrence, hint: task.parent != nil ? "Changes this instance. Use Stop Repeating to end the whole series." : nil) {
+                labeled(.recurrence, hint: task.parent == nil ? nil : store.isBackend
+                    ? "Changes the rule of the whole series. Use Stop Repeating to end it."
+                    : "Changes this instance. Use Stop Repeating to end the whole series.") {
                     TextField("Repeats", text: $fields.recurrence, prompt: Text("does not repeat"))
                         .textInputSuggestions {
                             ForEach(matching(["daily", "weekdays", "weekly", "2wks", "monthly"], fields.recurrence), id: \.self) { Text($0).textInputCompletion($0) }
