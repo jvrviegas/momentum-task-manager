@@ -22,15 +22,19 @@ var (
 	// errChanged refuses an undo when the task changed after the change it
 	// would revert.
 	errChanged = conflict("the task changed since; undo is not available")
+	// errMigrationUndo refuses to undo a project migration, as ADR 0001 has
+	// no batch undo: the apps' catalog would keep the new project.
+	errMigrationUndo = conflict("a project migration cannot be undone")
 )
 
 // Undo reverts the latest change the signed-in device made, if none of its
 // tasks has changed since (backend plan D7), under the idempotency key. A
 // change can reach several tasks, such as completing an instance and
 // creating the next one; undo reverts all of them or none. Undo is one step:
-// after an undo, the device has nothing to undo until its next change.
-// Undoing a create removes the task, as Taskwarrior's undo does. The answer
-// is the task the change answered with, deleted if it was created.
+// after an undo, the device has nothing to undo until its next change. Nor
+// after a project migration, which undo refuses (ADR 0001 has no batch
+// undo). Undoing a create removes the task, as Taskwarrior's undo does. The
+// answer is the task the change answered with, deleted if it was created.
 func (s *Service) Undo(ctx context.Context, key string) (api.Task, error) {
 	return s.mutate(ctx, key, "undo", uuid.Nil, nil, func(c *change) (*ent.Task, error) {
 		session, ok := auth.FromContext(ctx)
@@ -43,8 +47,11 @@ func (s *Service) Undo(ctx context.Context, key string) (api.Task, error) {
 		} else if err != nil {
 			return nil, err
 		}
-		if last.Action == "undo" {
+		switch last.Action {
+		case "undo":
 			return nil, errNothingToUndo
+		case migrateAction:
+			return nil, errMigrationUndo
 		}
 		// The change's first event is the task it answered with.
 		events, err := c.tx.TaskEvent.Query().Where(taskevent.ChangeID(last.ChangeID)).Order(taskevent.ByID()).All(ctx)
