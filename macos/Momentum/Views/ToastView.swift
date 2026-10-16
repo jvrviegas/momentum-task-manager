@@ -15,9 +15,10 @@ struct ToastView: View {
                     .lineLimit(3)
                     .textSelection(.enabled)
                 if toast.offersUndo, store.sync.undoAvailable {
-                    if store.sync.phase == .grace, let until = store.sync.undoUntil {
+                    if let until = store.undoClosesAt {
                         TimelineView(.periodic(from: .now, by: 1)) { context in
-                            Text("Syncs in \(max(0, Int(until.timeIntervalSince(context.date).rounded(.up))))s")
+                            let seconds = max(0, Int(until.timeIntervalSince(context.date).rounded(.up)))
+                            Text(store.isBackend ? "\(seconds)s left" : "Syncs in \(seconds)s")
                                 .monospacedDigit()
                                 .foregroundStyle(.secondary)
                         }
