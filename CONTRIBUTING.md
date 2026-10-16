@@ -21,7 +21,7 @@ Momentum is a monorepo. The root `go.work` joins its Go modules for local builds
   - `cmd/momentum-server` — configuration, listening, graceful shutdown, and the `migrate` command
   - `internal/httpapi` — routes, JSON errors, request logging, and the sign-in pages
   - `internal/auth` — device sign-in, Google and GitHub providers, and sessions
-  - `internal/tasks` — task reads and changes, recurring series, idempotency keys, the `task_events` history, and undo
+  - `internal/tasks` — task reads and changes, recurring series, project migration, idempotency keys, the `task_events` history, and undo
   - `internal/logging` — JSON logs that redact every attribute outside an allowlist
   - `internal/config` — environment variables
   - `internal/store` — PostgreSQL access, migrations, and the local-only test database guard; `ent/schema` is the schema, the rest of `ent/` is generated, and `rule` and `viewer` limit task access to the signed-in user
