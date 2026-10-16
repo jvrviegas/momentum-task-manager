@@ -1,12 +1,43 @@
 package app
 
 import (
+	"errors"
 	"fmt"
 	"math"
 	"time"
 
 	tea "charm.land/bubbletea/v2"
+
+	"github.com/jvrviegas/momentum-task-manager/core/api"
 )
+
+// ServerState is what backend mode last learned about its server.
+type ServerState string
+
+const (
+	ServerUnknown     ServerState = ""
+	ServerOnline      ServerState = "online"
+	ServerUnreachable ServerState = "unreachable"
+	ServerSignedOut   ServerState = "signed_out"
+)
+
+// noteServer records what a backend-mode request's outcome says about the
+// server. Other failures leave the state alone: the adapter refuses some
+// requests itself, without reaching the server.
+func (m *Model) noteServer(err error) {
+	if !m.Backend {
+		return
+	}
+	var failure *api.Error
+	switch {
+	case err == nil:
+		m.Server = ServerOnline
+	case errors.Is(err, api.ErrUnreachable):
+		m.Server = ServerUnreachable
+	case errors.As(err, &failure) && failure.Code == api.CodeUnauthorized:
+		m.Server = ServerSignedOut
+	}
+}
 
 func refreshTickCommand(interval time.Duration) tea.Cmd {
 	if interval <= 0 {
@@ -46,6 +77,12 @@ func (m *Model) startStartupSync() tea.Cmd {
 func (m *Model) scheduleSync() tea.Cmd {
 	if m.MigrationRunning {
 		return nil
+	}
+	if m.Backend {
+		if !m.Sync.UndoAvailable {
+			return nil
+		}
+		return syncTickCommandAt(m.Sync.UndoUntil)
 	}
 	if !m.SyncReady || !m.SyncConfigured || m.Sync.Phase == SyncDisabled || m.Sync.NextAt.IsZero() {
 		return nil
@@ -106,6 +143,10 @@ func (m *Model) handleSyncTick(at time.Time) tea.Cmd {
 		m.SyncDeferred = true
 		return nil
 	}
+	if m.Backend {
+		m.Sync, _ = m.Sync.Timer(at)
+		return nil
+	}
 	if !m.SyncConfigured || m.Sync.Phase == SyncDisabled {
 		return nil
 	}
@@ -140,14 +181,25 @@ func (m *Model) SyncCountdown(now time.Time) string {
 	return fmt.Sprintf("Syncing in %ds · u to undo", seconds)
 }
 
-// SyncStatus returns a concise footer status for local-only, retry, or grace
-// states without exposing Taskwarrior settings.
+// SyncStatus returns a concise footer status for local-only, retry, grace, or
+// backend server states without exposing Taskwarrior settings.
 func (m *Model) SyncStatus(now time.Time) string {
 	if m == nil {
 		return "Local only"
 	}
 	if m.MigrationRunning {
 		return "Project migration in progress · undo unavailable"
+	}
+	if m.Backend {
+		switch {
+		case m.Server == ServerSignedOut:
+			return "Signed out · run momentum login"
+		case m.Server == ServerUnreachable:
+			return "Server unreachable · r to retry"
+		case m.Sync.UndoAvailable && m.Sync.UndoUntil.After(now):
+			return "Saved · u to undo"
+		}
+		return "Online"
 	}
 	if !m.SyncConfigured || m.Sync.Phase == SyncDisabled {
 		if m.Sync.UndoAvailable {
