@@ -74,6 +74,8 @@ type ModelOptions struct {
 	ProjectStore         config.ProjectCatalogStore
 	ProjectConfigPath    string
 	MigrationCoordinator *ProjectMigrationCoordinator
+	// Backend reports that Client keeps tasks on a Momentum server.
+	Backend bool
 }
 
 // Model is Momentum's root Bubble Tea state machine.
@@ -108,6 +110,8 @@ type Model struct {
 	Sync            SyncState
 	SyncReady       bool
 	SyncConfigured  bool
+	Backend         bool
+	Server          ServerState
 
 	Styles          ui.Styles
 	Icons           ui.Icons
@@ -177,7 +181,11 @@ func NewModel(options ModelOptions) *Model {
 	icons := ui.IconsFor(settings.Icons)
 	syncReady := true
 	syncConfigured := settings.Sync.Enabled && options.Client != nil
-	if _, ok := options.Client.(interface {
+	syncState := NewSyncState(settings.Sync, now())
+	if options.Backend {
+		syncConfigured = false
+		syncState = NewBackendSyncState(settings.Sync.MutationDelay)
+	} else if _, ok := options.Client.(interface {
 		SyncConfigured(context.Context) (bool, error)
 	}); ok {
 		syncReady = false
@@ -199,9 +207,10 @@ func NewModel(options ModelOptions) *Model {
 		Mode:                 ModeLoading,
 		Width:                options.Width,
 		Height:               options.Height,
-		Sync:                 NewSyncState(settings.Sync, now()),
+		Sync:                 syncState,
 		SyncReady:            syncReady,
 		SyncConfigured:       syncConfigured,
+		Backend:              options.Backend,
 		Styles:               styles,
 		Icons:                icons,
 		QuickAdd:             ui.NewQuickAdd(styles, icons),
@@ -436,6 +445,7 @@ func (m *Model) applyTasks(message TasksMsg) tea.Cmd {
 		ViewCompleted: m.Selected[ViewCompleted],
 	}
 	migrationRefresh := m.MigrationRunning && m.MigrationRefreshPending && message.Reason == "migration"
+	m.noteServer(message.Err)
 	if message.Err != nil {
 		m.Err = message.Err
 		m.Status = "Refresh failed: " + conciseError(message.Err)
@@ -577,6 +587,7 @@ func (m *Model) applyMutation(message MutationMsg) tea.Cmd {
 		return nil
 	}
 	m.MutationRunning = false
+	m.noteServer(message.Err)
 	if message.Err != nil {
 		if pendingKind == MutationModify {
 			m.Editor.Err = message.Err
@@ -646,7 +657,11 @@ func (m *Model) applyMutation(message MutationMsg) tea.Cmd {
 	}
 	m.Status = m.mutationStatus(message.Kind, request)
 	// Every successful mutation has one and only one follow-up export. Sync
-	// bookkeeping is attached by the feature-integration layer.
+	// bookkeeping is attached by the feature-integration layer; backend mode
+	// only needs its undo window closed on time.
+	if m.Backend {
+		return tea.Batch(m.beginRefresh("mutation"), m.scheduleSync())
+	}
 	return m.beginRefresh("mutation")
 }
 
