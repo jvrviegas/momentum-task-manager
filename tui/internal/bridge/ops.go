@@ -19,16 +19,17 @@ import (
 var versionRE = regexp.MustCompile(`(?i)\b([0-9]+)(?:\.[0-9]+)+\b`)
 
 func (s *Server) status(ctx context.Context) (*statusResult, error) {
-	version, err := s.client.Version(ctx)
-	if err != nil {
-		if errors.Is(err, exec.ErrNotFound) {
-			return nil, errors.New("Taskwarrior executable not found; install Taskwarrior 3.x")
+	var version string
+	if s.config.Backend.Enabled() {
+		// The server answers with its version only to a signed-in device.
+		if _, err := s.client.Version(ctx); err != nil {
+			return nil, err
 		}
-		return nil, fmt.Errorf("cannot run Taskwarrior: %w", err)
-	}
-	match := versionRE.FindStringSubmatch(version)
-	if major, convErr := strconv.Atoi(safeIndex(match, 1)); convErr != nil || major < 3 {
-		return nil, fmt.Errorf("Taskwarrior 3.x is required; found %s", taskwarrior.Redact(version))
+	} else {
+		var err error
+		if version, err = s.taskwarriorVersion(ctx); err != nil {
+			return nil, err
+		}
 	}
 	configured, err := s.client.SyncConfigured(ctx)
 	if err != nil {
@@ -49,6 +50,22 @@ func (s *Server) status(ctx context.Context) (*statusResult, error) {
 		},
 		RefreshIntervalSeconds: int(s.config.RefreshInterval / time.Second),
 	}, nil
+}
+
+// taskwarriorVersion returns the version of Taskwarrior, which must be 3.x.
+func (s *Server) taskwarriorVersion(ctx context.Context) (string, error) {
+	version, err := s.client.Version(ctx)
+	if err != nil {
+		if errors.Is(err, exec.ErrNotFound) {
+			return "", errors.New("Taskwarrior executable not found; install Taskwarrior 3.x")
+		}
+		return "", fmt.Errorf("cannot run Taskwarrior: %w", err)
+	}
+	match := versionRE.FindStringSubmatch(version)
+	if major, convErr := strconv.Atoi(safeIndex(match, 1)); convErr != nil || major < 3 {
+		return "", fmt.Errorf("Taskwarrior 3.x is required; found %s", taskwarrior.Redact(version))
+	}
+	return version, nil
 }
 
 func safeIndex(values []string, index int) string {
