@@ -95,6 +95,15 @@ func (s *server) applyProjectMigration(w http.ResponseWriter, r *http.Request) {
 	s.respond(w, r, http.StatusOK, result, err)
 }
 
+func (s *server) setTimeZone(w http.ResponseWriter, r *http.Request) {
+	var input api.TimeZone
+	if !decodeJSON(w, r, &input) {
+		return
+	}
+	zone, err := s.tasks.SetTimeZone(r.Context(), input.TimeZone)
+	s.respond(w, r, http.StatusOK, zone, err)
+}
+
 // respond answers with body, or with err: an api.Error as it is, and any
 // other error as CodeInternal.
 func (s *server) respond(w http.ResponseWriter, r *http.Request, status int, body any, err error) {
