@@ -10,6 +10,7 @@ import (
 	"sync"
 	"time"
 
+	"github.com/jvrviegas/momentum-task-manager/core/api"
 	"github.com/jvrviegas/momentum-task-manager/core/domain"
 	"github.com/jvrviegas/momentum-task-manager/tui/internal/config"
 	"github.com/jvrviegas/momentum-task-manager/tui/internal/quickadd"
@@ -50,6 +51,12 @@ type Client interface {
 	StopRecurrence(context.Context, string) error
 	SyncConfigured(context.Context) (bool, error)
 	EstimateUDAReadiness(context.Context) (taskwarrior.EstimateUDAState, error)
+}
+
+// apiFields names the edit fields that a backend error's fields belong to.
+var apiFields = map[string]string{
+	"description": "description", "project": "project", "priority": "priority", "due": "due",
+	"scheduled": "scheduled", "recurrence": "recurrence", "estimateMinutes": "estimate", "tags": "tags",
 }
 
 // Pure operations never call Taskwarrior and may answer out of order.
@@ -130,7 +137,12 @@ func (s *Server) handle(ctx context.Context, request Request) Response {
 	result, err := s.dispatch(ctx, request.Op, request.Params)
 	if err != nil {
 		var bridgeErr *Error
-		if !errors.As(err, &bridgeErr) {
+		var apiErr *api.Error
+		switch {
+		case errors.As(err, &bridgeErr):
+		case errors.As(err, &apiErr):
+			bridgeErr = &Error{Message: apiErr.Message, Field: apiFields[apiErr.Field]}
+		default:
 			bridgeErr = &Error{Message: err.Error()}
 		}
 		return Response{ID: request.ID, Error: bridgeErr}
