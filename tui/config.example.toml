@@ -14,6 +14,11 @@ mutation_delay = "15s"
 startup = true
 shutdown = true
 
+# Backend mode keeps tasks on a Momentum server instead of Taskwarrior; run
+# `momentum login` after setting it. See the README.
+# [backend]
+# url = "https://momentum.example"
+
 [planning]
 enabled = true
 daily_capacity = "8h"
