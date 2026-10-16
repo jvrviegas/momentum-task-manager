@@ -566,6 +566,8 @@ func (m *Model) renderStatusBar(width int, narrow bool) string {
 func (m *Model) statusMessage(now time.Time, narrow bool) []ui.Span {
 	var spans []ui.Span
 	switch {
+	case m.Mode == ModeLoading && m.Backend:
+		spans = []ui.Span{{Text: m.Icons.Syncing, Tone: ui.ToneAccent}, {Text: " Loading tasks from the server…"}}
 	case m.Mode == ModeLoading:
 		spans = []ui.Span{{Text: m.Icons.Syncing, Tone: ui.ToneAccent}, {Text: " Loading tasks from Taskwarrior…"}}
 	case m.Err != nil:
@@ -621,7 +623,9 @@ func statusIsError(status string) bool {
 }
 
 // syncState is a glyph and a word for every sync state, so it reads without
-// color: ✓ ready, ↻ syncing, • local changes, ! failed, · local only.
+// color: ✓ ready, ↻ syncing, • local changes, ! failed, · local only. Backend
+// mode uses ✓ online, • saved with undo, and ! for an unreachable server or
+// an ended sign-in.
 func (m *Model) syncState(now time.Time) (ui.Span, []ui.Span) {
 	text := m.SyncStatus(now)
 	word := func(tone ui.Tone, bold bool, head, tail string) []ui.Span {
@@ -636,11 +640,21 @@ func (m *Model) syncState(now time.Time) (ui.Span, []ui.Span) {
 		return head, tail
 	}
 	switch {
+	case m.Mode == ModeLoading && m.Backend:
+		return ui.Span{Text: m.Icons.Syncing, Tone: ui.ToneMuted}, word(ui.ToneMuted, false, "Waiting for the server", "")
 	case m.Mode == ModeLoading:
 		return ui.Span{Text: m.Icons.Syncing, Tone: ui.ToneMuted}, word(ui.ToneMuted, false, "Waiting for task export", "")
 	case m.MigrationRunning:
 		head, tail := split(text)
 		return ui.Span{Text: m.Icons.Local, Tone: ui.ToneMedium}, word(ui.ToneMedium, false, head, tail)
+	case m.Backend && (m.Server == ServerSignedOut || m.Server == ServerUnreachable):
+		head, tail := split(text)
+		return ui.Span{Text: m.Icons.Failed, Tone: ui.ToneRed, Bold: true}, word(ui.ToneRed, true, head, tail)
+	case m.Backend && m.Sync.UndoAvailable && m.Sync.UndoUntil.After(now):
+		head, tail := split(text)
+		return ui.Span{Text: m.Icons.Local, Tone: ui.ToneMedium}, word(ui.ToneMedium, false, head, tail)
+	case m.Backend:
+		return ui.Span{Text: m.Icons.Synced, Tone: ui.ToneMuted}, word(ui.ToneMuted, false, text, "")
 	case !m.SyncConfigured || m.Sync.Phase == SyncDisabled:
 		return ui.Span{Text: m.Icons.Off, Tone: ui.ToneMuted}, word(ui.ToneMuted, false, text, "")
 	case m.Sync.UndoAvailable && !m.Sync.UndoUntil.IsZero():
