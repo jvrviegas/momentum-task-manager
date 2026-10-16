@@ -500,3 +500,32 @@ func TestClosingAnInstanceWaitsForItsTemplate(t *testing.T) {
 		t.Errorf("next = %+v, want weekly and a week later", next)
 	}
 }
+
+func TestSetTimeZoneMovesTheUsersToday(t *testing.T) {
+	f := newFixture(t) // 2026-10-15 09:30 UTC, 22:30 in Auckland
+	aliceID, _ := viewer.UserID(f.alice)
+	bobID, _ := viewer.UserID(f.bob)
+	for _, name := range []string{"", "Local", "Mars/Olympus_Mons", "../zoneinfo/UTC", "+01:00"} {
+		_, err := f.service.SetTimeZone(f.alice, name)
+		wantError(t, err, api.CodeInvalid, "timeZone")
+	}
+	if zone := f.client.User.GetX(t.Context(), aliceID).TimeZone; zone != "UTC" {
+		t.Fatalf("zone after refusals = %q, want UTC", zone)
+	}
+
+	set, err := f.service.SetTimeZone(f.alice, "Pacific/Auckland")
+	if err != nil || set != (api.TimeZone{TimeZone: "Pacific/Auckland"}) {
+		t.Fatalf("SetTimeZone = %+v, %v", set, err)
+	}
+	instance := f.create(t, api.CreateTaskRequest{Description: "Journal", Due: at("2026-10-10T20:00:00Z"), Recurrence: "daily"})
+	f.complete(t, f.alice, instance.UUID)
+	if next := f.next(t, f.template(t, instance)); !next.Due.Equal(*at("2026-10-14T20:00:00Z")) {
+		t.Errorf("next due %v, want Auckland's 2026-10-15 09:00", next.Due)
+	}
+
+	for id, want := range map[uuid.UUID]string{aliceID: "Pacific/Auckland", bobID: "UTC"} {
+		if zone := f.client.User.GetX(t.Context(), id).TimeZone; zone != want {
+			t.Errorf("user %v zone = %q, want %q", id, zone, want)
+		}
+	}
+}
