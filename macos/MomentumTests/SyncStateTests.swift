@@ -30,6 +30,23 @@ struct SyncStateTests {
         #expect(!state.undoAvailable && state.phase == .disabled)
     }
 
+    @Test func backendClosesUndoAfterTheMutationDelay() {
+        var state = SyncState.backend(mutationDelay: 15)
+        #expect(state.apply(.mutation, at: now).action == .none)
+        #expect(state.undoAvailable && state.undoUntil == now.addingTimeInterval(15) && state.phase == .disabled && state.nextAt == nil && !state.unsynced)
+        var early = state
+        _ = early.apply(.timer, at: now.addingTimeInterval(14))
+        #expect(early.undoAvailable)
+        var undone = state
+        #expect(undone.apply(.undo, at: now.addingTimeInterval(14)).action == .refresh)
+        #expect(!undone.undoAvailable && undone.undoUntil == nil)
+        _ = state.apply(.timer, at: now.addingTimeInterval(15))
+        #expect(!state.undoAvailable && state.undoUntil == nil)
+        var none = SyncState.backend(mutationDelay: 0)
+        _ = none.apply(.mutation, at: now)
+        #expect(!none.undoAvailable)
+    }
+
     @Test func mutationResetsUndoDelay() {
         var state = SyncState(settings: settings, configured: true, now: now)
         _ = state.apply(.mutation, at: now)
