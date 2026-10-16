@@ -29,7 +29,7 @@ struct ContentView: View {
                     Label("New Task", systemImage: "plus")
                 }
                 .help("New Task (⌘N)")
-                .disabled(store.status == nil)
+                .disabled(store.status == nil || (store.isBackend && store.account == nil))
             }
         }
         .sheet(isPresented: $store.showCapture) {
@@ -40,6 +40,9 @@ struct ContentView: View {
         }
         .sheet(isPresented: $store.showShortcuts) {
             ShortcutsView()
+        }
+        .sheet(item: Binding(get: { store.signIn }, set: { if $0 == nil { store.cancelSignIn() } })) { _ in
+            SignInView()
         }
         .confirmationDialog(
             "Delete “\(store.pendingDelete?.description ?? "")”?",
@@ -75,20 +78,47 @@ struct SyncStatusView: View {
 
     var body: some View {
         Button {
-            store.syncNow()
+            if store.isBackend && store.server == .signedOut {
+                store.beginSignIn()
+            } else {
+                store.syncNow()
+            }
         } label: {
             TimelineView(.periodic(from: .now, by: 1)) { context in
                 Label(title(at: context.date), systemImage: symbol)
                     .labelStyle(.titleAndIcon)
-                    .foregroundStyle(store.sync.phase == .retrying ? AnyShapeStyle(.orange) : AnyShapeStyle(.secondary))
+                    .foregroundStyle(warns ? AnyShapeStyle(.orange) : AnyShapeStyle(.secondary))
                     .monospacedDigit()
             }
         }
         .buttonStyle(.borderless)
-        .help(store.syncError ?? (store.isLocalOnly ? "Taskwarrior sync is not configured" : "Sync now (⌘R)"))
+        .help(help)
+    }
+
+    private var warns: Bool {
+        store.isBackend ? [.unreachable, .signedOut].contains(store.server) : store.sync.phase == .retrying
+    }
+
+    private var help: String {
+        guard let url = store.backendURL else {
+            return store.syncError ?? (store.isLocalOnly ? "Taskwarrior sync is not configured" : "Sync now (⌘R)")
+        }
+        switch store.server {
+        case .signedOut: return "Sign in to \(url)"
+        case .unreachable: return "Momentum can’t reach \(url). Click to try again."
+        default: return "Tasks are kept on \(url). Click to reload."
+        }
     }
 
     private var symbol: String {
+        if store.isBackend {
+            switch store.server {
+            case .signedOut: return "person.crop.circle.badge.exclamationmark"
+            case .unreachable: return "exclamationmark.triangle"
+            case .unknown where store.snapshot == nil: return "arrow.triangle.2.circlepath"
+            default: return store.undoClosesAt == nil ? "checkmark.icloud" : "clock.arrow.circlepath"
+            }
+        }
         if store.isLocalOnly { return "internaldrive" }
         switch store.sync.phase {
         case .inFlight: return "arrow.triangle.2.circlepath"
@@ -99,6 +129,16 @@ struct SyncStatusView: View {
     }
 
     private func title(at date: Date) -> String {
+        if store.isBackend {
+            switch store.server {
+            case .signedOut: return "Signed out"
+            case .unreachable: return "Server unreachable"
+            case .unknown where store.snapshot == nil: return "Connecting…"
+            default:
+                guard let until = store.undoClosesAt, until > date else { return "Online" }
+                return "Saved · undo \(max(0, Int(until.timeIntervalSince(date).rounded(.up))))s"
+            }
+        }
         if store.isLocalOnly { return "Local only" }
         switch store.sync.phase {
         case .grace:
