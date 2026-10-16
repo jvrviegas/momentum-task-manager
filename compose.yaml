@@ -10,7 +10,7 @@ services:
   # The server uses "momentum". The store tests create a database each
   # through "postgres", and migration-diff needs the empty "momentum_dev".
   postgres:
-    image: postgres:17-alpine
+    image: postgres:18-alpine
     environment:
       POSTGRES_PASSWORD: postgres
       POSTGRES_DB: momentum_dev
