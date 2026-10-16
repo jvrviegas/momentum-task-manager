@@ -24,6 +24,9 @@ import (
 	"github.com/jvrviegas/momentum-task-manager/backend/internal/tasks"
 )
 
+// Version is replaced by release builds; local builds remain explicit.
+var Version = "dev"
+
 // drain leaves a margin inside the ten seconds Cloud Run waits between
 // SIGTERM and SIGKILL.
 const drain = 8 * time.Second
@@ -78,7 +81,7 @@ func run(args []string) error {
 		return err
 	}
 	logger.Info("listening", slog.String("addr", listener.Addr().String()))
-	if err := httpapi.Serve(ctx, listener, httpapi.New(logger, signIn, tasks.New(client)), drain); err != nil {
+	if err := httpapi.Serve(ctx, listener, httpapi.New(logger, Version, signIn, tasks.New(client)), drain); err != nil {
 		return err
 	}
 	logger.Info("stopped")
