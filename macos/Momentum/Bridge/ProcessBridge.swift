@@ -3,12 +3,16 @@ import Foundation
 struct BridgeError: Error, LocalizedError, Decodable, Sendable, Equatable {
     var message: String
     var field: String?
+    /// In backend mode, "unreachable" when the server gave no answer and
+    /// "unauthorized" when it refused the sign-in.
+    var code: String?
 
     var errorDescription: String? { message }
 }
 
-/// Everything the app asks of Taskwarrior. ProcessBridge implements it over
-/// the bundled Go `momentum-bridge`; tests use a fake.
+/// Everything the app asks of Taskwarrior or, in backend mode, of the
+/// Momentum server. ProcessBridge implements it over the bundled Go
+/// `momentum-bridge`; tests use a fake.
 protocol TaskBridge: Sendable {
     func status() async throws -> BridgeStatus
     func load() async throws -> Snapshot
@@ -21,6 +25,11 @@ protocol TaskBridge: Sendable {
     func perform(_ action: TaskAction, uuid: String) async throws
     func undo() async throws
     func sync() async throws
+    // Backend mode only.
+    func setToken(_ token: String) async throws
+    func startSignIn() async throws -> DeviceSignIn
+    func pollSignIn(deviceCode: String) async throws -> SignInPoll
+    func revoke(token: String) async throws
 }
 
 /// Runs `momentum-bridge` as a child process and exchanges one JSON object per
@@ -31,6 +40,10 @@ actor ProcessBridge: TaskBridge {
     private var input: FileHandle?
     private var nextID: Int64 = 0
     private var waiting: [Int64: CheckedContinuation<Data, any Error>] = [:]
+    /// The token the bridge last accepted from setToken. A restarted bridge
+    /// has none, so it is sent again before anything else. It goes only
+    /// through the pipe, never in arguments, the environment, or a file.
+    private var token = ""
 
     private static let encoder = JSONEncoder()
     private static let decoder: JSONDecoder = {
@@ -89,6 +102,21 @@ actor ProcessBridge: TaskBridge {
         let _: Changed = try await call("sync")
     }
 
+    func setToken(_ token: String) async throws {
+        let _: Empty = try await call("setToken", TokenParams(token: token))
+        self.token = token
+    }
+
+    func startSignIn() async throws -> DeviceSignIn { try await call("signInStart") }
+
+    func pollSignIn(deviceCode: String) async throws -> SignInPoll {
+        try await call("signInPoll", PollParams(deviceCode: deviceCode))
+    }
+
+    func revoke(token: String) async throws {
+        let _: Empty = try await call("revoke", TokenParams(token: token))
+    }
+
     // MARK: Transport
 
     private func call<Result: Decodable>(_ op: String, _ params: some Encodable & Sendable = Empty()) async throws -> Result {
@@ -142,6 +170,13 @@ actor ProcessBridge: TaskBridge {
         }
         self.process = process
         self.input = stdin.fileHandleForWriting
+        if !token.isEmpty {
+            // Nobody waits for this answer. The bridge runs requests in order,
+            // so the ones that follow are signed in.
+            nextID += 1
+            let line = try Self.encoder.encode(Request(id: nextID, op: "setToken", params: TokenParams(token: token)))
+            try? stdin.fileHandleForWriting.write(contentsOf: line + Data("\n".utf8))
+        }
 
         let output = stdout.fileHandleForReading
         Task.detached { [weak self] in
@@ -195,6 +230,8 @@ private struct Reply<Result: Decodable>: Decodable {
 private struct Empty: Codable, Sendable {}
 private struct Changed: Decodable, Sendable { var changed: Bool }
 private struct UUIDParams: Encodable, Sendable { var uuid: String }
+private struct TokenParams: Encodable, Sendable { var token: String }
+private struct PollParams: Encodable, Sendable { var deviceCode: String }
 private struct SuggestParams: Encodable, Sendable { var input: String; var cursor: Int }
 private struct CaptureParams: Encodable, Sendable { var input: String; var literals: [TextSpan] }
 
