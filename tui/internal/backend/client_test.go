@@ -14,14 +14,17 @@ import (
 
 	"github.com/jvrviegas/momentum-task-manager/core/api"
 	"github.com/jvrviegas/momentum-task-manager/core/domain"
+	"github.com/jvrviegas/momentum-task-manager/tui/internal/app"
 	"github.com/jvrviegas/momentum-task-manager/tui/internal/bridge"
 	"github.com/jvrviegas/momentum-task-manager/tui/internal/taskwarrior"
 )
 
 // The interfaces the TUI and the bridge reach storage through.
 var (
-	_ taskwarrior.Client = (*Client)(nil)
-	_ bridge.Client      = (*Client)(nil)
+	_ taskwarrior.Client          = (*Client)(nil)
+	_ bridge.Client               = (*Client)(nil)
+	_ app.ProjectMigrationClient  = (*Client)(nil)
+	_ app.ProjectMigrationApplier = (*Client)(nil)
 	_ interface {
 		ExportCompleted(context.Context, time.Time) ([]domain.Task, error)
 		StopRecurrence(context.Context, string) error
@@ -48,7 +51,7 @@ func newFakeServer(t *testing.T, zone string) (*Client, *fakeServer) {
 	for _, route := range []string{
 		api.RouteVersion, api.RouteListTasks, api.RouteCreateTask, api.RouteModifyTask, api.RouteDeleteTask,
 		api.RouteCompleteTask, api.RouteStartTask, api.RouteStopTask, api.RouteStopRecurrence, api.RouteUndo,
-		api.RouteListProjects, api.RouteListTags, api.RouteSetTimeZone,
+		api.RouteListProjects, api.RouteListTags, api.RouteSetTimeZone, api.RouteApplyProjectMigration,
 	} {
 		mux.HandleFunc(route, func(w http.ResponseWriter, r *http.Request) {
 			body, _ := io.ReadAll(r.Body)
@@ -247,6 +250,33 @@ func TestEachChangeReachesItsRoute(t *testing.T) {
 	var failure *api.Error
 	if err := c.Undo(ctx); !errors.As(err, &failure) || failure.Code != api.CodeConflict {
 		t.Errorf("undo error = %#v", err)
+	}
+}
+
+func TestProjectMigrationAppliesInOneRequest(t *testing.T) {
+	c, fake := newFakeServer(t, "")
+	ctx := t.Context()
+	fake.answer(api.RouteListTasks, http.StatusOK, `{"tasks":[{"uuid":"a","description":"Plan","status":"pending","project":"work"}]}`)
+	export, err := c.ExportPendingInContext(ctx)
+	if err != nil || export.Scope != (taskwarrior.ProjectMigrationScope{}) || len(export.Tasks) != 1 || export.Tasks[0].Project != "work" {
+		t.Fatalf("export %+v, %v", export, err)
+	}
+
+	plan := domain.ProjectCatalogPlan{SourceValue: "work", DestinationValue: "job", IncludeSubprojects: true}
+	tasks := []domain.ProjectTaskMapping{{UUID: "a", OldValue: "work", NewValue: "job"}, {UUID: "b", OldValue: "work.client", NewValue: "job.client"}}
+	fake.answer(api.RouteApplyProjectMigration, http.StatusOK, `{"changed":2}`)
+	if err := c.ApplyProjectMigration(ctx, plan, tasks); err != nil {
+		t.Fatal(err)
+	}
+	want := `{"source":"work","destination":"job","includeSubprojects":true,"tasks":[{"uuid":"a","oldValue":"work","newValue":"job"},{"uuid":"b","oldValue":"work.client","newValue":"job.client"}]}`
+	if got := fake.seen(); len(got) != 2 || got[1].pattern != api.RouteApplyProjectMigration || got[1].body != want {
+		t.Errorf("requests %+v", got)
+	}
+
+	fake.answer(api.RouteApplyProjectMigration, http.StatusConflict, `{"code":"conflict","message":"the tasks changed since the preview"}`)
+	var failure *api.Error
+	if err := c.ApplyProjectMigration(ctx, plan, tasks); !errors.As(err, &failure) || failure.Code != api.CodeConflict {
+		t.Errorf("stale apply error = %#v", err)
 	}
 }
 
