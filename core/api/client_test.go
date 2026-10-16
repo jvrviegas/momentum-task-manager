@@ -32,6 +32,7 @@ func recordingServer(t *testing.T, answer func(w http.ResponseWriter, r *http.Re
 		RouteVersion, RouteListTasks, RouteCreateTask, RouteModifyTask, RouteDeleteTask, RouteCompleteTask,
 		RouteStartTask, RouteStopTask, RouteStopRecurrence, RouteUndo, RouteListProjects, RouteListTags,
 		RoutePreviewProjectMigration, RouteApplyProjectMigration, RouteSetTimeZone, RouteSession,
+		RouteStartDeviceSignIn, RoutePollDeviceSignIn, RouteSignOut,
 	} {
 		mux.HandleFunc(route, func(w http.ResponseWriter, r *http.Request) {
 			body, _ := io.ReadAll(r.Body)
@@ -85,6 +86,15 @@ func TestClientSendsEachRoute(t *testing.T) {
 			want: Version{Server: "v1.2.3"}, pattern: RouteVersion, path: "/v1/version"},
 		{name: "session", answer: `{"email":"alice@example.com","expiresAt":"2026-10-14T09:30:00Z"}`, send: func(c *Client) (any, error) { return c.Session(ctx) },
 			want: Session{Email: "alice@example.com", ExpiresAt: at(9)}, pattern: RouteSession, path: "/v1/auth/session"},
+		{name: "start sign-in", answer: `{"deviceCode":"dc","userCode":"BCDFGHJK","verificationUrl":"https://m.example/device","verificationUrlComplete":"https://m.example/device?code=BCDFGHJK","expiresAt":"2026-10-14T09:30:00Z","intervalSeconds":5}`,
+			send: func(c *Client) (any, error) { return c.StartDeviceSignIn(ctx) },
+			want: DeviceSignIn{DeviceCode: "dc", UserCode: "BCDFGHJK", VerificationURL: "https://m.example/device",
+				VerificationURLComplete: "https://m.example/device?code=BCDFGHJK", ExpiresAt: at(9), IntervalSeconds: 5},
+			pattern: RouteStartDeviceSignIn, path: "/v1/auth/device"},
+		{name: "poll sign-in", answer: `{"token":"mtk_new","expiresAt":"2026-10-14T09:30:00Z","email":"alice@example.com"}`,
+			send:    func(c *Client) (any, error) { return c.PollDeviceSignIn(ctx, "dc") },
+			want:    Token{Token: "mtk_new", ExpiresAt: at(9), Email: "alice@example.com"},
+			pattern: RoutePollDeviceSignIn, path: "/v1/auth/token", body: `{"deviceCode":"dc"}`},
 		{name: "time zone", answer: `{"timeZone":"Europe/Lisbon"}`, send: func(c *Client) (any, error) { return c.SetTimeZone(ctx, "Europe/Lisbon") },
 			want: TimeZone{TimeZone: "Europe/Lisbon"}, pattern: RouteSetTimeZone, path: "/v1/time-zone", body: `{"timeZone":"Europe/Lisbon"}`},
 		{name: "pending", answer: `{"tasks":[` + task + `]}`, send: func(c *Client) (any, error) { return c.ListTasks(ctx, StatusPending, ended) },
@@ -154,6 +164,16 @@ func TestClientWithoutATokenSendsNoAuthorization(t *testing.T) {
 	client.token = ""
 	if _, err := client.Version(t.Context()); err != nil || requests()[0].auth != "" {
 		t.Errorf("error %v, Authorization %q", err, requests()[0].auth)
+	}
+}
+
+func TestClientSignsOutWithItsToken(t *testing.T) {
+	client, requests := recordingServer(t, func(w http.ResponseWriter, _ *http.Request) { w.WriteHeader(http.StatusNoContent) })
+	if err := client.SignOut(t.Context()); err != nil {
+		t.Fatal(err)
+	}
+	if seen := requests(); len(seen) != 1 || seen[0].pattern != RouteSignOut || seen[0].auth != "Bearer mtk_device" || seen[0].body != "" || seen[0].key != "" {
+		t.Errorf("requests = %+v", seen)
 	}
 }
 
