@@ -10,8 +10,30 @@ struct BridgeStatus: Decodable, Sendable, Equatable {
     var configPath: String
     var sync: SyncSettings
     var refreshIntervalSeconds: Int
+    /// The [backend] server in backend mode; nil when Momentum uses Taskwarrior.
+    var backendUrl: String?
 
     var estimatesWritable: Bool { estimateUDA == "configured" }
+}
+
+/// A started device sign-in: show userCode, open verificationUrlComplete, and
+/// poll with deviceCode every intervalSeconds until expiresAt.
+struct DeviceSignIn: Decodable, Sendable, Equatable {
+    var deviceCode: String
+    var userCode: String
+    var verificationUrl: String
+    var verificationUrlComplete: String
+    var expiresAt: Date
+    var intervalSeconds: Int
+}
+
+/// One poll's answer: state is "pending", "slowDown" (wait five seconds
+/// longer between polls), or "signedIn" with the sign-in.
+struct SignInPoll: Decodable, Sendable, Equatable {
+    var state: String
+    var token: String?
+    var email: String?
+    var expiresAt: Date?
 }
 
 struct SyncSettings: Decodable, Sendable, Equatable {
