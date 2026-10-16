@@ -30,14 +30,22 @@ struct SidebarView: View {
         .taskKeyCommands(focusSearch: focusSearch)
         .safeAreaInset(edge: .bottom) {
             VStack(alignment: .leading, spacing: 6) {
-                Label {
-                    Text("Context ") + Text(store.snapshot?.context ?? "none").bold()
-                } icon: {
-                    Image(systemName: "square.3.layers.3d")
-                }
-                .help("Taskwarrior context. Change it with `task context` in a terminal.")
-                if let version = store.status?.taskwarriorVersion {
-                    Label("Taskwarrior \(version)", systemImage: "terminal")
+                if let url = store.backendURL {
+                    // Backend mode has no contexts (D6).
+                    Label(store.account?.email ?? "Signed out", systemImage: "person.crop.circle")
+                        .help(store.account.map { "Signed in until \($0.expiresAt.formatted(date: .abbreviated, time: .omitted))" } ?? "")
+                    Label(URL(string: url)?.host() ?? url, systemImage: "server.rack")
+                        .help(url)
+                } else {
+                    Label {
+                        Text("Context ") + Text(store.snapshot?.context ?? "none").bold()
+                    } icon: {
+                        Image(systemName: "square.3.layers.3d")
+                    }
+                    .help("Taskwarrior context. Change it with `task context` in a terminal.")
+                    if let version = store.status?.taskwarriorVersion {
+                        Label("Taskwarrior \(version)", systemImage: "terminal")
+                    }
                 }
             }
             .font(.callout)
