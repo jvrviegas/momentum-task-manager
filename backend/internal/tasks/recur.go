@@ -197,8 +197,8 @@ func moved(value *time.Time, anchor, due time.Time) *time.Time {
 	return &result
 }
 
-// zone returns the user's time zone, which anchors their series. Until T13
-// lets the apps set it, it is UTC.
+// zone returns the user's time zone, which anchors their series. It is UTC
+// until an app sets it with SetTimeZone.
 func (c *change) zone(ctx context.Context) (*time.Location, error) {
 	userID, _ := viewer.UserID(ctx)
 	user, err := c.tx.User.Get(ctx, userID)
@@ -206,4 +206,17 @@ func (c *change) zone(ctx context.Context) (*time.Location, error) {
 		return nil, err
 	}
 	return time.LoadLocation(user.TimeZone)
+}
+
+// SetTimeZone answers api.RouteSetTimeZone: name, an IANA time zone, becomes
+// the user's, and their series follow it from their next change.
+func (s *Service) SetTimeZone(ctx context.Context, name string) (api.TimeZone, error) {
+	if _, err := time.LoadLocation(name); err != nil || name == "" || name == "Local" {
+		return api.TimeZone{}, invalid("timeZone", "timeZone must be an IANA time zone, such as Europe/Lisbon")
+	}
+	userID, _ := viewer.UserID(ctx)
+	if err := s.client.User.UpdateOneID(userID).SetTimeZone(name).Exec(ctx); err != nil {
+		return api.TimeZone{}, err
+	}
+	return api.TimeZone{TimeZone: name}, nil
 }
