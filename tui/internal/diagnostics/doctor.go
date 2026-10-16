@@ -2,13 +2,16 @@ package diagnostics
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"io"
 	"os"
 	"os/exec"
 	"path/filepath"
 	"strings"
+	"time"
 
+	"github.com/jvrviegas/momentum-task-manager/core/api"
 	"github.com/jvrviegas/momentum-task-manager/tui/internal/config"
 	"github.com/jvrviegas/momentum-task-manager/tui/internal/taskwarrior"
 )
@@ -35,8 +38,10 @@ func (r Report) OK() bool {
 	return true
 }
 
-// DoctorOptions contains injectable checks for deterministic tests.
+// DoctorOptions contains injectable checks for deterministic tests. Backend
+// is set in backend mode, whose checks replace Taskwarrior's.
 type DoctorOptions struct {
+	Backend     *BackendOptions
 	Client      taskwarrior.Client
 	Binary      string
 	Config      config.Config
@@ -49,8 +54,21 @@ type DoctorOptions struct {
 	WritableDir func(string) error
 }
 
-// Run performs only read-only Taskwarrior calls and local filesystem checks.
-// It never invokes add/modify/done/delete/start/stop/undo/sync.
+// BackendOptions describe the server backend mode uses.
+type BackendOptions struct {
+	URL    string
+	Server interface {
+		Version(context.Context) (api.Version, error)
+		Session(context.Context) (api.Session, error)
+	}
+	// CredentialsErr is why no saved sign-in for URL could be read, if any.
+	CredentialsErr error
+	// Zone is the device's IANA time zone, or "" when it is unknown.
+	Zone string
+}
+
+// Run performs only read-only Taskwarrior or server calls and local
+// filesystem checks. It never invokes add/modify/done/delete/start/stop/undo/sync.
 func Run(ctx context.Context, options DoctorOptions) Report {
 	if ctx == nil {
 		ctx = context.Background()
@@ -68,31 +86,17 @@ func Run(ctx context.Context, options DoctorOptions) Report {
 		options.WritableDir = checkWritableDir
 	}
 	var report Report
-	path, err := options.LookPath(options.Binary)
-	if err != nil {
-		report.Checks = append(report.Checks, Check{Name: "Taskwarrior executable", Detail: "not found; install Taskwarrior 3.x", OK: false})
+	if options.Backend != nil {
+		report.Checks = append(report.Checks, backendChecks(ctx, *options.Backend)...)
 	} else {
-		report.Checks = append(report.Checks, Check{Name: "Taskwarrior executable", Detail: filepath.Clean(path), OK: true})
-	}
-	if versioner, ok := options.Client.(interface {
-		Version(context.Context) (string, error)
-	}); ok {
-		version, versionErr := versioner.Version(ctx)
-		report.Checks = append(report.Checks, Check{Name: "Taskwarrior version", Detail: safeVersion(version), OK: versionErr == nil && version != ""})
-	} else {
-		report.Checks = append(report.Checks, Check{Name: "Taskwarrior version", Detail: "version check unavailable", Skipped: true, OK: true})
-	}
-
-	if options.Client == nil {
-		report.Checks = append(report.Checks, Check{Name: "Taskwarrior export", Detail: "client unavailable", OK: false})
-	} else {
-		_, exportErr := options.Client.ExportPending(ctx)
-		report.Checks = append(report.Checks, Check{Name: "Taskwarrior export", Detail: errorDetail(exportErr, "pending export decodes"), OK: exportErr == nil})
+		report.Checks = append(report.Checks, taskwarriorChecks(ctx, options)...)
 	}
 	configErr := options.Config.Validate()
 	report.Checks = append(report.Checks, Check{Name: "Momentum config", Detail: errorDetail(configErr, configPathDetail(options.ConfigPath)), OK: configErr == nil})
 
-	if !options.Config.Sync.Enabled {
+	if options.Backend != nil {
+		// Backend mode has no sync.
+	} else if !options.Config.Sync.Enabled {
 		report.Checks = append(report.Checks, Check{Name: "Sync settings", Detail: "disabled by Momentum config", Skipped: true, OK: true})
 	} else if reader, ok := options.Client.(interface {
 		SyncConfigured(context.Context) (bool, error)
@@ -133,7 +137,9 @@ func Run(ctx context.Context, options DoctorOptions) Report {
 		report.Checks = append(report.Checks, Check{Name: "Calendar source", Detail: "disabled; task-only planning remains available", Skipped: true, OK: true})
 	}
 
-	if reader, ok := options.Client.(interface {
+	if options.Backend != nil {
+		// The server stores estimates.
+	} else if reader, ok := options.Client.(interface {
 		EstimateUDAReadiness(context.Context) (taskwarrior.EstimateUDAState, error)
 	}); ok {
 		state, estimateErr := reader.EstimateUDAReadiness(ctx)
@@ -163,6 +169,65 @@ func Run(ctx context.Context, options DoctorOptions) Report {
 		report.Checks = append(report.Checks, Check{Name: "State directory", Detail: errorDetail(firstError(mkdirErr, writeErr), stateDir), OK: mkdirErr == nil && writeErr == nil})
 	}
 	return report
+}
+
+func taskwarriorChecks(ctx context.Context, options DoctorOptions) []Check {
+	var checks []Check
+	path, err := options.LookPath(options.Binary)
+	if err != nil {
+		checks = append(checks, Check{Name: "Taskwarrior executable", Detail: "not found; install Taskwarrior 3.x", OK: false})
+	} else {
+		checks = append(checks, Check{Name: "Taskwarrior executable", Detail: filepath.Clean(path), OK: true})
+	}
+	if versioner, ok := options.Client.(interface {
+		Version(context.Context) (string, error)
+	}); ok {
+		version, versionErr := versioner.Version(ctx)
+		checks = append(checks, Check{Name: "Taskwarrior version", Detail: safeVersion(version), OK: versionErr == nil && version != ""})
+	} else {
+		checks = append(checks, Check{Name: "Taskwarrior version", Detail: "version check unavailable", Skipped: true, OK: true})
+	}
+
+	if options.Client == nil {
+		checks = append(checks, Check{Name: "Taskwarrior export", Detail: "client unavailable", OK: false})
+	} else {
+		_, exportErr := options.Client.ExportPending(ctx)
+		checks = append(checks, Check{Name: "Taskwarrior export", Detail: errorDetail(exportErr, "pending export decodes"), OK: exportErr == nil})
+	}
+	return checks
+}
+
+// backendChecks check that the server answers, that the saved sign-in is
+// valid there, and that the device's time zone is known.
+func backendChecks(ctx context.Context, options BackendOptions) []Check {
+	server := Check{Name: "Backend server", OK: true}
+	version, err := options.Server.Version(ctx)
+	var apiErr *api.Error
+	switch {
+	case err == nil:
+		server.Detail = options.URL + " answers; version " + safeVersion(version.Server)
+	case errors.As(err, &apiErr) && apiErr.Code == api.CodeUnauthorized:
+		server.Detail = options.URL + " answers"
+	default:
+		server = Check{Name: "Backend server", Detail: err.Error()}
+	}
+
+	signIn := Check{Name: "Sign-in", Detail: errorDetail(options.CredentialsErr, "")}
+	switch {
+	case options.CredentialsErr != nil:
+	case !server.OK:
+		signIn = Check{Name: "Sign-in", Detail: "needs the server", Skipped: true, OK: true}
+	default:
+		session, err := options.Server.Session(ctx)
+		signIn = Check{Name: "Sign-in", OK: err == nil,
+			Detail: errorDetail(err, session.Email+" until "+session.ExpiresAt.Local().Format(time.DateOnly))}
+	}
+
+	zone := Check{Name: "Time zone", Detail: options.Zone, OK: options.Zone != ""}
+	if !zone.OK {
+		zone.Detail = "unknown; set TZ to an IANA name such as Europe/Lisbon"
+	}
+	return []Check{server, signIn, zone}
 }
 
 // Print writes a concise, secret-free report.
