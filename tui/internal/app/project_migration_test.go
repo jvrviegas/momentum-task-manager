@@ -6,6 +6,7 @@ import (
 	"reflect"
 	"testing"
 
+	"github.com/jvrviegas/momentum-task-manager/core/api"
 	"github.com/jvrviegas/momentum-task-manager/core/domain"
 	"github.com/jvrviegas/momentum-task-manager/tui/internal/config"
 	"github.com/jvrviegas/momentum-task-manager/tui/internal/taskwarrior"
@@ -283,5 +284,84 @@ func TestProjectMigrationCoordinatorHonorsCanceledContextBeforeWrites(t *testing
 	result := NewProjectMigrationCoordinator(store, client).Execute(ctx, coordinatorRequest(plan, taskwarrior.ProjectMigrationScope{}, nil, false))
 	if !errors.Is(result.CatalogErr, context.Canceled) || result.CatalogSaved || len(store.saved) != 0 {
 		t.Fatalf("result=%#v saved=%v", result, store.saved)
+	}
+}
+
+// batchClient applies a migration in one request, as backend mode does.
+type batchClient struct {
+	export taskwarrior.ProjectMigrationExport
+	err    error
+	plans  []domain.ProjectCatalogPlan
+	calls  [][]domain.ProjectTaskMapping
+	events *[]string
+}
+
+func (c *batchClient) ExportPendingInContext(context.Context) (taskwarrior.ProjectMigrationExport, error) {
+	return c.export, nil
+}
+
+func (c *batchClient) ApplyProjectMigration(_ context.Context, plan domain.ProjectCatalogPlan, mappings []domain.ProjectTaskMapping) error {
+	if c.events != nil {
+		*c.events = append(*c.events, "apply")
+	}
+	c.plans = append(c.plans, plan)
+	c.calls = append(c.calls, mappings)
+	return c.err
+}
+
+func TestProjectMigrationCoordinatorAppliesABatchAfterTheCatalog(t *testing.T) {
+	plan := coordinatorPlan(t, true)
+	mappings := []domain.ProjectTaskMapping{{UUID: "one", OldValue: "work", NewValue: "delivery"}, {UUID: "two", OldValue: "work.client", NewValue: "delivery.client"}}
+	export := taskwarrior.ProjectMigrationExport{Tasks: []domain.Task{{UUID: "one", Status: "pending", Project: "work"}, {UUID: "two", Status: "pending", Project: "work.client"}}}
+
+	events := []string{}
+	store := &coordinatorStore{events: &events}
+	client := &batchClient{export: export, events: &events}
+	result := NewProjectMigrationCoordinator(store, client).Execute(context.Background(), coordinatorRequest(plan, taskwarrior.ProjectMigrationScope{}, mappings, true))
+	if !result.CatalogSaved || result.Stale || result.TaskErr != nil || result.ChangedCount() != 2 || result.TaskOutcomes[1].Mapping != mappings[1] {
+		t.Fatalf("result=%#v", result)
+	}
+	if !reflect.DeepEqual(events, []string{"catalog-save", "apply"}) || !reflect.DeepEqual(client.calls, [][]domain.ProjectTaskMapping{mappings}) || !client.plans[0].IncludeSubprojects {
+		t.Fatalf("events=%v calls=%v plans=%v", events, client.calls, client.plans)
+	}
+
+	for _, test := range []struct {
+		name  string
+		err   error
+		stale bool
+	}{
+		{name: "tasks changed", err: &api.Error{Code: api.CodeConflict, Message: "the tasks changed since the preview"}, stale: true},
+		{name: "unreachable", err: api.ErrUnreachable},
+	} {
+		store := &coordinatorStore{}
+		client := &batchClient{export: export, err: test.err}
+		result := NewProjectMigrationCoordinator(store, client).Execute(context.Background(), coordinatorRequest(plan, taskwarrior.ProjectMigrationScope{}, mappings, true))
+		if !result.CatalogSaved || len(store.saved) != 1 || result.Stale != test.stale || result.ChangedCount() != 0 || result.TaskErr == nil ||
+			errors.Is(result.TaskErr, ErrProjectMigrationStale) != test.stale {
+			t.Errorf("%s: result=%#v", test.name, result)
+		}
+	}
+
+	store = &coordinatorStore{}
+	client = &batchClient{export: taskwarrior.ProjectMigrationExport{Tasks: export.Tasks[:1]}}
+	result = NewProjectMigrationCoordinator(store, client).Execute(context.Background(), coordinatorRequest(plan, taskwarrior.ProjectMigrationScope{}, mappings, true))
+	if !result.Stale || result.CatalogSaved || len(store.saved) != 0 || len(client.calls) != 0 {
+		t.Errorf("stale preflight: result=%#v calls=%v", result, client.calls)
+	}
+}
+
+// readOnlyClient can preview a migration but not apply one.
+type readOnlyClient struct{}
+
+func (readOnlyClient) ExportPendingInContext(context.Context) (taskwarrior.ProjectMigrationExport, error) {
+	return taskwarrior.ProjectMigrationExport{}, nil
+}
+
+func TestProjectMigrationCoordinatorNeedsAClientThatApplies(t *testing.T) {
+	store := &coordinatorStore{}
+	mapping := domain.ProjectTaskMapping{UUID: "one", OldValue: "work", NewValue: "delivery"}
+	result := NewProjectMigrationCoordinator(store, readOnlyClient{}).Execute(context.Background(), coordinatorRequest(coordinatorPlan(t, false), taskwarrior.ProjectMigrationScope{}, []domain.ProjectTaskMapping{mapping}, true))
+	if !errors.Is(result.PreflightErr, ErrProjectMigrationNoClient) || result.CatalogSaved || len(store.saved) != 0 {
+		t.Errorf("result=%#v", result)
 	}
 }
