@@ -63,7 +63,10 @@ type SyncEffect struct {
 }
 
 // SyncState owns timing and UI state, not Taskwarrior's sync protocol.
+// Backend mode never syncs, but its undo window still closes MutationDelay
+// after the latest change (backend plan D7).
 type SyncState struct {
+	Backend        bool
 	Enabled        bool
 	StartupEnabled bool
 	Shutdown       bool
@@ -119,6 +122,13 @@ func NewSyncState(settings config.SyncConfig, now time.Time) SyncState {
 	return state
 }
 
+// NewBackendSyncState creates backend mode's state: a change is on the
+// server once it answers, so nothing syncs, and undo stays available for
+// mutationDelay.
+func NewBackendSyncState(mutationDelay time.Duration) SyncState {
+	return SyncState{Backend: true, MutationDelay: max(0, mutationDelay), Phase: SyncDisabled}
+}
+
 // Apply performs one pure state transition.
 func (s SyncState) Apply(event SyncEvent) (SyncState, SyncEffect) {
 	at := event.At
@@ -128,17 +138,30 @@ func (s SyncState) Apply(event SyncEvent) (SyncState, SyncEffect) {
 	if !s.Enabled {
 		// Taskwarrior's native undo still works in local-only mode. With no
 		// sync to close the window, the latest app mutation remains undoable
-		// until another mutation replaces it or Momentum exits.
+		// until another mutation replaces it or Momentum exits. In backend
+		// mode the window closes at UndoUntil instead.
 		s.Phase = SyncDisabled
 		s.NextAt = time.Time{}
 		s.Unsynced = false
-		s.UndoUntil = time.Time{}
+		if !s.Backend {
+			s.UndoUntil = time.Time{}
+		}
 		switch event.Kind {
 		case SyncMutation:
 			s.UndoAvailable = true
+			if s.Backend {
+				s.UndoUntil = at.Add(s.MutationDelay)
+				s.UndoAvailable = s.MutationDelay > 0
+			}
+		case SyncTimer:
+			if s.Backend && !s.UndoUntil.After(at) {
+				s.UndoAvailable = false
+				s.UndoUntil = time.Time{}
+			}
 		case SyncUndo:
 			if s.UndoAvailable {
 				s.UndoAvailable = false
+				s.UndoUntil = time.Time{}
 				return s, SyncEffect{Action: SyncRefresh, Message: "Last change undone"}
 			}
 		}
