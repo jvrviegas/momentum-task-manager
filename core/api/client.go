@@ -59,6 +59,23 @@ func (c *Client) Session(ctx context.Context) (Session, error) {
 	return send[Session](ctx, c, call{route: RouteSession})
 }
 
+// StartDeviceSignIn answers RouteStartDeviceSignIn.
+func (c *Client) StartDeviceSignIn(ctx context.Context) (DeviceSignIn, error) {
+	return send[DeviceSignIn](ctx, c, call{route: RouteStartDeviceSignIn})
+}
+
+// PollDeviceSignIn answers RoutePollDeviceSignIn. Until the person signs in,
+// it fails with an *Error whose code is one of RFC 8628's.
+func (c *Client) PollDeviceSignIn(ctx context.Context, deviceCode string) (Token, error) {
+	return send[Token](ctx, c, call{route: RoutePollDeviceSignIn, body: PollDeviceSignInRequest{DeviceCode: deviceCode}})
+}
+
+// SignOut revokes the client's token (RouteSignOut).
+func (c *Client) SignOut(ctx context.Context) error {
+	_, err := send[struct{}](ctx, c, call{route: RouteSignOut})
+	return err
+}
+
 // SetTimeZone answers RouteSetTimeZone.
 func (c *Client) SetTimeZone(ctx context.Context, name string) (TimeZone, error) {
 	return send[TimeZone](ctx, c, call{route: RouteSetTimeZone, body: TimeZone{TimeZone: name}})
