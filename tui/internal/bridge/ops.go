@@ -19,13 +19,11 @@ import (
 var versionRE = regexp.MustCompile(`(?i)\b([0-9]+)(?:\.[0-9]+)+\b`)
 
 func (s *Server) status(ctx context.Context) (*statusResult, error) {
+	// In backend mode, status does not reach the server: the app learns the
+	// server from it, then sends the token it saved for that server. The
+	// first load reports an unreachable server or a refused token.
 	var version string
-	if s.config.Backend.Enabled() {
-		// The server answers with its version only to a signed-in device.
-		if _, err := s.client.Version(ctx); err != nil {
-			return nil, err
-		}
-	} else {
+	if !s.config.Backend.Enabled() {
 		var err error
 		if version, err = s.taskwarriorVersion(ctx); err != nil {
 			return nil, err
@@ -49,6 +47,7 @@ func (s *Server) status(ctx context.Context) (*statusResult, error) {
 			MutationDelaySeconds: int(s.config.Sync.MutationDelay / time.Second),
 		},
 		RefreshIntervalSeconds: int(s.config.RefreshInterval / time.Second),
+		BackendURL:             s.config.Backend.URL,
 	}, nil
 }
 
