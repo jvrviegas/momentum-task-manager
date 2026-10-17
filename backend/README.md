@@ -30,12 +30,15 @@ DATABASE_URL=postgres://postgres:postgres@localhost:5432/momentum?sslmode=disabl
 | `ALLOWED_EMAILS` | Comma-separated addresses that may sign in. Empty, nobody can. |
 | `GOOGLE_CLIENT_ID`, `GOOGLE_CLIENT_SECRET` | A Google OAuth client; without them, Google sign-in is not offered. |
 | `GITHUB_CLIENT_ID`, `GITHUB_CLIENT_SECRET` | A GitHub OAuth app; without them, GitHub sign-in is not offered. |
+| `TRUSTED_PROXY_HOPS` | How many proxies in front of the server append the client's address to `X-Forwarded-For`, from 0 to 10. Defaults to `0`, which uses the connection's address and ignores the header, since clients can forge it. |
 
 The server stops on SIGINT or SIGTERM and gives requests in flight 8 seconds to finish. The health check is `/health`, not `/healthz`, because Cloud Run reserves some paths that end in `z`.
 
 ## Sign-in
 
 Apps sign in with the device authorization flow (RFC 8628): they call `POST /v1/auth/device`, show the code, and open `PUBLIC_URL/device`, where the person signs in with Google (OpenID Connect) or GitHub (OAuth; GitHub offers no OpenID Connect to OAuth apps). The app polls `POST /v1/auth/token` until it gets a token, then sends it as `Authorization: Bearer <token>`. The server stores only token hashes; tokens last 90 days, and `POST /v1/auth/sign-out` revokes one. Only `ALLOWED_EMAILS` can sign in; a provider's account joins the user with the same verified address.
+
+The routes that work without a token are limited per client, in memory on each instance, in 10-minute windows: 30 requests to start a sign-in, submit the code at `/device`, or come back from a provider, together, and 300 polls. Over the limit, starting answers 429 with `rate_limited` and the form and callback a 429 page, each with `Retry-After`; polling answers `slow_down`, as RFC 8628 does, so the apps wait longer. The client is the entry `TRUSTED_PROXY_HOPS` places from the end of `X-Forwarded-For`, so set it to the number of proxies that append to that header.
 
 To sign in locally, register an OAuth client with each provider you want, with these callback URLs, and put its credentials and your address in an `.env` file next to `compose.yaml` (it is ignored by Git):
 
