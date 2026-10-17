@@ -26,4 +26,7 @@ const (
 	CodeConflict = "conflict"
 	// CodeInternal: the server failed.
 	CodeInternal = "internal"
+	// CodeRateLimited: the client sent too many requests; the Retry-After
+	// header says how many seconds to wait.
+	CodeRateLimited = "rate_limited"
 )
