@@ -61,6 +61,8 @@ A task created with a `recurrence` and a `due` date starts a series: a template,
 
 `POST /v1/project-migrations/preview` lists the pending tasks a project rename moves, with their old and new projects; with `includeSubprojects`, `work.client` moves with `work`, but `workshop` does not. Waiting and recurring tasks keep their project, as in Taskwarrior mode, and backend mode has no contexts, so every other pending task of the user is in scope. `POST /v1/project-migrations/apply`, with a key, sends the preview's tasks back and moves them all in one transaction, or none with a conflict if the rename would no longer move exactly those. Undo refuses a migration. The project catalog stays in the apps' config.
 
+`POST /v1/import/preview` takes up to 1,000 tasks as Taskwarrior exported them, converted to the task shape, and answers which the user lacks, which they have unchanged, and which differ, with the differing fields; it changes nothing. `POST /v1/import/apply`, with a key, creates the lacking ones in one transaction, with their UUIDs, statuses (a template is `recurring` and needs a due date), timestamps to the second, and unrecognized fields in `extra`, and leaves the others as they are, so importing again changes nothing. A UUID another user's task holds is a conflict. Undo refuses an import.
+
 ```sh
 curl -X POST localhost:8080/v1/tasks -H "Authorization: Bearer $TOKEN" \
   -H "Idempotency-Key: $(uuidgen)" -d '{"description":"Try the backend","tags":["next"]}'
