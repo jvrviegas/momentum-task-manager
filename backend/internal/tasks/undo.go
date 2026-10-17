@@ -33,7 +33,7 @@ var (
 // creating the next one; undo reverts all of them or none. Undo is one step:
 // after an undo, the device has nothing to undo until its next change. Nor
 // after a project migration, which undo refuses (ADR 0001 has no batch
-// undo). Undoing a create removes the task, as Taskwarrior's undo does. The
+// undo), or an import. Undoing a create removes the task, as Taskwarrior's undo does. The
 // answer is the task the change answered with, deleted if it was created.
 func (s *Service) Undo(ctx context.Context, key string) (api.Task, error) {
 	return s.mutate(ctx, key, "undo", uuid.Nil, nil, func(c *change) (*ent.Task, error) {
@@ -52,6 +52,8 @@ func (s *Service) Undo(ctx context.Context, key string) (api.Task, error) {
 			return nil, errNothingToUndo
 		case migrateAction:
 			return nil, errMigrationUndo
+		case importAction:
+			return nil, errImportUndo
 		}
 		// The change's first event is the task it answered with.
 		events, err := c.tx.TaskEvent.Query().Where(taskevent.ChangeID(last.ChangeID)).Order(taskevent.ByID()).All(ctx)
