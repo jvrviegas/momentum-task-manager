@@ -96,8 +96,10 @@ MOMENTUM_TEST_DATABASE_URL=postgres://postgres:postgres@localhost:5432/postgres?
 
 ## Container image
 
-Build from the repository root, because the module uses `../core`:
+Build from the repository root, because the module uses `../core`; `VERSION` is what `GET /v1/version` answers:
 
 ```sh
-docker build -f backend/Dockerfile .
+docker build -f backend/Dockerfile --build-arg VERSION=$(git rev-parse --short HEAD) .
 ```
+
+[DEPLOY.md](./DEPLOY.md) describes the deployed service on Cloud Run and Neon, how to release a version, and how to check it.
