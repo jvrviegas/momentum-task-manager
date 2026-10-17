@@ -43,6 +43,7 @@ func run(args []string, stdout, stderr io.Writer) int {
 	debug := flags.Bool("debug", false, "write local diagnostic logs")
 	showVersion := flags.Bool("version", false, "print version")
 	showHelp := flags.Bool("help", false, "show help")
+	dryRun := flags.Bool("dry-run", false, "with import, report without importing")
 	flags.Usage = func() { printUsage(stderr) }
 	if err := flags.Parse(flagArgs); err != nil {
 		return 2
@@ -56,7 +57,11 @@ func run(args []string, stdout, stderr io.Writer) int {
 		return 0
 	}
 	if remaining := flags.Args(); len(remaining) > 0 {
-		fmt.Fprintf(stderr, "momentum: unsupported argument %q; use inbox, today, completed, doctor, login, or logout\n", remaining[0])
+		fmt.Fprintf(stderr, "momentum: unsupported argument %q; use inbox, today, completed, doctor, login, logout, or import\n", remaining[0])
+		return 2
+	}
+	if *dryRun && command != "import" {
+		fmt.Fprintln(stderr, "momentum: --dry-run applies only to import")
 		return 2
 	}
 
@@ -69,6 +74,9 @@ func run(args []string, stdout, stderr io.Writer) int {
 		return account(command, settings, resolvedPath, stdout, stderr)
 	}
 	client := taskwarrior.NewClient("task")
+	if command == "import" {
+		return importTasks(context.Background(), settings, resolvedPath, client, *dryRun, stdout, stderr)
+	}
 	if command == "doctor" {
 		options := diagnostics.DoctorOptions{Client: client, Binary: client.Binary, Config: settings, ConfigPath: resolvedPath}
 		if settings.Backend.Enabled() {
@@ -160,7 +168,7 @@ func extractCommand(args []string) (string, []string, error) {
 	for index := 0; index < len(args); index++ {
 		arg := args[index]
 		switch arg {
-		case "inbox", "today", "completed", "doctor", "login", "logout":
+		case "inbox", "today", "completed", "doctor", "login", "logout", "import":
 			if command != "" {
 				return "", nil, fmt.Errorf("multiple commands: %s and %s", command, arg)
 			}
@@ -172,7 +180,7 @@ func extractCommand(args []string) (string, []string, error) {
 			}
 			index++
 			flags = append(flags, args[index])
-		case "--debug", "-debug", "--version", "-version", "--help", "-help", "-h":
+		case "--debug", "-debug", "--version", "-version", "--help", "-help", "-h", "--dry-run", "-dry-run":
 			flags = append(flags, arg)
 		default:
 			if strings.HasPrefix(arg, "--config=") || strings.HasPrefix(arg, "-config=") {
@@ -193,12 +201,14 @@ func printUsage(w io.Writer) {
 	fmt.Fprintln(w, "  momentum doctor")
 	fmt.Fprintln(w, "  momentum login")
 	fmt.Fprintln(w, "  momentum logout")
+	fmt.Fprintln(w, "  momentum import [--dry-run]")
 	fmt.Fprintln(w)
 	fmt.Fprintln(w, "Options:")
 	fmt.Fprintln(w, "  --config PATH   use another config file")
 	fmt.Fprintln(w, "  --debug         enable local diagnostic logging")
 	fmt.Fprintln(w, "  --version       print version")
 	fmt.Fprintln(w, "  --help          show this help")
+	fmt.Fprintln(w, "  --dry-run       with import, report what it would do and import nothing")
 }
 
 var versionRE = regexp.MustCompile(`(?i)\b([0-9]+)(?:\.[0-9]+)+\b`)
