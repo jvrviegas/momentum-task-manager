@@ -155,6 +155,15 @@ func (c *CommandClient) ExportRecurring(ctx context.Context) ([]domain.Task, err
 	return c.exportFilteredTasks(ctx, "status:recurring")
 }
 
+// ExportAll reads every task, whatever its status, for an import, and leaves
+// Taskwarrior's data as it was. Taskwarrior 3.5 garbage-collects before an
+// export, which writes and creates the instances a series is due, so garbage
+// collection is off for the command; recurrence and hooks are off too, in
+// case another version runs them on their own.
+func (c *CommandClient) ExportAll(ctx context.Context) ([]domain.Task, error) {
+	return c.exportFilteredTasks(ctx, "rc.recurrence=off", "rc.gc=off", "rc.hooks=off")
+}
+
 // RecurrenceGeneration reads the local generation toggle without changing it.
 func (c *CommandClient) RecurrenceGeneration(ctx context.Context) (string, error) {
 	result, err := c.run(ctx, "recurrence", "_get", "recurrence")
