@@ -106,6 +106,26 @@ func TestTaskUnmarshalRejectsInvalidDate(t *testing.T) {
 	}
 }
 
+// Taskwarrior writes imask as a decimal for tasks that came through task
+// import, and as a whole number otherwise.
+func TestTaskUnmarshalReadsTheMaskIndexEitherWay(t *testing.T) {
+	for data, want := range map[string]int{`{"imask":0.000000}`: 0, `{"imask":1}`: 1, `{"imask":12.0}`: 12, `{"imask":"3"}`: 3} {
+		var task Task
+		if err := json.Unmarshal([]byte(data), &task); err != nil || task.MaskIndex == nil || *task.MaskIndex != want {
+			t.Errorf("%s: %v, %v", data, task.MaskIndex, err)
+		}
+	}
+	var task Task
+	if err := json.Unmarshal([]byte(`{"uuid":"a"}`), &task); err != nil || task.MaskIndex != nil {
+		t.Errorf("no imask: %v, %v", task.MaskIndex, err)
+	}
+	for _, data := range []string{`{"imask":1.5}`, `{"imask":"x"}`, `{"imask":1e12}`} {
+		if err := json.Unmarshal([]byte(data), &task); err == nil {
+			t.Errorf("%s decoded", data)
+		}
+	}
+}
+
 func TestTaskIsPendingIsCaseInsensitive(t *testing.T) {
 	if !(Task{Status: "PENDING"}).IsPending() {
 		t.Fatal("PENDING should be pending")
