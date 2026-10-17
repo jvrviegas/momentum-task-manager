@@ -95,6 +95,24 @@ func (s *server) applyProjectMigration(w http.ResponseWriter, r *http.Request) {
 	s.respond(w, r, http.StatusOK, result, err)
 }
 
+func (s *server) previewImport(w http.ResponseWriter, r *http.Request) {
+	var input api.ImportRequest
+	if !decodeJSON(w, r, &input) {
+		return
+	}
+	result, err := s.tasks.PreviewImport(r.Context(), input)
+	s.respond(w, r, http.StatusOK, result, err)
+}
+
+func (s *server) applyImport(w http.ResponseWriter, r *http.Request) {
+	var input api.ImportRequest
+	if !decodeJSON(w, r, &input) {
+		return
+	}
+	result, err := s.tasks.ApplyImport(r.Context(), r.Header.Get(api.IdempotencyKeyHeader), input)
+	s.respond(w, r, http.StatusOK, result, err)
+}
+
 func (s *server) setTimeZone(w http.ResponseWriter, r *http.Request) {
 	var input api.TimeZone
 	if !decodeJSON(w, r, &input) {
