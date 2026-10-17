@@ -25,6 +25,11 @@ type Config struct {
 	// GITHUB_CLIENT_ID and GITHUB_CLIENT_SECRET. A provider without them is
 	// not offered.
 	Google, GitHub OAuthClient
+	// ProxyHops is TRUSTED_PROXY_HOPS: how many proxies in front of the
+	// server append the client's address to X-Forwarded-For, so the sign-in
+	// limits can tell clients apart. 0, the default, uses the connection's
+	// address and ignores the header, which clients can forge.
+	ProxyHops int
 }
 
 // OAuthClient is an application registered with a sign-in provider.
@@ -59,6 +64,13 @@ func Load(getenv func(string) string) (Config, error) {
 		if email = strings.TrimSpace(email); email != "" {
 			config.AllowedEmails = append(config.AllowedEmails, email)
 		}
+	}
+	if value := getenv("TRUSTED_PROXY_HOPS"); value != "" {
+		hops, err := strconv.Atoi(value)
+		if err != nil || hops < 0 || hops > 10 {
+			return Config{}, fmt.Errorf("TRUSTED_PROXY_HOPS must be a number from 0 to 10, not %q", value)
+		}
+		config.ProxyHops = hops
 	}
 	var err error
 	if config.Google, err = oauthClient(getenv, "GOOGLE"); err != nil {
