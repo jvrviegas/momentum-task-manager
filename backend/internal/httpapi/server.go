@@ -19,9 +19,13 @@ import (
 // GET /health reports that the server is up; Cloud Run reserves some paths
 // that end in z, so it is not /healthz. Sign-in has JSON routes for the apps
 // and pages for the browser; the other /v1 routes need a signed-in user. Any
-// other route answers with an api.Error.
-func New(logger *slog.Logger, version string, signIn *auth.Service, userTasks *tasks.Service) http.Handler {
-	s := &server{logger: logger, auth: signIn, tasks: userTasks, secure: strings.HasPrefix(signIn.PublicURL(), "https://")}
+// other route answers with an api.Error. Starting a sign-in, submitting the
+// code, and the providers' callbacks share one limit per client, and polling
+// has another; proxyHops is how many proxies in front of the server append
+// the client's address to X-Forwarded-For.
+func New(logger *slog.Logger, version string, signIn *auth.Service, userTasks *tasks.Service, proxyHops int) http.Handler {
+	s := &server{logger: logger, auth: signIn, tasks: userTasks, secure: strings.HasPrefix(signIn.PublicURL(), "https://"), proxyHops: proxyHops}
+	signIns, polls := newLimiter(signInLimit, limitWindow), newLimiter(pollLimit, limitWindow)
 	mux := http.NewServeMux()
 	mux.HandleFunc("GET /health", func(w http.ResponseWriter, r *http.Request) {
 		writeJSON(w, http.StatusOK, map[string]string{"status": "ok"})
@@ -29,8 +33,8 @@ func New(logger *slog.Logger, version string, signIn *auth.Service, userTasks *t
 	mux.HandleFunc(api.RouteVersion, s.authenticated(func(w http.ResponseWriter, r *http.Request) {
 		writeJSON(w, http.StatusOK, api.Version{Server: version})
 	}))
-	mux.HandleFunc(api.RouteStartDeviceSignIn, s.startDeviceSignIn)
-	mux.HandleFunc(api.RoutePollDeviceSignIn, s.pollDeviceSignIn)
+	mux.HandleFunc(api.RouteStartDeviceSignIn, s.limited(signIns, refuseSignIn, s.startDeviceSignIn))
+	mux.HandleFunc(api.RoutePollDeviceSignIn, s.limited(polls, refusePoll, s.pollDeviceSignIn))
 	mux.HandleFunc(api.RouteSession, s.authenticated(s.session))
 	mux.HandleFunc(api.RouteSignOut, s.authenticated(s.signOut))
 	mux.HandleFunc(api.RouteListTasks, s.authenticated(s.listTasks))
@@ -48,8 +52,8 @@ func New(logger *slog.Logger, version string, signIn *auth.Service, userTasks *t
 	mux.HandleFunc(api.RouteApplyProjectMigration, s.authenticated(s.applyProjectMigration))
 	mux.HandleFunc(api.RouteSetTimeZone, s.authenticated(s.setTimeZone))
 	mux.HandleFunc("GET "+devicePath, s.devicePage)
-	mux.HandleFunc("POST "+devicePath, s.deviceSubmit)
-	mux.HandleFunc("GET "+callbackPath+"{provider}", s.callback)
+	mux.HandleFunc("POST "+devicePath, s.limited(signIns, refusePage, s.deviceSubmit))
+	mux.HandleFunc("GET "+callbackPath+"{provider}", s.limited(signIns, refusePage, s.callback))
 	mux.HandleFunc("/", func(w http.ResponseWriter, r *http.Request) {
 		writeError(w, &api.Error{Code: api.CodeNotFound, Message: "no such endpoint"})
 	})
@@ -62,6 +66,8 @@ type server struct {
 	tasks  *tasks.Service
 	// secure marks cookies Secure when browsers reach the server over HTTPS.
 	secure bool
+	// proxyHops is how many trusted proxies append to X-Forwarded-For.
+	proxyHops int
 }
 
 var errorStatus = map[string]int{
@@ -70,6 +76,7 @@ var errorStatus = map[string]int{
 	api.CodeNotFound:             http.StatusNotFound,
 	api.CodeConflict:             http.StatusConflict,
 	api.CodeInternal:             http.StatusInternalServerError,
+	api.CodeRateLimited:          http.StatusTooManyRequests,
 	api.CodeAuthorizationPending: http.StatusBadRequest,
 	api.CodeSlowDown:             http.StatusBadRequest,
 	api.CodeAccessDenied:         http.StatusBadRequest,
