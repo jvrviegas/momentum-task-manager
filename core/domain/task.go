@@ -4,6 +4,8 @@ import (
 	"bytes"
 	"encoding/json"
 	"fmt"
+	"math"
+	"strconv"
 	"strings"
 	"time"
 )
@@ -86,7 +88,7 @@ func (t *Task) UnmarshalJSON(data []byte) error {
 		Recurrence     string           `json:"recur"`
 		Parent         string           `json:"parent"`
 		Mask           string           `json:"mask"`
-		MaskIndex      *int             `json:"imask"`
+		MaskIndex      *json.Number     `json:"imask"`
 		RecurrenceType string           `json:"rtype"`
 		Urgency        float64          `json:"urgency"`
 	}
@@ -101,6 +103,10 @@ func (t *Task) UnmarshalJSON(data []byte) error {
 		return fmt.Errorf("retain task fields: %w", err)
 	}
 
+	maskIndex, err := wholeNumber(value.MaskIndex, "imask")
+	if err != nil {
+		return err
+	}
 	estimate, estimateWarning := decodeTaskwarriorEstimate(raw["estimate"])
 	entry, entryRaw, err := optionalTime(value.Entry, "entry")
 	if err != nil {
@@ -178,7 +184,7 @@ func (t *Task) UnmarshalJSON(data []byte) error {
 		Recurrence:      value.Recurrence,
 		Parent:          value.Parent,
 		Mask:            value.Mask,
-		MaskIndex:       value.MaskIndex,
+		MaskIndex:       maskIndex,
 		RecurrenceType:  value.RecurrenceType,
 		Urgency:         value.Urgency,
 		RawFields:       raw,
@@ -281,4 +287,18 @@ func DateIn(value *time.Time, loc *time.Location) (time.Time, bool) {
 func (t Task) Raw(name string) (json.RawMessage, bool) {
 	value, ok := t.RawFields[name]
 	return value, ok
+}
+
+// wholeNumber reads a whole number that Taskwarrior may write as a decimal,
+// as it writes imask ("0.000000") for tasks that came through task import.
+func wholeNumber(value *json.Number, name string) (*int, error) {
+	if value == nil {
+		return nil, nil
+	}
+	number, err := strconv.ParseFloat(value.String(), 64)
+	if err != nil || number != math.Trunc(number) || math.Abs(number) > math.MaxInt32 {
+		return nil, fmt.Errorf("decode task: %s must be a whole number, not %s", name, value)
+	}
+	whole := int(number)
+	return &whole, nil
 }
