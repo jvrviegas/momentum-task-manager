@@ -60,7 +60,7 @@ func newHarness(t *testing.T) *harness {
 	var logs bytes.Buffer
 	logger := logging.New(&logs)
 	userTasks := tasks.New(client)
-	httpServer := httptest.NewServer(New(logger, "v1.2.3", service, userTasks))
+	httpServer := httptest.NewServer(New(logger, "v1.2.3", service, userTasks, 0))
 	t.Cleanup(httpServer.Close)
 	return &harness{t: t, url: httpServer.URL, logs: &logs, provider: provider, client: client,
 		server: &server{logger: logger, auth: service, tasks: userTasks}}
