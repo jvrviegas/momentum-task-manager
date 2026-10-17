@@ -18,7 +18,7 @@ import (
 func TestHealthAnswersOK(t *testing.T) {
 	var logs bytes.Buffer
 	response := httptest.NewRecorder()
-	New(logging.New(&logs), "dev", auth.New(nil, auth.Config{}), tasks.New(nil)).ServeHTTP(response, httptest.NewRequest(http.MethodGet, "/health", nil))
+	New(logging.New(&logs), "dev", auth.New(nil, auth.Config{}), tasks.New(nil), 0).ServeHTTP(response, httptest.NewRequest(http.MethodGet, "/health", nil))
 
 	if response.Code != http.StatusOK || response.Header().Get("Content-Type") != "application/json" ||
 		response.Body.String() != "{\"status\":\"ok\"}\n" {
@@ -36,7 +36,7 @@ func TestUnknownRouteAnswersNotFoundError(t *testing.T) {
 		httptest.NewRequest(http.MethodGet, "/v1/nothing", nil),
 	} {
 		response := httptest.NewRecorder()
-		New(logging.New(&bytes.Buffer{}), "dev", auth.New(nil, auth.Config{}), tasks.New(nil)).ServeHTTP(response, request)
+		New(logging.New(&bytes.Buffer{}), "dev", auth.New(nil, auth.Config{}), tasks.New(nil), 0).ServeHTTP(response, request)
 		var body api.Error
 		if err := json.Unmarshal(response.Body.Bytes(), &body); err != nil || response.Code != http.StatusNotFound || body.Code != api.CodeNotFound {
 			t.Errorf("%s %s = %d %s", request.Method, request.URL, response.Code, response.Body.String())
@@ -48,7 +48,7 @@ func TestRequestLogLeavesOutPathQueryHeadersAndBody(t *testing.T) {
 	var logs bytes.Buffer
 	request := httptest.NewRequest(http.MethodPost, "/v1/tasks/secret-uuid?q=secret-query", strings.NewReader(`{"description":"secret plans"}`))
 	request.Header.Set("Authorization", "Bearer secret-token")
-	New(logging.New(&logs), "dev", auth.New(nil, auth.Config{}), tasks.New(nil)).ServeHTTP(httptest.NewRecorder(), request)
+	New(logging.New(&logs), "dev", auth.New(nil, auth.Config{}), tasks.New(nil), 0).ServeHTTP(httptest.NewRecorder(), request)
 
 	if !strings.Contains(logs.String(), `"message":"request","method":"POST","route":"/","status":404`) {
 		t.Errorf("log:\n%s", logs.String())
