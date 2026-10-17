@@ -30,12 +30,13 @@ func TestLoadReadsEveryVariable(t *testing.T) {
 	config, err := Load(env(map[string]string{
 		"PORT": "9090", "PUBLIC_URL": "https://momentum.example/", "ALLOWED_EMAILS": " alice@example.com, ,bob@example.com ",
 		"GOOGLE_CLIENT_ID": "google-id", "GOOGLE_CLIENT_SECRET": "google-secret",
-		"GITHUB_CLIENT_ID": "github-id", "GITHUB_CLIENT_SECRET": "github-secret",
+		"GITHUB_CLIENT_ID": "github-id", "GITHUB_CLIENT_SECRET": "github-secret", "TRUSTED_PROXY_HOPS": "1",
 	}))
 	want := Config{
 		Port: 9090, DatabaseURL: "postgres://localhost/momentum", PublicURL: "https://momentum.example",
 		AllowedEmails: []string{"alice@example.com", "bob@example.com"},
 		Google:        OAuthClient{"google-id", "google-secret"}, GitHub: OAuthClient{"github-id", "github-secret"},
+		ProxyHops: 1,
 	}
 	if err != nil || !reflect.DeepEqual(config, want) {
 		t.Fatalf("Load() = %+v, %v; want %+v", config, err, want)
@@ -59,6 +60,7 @@ func TestLoadRejectsInvalidValues(t *testing.T) {
 		{"PUBLIC_URL": "momentum.example"}, {"PUBLIC_URL": "ftp://momentum.example"},
 		{"PUBLIC_URL": "https://momentum.example/app"}, {"PUBLIC_URL": "https://momentum.example?x=1"},
 		{"GOOGLE_CLIENT_ID": "google-id"}, {"GITHUB_CLIENT_SECRET": "github-secret"},
+		{"TRUSTED_PROXY_HOPS": "-1"}, {"TRUSTED_PROXY_HOPS": "11"}, {"TRUSTED_PROXY_HOPS": "one"},
 	} {
 		if config, err := Load(env(values)); err == nil {
 			t.Errorf("%v: Load() = %+v, want an error", values, config)
