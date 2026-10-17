@@ -81,7 +81,7 @@ func run(args []string) error {
 		return err
 	}
 	logger.Info("listening", slog.String("addr", listener.Addr().String()))
-	if err := httpapi.Serve(ctx, listener, httpapi.New(logger, Version, signIn, tasks.New(client)), drain); err != nil {
+	if err := httpapi.Serve(ctx, listener, httpapi.New(logger, Version, signIn, tasks.New(client), settings.ProxyHops), drain); err != nil {
 		return err
 	}
 	logger.Info("stopped")
