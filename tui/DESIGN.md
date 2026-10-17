@@ -309,6 +309,8 @@ momentum completed        Launch in Completed
 momentum doctor           Run diagnostics
 momentum login            Sign in to the [backend] server (backend plan T14)
 momentum logout           Sign out of the [backend] server
+momentum import           Copy every Taskwarrior task to the [backend] server (backend plan T16)
+momentum import --dry-run Report what import would do, and import nothing
 momentum --config PATH    Use another config file
 momentum --debug          Enable local diagnostic logging
 momentum --version        Print version
