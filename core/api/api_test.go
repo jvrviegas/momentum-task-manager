@@ -99,6 +99,15 @@ func TestProjectJSON(t *testing.T) {
 	roundTrip(t, ProjectMigrationResult{Changed: 2}, `{"changed":2}`)
 }
 
+func TestImportJSON(t *testing.T) {
+	roundTrip(t, ImportRequest{Tasks: []Task{{UUID: "6b9a5f9e-3c39-4a51-9d55-0d3c8f7f1a10", Description: "Old", Status: StatusDeleted,
+		Entry: at(9), Modified: at(10), End: ptr(at(10)), Extra: map[string]json.RawMessage{"imask": json.RawMessage(`1`)}}}},
+		`{"tasks":[{"uuid":"6b9a5f9e-3c39-4a51-9d55-0d3c8f7f1a10","description":"Old","status":"deleted",`+
+			`"entry":"2026-10-14T09:30:00Z","modified":"2026-10-14T10:30:00Z","end":"2026-10-14T10:30:00Z","urgency":0,"extra":{"imask":1}}]}`)
+	roundTrip(t, ImportResult{Created: []string{"a"}, Unchanged: []string{}, Different: []ImportDifference{{UUID: "b", Fields: []string{"project", "due"}}}},
+		`{"created":["a"],"unchanged":[],"different":[{"uuid":"b","fields":["project","due"]}]}`)
+}
+
 func TestVersionJSON(t *testing.T) {
 	roundTrip(t, Version{Server: "v0.1.0"}, `{"server":"v0.1.0"}`)
 	roundTrip(t, TimeZone{TimeZone: "Europe/Lisbon"}, `{"timeZone":"Europe/Lisbon"}`)
@@ -135,6 +144,7 @@ func TestRoutesAreDistinctV1Patterns(t *testing.T) {
 		RouteStartTask, RouteStopTask, RouteStopRecurrence, RouteUndo, RouteListProjects, RouteListTags,
 		RoutePreviewProjectMigration, RouteApplyProjectMigration, RouteSetTimeZone,
 		RouteStartDeviceSignIn, RoutePollDeviceSignIn, RouteSession, RouteSignOut,
+		RoutePreviewImport, RouteApplyImport,
 	} {
 		method, path, _ := strings.Cut(route, " ")
 		if method == "" || !strings.HasPrefix(path, "/v1/") {
