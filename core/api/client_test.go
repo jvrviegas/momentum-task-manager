@@ -32,7 +32,7 @@ func recordingServer(t *testing.T, answer func(w http.ResponseWriter, r *http.Re
 		RouteVersion, RouteListTasks, RouteCreateTask, RouteModifyTask, RouteDeleteTask, RouteCompleteTask,
 		RouteStartTask, RouteStopTask, RouteStopRecurrence, RouteUndo, RouteListProjects, RouteListTags,
 		RoutePreviewProjectMigration, RouteApplyProjectMigration, RouteSetTimeZone, RouteSession,
-		RouteStartDeviceSignIn, RoutePollDeviceSignIn, RouteSignOut,
+		RouteStartDeviceSignIn, RoutePollDeviceSignIn, RouteSignOut, RoutePreviewImport, RouteApplyImport,
 	} {
 		mux.HandleFunc(route, func(w http.ResponseWriter, r *http.Request) {
 			body, _ := io.ReadAll(r.Body)
@@ -70,6 +70,10 @@ func TestClientSendsEachRoute(t *testing.T) {
 	task := `{"uuid":"` + id + `","description":"Write the plan","status":"pending","entry":"2026-10-14T08:30:00Z","modified":"2026-10-14T09:30:00Z","urgency":1.5}`
 	wantTask := Task{UUID: id, Description: "Write the plan", Status: StatusPending, Entry: at(8), Modified: at(9), Urgency: 1.5}
 	migration := ProjectMigration{Source: "work", Destination: "job"}
+	importRequest := ImportRequest{Tasks: []Task{{UUID: id, Description: "Old", Status: StatusCompleted, Entry: at(8), Modified: at(9)}}}
+	importBody := `{"tasks":[{"uuid":"` + id + `","description":"Old","status":"completed","entry":"2026-10-14T08:30:00Z","modified":"2026-10-14T09:30:00Z","urgency":0}]}`
+	importAnswer := `{"created":["` + id + `"],"unchanged":[],"different":[]}`
+	importResult := ImportResult{Created: []string{id}, Unchanged: []string{}, Different: []ImportDifference{}}
 	mappings := []ProjectTaskMapping{{UUID: id, OldValue: "work", NewValue: "job"}}
 	ended := time.Date(2026, 10, 14, 0, 0, 0, 0, time.FixedZone("WEST", 3600))
 
@@ -131,6 +135,10 @@ func TestClientSendsEachRoute(t *testing.T) {
 			return c.ApplyProjectMigration(ctx, ApplyProjectMigrationRequest{ProjectMigration: migration, Tasks: mappings})
 		}, want: ProjectMigrationResult{Changed: 1}, pattern: RouteApplyProjectMigration, path: "/v1/project-migrations/apply",
 			body: `{"source":"work","destination":"job","includeSubprojects":false,"tasks":[{"uuid":"` + id + `","oldValue":"work","newValue":"job"}]}`, mutation: true},
+		{name: "import preview", answer: importAnswer, send: func(c *Client) (any, error) { return c.PreviewImport(ctx, importRequest) },
+			want: importResult, pattern: RoutePreviewImport, path: "/v1/import/preview", body: importBody},
+		{name: "import apply", answer: importAnswer, send: func(c *Client) (any, error) { return c.ApplyImport(ctx, importRequest) },
+			want: importResult, pattern: RouteApplyImport, path: "/v1/import/apply", body: importBody, mutation: true},
 	} {
 		t.Run(test.name, func(t *testing.T) {
 			client, requests := recordingServer(t, answerJSON(http.StatusOK, test.answer))
