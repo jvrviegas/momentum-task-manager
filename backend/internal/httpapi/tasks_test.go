@@ -388,3 +388,57 @@ func TestVersionAndTimeZoneOverHTTP(t *testing.T) {
 		t.Errorf("log holds the time zone:\n%s", h.logs.String())
 	}
 }
+
+func TestImportOverHTTP(t *testing.T) {
+	h := newHarness(t)
+	alice := h.signIn("alice@example.com").Token
+	bob := h.signIn("bob@example.com").Token
+	entry := time.Date(2026, 7, 3, 8, 0, 0, 0, time.UTC)
+	id := uuid.NewString()
+	request := api.ImportRequest{Tasks: []api.Task{{UUID: id, Description: "Secret plans", Status: api.StatusCompleted,
+		Project: "secret-project", Entry: entry, Modified: entry, End: &entry,
+		Extra: map[string]json.RawMessage{"secret-field": json.RawMessage(`"secret-value"`)}}}}
+
+	// A preview changes nothing, so it needs no key.
+	status, body := h.send(http.MethodPost, "/v1/import/preview", alice, "", request)
+	if status != http.StatusOK || body != `{"created":["`+id+`"],"unchanged":[],"different":[]}`+"\n" {
+		t.Fatalf("preview = %d %s", status, body)
+	}
+	status, body = h.send(http.MethodPost, "/v1/import/apply", alice, "", request)
+	wantAPIError(t, status, body, http.StatusBadRequest, api.CodeInvalid, "")
+	status, first := h.send(http.MethodPost, "/v1/import/apply", alice, "secret-import-key", request)
+	if status != http.StatusOK || first != `{"created":["`+id+`"],"unchanged":[],"different":[]}`+"\n" {
+		t.Fatalf("apply = %d %s", status, first)
+	}
+	if status, again := h.send(http.MethodPost, "/v1/import/apply", alice, "secret-import-key", request); status != http.StatusOK || again != first {
+		t.Errorf("retried apply = %d %s, want %s", status, again, first)
+	}
+	status, body = h.send(http.MethodPost, "/v1/import/apply", alice, uuid.NewString(), request)
+	if status != http.StatusOK || body != `{"created":[],"unchanged":["`+id+`"],"different":[]}`+"\n" {
+		t.Errorf("second import = %d %s", status, body)
+	}
+	status, body = h.send(http.MethodGet, "/v1/tasks?status=completed&ended_after=2026-07-01T00:00:00Z", alice, "", nil)
+	if list := decodeBody[api.TaskList](t, body); status != http.StatusOK || len(list.Tasks) != 1 || list.Tasks[0].UUID != id ||
+		string(list.Tasks[0].Extra["secret-field"]) != `"secret-value"` {
+		t.Errorf("completed list = %d %s", status, body)
+	}
+	status, body = h.send(http.MethodPost, "/v1/undo", alice, uuid.NewString(), nil)
+	wantAPIError(t, status, body, http.StatusConflict, api.CodeConflict, "")
+
+	status, body = h.send(http.MethodPost, "/v1/import/preview", alice, "", `{"tasks":[]}`)
+	wantAPIError(t, status, body, http.StatusBadRequest, api.CodeInvalid, "tasks")
+	status, body = h.send(http.MethodPost, "/v1/import/preview", alice, "", `{"tasks":`)
+	wantAPIError(t, status, body, http.StatusBadRequest, api.CodeInvalid, "")
+	status, body = h.send(http.MethodPost, "/v1/import/apply", bob, uuid.NewString(), request)
+	wantAPIError(t, status, body, http.StatusConflict, api.CodeConflict, "")
+	for _, path := range []string{"/v1/import/preview", "/v1/import/apply"} {
+		status, body = h.send(http.MethodPost, path, "mtk_unknown", uuid.NewString(), request)
+		wantAPIError(t, status, body, http.StatusUnauthorized, api.CodeUnauthorized, "")
+	}
+
+	for _, secret := range []string{"Secret plans", "secret-project", "secret-field", "secret-value", "secret-import-key", id} {
+		if strings.Contains(h.logs.String(), secret) {
+			t.Errorf("log contains %q:\n%s", secret, h.logs.String())
+		}
+	}
+}
