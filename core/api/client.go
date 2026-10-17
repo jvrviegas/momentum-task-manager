@@ -154,6 +154,16 @@ func (c *Client) ApplyProjectMigration(ctx context.Context, input ApplyProjectMi
 	return send[ProjectMigrationResult](ctx, c, call{route: RouteApplyProjectMigration, body: input, mutation: true})
 }
 
+// PreviewImport answers RoutePreviewImport.
+func (c *Client) PreviewImport(ctx context.Context, input ImportRequest) (ImportResult, error) {
+	return send[ImportResult](ctx, c, call{route: RoutePreviewImport, body: input})
+}
+
+// ApplyImport answers RouteApplyImport.
+func (c *Client) ApplyImport(ctx context.Context, input ImportRequest) (ImportResult, error) {
+	return send[ImportResult](ctx, c, call{route: RouteApplyImport, body: input, mutation: true})
+}
+
 // call is one request: a route, the task in its path, its query, and a body
 // to send as JSON. A mutation carries an idempotency key.
 type call struct {
