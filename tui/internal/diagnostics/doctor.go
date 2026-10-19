@@ -6,14 +6,12 @@ import (
 	"fmt"
 	"io"
 	"os"
-	"os/exec"
-	"path/filepath"
+	"regexp"
 	"strings"
 	"time"
 
 	"github.com/jvrviegas/momentum-task-manager/core/api"
 	"github.com/jvrviegas/momentum-task-manager/tui/internal/config"
-	"github.com/jvrviegas/momentum-task-manager/tui/internal/taskwarrior"
 )
 
 // Check is one safe doctor result.
@@ -39,22 +37,19 @@ func (r Report) OK() bool {
 }
 
 // DoctorOptions contains injectable checks for deterministic tests. Backend
-// is set in backend mode, whose checks replace Taskwarrior's.
+// is nil when the config names no [backend] server.
 type DoctorOptions struct {
 	Backend     *BackendOptions
-	Client      taskwarrior.Client
-	Binary      string
 	Config      config.Config
 	ConfigPath  string
 	HomeDir     string
 	StateDir    string
 	Terminal    string
-	LookPath    func(string) (string, error)
 	MkdirAll    func(string, os.FileMode) error
 	WritableDir func(string) error
 }
 
-// BackendOptions describe the server backend mode uses.
+// BackendOptions describe the [backend] server.
 type BackendOptions struct {
 	URL    string
 	Server interface {
@@ -67,17 +62,11 @@ type BackendOptions struct {
 	Zone string
 }
 
-// Run performs only read-only Taskwarrior or server calls and local
-// filesystem checks. It never invokes add/modify/done/delete/start/stop/undo/sync.
+// Run performs only read-only server calls and local filesystem checks. It
+// never changes a task.
 func Run(ctx context.Context, options DoctorOptions) Report {
 	if ctx == nil {
 		ctx = context.Background()
-	}
-	if options.Binary == "" {
-		options.Binary = "task"
-	}
-	if options.LookPath == nil {
-		options.LookPath = exec.LookPath
 	}
 	if options.MkdirAll == nil {
 		options.MkdirAll = os.MkdirAll
@@ -89,30 +78,11 @@ func Run(ctx context.Context, options DoctorOptions) Report {
 	if options.Backend != nil {
 		report.Checks = append(report.Checks, backendChecks(ctx, *options.Backend)...)
 	} else {
-		report.Checks = append(report.Checks, taskwarriorChecks(ctx, options)...)
+		report.Checks = append(report.Checks, Check{Name: "Backend server",
+			Detail: "no [backend] url in " + configPathDetail(options.ConfigPath) + "; add one, then run momentum login"})
 	}
 	configErr := options.Config.Validate()
 	report.Checks = append(report.Checks, Check{Name: "Momentum config", Detail: errorDetail(configErr, configPathDetail(options.ConfigPath)), OK: configErr == nil})
-
-	if options.Backend != nil {
-		// Backend mode has no sync.
-	} else if !options.Config.Sync.Enabled {
-		report.Checks = append(report.Checks, Check{Name: "Sync settings", Detail: "disabled by Momentum config", Skipped: true, OK: true})
-	} else if reader, ok := options.Client.(interface {
-		SyncConfigured(context.Context) (bool, error)
-	}); ok {
-		configured, syncErr := reader.SyncConfigured(ctx)
-		detail := "missing Taskwarrior sync settings"
-		if configured && syncErr == nil {
-			detail = "server URL, client ID, and encryption secret are present"
-		}
-		if syncErr != nil {
-			detail = "unable to read Taskwarrior sync settings"
-		}
-		report.Checks = append(report.Checks, Check{Name: "Sync settings", Detail: detail, OK: syncErr == nil && configured})
-	} else {
-		report.Checks = append(report.Checks, Check{Name: "Sync settings", Detail: "sync readiness check unavailable", Skipped: true, OK: true})
-	}
 
 	if options.Config.Calendar.Enabled {
 		home := options.HomeDir
@@ -137,18 +107,6 @@ func Run(ctx context.Context, options DoctorOptions) Report {
 		report.Checks = append(report.Checks, Check{Name: "Calendar source", Detail: "disabled; task-only planning remains available", Skipped: true, OK: true})
 	}
 
-	if options.Backend != nil {
-		// The server stores estimates.
-	} else if reader, ok := options.Client.(interface {
-		EstimateUDAReadiness(context.Context) (taskwarrior.EstimateUDAState, error)
-	}); ok {
-		state, estimateErr := reader.EstimateUDAReadiness(ctx)
-		detail := taskwarrior.Redact(estimateErrDetail(state, estimateErr))
-		report.Checks = append(report.Checks, Check{Name: "Estimate UDA", Detail: detail, OK: state == taskwarrior.EstimateUDAConfigured && estimateErr == nil})
-	} else {
-		report.Checks = append(report.Checks, Check{Name: "Estimate UDA", Detail: "estimate readiness check unavailable", Skipped: true, OK: true})
-	}
-
 	terminal := options.Terminal
 	if terminal == "" {
 		terminal = os.Getenv("TERM")
@@ -169,32 +127,6 @@ func Run(ctx context.Context, options DoctorOptions) Report {
 		report.Checks = append(report.Checks, Check{Name: "State directory", Detail: errorDetail(firstError(mkdirErr, writeErr), stateDir), OK: mkdirErr == nil && writeErr == nil})
 	}
 	return report
-}
-
-func taskwarriorChecks(ctx context.Context, options DoctorOptions) []Check {
-	var checks []Check
-	path, err := options.LookPath(options.Binary)
-	if err != nil {
-		checks = append(checks, Check{Name: "Taskwarrior executable", Detail: "not found; install Taskwarrior 3.x", OK: false})
-	} else {
-		checks = append(checks, Check{Name: "Taskwarrior executable", Detail: filepath.Clean(path), OK: true})
-	}
-	if versioner, ok := options.Client.(interface {
-		Version(context.Context) (string, error)
-	}); ok {
-		version, versionErr := versioner.Version(ctx)
-		checks = append(checks, Check{Name: "Taskwarrior version", Detail: safeVersion(version), OK: versionErr == nil && version != ""})
-	} else {
-		checks = append(checks, Check{Name: "Taskwarrior version", Detail: "version check unavailable", Skipped: true, OK: true})
-	}
-
-	if options.Client == nil {
-		checks = append(checks, Check{Name: "Taskwarrior export", Detail: "client unavailable", OK: false})
-	} else {
-		_, exportErr := options.Client.ExportPending(ctx)
-		checks = append(checks, Check{Name: "Taskwarrior export", Detail: errorDetail(exportErr, "pending export decodes"), OK: exportErr == nil})
-	}
-	return checks
 }
 
 // backendChecks check that the server answers, that the saved sign-in is
@@ -239,7 +171,7 @@ func (r Report) Print(w io.Writer) {
 		} else if !check.OK {
 			status = "fail"
 		}
-		fmt.Fprintf(w, "[%s] %-24s %s\n", status, check.Name, taskwarrior.Redact(check.Detail))
+		fmt.Fprintf(w, "[%s] %-24s %s\n", status, check.Name, Redact(check.Detail))
 	}
 	if r.OK() {
 		fmt.Fprintln(w, "Doctor: ready")
@@ -287,18 +219,20 @@ func errorDetail(err error, success string) string {
 	if err == nil {
 		return success
 	}
-	return taskwarrior.Redact(err.Error())
+	return Redact(err.Error())
 }
 
-func estimateErrDetail(state taskwarrior.EstimateUDAState, err error) string {
-	if err != nil {
-		return err.Error()
-	}
-	if state == taskwarrior.EstimateUDAConfigured {
-		return "configured as duration"
-	}
-	return "estimate UDA is not ready"
+// Redact removes common credentials and secrets from diagnostic text.
+func Redact(value string) string {
+	value = secretAssignmentRE.ReplaceAllString(value, "$1[REDACTED]")
+	value = urlCredentialRE.ReplaceAllString(value, "$1[REDACTED]$3")
+	return value
 }
+
+var (
+	secretAssignmentRE = regexp.MustCompile(`(?i)(encryption_secret|password|token|client_secret)\s*[:=]\s*[^\s,;]+`)
+	urlCredentialRE    = regexp.MustCompile(`(?i)(https?://)([^/@\s]+)(@)`)
+)
 
 func firstError(errors ...error) error {
 	for _, err := range errors {
