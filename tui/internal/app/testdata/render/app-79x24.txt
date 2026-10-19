@@ -22,7 +22,7 @@
 
 
   c  capture   /  search   enter  details   ?  help   q  quit
-                                                                  ✓ Sync ready
+                                                                      ✓ Online
 
 === inbox ===
  Momentum    ▱ Inbox 1   ◷ Today 3   ✓ Completed   ⚙ Settings
@@ -48,7 +48,7 @@
 
 
   c  capture   /  search   enter  details   ?  help   q  quit
-                                                                  ✓ Sync ready
+                                                                      ✓ Online
 
 === empty ===
  Momentum    ▱ Inbox 0   ◷ Today 0   ✓ Completed   ⚙ Settings
@@ -74,7 +74,7 @@
 
 
   c  capture   /  search   enter  details   ?  help   q  quit
-                                                                  ✓ Sync ready
+                                                                      ✓ Online
 
 === loading ===
  Momentum    ▱ Inbox   ◷ Today   ✓ Completed   ⚙ Settings
@@ -100,7 +100,7 @@
 
 
   c  capture   /  search   enter  details   ?  help   q  quit
- ↻ Loading tasks from Taskwarrior…                   ↻ Waiting for task export
+ ↻ Loading tasks from the server…                     ↻ Waiting for the server
 
 === error ===
  Momentum    ▱ Inbox   ◷ Today   ✓ Completed   ⚙ Settings
@@ -108,7 +108,7 @@
 
 
   ! Could not load tasks
-  fixture Taskwarrior unavailable. Your data has not been changed.
+  fixture server unavailable. Your data has not been changed.
 
   Fix the cause, then press r to retry.
 
@@ -126,7 +126,7 @@
 
 
   r  retry   ?  help   q  quit
- ! fixture Taskwarrior unavailable                                ✓ Sync ready
+ ! fixture server unavailable                                         ✓ Online
 
 === search ===
  Momentum    ▱ Inbox 1   ◷ Today 3   ✓ Completed   ⚙ Settings
@@ -152,7 +152,7 @@
 
 
   esc  clear   ↑↓  move   enter  details   /  edit search
- ⌕ 1 of 3 match "scheduled"                                       ✓ Sync ready
+ ⌕ 1 of 3 match "scheduled"                                           ✓ Online
 
 === settings-list ===
  Momentum    ▱ Inbox 1   ◷ Today 3   ✓ Completed   ⚙ Settings
@@ -178,7 +178,7 @@
 
 
   esc  back   1-3  views   q  quit
-                                                                  ✓ Sync ready
+                                                                      ✓ Online
 
 === settings-editor ===
  Momentum    ▱ Inbox 1   ◷ Today 3   ✓ Completed   ⚙ Settings
@@ -204,4 +204,4 @@
 
 
   esc  back   1-3  views   q  quit
-                                                                  ✓ Sync ready
+                                                                      ✓ Online
