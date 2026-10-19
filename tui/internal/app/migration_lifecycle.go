@@ -2,7 +2,6 @@ package app
 
 import (
 	"fmt"
-	"time"
 
 	tea "charm.land/bubbletea/v2"
 
@@ -11,7 +10,7 @@ import (
 )
 
 func (m *Model) beginProjectMigration(request ProjectMigrationRequest) tea.Cmd {
-	if m.MigrationRunning || m.MutationRunning || m.ProjectSaveRunning || m.Sync.Phase == SyncInFlight || m.Mode == ModeLoading || m.Mode == ModeRefreshing {
+	if m.MigrationRunning || m.MutationRunning || m.ProjectSaveRunning || m.Mode == ModeLoading || m.Mode == ModeRefreshing {
 		m.Status = "Project migration is waiting for other work to finish"
 		return nil
 	}
@@ -22,9 +21,10 @@ func (m *Model) beginProjectMigration(request ProjectMigrationRequest) tea.Cmd {
 	m.MigrationRunning = true
 	m.MigrationRefreshPending = false
 	m.MigrationOutcome = nil
-	m.MigrationSyncBefore = m.Sync
-	m.Sync.UndoAvailable = false
-	m.Sync.UndoUntil = time.Time{}
+	// The server does not undo a migration, so the window closes; it opens
+	// again if no task moves.
+	m.MigrationUndoBefore = m.Undo
+	m.Undo = m.Undo.Close()
 	m.Mode = ModeMutating
 	m.Status = "Migrating projects…"
 	return ProjectMigrationCommand(m.ctx, m.MigrationCoordinator, id, request)
@@ -57,9 +57,9 @@ func (m *Model) applyProjectMigration(message ProjectMigrationMsg) tea.Cmd {
 			m.ProjectRename.ApplyMessage(ui.ProjectRenameResultMsg{Stale: result.Stale, Err: err})
 		}
 	}
-	if result.ChangedCount() == 0 {
+	if result.Changed == 0 {
 		m.MigrationOutcome = nil
-		m.Sync = m.MigrationSyncBefore
+		m.Undo = m.MigrationUndoBefore
 		m.finishProjectMigration()
 		m.Mode = ModeReady
 		switch {
@@ -78,42 +78,21 @@ func (m *Model) applyProjectMigration(message ProjectMigrationMsg) tea.Cmd {
 		default:
 			m.Status = "Projects saved; no tasks changed"
 		}
-		return m.scheduleSync()
+		return m.scheduleUndoTick()
 	}
 
 	resultCopy := result
 	m.MigrationOutcome = &resultCopy
-	m.markMigrationTaskChanges(m.now())
-	m.Status = fmt.Sprintf("Projects saved; %d task(s) changed", result.ChangedCount())
-	if result.FailedCount() > 0 || result.AmbiguousCount() > 0 {
-		m.Status += fmt.Sprintf("; %d task outcome(s) need review", result.FailedCount()+result.AmbiguousCount())
-	}
+	m.Status = fmt.Sprintf("Projects saved; %d task(s) changed", result.Changed)
 	m.Mode = ModeRefreshing
 	m.MigrationRefreshPending = true
 	return LoadTasksCommand(m.ctx, m.Client, "migration")
-}
-
-func (m *Model) markMigrationTaskChanges(now time.Time) {
-	m.Sync.Unsynced = true
-	m.Sync.UndoAvailable = false
-	m.Sync.UndoUntil = time.Time{}
-	if !m.Sync.Enabled {
-		m.Sync.Phase = SyncDisabled
-		m.Sync.NextAt = time.Time{}
-		return
-	}
-	m.Sync.Phase = SyncWaiting
-	m.Sync.NextAt = now.Add(m.Sync.MutationDelay)
 }
 
 func (m *Model) finishProjectMigration() {
 	m.MigrationRunning = false
 	m.MigrationRefreshPending = false
 	m.PendingMigration = nil
-	if m.SyncDeferred && m.Sync.NextAt.IsZero() && m.Sync.Enabled {
-		m.Sync.NextAt = m.now()
-	}
-	m.SyncDeferred = false
 }
 
 func cloneProjectMigrationRequest(request ProjectMigrationRequest) ProjectMigrationRequest {
