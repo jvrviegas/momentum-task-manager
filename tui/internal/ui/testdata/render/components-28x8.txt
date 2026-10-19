@@ -19,7 +19,7 @@
 │   NAVIGATE             │
 │   ↑ k       up         │
 │   ↓ j       down       │
-╰─ esc close  1-4 of 48 ─╯
+╰─ esc close  1-4 of 47 ─╯
 
 === quick-capture ===
 ╭─ Quick capture ────────╮
@@ -44,14 +44,6 @@
 │   synchronization.     │
 │    y  yes      n  no   │
 ╰─ esc cancel ───────────╯
-
-=== quit ===
-╭─ Quit Momentum? ───────╮
-│   • Unsynced changes   │
-│   the next sync.       │
-│    s  Sync and quit    │
-│    q  Quit without sy… │
-╰─ esc Cancel ───────────╯
 
 === settings-list ===
 ╭─ Settings / Projects ────╮
