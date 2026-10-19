@@ -30,7 +30,7 @@
 │   ↑ k       up                              ┃
 │   ↓ j       down                            ┃
 │   g G       first / last                    ┃
-│   1-4       jump to view                    │
+│   1-4       jump to view                    ┃
 │   h l tab   sidebar / list                  │
 │   enter     details                         │
 │   /         search                          │
@@ -39,7 +39,7 @@
 │   TASKS                                     │
 │   c         capture                         │
 │   ctrl+k    capture                         │
-╰─ esc close ──────────────────── 1-14 of 36 ─╯
+╰─ esc close ──────────────────── 1-14 of 35 ─╯
 
 === quick-capture ===
 ╭─ Quick capture ──────────────────── ctrl+k ─╮
@@ -76,18 +76,6 @@
 │    y  yes      n  no                        │
 │                                             │
 ╰─ esc cancel ────────────────────────────────╯
-
-=== quit ===
-╭─ Quit Momentum? ────────────────────────────╮
-│                                             │
-│   • Unsynced changes                        │
-│   Quitting without syncing keeps them in    │
-│   Taskwarrior for the next sync.            │
-│                                             │
-│    s  Sync and quit                         │
-│    q  Quit without syncing                  │
-│                                             │
-╰─ esc Cancel ────────────────────────────────╯
 
 === settings-list ===
 ╭─ Settings / Projects ──────────── 2 projects ─╮
