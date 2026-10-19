@@ -1,4 +1,5 @@
-// Command momentum is a keyboard-first terminal frontend for Taskwarrior.
+// Command momentum is a keyboard-first terminal task manager that keeps its
+// tasks on a Momentum server.
 package main
 
 import (
@@ -8,9 +9,6 @@ import (
 	"fmt"
 	"io"
 	"os"
-	"os/exec"
-	"regexp"
-	"strconv"
 	"strings"
 
 	tea "charm.land/bubbletea/v2"
@@ -73,12 +71,11 @@ func run(args []string, stdout, stderr io.Writer) int {
 	if command == "login" || command == "logout" {
 		return account(command, settings, resolvedPath, stdout, stderr)
 	}
-	client := taskwarrior.NewClient("task")
 	if command == "import" {
-		return importTasks(context.Background(), settings, resolvedPath, client, *dryRun, stdout, stderr)
+		return importTasks(context.Background(), settings, resolvedPath, taskwarrior.NewClient("task"), *dryRun, stdout, stderr)
 	}
 	if command == "doctor" {
-		options := diagnostics.DoctorOptions{Client: client, Binary: client.Binary, Config: settings, ConfigPath: resolvedPath}
+		options := diagnostics.DoctorOptions{Config: settings, ConfigPath: resolvedPath}
 		if settings.Backend.Enabled() {
 			options.Backend = backendDoctor(settings.Backend.URL)
 		}
@@ -89,18 +86,16 @@ func run(args []string, stdout, stderr io.Writer) int {
 		}
 		return 1
 	}
-	var storage taskwarrior.Client = client
-	if settings.Backend.Enabled() {
-		credentials, err := backend.SavedCredentials(settings.Backend.URL)
-		if err != nil {
-			fmt.Fprintln(stderr, "momentum:", err)
-			return 1
-		}
-		storage = backend.New(settings.Backend.URL, credentials.Token, backend.DeviceZone())
-	} else if err := validateTaskwarrior(context.Background(), client); err != nil {
+	if !settings.Backend.Enabled() {
+		fmt.Fprint(stderr, needsServer(resolvedPath))
+		return 1
+	}
+	credentials, err := backend.SavedCredentials(settings.Backend.URL)
+	if err != nil {
 		fmt.Fprintln(stderr, "momentum:", err)
 		return 1
 	}
+	storage := backend.New(settings.Backend.URL, credentials.Token, backend.DeviceZone())
 
 	home, _ := os.UserHomeDir()
 	logger, closer, _, err := diagnostics.NewLogger(*debug, diagnostics.LogOptions{HomeDir: home, XDGStateHome: os.Getenv("XDG_STATE_HOME")})
@@ -109,9 +104,6 @@ func run(args []string, stdout, stderr io.Writer) int {
 		return 1
 	}
 	defer closer.Close()
-	client.OnCommand = func(kind string, result taskwarrior.CommandResult, commandErr error) {
-		diagnostics.LogCommand(logger, kind, result, commandErr)
-	}
 	logger.Debug("starting Momentum", "command", command, "config", resolvedPath)
 
 	initial := app.ViewAuto
@@ -138,7 +130,7 @@ func run(args []string, stdout, stderr io.Writer) int {
 	return 0
 }
 
-func newAppModel(client taskwarrior.Client, settings config.Config, resolvedPath string, initial app.ViewName, darkBackground *bool) *app.Model {
+func newAppModel(client app.Client, settings config.Config, resolvedPath string, initial app.ViewName, darkBackground *bool) *app.Model {
 	store := config.NewProjectCatalogStore(resolvedPath)
 	migrationClient, _ := client.(app.ProjectMigrationClient)
 	coordinator := app.NewProjectMigrationCoordinator(store, migrationClient)
@@ -150,11 +142,21 @@ func newAppModel(client taskwarrior.Client, settings config.Config, resolvedPath
 		ProjectStore:         store,
 		ProjectConfigPath:    resolvedPath,
 		MigrationCoordinator: coordinator,
-		Backend:              settings.Backend.Enabled(),
 	})
 }
 
-// backendDoctor describes backend mode's server to momentum doctor.
+// needsServer is the setup steps for a config with no [backend] server.
+func needsServer(configPath string) string {
+	return fmt.Sprintf(`momentum: Momentum keeps tasks on a Momentum server. Add its address to %s:
+
+  [backend]
+  url = "https://momentum.example.com"
+
+then run momentum login. To bring over Taskwarrior tasks, run momentum import.
+`, configPath)
+}
+
+// backendDoctor describes the [backend] server to momentum doctor.
 func backendDoctor(url string) *diagnostics.BackendOptions {
 	credentials, err := backend.SavedCredentials(url)
 	return &diagnostics.BackendOptions{
@@ -194,7 +196,7 @@ func extractCommand(args []string) (string, []string, error) {
 }
 
 func printUsage(w io.Writer) {
-	fmt.Fprintln(w, "Momentum — a keyboard-first Taskwarrior frontend")
+	fmt.Fprintln(w, "Momentum — a keyboard-first task manager")
 	fmt.Fprintln(w)
 	fmt.Fprintln(w, "Usage:")
 	fmt.Fprintln(w, "  momentum [inbox|today|completed]")
@@ -209,33 +211,4 @@ func printUsage(w io.Writer) {
 	fmt.Fprintln(w, "  --version       print version")
 	fmt.Fprintln(w, "  --help          show this help")
 	fmt.Fprintln(w, "  --dry-run       with import, report what it would do and import nothing")
-}
-
-var versionRE = regexp.MustCompile(`(?i)\b([0-9]+)(?:\.[0-9]+)+\b`)
-
-func validateTaskwarrior(ctx context.Context, client *taskwarrior.CommandClient) error {
-	return validateTaskwarriorWithLookPath(ctx, client, exec.LookPath)
-}
-
-func validateTaskwarriorWithLookPath(ctx context.Context, client *taskwarrior.CommandClient, lookPath func(string) (string, error)) error {
-	if client == nil {
-		return errors.New("Taskwarrior is not configured")
-	}
-	path, err := lookPath(client.Binary)
-	if err != nil {
-		return errors.New("Taskwarrior executable not found; install Taskwarrior 3.x or run `momentum doctor`")
-	}
-	version, err := client.Version(ctx)
-	if err != nil {
-		return fmt.Errorf("cannot run Taskwarrior at %s: %w", path, err)
-	}
-	match := versionRE.FindStringSubmatch(version)
-	if len(match) < 2 {
-		return fmt.Errorf("could not determine Taskwarrior version from %q", taskwarrior.Redact(version))
-	}
-	major, err := strconv.Atoi(match[1])
-	if err != nil || major < 3 {
-		return fmt.Errorf("Taskwarrior 3.x is required; found %s", taskwarrior.Redact(version))
-	}
-	return nil
 }
