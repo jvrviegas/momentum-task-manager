@@ -51,7 +51,7 @@
 │   p ! D S t edit one field                                              │
 │   E         edit estimate                                               │
 │   R         edit recurrence                                             │
-╰─ esc close ──────────────────────────────────────────────── 1-20 of 36 ─╯
+╰─ esc close ──────────────────────────────────────────────── 1-20 of 35 ─╯
 
 === quick-capture ===
 ╭─ Quick capture ──────────────────────────────────────────────── ctrl+k ─╮
@@ -89,17 +89,6 @@
 │    y  yes      n  no                                         │
 │                                                              │
 ╰─ esc cancel ─────────────────────────────────────────────────╯
-
-=== quit ===
-╭─ Quit Momentum? ─────────────────────────────────────────╮
-│                                                          │
-│   • Unsynced changes                                     │
-│   Quitting without syncing keeps them in Taskwarrior for │
-│   the next sync.                                         │
-│                                                          │
-│    s  Sync and quit      q  Quit without syncing         │
-│                                                          │
-╰─ esc Cancel ─────────────────────────────────────────────╯
 
 === settings-list ===
 ╭─ Settings / Projects ─────────────────────────────────── 2 projects ─╮
