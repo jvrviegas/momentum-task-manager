@@ -7,11 +7,10 @@ import (
 	tea "charm.land/bubbletea/v2"
 
 	"github.com/jvrviegas/momentum-task-manager/core/domain"
-	"github.com/jvrviegas/momentum-task-manager/tui/internal/taskwarrior"
 	"github.com/jvrviegas/momentum-task-manager/tui/internal/ui"
 )
 
-func actionModel(client taskwarrior.Client) *Model {
+func actionModel(client Client) *Model {
 	model := testModel(client)
 	model.Tasks = []domain.Task{{UUID: "one", Description: "One", Status: "pending"}, {UUID: "two", Description: "Two", Status: "pending"}}
 	model.Views = domain.BuildViews(model.Tasks, model.now())
@@ -74,12 +73,12 @@ func TestDeleteConfirmationStartsMutationOnlyForYes(t *testing.T) {
 	}
 }
 
-func TestUndoLastRequiresGraceAvailability(t *testing.T) {
+func TestUndoLastRequiresAnOpenUndoWindow(t *testing.T) {
 	model := actionModel(&fakeClient{})
 	if model.UndoLast() != nil {
-		t.Fatal("undo should not run outside grace")
+		t.Fatal("undo should not run while the window is closed")
 	}
-	model.Sync.UndoAvailable = true
+	model.Undo = model.Undo.Open(model.now())
 	cmd := model.UndoLast()
 	if cmd == nil || model.PendingMutation.Kind != MutationUndo {
 		t.Fatalf("model=%#v", model)
@@ -157,12 +156,12 @@ func TestEmptyEditClosesWithoutClientCall(t *testing.T) {
 	}
 }
 
-func TestSuccessfulMutationMarksSyncGraceAndRequestsRefresh(t *testing.T) {
+func TestSuccessfulMutationOpensUndoAndRequestsRefresh(t *testing.T) {
 	model := actionModel(&fakeClient{exports: [][]domain.Task{{}}})
 	model.PendingMutation = &MutationRequest{Kind: MutationComplete, UUID: "one"}
 	model.MutationRunning = true
 	_, cmd := model.Update(MutationMsg{Kind: MutationComplete, UUID: "one"})
-	if cmd == nil || model.Mode != ModeRefreshing || !model.Sync.Unsynced {
+	if cmd == nil || model.Mode != ModeRefreshing || !model.Undo.Available(model.now()) {
 		t.Fatalf("model=%#v cmd=%v", model, cmd)
 	}
 }
