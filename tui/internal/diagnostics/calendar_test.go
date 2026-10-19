@@ -19,7 +19,7 @@ func TestDoctorReportsCalendarSourceWithoutEventContent(t *testing.T) {
 	settings := config.Defaults()
 	settings.Calendar.Enabled = true
 	settings.Calendar.Paths = []string{path}
-	report := Run(context.Background(), DoctorOptions{Config: settings, HomeDir: t.TempDir(), StateDir: t.TempDir(), Terminal: "xterm", LookPath: func(string) (string, error) { return "task", nil }})
+	report := Run(context.Background(), DoctorOptions{Config: settings, HomeDir: t.TempDir(), StateDir: t.TempDir(), Terminal: "xterm"})
 	var output bytes.Buffer
 	report.Print(&output)
 	text := output.String()
