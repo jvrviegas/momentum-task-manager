@@ -16,20 +16,17 @@ import (
 	"github.com/jvrviegas/momentum-task-manager/core/domain"
 	"github.com/jvrviegas/momentum-task-manager/tui/internal/app"
 	"github.com/jvrviegas/momentum-task-manager/tui/internal/bridge"
-	"github.com/jvrviegas/momentum-task-manager/tui/internal/taskwarrior"
 )
 
-// The interfaces the TUI and the bridge reach storage through.
+// The interfaces the TUI and the bridge reach the server through.
 var (
-	_ taskwarrior.Client          = (*Client)(nil)
-	_ bridge.Client               = (*Client)(nil)
-	_ app.ProjectMigrationClient  = (*Client)(nil)
-	_ app.ProjectMigrationApplier = (*Client)(nil)
+	_ app.Client                 = (*Client)(nil)
+	_ bridge.Client              = (*Client)(nil)
+	_ app.ProjectMigrationClient = (*Client)(nil)
 	_ interface {
 		ExportCompleted(context.Context, time.Time) ([]domain.Task, error)
 		StopRecurrence(context.Context, string) error
 		Tags(context.Context) ([]string, error)
-		SyncConfigured(context.Context) (bool, error)
 	} = (*Client)(nil)
 )
 
@@ -233,15 +230,13 @@ func TestEachChangeReachesItsRoute(t *testing.T) {
 	}
 	fake.answer(api.RouteListProjects, http.StatusOK, `{"projects":["home"]}`)
 	fake.answer(api.RouteListTags, http.StatusOK, `{"tags":["next"]}`)
-	fake.answer(api.RouteVersion, http.StatusOK, `{"server":"v1.2.3"}`)
 	projects, _ := c.Projects(ctx)
 	tags, _ := c.Tags(ctx)
-	version, _ := c.Version(ctx)
-	if !reflect.DeepEqual(projects, []string{"home"}) || !reflect.DeepEqual(tags, []string{"next"}) || version != "v1.2.3" {
-		t.Errorf("projects %v, tags %v, version %q", projects, tags, version)
+	if !reflect.DeepEqual(projects, []string{"home"}) || !reflect.DeepEqual(tags, []string{"next"}) {
+		t.Errorf("projects %v, tags %v", projects, tags)
 	}
 	want := []string{api.RouteCompleteTask, api.RouteDeleteTask, api.RouteStartTask, api.RouteStopTask, api.RouteStopRecurrence,
-		api.RouteUndo, api.RouteListProjects, api.RouteListTags, api.RouteVersion}
+		api.RouteUndo, api.RouteListProjects, api.RouteListTags}
 	if got := fake.patterns(); !reflect.DeepEqual(got, want) {
 		t.Errorf("routes %v, want %v", got, want)
 	}
@@ -257,9 +252,9 @@ func TestProjectMigrationAppliesInOneRequest(t *testing.T) {
 	c, fake := newFakeServer(t, "")
 	ctx := t.Context()
 	fake.answer(api.RouteListTasks, http.StatusOK, `{"tasks":[{"uuid":"a","description":"Plan","status":"pending","project":"work"}]}`)
-	export, err := c.ExportPendingInContext(ctx)
-	if err != nil || export.Scope != (taskwarrior.ProjectMigrationScope{}) || len(export.Tasks) != 1 || export.Tasks[0].Project != "work" {
-		t.Fatalf("export %+v, %v", export, err)
+	pending, err := c.ExportPending(ctx)
+	if err != nil || len(pending) != 1 || pending[0].Project != "work" {
+		t.Fatalf("export %+v, %v", pending, err)
 	}
 
 	plan := domain.ProjectCatalogPlan{SourceValue: "work", DestinationValue: "job", IncludeSubprojects: true}
@@ -310,22 +305,5 @@ func TestTheTimeZoneIsSetBeforeTheFirstChange(t *testing.T) {
 	unknown.Complete(ctx, "u")
 	if got := fake.patterns(); !reflect.DeepEqual(got, []string{api.RouteCompleteTask}) {
 		t.Errorf("without a zone sent %v", got)
-	}
-}
-
-func TestTaskwarriorOnlyCallsAnswerLocally(t *testing.T) {
-	c, fake := newFakeServer(t, "Europe/Lisbon")
-	ctx := t.Context()
-	synced, syncErr := c.Sync(ctx)
-	configured, configuredErr := c.SyncConfigured(ctx)
-	name, contextErr := c.Context(ctx)
-	estimates, estimatesErr := c.EstimateUDAReadiness(ctx)
-	if synced != (taskwarrior.SyncResult{}) || configured || name != "" || estimates != taskwarrior.EstimateUDAConfigured ||
-		syncErr != nil || configuredErr != nil || contextErr != nil || estimatesErr != nil {
-		t.Errorf("sync %+v %v, configured %v %v, context %q %v, estimates %q %v",
-			synced, syncErr, configured, configuredErr, name, contextErr, estimates, estimatesErr)
-	}
-	if got := fake.seen(); len(got) != 0 {
-		t.Errorf("sent %+v", got)
 	}
 }
