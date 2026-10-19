@@ -23,11 +23,7 @@ name = 'Work' # keep first name comment
 value = "work"
 
 [sync]
-enabled = false
-interval = "7m"
 mutation_delay = "2s"
-startup = false
-shutdown = false
 
 # keep between project entries
 [[projects]]
@@ -165,11 +161,7 @@ func TestProjectCatalogStoreCreatesMissingConfigDeliberately(t *testing.T) {
 func TestProjectCatalogStoreAddsAndClearsArrayTablesWithoutTouchingOtherSettings(t *testing.T) {
 	path := writeConfig(t, `theme = "dark"
 [sync]
-enabled = true
-interval = "5m"
 mutation_delay = "15s"
-startup = true
-shutdown = true
 `)
 	store := NewProjectCatalogStore(path)
 	snapshot, err := store.Read(context.Background())
