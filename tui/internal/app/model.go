@@ -10,7 +10,6 @@ import (
 
 	"github.com/jvrviegas/momentum-task-manager/core/domain"
 	"github.com/jvrviegas/momentum-task-manager/tui/internal/config"
-	"github.com/jvrviegas/momentum-task-manager/tui/internal/taskwarrior"
 	"github.com/jvrviegas/momentum-task-manager/tui/internal/ui"
 )
 
@@ -47,7 +46,6 @@ const (
 	OverlayDetails  Overlay = "details"
 	OverlayConfirm  Overlay = "confirm"
 	OverlayHelp     Overlay = "help"
-	OverlayQuit     Overlay = "quit"
 	OverlayPlanner  Overlay = "planner"
 	OverlayMinimum  Overlay = "minimum"
 )
@@ -63,7 +61,7 @@ const (
 // ModelOptions configures a root model without coupling tests to process
 // globals. Client may be nil for rendering-only tests.
 type ModelOptions struct {
-	Client               taskwarrior.Client
+	Client               Client
 	Config               config.Config
 	InitialView          ViewName
 	Now                  func() time.Time
@@ -74,13 +72,11 @@ type ModelOptions struct {
 	ProjectStore         config.ProjectCatalogStore
 	ProjectConfigPath    string
 	MigrationCoordinator *ProjectMigrationCoordinator
-	// Backend reports that Client keeps tasks on a Momentum server.
-	Backend bool
 }
 
 // Model is Momentum's root Bubble Tea state machine.
 type Model struct {
-	Client            taskwarrior.Client
+	Client            Client
 	Config            config.Config
 	ProjectStore      config.ProjectCatalogStore
 	ProjectConfigPath string
@@ -100,17 +96,13 @@ type Model struct {
 	Width         int
 	Height        int
 	Status        string
-	TaskContext   string
 	Err           error
 	CompletedErr  error
 
 	MutationRunning bool
 	PendingMutation *MutationRequest
 	FailedQuickAdd  *MutationRequest
-	Sync            SyncState
-	SyncReady       bool
-	SyncConfigured  bool
-	Backend         bool
+	Undo            UndoWindow
 	Server          ServerState
 
 	Styles          ui.Styles
@@ -121,7 +113,6 @@ type Model struct {
 	Details         ui.DetailsModel
 	Confirm         ui.ConfirmModel
 	Help            ui.HelpModel
-	Quit            ui.QuitModel
 	ProjectSettings ui.ProjectSettingsModel
 	ProjectRename   ui.ProjectRenameModel
 	Appearance      ui.AppearanceSettingsModel
@@ -146,10 +137,9 @@ type Model struct {
 	MigrationRunning         bool
 	MigrationID              uint64
 	PendingMigration         *ProjectMigrationRequest
-	MigrationSyncBefore      SyncState
+	MigrationUndoBefore      UndoWindow
 	MigrationRefreshPending  bool
 	MigrationOutcome         *ProjectMigrationResult
-	SyncDeferred             bool
 	QuitAfterProjectSettings bool
 	DeleteTarget             string
 	RecurrenceTarget         string
@@ -179,18 +169,6 @@ func NewModel(options ModelOptions) *Model {
 	}
 	styles := ui.NewStyles(ui.ResolveTheme(settings.Theme, darkBackground))
 	icons := ui.IconsFor(settings.Icons)
-	syncReady := true
-	syncConfigured := settings.Sync.Enabled && options.Client != nil
-	syncState := NewSyncState(settings.Sync, now())
-	if options.Backend {
-		syncConfigured = false
-		syncState = NewBackendSyncState(settings.Sync.MutationDelay)
-	} else if _, ok := options.Client.(interface {
-		SyncConfigured(context.Context) (bool, error)
-	}); ok {
-		syncReady = false
-		syncConfigured = false
-	}
 	model := &Model{
 		Client:               options.Client,
 		Config:               settings,
@@ -207,10 +185,7 @@ func NewModel(options ModelOptions) *Model {
 		Mode:                 ModeLoading,
 		Width:                options.Width,
 		Height:               options.Height,
-		Sync:                 syncState,
-		SyncReady:            syncReady,
-		SyncConfigured:       syncConfigured,
-		Backend:              options.Backend,
+		Undo:                 UndoWindow{Delay: max(0, settings.Sync.MutationDelay)},
 		Styles:               styles,
 		Icons:                icons,
 		QuickAdd:             ui.NewQuickAdd(styles, icons),
@@ -219,7 +194,6 @@ func NewModel(options ModelOptions) *Model {
 		Details:              ui.NewDetails(styles),
 		Confirm:              ui.NewConfirm(styles),
 		Help:                 ui.NewHelp(styles),
-		Quit:                 ui.NewQuit(styles),
 		ProjectSettings:      ui.NewProjectSettings(styles),
 		ProjectRename:        ui.NewProjectRename(styles),
 		Appearance:           ui.NewAppearanceSettings(styles, settings.Theme),
@@ -228,7 +202,6 @@ func NewModel(options ModelOptions) *Model {
 	}
 	model.Details.Icons = icons
 	model.Confirm.Icons = icons
-	model.Quit.Icons = icons
 	model.ProjectSettings.SetProjects(settings.Projects)
 	if model.ActiveView == ViewSettings {
 		model.ProjectSettings.OpenProjects(settings.Projects)
@@ -240,11 +213,11 @@ func NewModel(options ModelOptions) *Model {
 }
 
 // New is a concise constructor for application entry points.
-func New(client taskwarrior.Client, settings config.Config, initial ViewName) *Model {
+func New(client Client, settings config.Config, initial ViewName) *Model {
 	return NewModel(ModelOptions{Client: client, Config: settings, InitialView: initial})
 }
 
-// Init starts local loading; it never performs a subprocess synchronously.
+// Init starts loading; it never waits for the server synchronously.
 func (m *Model) Init() tea.Cmd {
 	if m == nil {
 		return nil
@@ -268,7 +241,6 @@ func (m *Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		m.Details.SetSize(message.Width, message.Height)
 		m.Confirm.SetSize(message.Width, message.Height)
 		m.Help.SetSize(message.Width, message.Height)
-		m.Quit.SetSize(message.Width, message.Height)
 		m.ProjectSettings.SetSize(message.Width, message.Height)
 		m.ProjectRename.SetSize(message.Width, message.Height)
 		m.Planner.SetSize(message.Width, message.Height)
@@ -387,11 +359,6 @@ func (m *Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		m.Overlay = OverlayNone
 		m.restoreSelection(m.ActiveView, m.Selected[normalizeView(m.ActiveView)])
 		return m, nil
-	case ContextMsg:
-		if message.Err == nil {
-			m.TaskContext = strings.TrimSpace(message.Name)
-		}
-		return m, nil
 	case ProjectsMsg:
 		if message.RequestID != 0 && message.RequestID != m.ProjectDiscoveryID {
 			return m, nil
@@ -410,12 +377,9 @@ func (m *Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			m.Editor.SetCatalog(m.Editor.Projects, message.Values)
 		}
 		return m, nil
-	case SyncConfigMsg:
-		return m, m.applySyncConfig(message)
-	case SyncMsg:
-		return m, m.applySync(message)
-	case SyncTickMsg:
-		return m, m.handleSyncTick(time.Time(message))
+	case UndoTickMsg:
+		// Redrawing is all a closed window needs.
+		return m, nil
 	case RefreshTickMsg:
 		return m, m.handleRefreshTick(time.Time(message))
 	case TasksMsg:
@@ -460,9 +424,6 @@ func (m *Model) applyTasks(message TasksMsg) tea.Cmd {
 		if message.Reason == "initial" && m.Config.RefreshInterval > 0 {
 			return refreshTickCommand(m.Config.RefreshInterval)
 		}
-		if migrationRefresh {
-			return m.scheduleSync()
-		}
 		return nil
 	}
 	m.Err = nil
@@ -504,8 +465,8 @@ func (m *Model) applyTasks(message TasksMsg) tea.Cmd {
 	}
 	if message.Reason == "migration" && m.MigrationOutcome != nil {
 		result := m.MigrationOutcome
-		m.Status = fmt.Sprintf("Migration: %d changed, %d skipped, %d failed, %d ambiguous; refreshed %d tasks", result.ChangedCount(), result.SkippedCount(), result.FailedCount(), result.AmbiguousCount(), len(m.Tasks))
-	} else if message.Reason == "refresh" || message.Reason == "sync" || message.Reason == "mutation" || message.Reason == "migration" {
+		m.Status = fmt.Sprintf("Migration: %d changed; refreshed %d tasks", result.Changed, len(m.Tasks))
+	} else if message.Reason == "refresh" || message.Reason == "mutation" || message.Reason == "migration" {
 		m.Status = fmt.Sprintf("Updated %d tasks", len(m.Tasks))
 	} else if message.Reason == "plan" {
 		if !strings.HasPrefix(m.Status, "Daily plan partially") {
@@ -519,28 +480,12 @@ func (m *Model) applyTasks(message TasksMsg) tea.Cmd {
 	}
 	var commands []tea.Cmd
 	if message.Reason == "initial" {
-		if reader, ok := m.Client.(interface {
-			Context(context.Context) (string, error)
-		}); ok {
-			commands = append(commands, ContextCommand(m.ctx, reader))
-		}
-		if !m.SyncReady {
-			if reader, ok := m.Client.(interface {
-				SyncConfigured(context.Context) (bool, error)
-			}); ok {
-				commands = append(commands, SyncConfigCommand(m.ctx, reader))
-			}
-		} else {
-			commands = append(commands, m.startStartupSync())
-		}
 		if m.Config.RefreshInterval > 0 {
 			commands = append(commands, refreshTickCommand(m.Config.RefreshInterval))
 		}
 		if m.ProjectStore != nil {
 			commands = append(commands, ProjectCatalogSnapshotCommand(m.ctx, m.ProjectStore))
 		}
-	} else if m.SyncReady && m.Sync.NextAt.After(m.now()) && m.Sync.Phase != SyncInFlight {
-		commands = append(commands, m.scheduleSync())
 	}
 	return tea.Batch(commands...)
 }
@@ -622,7 +567,7 @@ func (m *Model) applyMutation(message MutationMsg) tea.Cmd {
 		}
 
 		if pendingKind == MutationPlan && message.PlanApplied > 0 {
-			m.Sync, _ = m.Sync.Mutation(m.now())
+			m.Undo = m.Undo.Open(m.now())
 		}
 		if pendingKind == MutationPlan && m.Planner.Open {
 			m.Status = fmt.Sprintf("Daily plan partially applied (%d/%d): %s", message.PlanApplied, message.PlanTotal, conciseError(message.Err))
@@ -647,22 +592,18 @@ func (m *Model) applyMutation(message MutationMsg) tea.Cmd {
 	}
 	m.PendingMutation = nil
 	if message.Kind == MutationUndo {
-		m.Sync, _ = m.Sync.Apply(SyncEvent{Kind: SyncUndo, At: m.now()})
+		m.Undo = m.Undo.Close()
 	} else {
-		m.Sync, _ = m.Sync.Mutation(m.now())
+		m.Undo = m.Undo.Open(m.now())
 	}
 	var request MutationRequest
 	if pending != nil {
 		request = *pending
 	}
 	m.Status = m.mutationStatus(message.Kind, request)
-	// Every successful mutation has one and only one follow-up export. Sync
-	// bookkeeping is attached by the feature-integration layer; backend mode
-	// only needs its undo window closed on time.
-	if m.Backend {
-		return tea.Batch(m.beginRefresh("mutation"), m.scheduleSync())
-	}
-	return m.beginRefresh("mutation")
+	// Every successful mutation has one and only one follow-up export, and
+	// the undo window closes on time.
+	return tea.Batch(m.beginRefresh("mutation"), m.scheduleUndoTick())
 }
 
 // mutationStatus names what changed, e.g. Completed "Send Q3 invoice".
@@ -834,8 +775,6 @@ func (m *Model) updateKey(message tea.KeyPressMsg) tea.Cmd {
 				m.Overlay = OverlayNone
 			}
 			return nil
-		case OverlayQuit:
-			return m.handleQuitChoice(m.Quit.Update(message))
 		case OverlayPlanner:
 			return m.Planner.Update(message)
 		default:
@@ -848,8 +787,6 @@ func (m *Model) updateKey(message tea.KeyPressMsg) tea.Cmd {
 	switch message.String() {
 	case "r":
 		return m.beginRefresh("manual")
-	case "ctrl+r":
-		return m.beginSync()
 	case "1":
 		m.SwitchView(ViewInbox)
 	case "2":
