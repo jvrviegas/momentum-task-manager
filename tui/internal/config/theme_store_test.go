@@ -8,6 +8,7 @@ import (
 	"reflect"
 	"strings"
 	"testing"
+	"time"
 
 	"github.com/jvrviegas/momentum-task-manager/core/domain"
 )
@@ -17,7 +18,7 @@ func TestThemeStoreAddsRootKeyWithoutTouchingTablesOrComments(t *testing.T) {
 refresh_interval = "10m" # keep refresh
 
 [sync]
-enabled = false
+mutation_delay = "3s"
 
 [[projects]]
 name = "Work"
@@ -37,7 +38,7 @@ value = "work"
 		t.Fatal(err)
 	}
 	text := string(data)
-	for _, retained := range []string{"# keep top comment", `refresh_interval = "10m" # keep refresh`, "[sync]", "enabled = false"} {
+	for _, retained := range []string{"# keep top comment", `refresh_interval = "10m" # keep refresh`, "[sync]", `mutation_delay = "3s"`} {
 		if !strings.Contains(text, retained) {
 			t.Errorf("lost %q:\n%s", retained, text)
 		}
@@ -46,7 +47,7 @@ value = "work"
 	if err != nil {
 		t.Fatal(err)
 	}
-	if got.Theme != ThemeTerminal || got.Sync.Enabled || !reflect.DeepEqual(got.Projects, domain.ProjectCatalog{{Name: "Work", Value: "work"}}) {
+	if got.Theme != ThemeTerminal || got.Sync.MutationDelay != 3*time.Second || !reflect.DeepEqual(got.Projects, domain.ProjectCatalog{{Name: "Work", Value: "work"}}) {
 		t.Fatalf("theme was not written at the root: %#v\n%s", got, text)
 	}
 	// The returned snapshot must stay usable for a later catalog save.
