@@ -13,7 +13,7 @@ struct MomentumCommands: Commands {
 
     var body: some Commands {
         CommandGroup(after: .appInfo) {
-            if store.isBackend {
+            if store.backendURL != nil {
                 Divider()
                 Button("Sign In…") { store.beginSignIn() }
                     .disabled(store.hasOverlay)
@@ -24,7 +24,7 @@ struct MomentumCommands: Commands {
         CommandGroup(replacing: .newItem) {
             Button("New Task") { store.showCapture = true }
                 .keyboardShortcut("n")
-                .disabled(store.status == nil || (store.isBackend && store.account == nil) || store.hasOverlay)
+                .disabled(store.account == nil || store.hasOverlay)
         }
         CommandGroup(replacing: .undoRedo) {
             Button("Undo") { undo() }
@@ -57,12 +57,6 @@ struct MomentumCommands: Commands {
                 .disabled(actionable?.recurrenceTarget == nil)
             Button("Delete…") { store.pendingDelete = actionable }
                 .disabled(actionable == nil)
-            if !store.isBackend {
-                Divider()
-                Button("Sync Now") { store.syncNow() }
-                    .keyboardShortcut("r")
-                    .disabled(store.status == nil)
-            }
         }
         CommandGroup(replacing: .help) {
             Button("Keyboard Shortcuts") { store.showShortcuts = true }
@@ -71,7 +65,7 @@ struct MomentumCommands: Commands {
     }
 
     /// ⌘Z undoes typing inside a text field, and otherwise undoes the last
-    /// Taskwarrior change while undo is still available.
+    /// change while undo is still available.
     private func undo() {
         if let editor = NSApp.keyWindow?.firstResponder as? NSTextView, editor.isEditable {
             NSApp.sendAction(Selector(("undo:")), to: nil, from: nil)
