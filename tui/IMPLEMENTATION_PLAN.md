@@ -722,6 +722,11 @@ The UI follows the "Momentum TUI redesign" canvas (foundations, glyph vocabulary
 - **Edit validation** in the bridge mirrors `internal/ui/edit.go`'s submit rules on the same `domain` parsers.
 - **UI-only state stays in Swift.** The sync state machine (`internal/app/sync_state.go`), the search filter and literal-span shifting are ported to Swift with tests that mirror the Go ones; the app process owns them so unsynced state survives a bridge restart.
 - **Date times.** Taskwarrior 3.5 reads `due:2026-10-15 09:30` as midnight and drops the time without an error, while `2026-10-15T09:30` keeps it. `internal/taskwarrior` rewrites the editor's `YYYY-MM-DD HH:MM` form to ISO for due and scheduled on every `add` and `modify`, so the TUI and the bridge both keep the time.
+- **Visual design.** The app follows the "Momentum for macOS" canvas: warm neutral surfaces and one teal accent, in light and dark (`Views/Theme.swift`). Departures, because Momentum has no matching feature or because the app keeps native macOS chrome:
+  - **Not built:** Plan Today (the sidebar capacity card, the toolbar Plan button and the Plan Today sheet) and the Settings entry.
+  - **Native chrome:** the window keeps `NavigationSplitView`, the system toolbar and search field, the inspector column and sheets. Quick capture is a sheet, not a floating panel, and the inspector stays a column in narrow windows instead of floating over the list. The system places the search field.
+  - **Accent:** list selection is the system's, in the system accent, not the canvas's soft teal. Primary buttons are teal; the rest of the system controls are teal only when the system accent is Multicolor. The dark teal is deeper than the canvas's so white text on it stays legible.
+  - **Unchanged behavior:** correction review keeps text fields in Taskwarrior's formats, without the canvas's priority segments, date pickers, suggested fixes, "Keep as text" chips or issue count. Capture has no "Add another" (⇧↩). The Taskwarrior version moved from the sidebar into the context row's tooltip.
 
 ## Completion Log
 
