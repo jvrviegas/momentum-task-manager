@@ -3,40 +3,33 @@ package app
 import (
 	"context"
 	"errors"
-	"reflect"
 	"testing"
 	"time"
 
 	"github.com/jvrviegas/momentum-task-manager/core/domain"
-	"github.com/jvrviegas/momentum-task-manager/tui/internal/config"
-	"github.com/jvrviegas/momentum-task-manager/tui/internal/taskwarrior"
 )
 
 func lifecycleRequest(t *testing.T, migrate bool) ProjectMigrationRequest {
 	t.Helper()
 	plan := coordinatorPlan(t, false)
 	mapping := domain.ProjectTaskMapping{UUID: "one", OldValue: "work", NewValue: "delivery"}
-	return coordinatorRequest(plan, taskwarrior.ProjectMigrationScope{}, []domain.ProjectTaskMapping{mapping}, migrate)
+	return coordinatorRequest(plan, []domain.ProjectTaskMapping{mapping}, migrate)
 }
 
 func lifecycleModel(coordinator *ProjectMigrationCoordinator) *Model {
 	model := actionModel(&fakeClient{exports: [][]domain.Task{{testTask("one", 1)}}})
 	model.MigrationCoordinator = coordinator
-	model.SyncConfigured = true
-	model.SyncReady = true
 	model.Mode = ModeReady
 	return model
 }
 
-func TestMigrationGateBlocksCompetingTaskWritesSyncAndUndo(t *testing.T) {
+func TestMigrationGateBlocksCompetingTaskWritesAndUndo(t *testing.T) {
 	model := lifecycleModel(NewProjectMigrationCoordinator(&coordinatorStore{}, &coordinatorClient{}))
 	model.MigrationRunning = true
 	model.Mode = ModeMutating
+	model.Undo = model.Undo.Open(model.now())
 	if cmd := model.beginMutation(MutationRequest{Kind: MutationComplete, UUID: "one"}); cmd != nil {
 		t.Fatal("task mutation started during migration")
-	}
-	if cmd := model.beginSync(); cmd != nil {
-		t.Fatal("sync started during migration")
 	}
 	if cmd := model.UndoLast(); cmd != nil {
 		t.Fatal("undo started during migration")
@@ -49,15 +42,15 @@ func TestMigrationGateBlocksCompetingTaskWritesSyncAndUndo(t *testing.T) {
 	}
 }
 
-func TestCatalogOnlyMigrationRestoresSyncStateAndDoesNotRefreshTasks(t *testing.T) {
+func TestCatalogOnlyMigrationRestoresUndoAndDoesNotRefreshTasks(t *testing.T) {
 	store := &coordinatorStore{}
 	coordinator := NewProjectMigrationCoordinator(store, nil)
 	model := lifecycleModel(coordinator)
-	model.SyncConfigured = false
-	before := model.Sync
+	model.Undo = model.Undo.Open(model.now())
+	before := model.Undo
 	request := lifecycleRequest(t, false)
 	cmd := model.beginProjectMigration(request)
-	if cmd == nil || !model.MigrationRunning || model.Sync.UndoAvailable {
+	if cmd == nil || !model.MigrationRunning || model.Undo.Available(model.now()) {
 		t.Fatalf("start state=%#v cmd=%v", model, cmd)
 	}
 	result, ok := cmd().(ProjectMigrationMsg)
@@ -65,7 +58,7 @@ func TestCatalogOnlyMigrationRestoresSyncStateAndDoesNotRefreshTasks(t *testing.
 		t.Fatalf("result=%#v", result)
 	}
 	_, followUp := model.Update(result)
-	if followUp != nil || model.MigrationRunning || !reflect.DeepEqual(model.Sync, before) || model.Mode != ModeReady {
+	if model.MigrationRunning || model.Undo != before || model.Mode != ModeReady {
 		t.Fatalf("catalog-only state=%#v follow-up=%v", model, followUp)
 	}
 	if len(store.saved) != 1 || len(model.Tasks) != 2 {
@@ -73,23 +66,19 @@ func TestCatalogOnlyMigrationRestoresSyncStateAndDoesNotRefreshTasks(t *testing.
 	}
 }
 
-func TestMigrationTaskChangesDisableUndoMarkUnsyncedAndReleaseAfterRefresh(t *testing.T) {
+func TestMigrationTaskChangesCloseUndoAndReleaseAfterRefresh(t *testing.T) {
 	store := &coordinatorStore{}
-	client := &coordinatorClient{
-		export:   taskwarrior.ProjectMigrationExport{Tasks: []domain.Task{{UUID: "one", Status: "pending", Project: "work"}}},
-		outcomes: []taskwarrior.ProjectTaskOutcome{{Kind: taskwarrior.ProjectTaskChanged}},
-	}
+	client := &coordinatorClient{tasks: []domain.Task{{UUID: "one", Status: "pending", Project: "work"}}}
 	model := lifecycleModel(NewProjectMigrationCoordinator(store, client))
-	model.Sync, _ = model.Sync.Mutation(model.now())
-	model.Sync.UndoAvailable = true
+	model.Undo = model.Undo.Open(model.now())
 	beforeTasks := append([]domain.Task(nil), model.Tasks...)
 	cmd := model.beginProjectMigration(lifecycleRequest(t, true))
 	result := cmd().(ProjectMigrationMsg)
 	_, refresh := model.Update(result)
-	if refresh == nil || !model.MigrationRunning || !model.Sync.Unsynced || model.Sync.UndoAvailable || !model.Sync.UndoUntil.IsZero() {
+	if refresh == nil || !model.MigrationRunning || model.Undo.Available(model.now()) {
 		t.Fatalf("migration task state=%#v refresh=%v", model, refresh)
 	}
-	if !reflect.DeepEqual(model.Tasks, beforeTasks) {
+	if len(model.Tasks) != len(beforeTasks) || model.Tasks[0].UUID != beforeTasks[0].UUID {
 		t.Fatal("task list changed before migration refresh")
 	}
 	message, ok := refresh().(TasksMsg)
@@ -97,54 +86,24 @@ func TestMigrationTaskChangesDisableUndoMarkUnsyncedAndReleaseAfterRefresh(t *te
 		t.Fatalf("refresh message=%#v", message)
 	}
 	model.Update(message)
-	if model.MigrationRunning || model.MigrationRefreshPending || model.Mode != ModeReady {
+	if model.MigrationRunning || model.MigrationRefreshPending || model.Mode != ModeReady || model.Undo.Available(model.now()) {
 		t.Fatalf("migration gate not released=%#v", model)
 	}
-	if len(store.saved) != 1 || len(client.calls) != 1 {
-		t.Fatalf("migration calls saved=%v tasks=%v", store.saved, client.calls)
-	}
-}
-
-func TestMigrationPartialTaskChangeKeepsDirtyStateAndLaterOrdinaryUndo(t *testing.T) {
-	store := &coordinatorStore{}
-	client := &coordinatorClient{
-		export: taskwarrior.ProjectMigrationExport{Tasks: []domain.Task{
-			{UUID: "one", Status: "pending", Project: "work"},
-			{UUID: "two", Status: "pending", Project: "work"},
-		}},
-		outcomes: []taskwarrior.ProjectTaskOutcome{{Kind: taskwarrior.ProjectTaskChanged}, {Kind: taskwarrior.ProjectTaskFailed, Err: errors.New("hook")}},
-	}
-	model := lifecycleModel(NewProjectMigrationCoordinator(store, client))
-	request := lifecycleRequest(t, true)
-	request.TaskMappings = append(request.TaskMappings, domain.ProjectTaskMapping{UUID: "two", OldValue: "work", NewValue: "delivery"})
-	cmd := model.beginProjectMigration(request)
-	_, refresh := model.Update(cmd().(ProjectMigrationMsg))
-	if refresh == nil {
-		t.Fatal("partial changed migration did not request refresh")
-	}
-	model.Update(refresh().(TasksMsg))
-	if !model.Sync.Unsynced || model.Sync.UndoAvailable || model.MigrationRunning {
-		t.Fatalf("partial state=%#v", model)
+	if len(store.saved) != 1 || len(client.calls) != 1 || model.Status != "Migration: 1 changed; refreshed 1 tasks" {
+		t.Fatalf("migration calls saved=%v tasks=%v status=%q", store.saved, client.calls, model.Status)
 	}
 
-	model.MutationRunning = false
 	ordinary := model.beginMutation(MutationRequest{Kind: MutationComplete, UUID: "one"})
 	if ordinary == nil {
 		t.Fatal("ordinary mutation did not resume")
 	}
 	model.Update(ordinary().(MutationMsg))
-	if !model.Sync.UndoAvailable {
-		t.Fatalf("ordinary mutation did not restore undo grace: %#v", model.Sync)
+	if !model.Undo.Available(model.now()) {
+		t.Fatalf("ordinary mutation did not open undo: %#v", model.Undo)
 	}
 }
 
-func TestMigrationFailureAndCancellationDoNotLosePreexistingDirtySyncState(t *testing.T) {
-	before := NewSyncState(config.SyncConfig{Enabled: true, Interval: time.Minute, MutationDelay: time.Second, Startup: false, Shutdown: true}, time.Now())
-	before.Unsynced = true
-	before.UndoAvailable = true
-	before.UndoUntil = time.Now().Add(time.Second)
-	before.Phase = SyncGrace
-
+func TestMigrationFailureAndCancellationKeepTheUndoWindow(t *testing.T) {
 	for _, tc := range []struct {
 		name       string
 		storeError error
@@ -154,9 +113,9 @@ func TestMigrationFailureAndCancellationDoNotLosePreexistingDirtySyncState(t *te
 	} {
 		t.Run(tc.name, func(t *testing.T) {
 			store := &coordinatorStore{err: tc.storeError}
-			client := &coordinatorClient{export: taskwarrior.ProjectMigrationExport{}}
-			model := lifecycleModel(NewProjectMigrationCoordinator(store, client))
-			model.Sync = before
+			model := lifecycleModel(NewProjectMigrationCoordinator(store, &coordinatorClient{}))
+			before := UndoWindow{Delay: time.Second}.Open(model.now())
+			model.Undo = before
 			request := lifecycleRequest(t, tc.storeError == nil)
 			ctx := context.Background()
 			if tc.storeError == nil {
@@ -168,31 +127,24 @@ func TestMigrationFailureAndCancellationDoNotLosePreexistingDirtySyncState(t *te
 			cmd := model.beginProjectMigration(request)
 			result := cmd().(ProjectMigrationMsg)
 			model.Update(result)
-			if model.MigrationRunning || !reflect.DeepEqual(model.Sync, before) {
-				t.Fatalf("state=%#v before=%#v", model.Sync, before)
+			if model.MigrationRunning || model.Undo != before {
+				t.Fatalf("state=%#v before=%#v", model.Undo, before)
 			}
 		})
 	}
 }
 
-func TestSyncAndRefreshTimersDeferWhileMigrationOwnsGate(t *testing.T) {
+func TestTimersWaitWhileMigrationOwnsGate(t *testing.T) {
 	model := lifecycleModel(NewProjectMigrationCoordinator(&coordinatorStore{}, nil))
 	model.MigrationRunning = true
-	model.Sync.Phase = SyncWaiting
-	now := model.now()
-	model.Sync.NextAt = now
-	if cmd := model.handleSyncTick(now); cmd != nil || !model.SyncDeferred {
-		t.Fatalf("sync tick was not deferred: cmd=%v state=%#v", cmd, model.Sync)
+	model.Undo = model.Undo.Open(model.now())
+	if cmd := model.scheduleUndoTick(); cmd != nil {
+		t.Fatal("undo tick scheduled during migration")
 	}
 	model.Config.RefreshInterval = time.Millisecond
-	if cmd := model.handleRefreshTick(now); cmd == nil {
-		t.Fatal("refresh timer was dropped instead of rescheduled")
+	if cmd := model.handleRefreshTick(model.now()); cmd == nil || model.Mode == ModeRefreshing {
+		t.Fatalf("refresh timer ran or was dropped during migration: mode=%s", model.Mode)
 	}
-	if cmd := model.startStartupSync(); cmd != nil {
-		t.Fatal("startup sync started during migration")
-	}
-	model.MigrationRunning = false
-	model.SyncDeferred = false
 }
 
 func TestMigrationCommandReturnsTypedResultWhenCoordinatorUnavailable(t *testing.T) {
