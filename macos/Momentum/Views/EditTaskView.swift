@@ -23,7 +23,7 @@ struct EditTaskView: View {
         VStack(alignment: .leading, spacing: 12) {
             VStack(alignment: .leading, spacing: 4) {
                 Text("Edit Task").font(.title3.bold())
-                Text("Only changed fields are sent to Taskwarrior. Other properties are kept.")
+                Text("Only changed fields are sent to the server. Other properties are kept.")
                     .foregroundStyle(.secondary)
             }
             Form {
@@ -53,13 +53,10 @@ struct EditTaskView: View {
                 labeled(.scheduled) {
                     DateExpressionField(title: "Scheduled", text: $fields.scheduled)
                 }
-                labeled(.estimate, hint: store.estimatesWritable ? "1 minute to 24 hours, e.g. 45m, 1.5h, 1h30m. Empty clears it." : "Estimate writes are blocked until ~/.taskrc defines uda.estimate.type=duration.") {
+                labeled(.estimate, hint: "1 minute to 24 hours, e.g. 45m, 1.5h, 1h30m. Empty clears it.") {
                     TextField("Estimate", text: $fields.estimate, prompt: Text("none"))
-                        .disabled(!store.estimatesWritable)
                 }
-                labeled(.recurrence, hint: task.parent == nil ? nil : store.isBackend
-                    ? "Changes the rule of the whole series. Use Stop Repeating to end it."
-                    : "Changes this instance. Use Stop Repeating to end the whole series.") {
+                labeled(.recurrence, hint: task.parent == nil ? nil : "Changes the rule of the whole series. Use Stop Repeating to end it.") {
                     TextField("Repeats", text: $fields.recurrence, prompt: Text("does not repeat"))
                         .textInputSuggestions {
                             ForEach(matching(["daily", "weekdays", "weekly", "2wks", "monthly"], fields.recurrence), id: \.self) { Text($0).textInputCompletion($0) }
