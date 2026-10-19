@@ -2,7 +2,6 @@ package taskwarrior
 
 import (
 	"fmt"
-	"regexp"
 	"strings"
 	"time"
 )
@@ -32,16 +31,3 @@ func (e *CommandError) Error() string {
 }
 
 func (e *CommandError) Unwrap() error { return e.Cause }
-
-// Redact removes common credentials and sync secrets from diagnostic text.
-// Task descriptions are not added to command errors by the adapter.
-func Redact(value string) string {
-	value = secretAssignmentRE.ReplaceAllString(value, "$1[REDACTED]")
-	value = urlCredentialRE.ReplaceAllString(value, "$1[REDACTED]$3")
-	return value
-}
-
-var (
-	secretAssignmentRE = regexp.MustCompile(`(?i)(encryption_secret|password|token|client_secret)\s*[:=]\s*[^\s,;]+`)
-	urlCredentialRE    = regexp.MustCompile(`(?i)(https?://)([^/@\s]+)(@)`)
-)
