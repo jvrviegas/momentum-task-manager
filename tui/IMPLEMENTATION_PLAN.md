@@ -728,6 +728,10 @@ The UI follows the "Momentum TUI redesign" canvas (foundations, glyph vocabulary
   - **Accent:** list selection is the system's, in the system accent, not the canvas's soft teal. Primary buttons are teal; the rest of the system controls are teal only when the system accent is Multicolor. The dark teal is deeper than the canvas's so white text on it stays legible.
   - **Unchanged behavior:** correction review keeps text fields in Taskwarrior's formats, without the canvas's priority segments, date pickers, suggested fixes, "Keep as text" chips or issue count. Capture has no "Add another" (⇧↩). The Taskwarrior version moved from the sidebar into the context row's tooltip.
 
+## Delivered follow-up — Taskwarrior removed
+
+Since 2026-10-19 ([backend plan](../docs/plans/backend.md) T19), the TUI and the macOS app keep tasks only on the Momentum server, and Taskwarrior is read only by `momentum import`. Both apps' sync state machines became an undo window (`internal/app/undo.go`, `Model/UndoWindow.swift`); the Taskwarrior adapter, contexts, the unsynced-changes quit prompt, the estimate-UDA checks, and `[sync]`'s Taskwarrior keys are gone. The decisions above that describe Taskwarrior behavior record how it worked before.
+
 ## Completion Log
 
 | Date | Task | Commit | Verification | Notes |
