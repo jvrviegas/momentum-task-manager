@@ -216,7 +216,7 @@ struct ActiveBadge: View {
         .padding(.trailing, 6)
         .padding(.vertical, 1)
         .background(Theme.accentSoft, in: Capsule())
-        .help("Started — active in Taskwarrior")
+        .help("Started — in progress")
         .onAppear { dimmed = true }
     }
 }
