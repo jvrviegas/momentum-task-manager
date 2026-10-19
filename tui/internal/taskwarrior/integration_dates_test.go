@@ -87,13 +87,14 @@ func TestIntegrationResolveDateMatchesTaskwarrior(t *testing.T) {
 					}
 					continue
 				case "next-week":
-					// Taskwarrior adds sow+1w+4d as seconds, so across a DST change it
-					// lands an hour off Friday midnight; ResolveDate does not.
-					sow, _ := domain.ResolveDate("sow", before)
+					// Momentum resolves next-week in its own zone and sends the date,
+					// which Taskwarrior reads as midnight in TZ.
 					if zone.crossesDST && offsetOf(want) == offsetOf(before) {
 						t.Errorf("next-week %v does not cross the DST change", want)
 					}
-					want = sow.Add(11 * 24 * time.Hour)
+					sent, _ := domain.ResolveDate("next-week", time.Now())
+					year, month, day := sent.Date()
+					want = time.Date(year, month, day, 0, 0, 0, 0, zone.loc)
 				}
 				if !task.Due.Equal(want) {
 					t.Errorf("%s: Taskwarrior %v, ResolveDate %v", expression, task.Due.In(zone.loc), want)
