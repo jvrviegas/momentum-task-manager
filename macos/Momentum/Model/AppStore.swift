@@ -48,7 +48,7 @@ struct EditRequest: Identifiable, Equatable {
     var id: String { task.uuid }
 }
 
-/// What backend mode last learned about its server, as in the TUI.
+/// What the app last learned about its server, as in the TUI.
 enum ServerState: Equatable {
     case unknown, online, unreachable, signedOut
 }
@@ -91,14 +91,13 @@ final class AppStore {
     var pendingDelete: TaskItem?
     var pendingStopRecurrence: TaskItem?
     private(set) var toast: Toast?
-    private(set) var sync = SyncState.localOnly
-    private(set) var lastSyncAt: Date?
-    private(set) var syncError: String?
+    /// How long the latest change can be undone (backend plan D7).
+    private(set) var undoWindow = UndoWindow(delay: 0)
     private(set) var mutating = false
     /// Advances once a minute so relative dates stay current.
     private(set) var now = Date()
     private(set) var server = ServerState.unknown
-    /// This Mac's sign-in to the backend server; nil when signed out.
+    /// This Mac's sign-in to the server; nil when signed out.
     private(set) var account: SavedSignIn?
     private(set) var signIn: SignInFlow?
 
@@ -121,24 +120,18 @@ final class AppStore {
     var visibleSections: [ResolvedSection] { sections(for: view) }
     var visibleTasks: [TaskItem] { visibleSections.flatMap(\.tasks) }
     var selectedTask: TaskItem? { selection.flatMap { tasksByUUID[$0] } }
-    var isLocalOnly: Bool { !sync.enabled }
-    var estimatesWritable: Bool { status?.estimatesWritable ?? true }
     var projects: [ProjectEntry] { snapshot?.projects ?? [] }
     var hasOverlay: Bool {
         showCapture || showShortcuts || editing != nil || pendingDelete != nil || pendingStopRecurrence != nil || signIn != nil
     }
     var overdueCount: Int { snapshot?.today.first { $0.title == "Overdue" }?.uuids.count ?? 0 }
-    var needsQuitPrompt: Bool { sync.enabled && sync.unsynced && sync.shutdown }
-    /// The [backend] server in backend mode; nil when Momentum uses Taskwarrior.
+    /// The [backend] server; nil until config.toml names one.
     var backendURL: String? {
         status?.backendUrl.map { $0.hasSuffix("/") ? String($0.dropLast()) : $0 }
     }
-    var isBackend: Bool { backendURL != nil }
-    /// When the last change's undo window closes: when it syncs, or in
-    /// backend mode after mutation_delay. nil while no window counts down.
+    /// When the latest change's undo window closes; nil while it is closed.
     var undoClosesAt: Date? {
-        guard sync.undoAvailable, sync.phase == .grace || sync.backend else { return nil }
-        return sync.undoUntil
+        undoWindow.isAvailable(at: .now) ? undoWindow.until : nil
     }
 
     func count(_ view: ViewName) -> Int {
@@ -172,29 +165,25 @@ final class AppStore {
         do {
             let status = try await bridge.status()
             self.status = status
-            if status.backendUrl != nil {
-                sync = .backend(mutationDelay: TimeInterval(status.sync.mutationDelaySeconds))
-            } else {
-                sync = SyncState(settings: status.sync, configured: status.syncConfigured, now: .now)
-            }
+            undoWindow = UndoWindow(delay: TimeInterval(status.mutationDelaySeconds))
         } catch {
             startupError = error.localizedDescription
             return
         }
-        if let url = backendURL {
-            guard let saved = savedSignIn(url) else {
-                server = .signedOut
-                startClock()
-                return
-            }
-            do {
-                try await bridge.setToken(saved.token)
-            } catch {
-                startupError = error.localizedDescription
-                return
-            }
-            account = saved
+        // Without a server, the window shows how to add one.
+        guard let url = backendURL else { return }
+        guard let saved = savedSignIn(url) else {
+            server = .signedOut
+            startClock()
+            return
         }
+        do {
+            try await bridge.setToken(saved.token)
+        } catch {
+            startupError = error.localizedDescription
+            return
+        }
+        account = saved
         await open()
     }
 
@@ -206,7 +195,6 @@ final class AppStore {
         if first && count(.today) == 0 {
             view = .inbox
         }
-        perform(sync.apply(.startup, at: .now))
         startClock()
     }
 
@@ -221,7 +209,7 @@ final class AppStore {
             loadError = nil
             repairSelection(previousOrder: previousOrder)
             if announce {
-                show(isBackend ? "Refreshed from the server" : "Refreshed from Taskwarrior", .success)
+                show("Refreshed from the server", .success)
             }
         } catch {
             noteServer(error)
@@ -256,21 +244,15 @@ final class AppStore {
         if !Calendar.current.isDate(date, equalTo: now, toGranularity: .minute) {
             now = date
         }
-        if let next = sync.nextAt, next <= date {
-            perform(sync.apply(.timer, at: date))
-        }
-        if sync.backend, let until = sync.undoUntil, until <= date {
-            _ = sync.apply(.timer, at: date)
-        }
         if let toast {
             if let expiry = toast.expiresAt, expiry <= date {
                 self.toast = nil
-            } else if toast.offersUndo, toast.expiresAt == nil, undoClosesAt == nil {
+            } else if toast.offersUndo, toast.expiresAt == nil, !undoWindow.isAvailable(at: date) {
                 self.toast?.expiresAt = date.addingTimeInterval(3)
             }
         }
         let interval = TimeInterval(status?.refreshIntervalSeconds ?? 0)
-        if interval > 0, date.timeIntervalSince(lastRefresh) >= interval, !mutating, !hasOverlay, !isBackend || account != nil {
+        if interval > 0, date.timeIntervalSince(lastRefresh) >= interval, !mutating, !hasOverlay, account != nil {
             Task { await refresh() }
         }
     }
@@ -287,7 +269,7 @@ final class AppStore {
 
     // MARK: Mutations
 
-    /// Runs one Taskwarrior mutation at a time (MUT-05). Errors reach the caller.
+    /// Runs one change at a time (MUT-05). Errors reach the caller.
     func exclusive<T: Sendable>(_ operation: () async throws -> T) async throws -> T {
         guard !mutating else {
             throw BridgeError(message: "Another change is still being saved")
@@ -305,7 +287,7 @@ final class AppStore {
     /// Reloads after a successful mutation and opens the undo window.
     func didMutate(_ message: String) async {
         await refresh()
-        perform(sync.apply(.mutation, at: .now))
+        undoWindow.open(at: .now)
         show(message, offersUndo: true)
     }
 
@@ -350,14 +332,11 @@ final class AppStore {
     }
 
     func undo() async {
-        if sync.backend {
-            _ = sync.apply(.timer, at: .now) // close a window whose tick has not come yet
-        }
-        guard sync.undoAvailable else {
-            if sync.backend && sync.mutationDelay > 0 {
-                show("Undo is only available for \(Duration.seconds(sync.mutationDelay).formatted(.units(width: .wide))) after a change")
+        guard undoWindow.isAvailable(at: .now) else {
+            if undoWindow.delay > 0 {
+                show("Undo is only available for \(Duration.seconds(undoWindow.delay).formatted(.units(width: .wide))) after a change")
             } else {
-                show(isLocalOnly ? "Nothing to undo" : "Undo is only available until changes sync")
+                show("Nothing to undo")
             }
             return
         }
@@ -367,62 +346,9 @@ final class AppStore {
             show(error.localizedDescription, .error)
             return
         }
-        let effect = sync.apply(.undo, at: .now)
+        undoWindow.close()
         await refresh()
-        show(effect.message.isEmpty ? "Last change undone" : effect.message, .success)
-    }
-
-    // MARK: Sync
-
-    func syncNow() {
-        if isBackend {
-            // Each change is on the server once it answers; this retries it (P1).
-            Task { await refresh(announce: true) }
-            return
-        }
-        guard sync.enabled else {
-            show("Local only — Taskwarrior sync is not configured")
-            return
-        }
-        perform(sync.apply(.manual, at: .now))
-    }
-
-    private func perform(_ effect: SyncState.Effect) {
-        switch effect.action {
-        case .run: Task { await runSync() }
-        case .refresh: Task { await refresh() }
-        default: break
-        }
-    }
-
-    private func runSync() async {
-        do {
-            try await bridge.sync()
-            lastSyncAt = .now
-            syncError = nil
-            perform(sync.apply(.succeeded, at: .now))
-        } catch {
-            syncError = error.localizedDescription
-            perform(sync.apply(.failed, at: .now))
-        }
-    }
-
-    /// Syncs before quitting. Returns the failure message when sync failed.
-    func syncBeforeQuit() async -> String? {
-        _ = sync.apply(.quitRequested, at: .now)
-        _ = sync.apply(.syncAndQuit, at: .now)
-        do {
-            try await bridge.sync()
-            _ = sync.apply(.succeeded, at: .now)
-            return nil
-        } catch {
-            // Like the TUI, a failed sync stays in retrying; the quit prompt that
-            // follows decides whether to quit anyway.
-            syncError = error.localizedDescription
-            _ = sync.apply(.failed, at: .now)
-            sync.quitPending = false
-            return error.localizedDescription
-        }
+        show("Last change undone", .success)
     }
 
     // MARK: Messages
@@ -437,12 +363,11 @@ final class AppStore {
         toast = nil
     }
 
-    // MARK: Backend sign-in
+    // MARK: Sign-in
 
-    /// Records what a backend-mode request's outcome says about the server.
-    /// Other failures leave it alone: the bridge refuses some requests itself.
+    /// Records what a request's outcome says about the server. Other failures
+    /// leave it alone: the bridge refuses some requests itself.
     private func noteServer(_ error: (any Error)?) {
-        guard isBackend else { return }
         guard let error else {
             server = .online
             return
@@ -574,7 +499,7 @@ final class AppStore {
         tasksByUUID = [:]
         selection = nil
         loadError = nil
-        sync = .backend(mutationDelay: sync.mutationDelay)
+        undoWindow.close()
         if let failure, let saved {
             show("Signed out. The server couldn’t revoke the sign-in, so its token works until \(saved.expiresAt.formatted(date: .abbreviated, time: .omitted)): \(failure)", .error)
         } else {
