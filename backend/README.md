@@ -1,6 +1,6 @@
 # Momentum backend
 
-A Go backend with PostgreSQL on Neon that will replace Taskwarrior as Momentum's source of truth. It is being built; until backend mode ships, the terminal and macOS apps keep using Taskwarrior.
+A Go backend with PostgreSQL on Neon, Momentum's source of truth: the terminal and macOS apps keep their tasks here ([ADR 0002](../docs/adr/0002-go-postgres-backend.md)).
 
 See [ADR 0002](../docs/adr/0002-go-postgres-backend.md) for the decision and the [implementation plan](../docs/plans/backend.md) for the work.
 
