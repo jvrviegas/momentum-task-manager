@@ -12,7 +12,6 @@ import (
 
 	"github.com/jvrviegas/momentum-task-manager/core/domain"
 	"github.com/jvrviegas/momentum-task-manager/tui/internal/config"
-	"github.com/jvrviegas/momentum-task-manager/tui/internal/taskwarrior"
 )
 
 type fakeClient struct {
@@ -22,17 +21,15 @@ type fakeClient struct {
 	added     []domain.NewTask
 	modified  []domain.TaskDiff
 	actions   []string
-	syncGate  chan struct{}
+	undoGate  chan struct{}
 }
 
-func (f *fakeClient) Version(context.Context) (string, error) { return "3.5.0", nil }
 func (f *fakeClient) ExportPending(context.Context) ([]domain.Task, error) {
 	return f.pending, nil
 }
 func (f *fakeClient) ExportCompleted(context.Context, time.Time) ([]domain.Task, error) {
 	return f.completed, nil
 }
-func (f *fakeClient) Context(context.Context) (string, error)    { return "", nil }
 func (f *fakeClient) Projects(context.Context) ([]string, error) { return f.projects, nil }
 func (f *fakeClient) Add(_ context.Context, task domain.NewTask) error {
 	f.added = append(f.added, task)
@@ -49,16 +46,11 @@ func (f *fakeClient) Stop(_ context.Context, uuid string) error     { return f.a
 func (f *fakeClient) StopRecurrence(_ context.Context, uuid string) error {
 	return f.act("stop-recurrence " + uuid)
 }
-func (f *fakeClient) Undo(context.Context) error { return f.act("undo") }
-func (f *fakeClient) Sync(context.Context) (taskwarrior.SyncResult, error) {
-	if f.syncGate != nil {
-		<-f.syncGate
+func (f *fakeClient) Undo(context.Context) error {
+	if f.undoGate != nil {
+		<-f.undoGate
 	}
-	return taskwarrior.SyncResult{}, f.act("sync")
-}
-func (f *fakeClient) SyncConfigured(context.Context) (bool, error) { return true, nil }
-func (f *fakeClient) EstimateUDAReadiness(context.Context) (taskwarrior.EstimateUDAState, error) {
-	return taskwarrior.EstimateUDAConfigured, nil
+	return f.act("undo")
 }
 func (f *fakeClient) act(name string) error {
 	f.actions = append(f.actions, name)
@@ -67,8 +59,13 @@ func (f *fakeClient) act(name string) error {
 
 var testNow = time.Date(2026, 10, 14, 10, 0, 0, 0, time.Local)
 
+// newTestServer serves client as the [backend] server, which settings name
+// unless a test sets its own.
 func newTestServer(client *fakeClient, settings config.Config) *Server {
-	server := NewServer(client, settings, "/tmp/config.toml")
+	if !settings.Backend.Enabled() {
+		settings.Backend.URL = "https://momentum.example"
+	}
+	server := NewServer(func(string) Client { return client }, settings, "/tmp/config.toml")
 	server.now = func() time.Time { return testNow }
 	return server
 }
@@ -111,8 +108,8 @@ func at(year int, month time.Month, day, hour int) *time.Time {
 	return &value
 }
 
-func TestPureOperationsAnswerWhileTaskwarriorIsBusy(t *testing.T) {
-	client := &fakeClient{syncGate: make(chan struct{})}
+func TestPureOperationsAnswerWhileTheServerIsBusy(t *testing.T) {
+	client := &fakeClient{undoGate: make(chan struct{})}
 	server := newTestServer(client, config.Defaults())
 	input, writer := io.Pipe()
 	output, sink := io.Pipe()
@@ -137,15 +134,15 @@ func TestPureOperationsAnswerWhileTaskwarriorIsBusy(t *testing.T) {
 	}
 
 	go func() {
-		_, _ = io.WriteString(writer, request(t, 1, "sync", nil)+"\n")
+		_, _ = io.WriteString(writer, request(t, 1, "undo", nil)+"\n")
 		_, _ = io.WriteString(writer, request(t, 2, "interpret", map[string]any{"input": "Call mom tomorrow"})+"\n")
 	}()
 	if line := next(); !strings.Contains(line, `"id":2`) {
-		t.Fatalf("interpret should answer before the blocked sync, got %q", line)
+		t.Fatalf("interpret should answer before the blocked undo, got %q", line)
 	}
-	close(client.syncGate)
+	close(client.undoGate)
 	if line := next(); !strings.Contains(line, `"id":1`) {
-		t.Fatalf("sync response missing, got %q", line)
+		t.Fatalf("undo response missing, got %q", line)
 	}
 	writer.Close()
 	if err := <-done; err != nil {
@@ -153,7 +150,7 @@ func TestPureOperationsAnswerWhileTaskwarriorIsBusy(t *testing.T) {
 	}
 }
 
-func TestTaskwarriorOperationsRunInArrivalOrder(t *testing.T) {
+func TestServerOperationsRunInArrivalOrder(t *testing.T) {
 	client := &fakeClient{}
 	server := newTestServer(client, config.Defaults())
 	serve(t, server,
