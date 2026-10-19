@@ -1,11 +1,11 @@
 # Momentum for macOS
 
-A native SwiftUI frontend for Momentum. It shares the TUI's Go code through `momentum-bridge`, a child process the app starts and talks to over newline-delimited JSON. Taskwarrior stays the source of truth; the app never reads or writes Taskwarrior's data files. In [backend mode](#backend-mode), the bridge keeps tasks on a Momentum server instead.
+A native SwiftUI frontend for Momentum, built as **Momentum Task Manager.app** so it is not confused with an unrelated app called Momentum. It shares the TUI's Go code through `momentum-bridge`, a child process the app starts and talks to over newline-delimited JSON. Taskwarrior stays the source of truth; the app never reads or writes Taskwarrior's data files. In [backend mode](#backend-mode), the bridge keeps tasks on a Momentum server instead.
 
 ```
-Momentum.app (SwiftUI) ──JSON lines──▶ momentum-bridge (Go) ──argv──▶ task
-                                        internal/bridge, taskwarrior,      or, in backend mode,
-                                        domain, quickadd, config     ──HTTPS──▶ momentum-server
+Momentum Task Manager.app ──JSON lines──▶ momentum-bridge (Go) ──argv──▶ task
+                                           internal/bridge, taskwarrior,      or, in backend mode,
+                                           domain, quickadd, config     ──HTTPS──▶ momentum-server
 ```
 
 ## Requirements
@@ -23,13 +23,13 @@ open Momentum.xcodeproj    # or:
 xcodebuild -scheme Momentum -configuration Debug build
 ```
 
-The `Build momentum-bridge` phase compiles `tui/cmd/momentum-bridge` for each target architecture and places it in `Momentum.app/Contents/MacOS`. The app is not sandboxed because it runs `task`, which reads `~/.taskrc`.
+The `Build momentum-bridge` phase compiles `tui/cmd/momentum-bridge` for each target architecture and places it in `Momentum Task Manager.app/Contents/MacOS`. The app is not sandboxed because it runs `task`, which reads `~/.taskrc`.
 
 To try the app against a throwaway database, launch the executable directly so the bridge inherits the environment:
 
 ```sh
 TASKRC=/tmp/demo/taskrc TASKDATA=/tmp/demo/data \
-  path/to/Momentum.app/Contents/MacOS/Momentum
+  "path/to/Momentum Task Manager.app/Contents/MacOS/Momentum Task Manager"
 ```
 
 ## Tests
@@ -60,9 +60,9 @@ A `[backend]` section with a `url` in Momentum's `config.toml`, the file the TUI
 url = "https://momentum.example.com"
 ```
 
-- **Sign in:** the window shows **Sign In…** until the app is signed in, and **Momentum ▸ Sign In…** signs in again. The sheet shows a short code and opens the browser, where you enter it and sign in with Google or GitHub; the app checks every few seconds until you finish. Signing in again replaces the sign-in and revokes the old one.
+- **Sign in:** the window shows **Sign In…** until the app is signed in, and **Momentum Task Manager ▸ Sign In…** signs in again. The sheet shows a short code and opens the browser, where you enter it and sign in with Google or GitHub; the app checks every few seconds until you finish. Signing in again replaces the sign-in and revokes the old one.
 - **Where the sign-in lives:** in the login Keychain, as a generic password under the service `dev.jvrviegas.momentum.sign-in` and the server's address. The app hands the token to the bridge over its standard input, and again whenever the bridge restarts; it is never in arguments, the environment, or a file. The app does not use the TUI's `credentials.json` from `momentum login`, so the app and the TUI are separate sessions, each with its own undo. Builds signed ad hoc, such as the Debug build, may ask for Keychain access again after a rebuild, because the Keychain recognizes the app by its signature.
-- **Sign out:** **Momentum ▸ Sign Out** revokes the sign-in on the server and removes it from the Keychain. When the server cannot revoke it, the app still removes it and says the token works until it expires.
+- **Sign out:** **Momentum Task Manager ▸ Sign Out** revokes the sign-in on the server and removes it from the Keychain. When the server cannot revoke it, the app still removes it and says the token works until it expires.
 - **States:** the toolbar reads **Online**, **Saved · undo 12s** after a change, **Server unreachable** (click to try again), or **Signed out** (click to sign in). Nothing is queued while the server is unreachable.
 - **Undo and sync:** a change can be undone for `[sync].mutation_delay` (15 seconds by default), unless the task changed since. Nothing syncs, so there is no sync countdown, no **Sync Now**, and no prompt when quitting. Backend mode has no Taskwarrior contexts; the sidebar shows the account and the server instead.
 
