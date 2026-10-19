@@ -1,7 +1,5 @@
-// Package backend keeps the apps' tasks on a Momentum server instead of in
-// Taskwarrior (backend plan T13). Client implements the Taskwarrior adapter's
-// interfaces, so the TUI and the bridge reach either store through the same
-// calls.
+// Package backend keeps the apps' tasks on a Momentum server (backend plan
+// T13 and T19): the TUI and the bridge reach it through Client.
 package backend
 
 import (
@@ -11,13 +9,10 @@ import (
 
 	"github.com/jvrviegas/momentum-task-manager/core/api"
 	"github.com/jvrviegas/momentum-task-manager/core/domain"
-	"github.com/jvrviegas/momentum-task-manager/tui/internal/taskwarrior"
 )
 
 // Client reaches one Momentum server as one signed-in device. It resolves
-// date expressions in the device's time zone before sending them (D3), and
-// answers the Taskwarrior-only calls itself: backend mode has no sync (P1),
-// no contexts (D6), and always stores estimates.
+// date expressions in the device's time zone before sending them (D3).
 type Client struct {
 	server *api.Client
 	zone   string
@@ -33,12 +28,6 @@ type Client struct {
 // it is.
 func New(url, token, zone string) *Client {
 	return &Client{server: api.NewClient(url, token), zone: zone, now: time.Now}
-}
-
-// Version returns the server's version.
-func (c *Client) Version(ctx context.Context) (string, error) {
-	version, err := c.server.Version(ctx)
-	return version.Server, err
 }
 
 // ExportPending returns the pending tasks that are not waiting.
@@ -113,13 +102,6 @@ func (c *Client) Undo(ctx context.Context) error {
 	return c.change(ctx, func() (api.Task, error) { return c.server.Undo(ctx) })
 }
 
-// ExportPendingInContext returns the tasks a project migration preview maps.
-// Backend mode has no contexts (D6), so the scope is empty.
-func (c *Client) ExportPendingInContext(ctx context.Context) (taskwarrior.ProjectMigrationExport, error) {
-	tasks, err := c.ExportPending(ctx)
-	return taskwarrior.ProjectMigrationExport{Tasks: tasks}, err
-}
-
 // ApplyProjectMigration moves plan's tasks as tasks map them, in one request:
 // the server changes all of them or, with api.CodeConflict when they no
 // longer match, none.
@@ -157,21 +139,4 @@ func (c *Client) sendZone(ctx context.Context) error {
 	}
 	c.zoneSent = true
 	return nil
-}
-
-// Sync has nothing to do: a change is on the server once it answers.
-func (c *Client) Sync(context.Context) (taskwarrior.SyncResult, error) {
-	return taskwarrior.SyncResult{}, nil
-}
-
-// SyncConfigured is false, so the apps skip their sync schedule and the
-// unsynced-changes prompt.
-func (c *Client) SyncConfigured(context.Context) (bool, error) { return false, nil }
-
-// Context is empty: backend mode has no Taskwarrior contexts.
-func (c *Client) Context(context.Context) (string, error) { return "", nil }
-
-// EstimateUDAReadiness is always configured: the server stores estimates.
-func (c *Client) EstimateUDAReadiness(context.Context) (taskwarrior.EstimateUDAState, error) {
-	return taskwarrior.EstimateUDAConfigured, nil
 }
