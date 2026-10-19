@@ -21,15 +21,15 @@ func TestColorStrippedShellRetainsActiveAndErrorStatus(t *testing.T) {
 	if today < 0 || len(lines) < 2 || string([]rune(lines[1])[lipgloss.Width(lines[0][:today])]) != "━" {
 		t.Fatalf("active view lost its non-color cue: %q", plain)
 	}
-	if !strings.Contains(plain, "Sync ready") {
-		t.Fatalf("sync status lost from color-stripped footer: %q", plain)
+	if !strings.Contains(plain, "✓ Online") {
+		t.Fatalf("server status lost from color-stripped footer: %q", plain)
 	}
 
 	model.Tasks = nil
 	model.Views = domain.Views{}
-	model.Err = errors.New("fixture Taskwarrior unavailable")
+	model.Err = errors.New("fixture server unavailable")
 	plain = ansi.Strip(model.View().Content)
-	if !strings.Contains(plain, "! fixture Taskwarrior unavailable") {
+	if !strings.Contains(plain, "! fixture server unavailable") {
 		t.Fatalf("error status lost from color-stripped footer: %q", plain)
 	}
 }
