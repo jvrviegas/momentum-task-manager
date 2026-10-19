@@ -11,7 +11,6 @@ import (
 
 	"github.com/jvrviegas/momentum-task-manager/core/domain"
 	"github.com/jvrviegas/momentum-task-manager/tui/internal/config"
-	"github.com/jvrviegas/momentum-task-manager/tui/internal/taskwarrior"
 	"github.com/jvrviegas/momentum-task-manager/tui/internal/ui"
 )
 
@@ -233,7 +232,7 @@ func TestCatalogDiscoveryUsesSeparateSnapshotAfterConfiguredRename(t *testing.T)
 	store := &settingsStore{}
 	model := settingsModel(store)
 	model.MigrationCoordinator = NewProjectMigrationCoordinator(store, &coordinatorClient{
-		export: taskwarrior.ProjectMigrationExport{Tasks: []domain.Task{{UUID: "discovered", Status: "pending", Project: "personal"}}},
+		tasks: []domain.Task{{UUID: "discovered", Status: "pending", Project: "personal"}},
 	})
 	model.Update(ProjectsMsg{Values: []string{"personal"}})
 	model.SwitchView(ViewSettings)
