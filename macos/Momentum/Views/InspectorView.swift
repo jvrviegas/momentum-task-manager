@@ -4,14 +4,19 @@ struct InspectorView: View {
     @Environment(AppStore.self) private var store
 
     var body: some View {
-        if let task = store.selectedTask {
-            ScrollView {
-                TaskDetails(task: task)
-                    .padding(16)
+        Group {
+            if let task = store.selectedTask {
+                GeometryReader { proxy in
+                    ScrollView {
+                        TaskDetails(task: task)
+                            .frame(minHeight: proxy.size.height, alignment: .top)
+                    }
+                }
+            } else {
+                ContentUnavailableView("No Selection", systemImage: "sidebar.right", description: Text("Select a task to see its details."))
             }
-        } else {
-            ContentUnavailableView("No Selection", systemImage: "sidebar.right", description: Text("Select a task to see its details."))
         }
+        .background(Theme.panel)
     }
 }
 
@@ -21,34 +26,64 @@ private struct TaskDetails: View {
     @State private var showTechnical = false
 
     var body: some View {
-        VStack(alignment: .leading, spacing: 16) {
+        VStack(alignment: .leading, spacing: 0) {
             header
+            divider
             if task.isPending {
-                HStack {
-                    Button(task.start == nil ? "Start" : "Stop", systemImage: task.start == nil ? "play" : "stop") {
+                HStack(spacing: 6) {
+                    Button {
                         Task { await store.toggleStart(task) }
+                    } label: {
+                        ShortcutLabel(title: task.start == nil ? "Start" : "Stop", systemImage: task.start == nil ? "play" : "stop", key: "s")
                     }
-                    Button("Edit", systemImage: "pencil") {
+                    Button {
                         store.editing = EditRequest(task: task, focus: .description)
+                    } label: {
+                        ShortcutLabel(title: "Edit", systemImage: "pencil", key: "e")
                     }
-                    Button("Delete", systemImage: "trash", role: .destructive) {
+                    Button("Delete", systemImage: "trash") {
                         store.pendingDelete = task
                     }
+                    .buttonStyle(.borderless)
+                    .foregroundStyle(Theme.text2)
+                    .accessibilityLabel("Delete task")
                 }
                 .controlSize(.small)
+                .padding(.horizontal, 18)
+                .padding(.vertical, 12)
+                divider
             } else if task.isCompleted {
                 Label("Completed tasks are read-only. Undo the completion while undo is available to change it.", systemImage: "lock")
-                    .font(.callout)
-                    .foregroundStyle(.secondary)
+                    .font(.system(size: 12))
+                    .foregroundStyle(Theme.text3)
+                    .padding(.horizontal, 18)
+                    .padding(.vertical, 12)
+                divider
             }
             properties
+                .padding(.horizontal, 18)
+                .padding(.vertical, 14)
             if let recur = task.recur {
                 section("Repeats", systemImage: "repeat") {
-                    Text(task.recurDisplay ?? recur).bold() + Text("  recur:\(recur)").font(.caption.monospaced()).foregroundStyle(.secondary)
-                    if task.isPending, task.recurrenceTarget != nil {
-                        Button("Stop Repeating…") { store.pendingStopRecurrence = task }
+                    VStack(alignment: .leading, spacing: 6) {
+                        HStack(spacing: 7) {
+                            Text(task.recurDisplay ?? recur).fontWeight(.semibold)
+                            Text("recur:\(recur)").font(.system(size: 11, design: .monospaced)).foregroundStyle(Theme.text3)
+                        }
+                        if task.isPending, task.recurrenceTarget != nil {
+                            Button {
+                                store.pendingStopRecurrence = task
+                            } label: {
+                                ShortcutLabel(title: "Stop Repeating…", systemImage: "repeat", key: "x")
+                                    .labelStyle(.titleOnly)
+                            }
                             .controlSize(.small)
+                        }
                     }
+                    .padding(.horizontal, 12)
+                    .padding(.vertical, 10)
+                    .frame(maxWidth: .infinity, alignment: .leading)
+                    .card(radius: 9)
                 }
             }
             if !task.depends.isEmpty {
@@ -58,26 +93,146 @@ private struct TaskDetails: View {
                             Button(dependency.description) { store.selection = uuid }
                                 .buttonStyle(.link)
                         } else {
-                            Text(uuid).font(.caption.monospaced()).foregroundStyle(.secondary)
+                            Text(uuid).font(.system(size: 11.5, design: .monospaced)).foregroundStyle(Theme.text3)
                         }
                     }
                 }
             }
             section("Notes", systemImage: "note.text") {
                 if task.annotations.isEmpty {
-                    Text("No annotations.").foregroundStyle(.secondary)
+                    Text("No annotations.").font(.system(size: 12)).foregroundStyle(Theme.text3)
                 }
                 ForEach(Array(task.annotations.enumerated()), id: \.offset) { _, note in
-                    VStack(alignment: .leading, spacing: 2) {
+                    VStack(alignment: .leading, spacing: 3) {
                         Text(note.description).textSelection(.enabled)
                         if let entry = note.entry {
-                            Text(Format.full(entry)).font(.caption).foregroundStyle(.secondary)
+                            Text(Format.full(entry)).font(.system(size: 11)).foregroundStyle(Theme.text3)
+                        }
+                    }
+                    .padding(.horizontal, 11)
+                    .padding(.vertical, 9)
+                    .frame(maxWidth: .infinity, alignment: .leading)
+                    .card(radius: 8)
+                }
+            }
+            Spacer(minLength: 0)
+            section {
+                technical
+            }
+        }
+        .frame(maxWidth: .infinity, alignment: .leading)
+    }
+
+    private var header: some View {
+        HStack(alignment: .top, spacing: 10) {
+            CompletionButton(task: task)
+                .padding(.top, 2)
+            VStack(alignment: .leading, spacing: 6) {
+                Text(task.description)
+                    .font(.system(size: 16, weight: .semibold))
+                    .textSelection(.enabled)
+                HStack(spacing: 6) {
+                    if task.isCompleted, let end = task.end {
+                        Text("Completed \(Format.full(end))")
+                    }
+                    if task.isPending, let start = task.start {
+                        ActiveBadge(title: "Active since \(Format.time(start))")
+                            .help("Active since \(Format.full(start))")
+                    }
+                    if task.isPending {
+                        Chip(text: task.todayGroup ?? "Inbox")
+                    }
+                }
+                .font(.system(size: 12))
+                .foregroundStyle(Theme.text3)
+            }
+        }
+        .padding(.horizontal, 18)
+        .padding(.top, 18)
+        .padding(.bottom, 14)
+    }
+
+    private var properties: some View {
+        Grid(alignment: .leadingFirstTextBaseline, horizontalSpacing: 12, verticalSpacing: 9) {
+            row("Project") {
+                if let project = task.project {
+                    let label = store.projects.first { $0.value == project }?.label
+                    HStack(alignment: .firstTextBaseline, spacing: 6) {
+                        Text(label ?? project)
+                        if label != nil {
+                            Text(project).font(.system(size: 12, design: .monospaced)).foregroundStyle(Theme.text3)
+                        }
+                    }
+                } else {
+                    Text("None").foregroundStyle(Theme.text3)
+                }
+            }
+            row("Priority") {
+                if let label = Format.priority(task.priority) {
+                    Text(label).fontWeight(.semibold).foregroundStyle(Theme.priority(task.priority))
+                } else {
+                    Text("None").foregroundStyle(Theme.text3)
+                }
+            }
+            row("Due") {
+                if let due = task.due {
+                    Text(Format.full(due)).foregroundStyle(task.todayGroup == "Overdue" ? Theme.danger : Theme.text)
+                } else {
+                    Text("No due date").foregroundStyle(Theme.text3)
+                }
+            }
+            row("Scheduled") {
+                Text(task.scheduled.map(Format.full) ?? "Not scheduled")
+                    .foregroundStyle(task.scheduled == nil ? Theme.text3 : Theme.text)
+            }
+            row("Estimate") {
+                VStack(alignment: .leading, spacing: 2) {
+                    if let estimate = task.estimate {
+                        Text(estimate)
+                    } else if let warning = task.estimateWarning {
+                        Text("Unsupported value \(task.estimateRaw ?? "")").foregroundStyle(Theme.warn)
+                        Text(warning).font(.system(size: 11.5)).foregroundStyle(Theme.text3)
+                    } else {
+                        Text("Unknown").foregroundStyle(Theme.text3)
+                    }
+                    if !store.estimatesWritable {
+                        Text("Estimate UDA not configured — read-only.").font(.system(size: 11.5)).foregroundStyle(Theme.text3)
+                    }
+                }
+            }
+            row("Tags") {
+                if task.tags.isEmpty {
+                    Text("None").foregroundStyle(Theme.text3)
+                } else {
+                    FlowLayout(spacing: 4) {
+                        ForEach(task.tags, id: \.self) { tag in
+                            Chip(text: "+\(tag)")
                         }
                     }
                 }
             }
-            DisclosureGroup("Taskwarrior details", isExpanded: $showTechnical) {
-                Grid(alignment: .leadingFirstTextBaseline, horizontalSpacing: 12, verticalSpacing: 4) {
+        }
+    }
+
+    private var technical: some View {
+        VStack(alignment: .leading, spacing: 8) {
+            Button {
+                withAnimation(.snappy(duration: 0.14)) { showTechnical.toggle() }
+            } label: {
+                HStack(spacing: 6) {
+                    Image(systemName: "chevron.right")
+                        .font(.system(size: 9, weight: .semibold))
+                        .rotationEffect(.degrees(showTechnical ? 90 : 0))
+                    Text("Taskwarrior details")
+                }
+                .font(.system(size: 11.5, weight: .semibold))
+                .foregroundStyle(Theme.text3)
+                .contentShape(Rectangle())
+            }
+            .buttonStyle(.plain)
+            .accessibilityValue(showTechnical ? "Expanded" : "Collapsed")
+            if showTechnical {
+                Grid(alignment: .leadingFirstTextBaseline, horizontalSpacing: 12, verticalSpacing: 6) {
                     technical("UUID", task.uuid)
                     technical("ID", task.number == 0 ? "—" : "\(task.number)")
                     technical("Status", task.status)
@@ -92,112 +247,53 @@ private struct TaskDetails: View {
                         technical(key, value)
                     }
                 }
-                .font(.caption.monospaced())
                 .textSelection(.enabled)
-                .padding(.top, 6)
-            }
-        }
-        .frame(maxWidth: .infinity, alignment: .leading)
-    }
-
-    private var header: some View {
-        HStack(alignment: .firstTextBaseline, spacing: 10) {
-            CompletionButton(task: task)
-            VStack(alignment: .leading, spacing: 6) {
-                Text(task.description)
-                    .font(.title3.weight(.semibold))
-                    .textSelection(.enabled)
-                HStack(spacing: 6) {
-                    if task.isCompleted, let end = task.end {
-                        Text("Completed \(Format.full(end))").foregroundStyle(.secondary)
-                    }
-                    if task.isPending, let start = task.start {
-                        ActiveBadge().help("Active since \(Format.full(start))")
-                    }
-                    if task.isPending {
-                        Chip(text: task.todayGroup ?? "Inbox")
-                    }
-                }
-                .font(.caption)
             }
         }
     }
 
-    private var properties: some View {
-        Grid(alignment: .leadingFirstTextBaseline, horizontalSpacing: 14, verticalSpacing: 8) {
-            row("Project") {
-                if let project = task.project {
-                    let label = store.projects.first { $0.value == project }?.label
-                    Text(label ?? project) + Text(label != nil ? "  \(project)" : "").font(.caption.monospaced()).foregroundStyle(.secondary)
-                } else {
-                    Text("None").foregroundStyle(.secondary)
-                }
-            }
-            row("Priority") {
-                if let label = Format.priority(task.priority) {
-                    Text(label).foregroundStyle(task.priority == "H" ? .red : task.priority == "M" ? .orange : .primary)
-                } else {
-                    Text("None").foregroundStyle(.secondary)
-                }
-            }
-            row("Due") {
-                if let due = task.due {
-                    Text(Format.full(due)).foregroundStyle(task.todayGroup == "Overdue" ? .red : .primary)
-                } else {
-                    Text("No due date").foregroundStyle(.secondary)
-                }
-            }
-            row("Scheduled") {
-                Text(task.scheduled.map(Format.full) ?? "Not scheduled")
-                    .foregroundStyle(task.scheduled == nil ? .secondary : .primary)
-            }
-            row("Estimate") {
-                VStack(alignment: .leading, spacing: 2) {
-                    if let estimate = task.estimate {
-                        Text(estimate)
-                    } else if let warning = task.estimateWarning {
-                        Text("Unsupported value \(task.estimateRaw ?? "")").foregroundStyle(.orange)
-                        Text(warning).font(.caption).foregroundStyle(.secondary)
-                    } else {
-                        Text("Unknown").foregroundStyle(.secondary)
-                    }
-                    if !store.estimatesWritable {
-                        Text("Estimate UDA not configured — read-only.").font(.caption).foregroundStyle(.secondary)
-                    }
-                }
-            }
-            row("Tags") {
-                if task.tags.isEmpty {
-                    Text("None").foregroundStyle(.secondary)
-                } else {
-                    Text(task.tags.map { "+\($0)" }.joined(separator: " ")).foregroundStyle(.green)
-                }
-            }
-        }
+    private var divider: some View {
+        Rectangle().fill(Theme.separator).frame(height: 0.5)
     }
 
     private func row(_ label: String, @ViewBuilder value: () -> some View) -> some View {
         GridRow {
-            Text(label).foregroundStyle(.secondary).gridColumnAlignment(.trailing)
+            Text(label)
+                .font(.system(size: 12))
+                .foregroundStyle(Theme.text3)
+                .frame(width: 92, alignment: .trailing)
+                .gridColumnAlignment(.trailing)
             value()
         }
     }
 
     private func technical(_ key: String, _ value: String) -> some View {
         GridRow {
-            Text(key).foregroundStyle(.secondary).gridColumnAlignment(.trailing)
+            Text(key)
+                .font(.system(size: 12))
+                .foregroundStyle(Theme.text3)
+                .frame(width: 92, alignment: .trailing)
+                .gridColumnAlignment(.trailing)
             Text(value)
+                .font(.system(size: 11.5, design: .monospaced))
+                .foregroundStyle(Theme.text2)
         }
     }
 
-    private func section(_ title: String, systemImage: String, @ViewBuilder content: () -> some View) -> some View {
-        VStack(alignment: .leading, spacing: 6) {
-            Label(title, systemImage: systemImage)
-                .font(.caption.weight(.semibold))
-                .foregroundStyle(.secondary)
-                .textCase(.uppercase)
+    private func section(_ title: String? = nil, systemImage: String = "", @ViewBuilder content: () -> some View) -> some View {
+        VStack(alignment: .leading, spacing: 8) {
+            if let title {
+                Label(title, systemImage: systemImage)
+                    .font(.system(size: 11.5, weight: .semibold))
+                    .foregroundStyle(Theme.text3)
+                    .labelStyle(CompactLabelStyle())
+            }
             content()
         }
+        .padding(.horizontal, 18)
+        .padding(.vertical, 12)
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .overlay(alignment: .top) { divider }
     }
 }
 
@@ -206,8 +302,20 @@ struct Chip: View {
 
     var body: some View {
         Text(text)
-            .padding(.horizontal, 6)
+            .fixedSize()
+            .font(.system(size: 12))
+            .foregroundStyle(Theme.text)
+            .padding(.horizontal, 7)
             .padding(.vertical, 1)
-            .background(.quaternary, in: Capsule())
+            .background(Theme.hover, in: Capsule())
+            .overlay(Capsule().strokeBorder(Theme.separator, lineWidth: 0.5))
+    }
+}
+
+extension View {
+    /// The design's raised card: an elevated surface with a hairline edge.
+    func card(radius: CGFloat) -> some View {
+        background(Theme.elevated, in: RoundedRectangle(cornerRadius: radius))
+            .overlay(RoundedRectangle(cornerRadius: radius).strokeBorder(Theme.separator, lineWidth: 0.5))
     }
 }
