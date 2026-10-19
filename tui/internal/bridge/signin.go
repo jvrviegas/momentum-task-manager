@@ -12,10 +12,11 @@ import (
 // operations and keeps the token in the Keychain. It sends the token with
 // setToken whenever the bridge starts, so the bridge never stores it.
 
-// backendURL returns the [backend] server, which sign-in needs.
+// backendURL returns the [backend] server, which every operation but status
+// and the pure ones needs.
 func (s *Server) backendURL() (string, error) {
-	if !s.config.Backend.Enabled() || s.connect == nil {
-		return "", fmt.Errorf("sign-in needs a [backend] url in %s", s.configPath)
+	if !s.config.Backend.Enabled() {
+		return "", fmt.Errorf("Momentum needs a server: add a [backend] url to %s, then sign in", s.configPath)
 	}
 	return s.config.Backend.URL, nil
 }
@@ -23,19 +24,12 @@ func (s *Server) backendURL() (string, error) {
 // setToken signs every later request in with token; an empty token signs
 // them out.
 func (s *Server) setToken(token string) error {
-	if _, err := s.backendURL(); err != nil {
-		return err
-	}
 	s.client = s.connect(token)
 	return nil
 }
 
 func (s *Server) signInStart(ctx context.Context) (*signInStartResult, error) {
-	url, err := s.backendURL()
-	if err != nil {
-		return nil, err
-	}
-	start, err := api.NewClient(url, "").StartDeviceSignIn(ctx)
+	start, err := api.NewClient(s.config.Backend.URL, "").StartDeviceSignIn(ctx)
 	if err != nil {
 		return nil, err
 	}
@@ -52,11 +46,7 @@ func (s *Server) signInStart(ctx context.Context) (*signInStartResult, error) {
 // signInPoll asks the server once whether the sign-in of deviceCode has
 // finished. A refused sign-in or an expired code is an error.
 func (s *Server) signInPoll(ctx context.Context, deviceCode string) (*signInPollResult, error) {
-	url, err := s.backendURL()
-	if err != nil {
-		return nil, err
-	}
-	token, err := api.NewClient(url, "").PollDeviceSignIn(ctx, deviceCode)
+	token, err := api.NewClient(s.config.Backend.URL, "").PollDeviceSignIn(ctx, deviceCode)
 	var failure *api.Error
 	switch {
 	case err == nil:
@@ -79,11 +69,7 @@ func (s *Server) signInPoll(ctx context.Context, deviceCode string) (*signInPoll
 // revoke ends the sign-in of token on the server. One the server no longer
 // accepts has already ended.
 func (s *Server) revoke(ctx context.Context, token string) error {
-	url, err := s.backendURL()
-	if err != nil {
-		return err
-	}
-	err = api.NewClient(url, token).SignOut(ctx)
+	err := api.NewClient(s.config.Backend.URL, token).SignOut(ctx)
 	var failure *api.Error
 	if errors.As(err, &failure) && failure.Code == api.CodeUnauthorized {
 		return nil
