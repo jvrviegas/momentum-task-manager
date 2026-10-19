@@ -1,23 +1,15 @@
-# Momentum works without this file. Copy to ~/.config/momentum/config.toml.
-# Estimate storage is a Taskwarrior UDA, not a Momentum setting. Add these
-# lines to every synchronized client's ~/.taskrc before creating/editing one:
-# uda.estimate.type=duration
-# uda.estimate.label=Estimate
+# Copy to ~/.config/momentum/config.toml. Every setting has a default except
+# [backend] url, the Momentum server that keeps your tasks.
 refresh_interval = "60s" # set to "0s" to disable background refresh
 theme = "auto"           # auto, dark, light, terminal
 icons = "unicode"        # unicode, nerd, ascii
 
-[sync]
-enabled = true
-interval = "5m"
-mutation_delay = "15s"
-startup = true
-shutdown = true
+# The Momentum server; run `momentum login` after setting it. See the README.
+[backend]
+url = "https://momentum.example"
 
-# Backend mode keeps tasks on a Momentum server instead of Taskwarrior; run
-# `momentum login` after setting it. See the README.
-# [backend]
-# url = "https://momentum.example"
+[sync]
+mutation_delay = "15s" # how long u can undo the latest change
 
 [planning]
 enabled = true
@@ -40,7 +32,7 @@ stale_after = "24h"
 
 # Optional suggestion catalog; no tasks are created or modified.
 # Values are lowercase dotted paths; names label each final path segment.
-# Keep [[projects]] at the top level, not inside [sync].
+# Keep [[projects]] at the top level, not inside another table.
 [[projects]]
 name = "Work"
 value = "work"
