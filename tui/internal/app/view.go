@@ -1,7 +1,6 @@
 package app
 
 import (
-	"errors"
 	"fmt"
 	"math"
 	"strings"
@@ -11,7 +10,6 @@ import (
 	"charm.land/lipgloss/v2"
 
 	"github.com/jvrviegas/momentum-task-manager/core/domain"
-	"github.com/jvrviegas/momentum-task-manager/tui/internal/taskwarrior"
 	"github.com/jvrviegas/momentum-task-manager/tui/internal/ui"
 )
 
@@ -45,8 +43,6 @@ func (m *Model) render(layout ui.Layout) string {
 		frame = m.Confirm.View()
 	case OverlayHelp:
 		frame = m.Help.View()
-	case OverlayQuit:
-		frame = m.Quit.View()
 	case OverlayPlanner:
 		frame = m.Planner.View()
 	}
@@ -420,31 +416,13 @@ func (m *Model) renderSkeleton(width, height int) string {
 	return strings.Join(lines, "\n")
 }
 
-// renderLoadError states what failed, that nothing changed, and shows raw
-// stderr in a Panel block so it can be copied as-is.
+// renderLoadError states what failed and that nothing changed.
 func (m *Model) renderLoadError(headline string, err error, width int) string {
 	line := func(spans ...ui.Span) string { return m.Styles.Line(width, ui.FillNone, spans...) }
 	lines := []string{"", line(ui.Span{Text: m.Icons.Error + " " + headline, Tone: ui.ToneRed, Bold: true})}
 	summary := conciseError(err)
-	stderr := ""
-	var commandErr *taskwarrior.CommandError
-	if errors.As(err, &commandErr) && strings.TrimSpace(commandErr.Stderr) != "" {
-		summary = fmt.Sprintf("task %s failed", commandErr.Kind)
-		if commandErr.ExitCode >= 0 {
-			summary = fmt.Sprintf("task %s exited with status %d", commandErr.Kind, commandErr.ExitCode)
-		}
-		stderr = taskwarrior.Redact(strings.TrimSpace(commandErr.Stderr))
-	}
 	for _, text := range ui.WrapText(strings.TrimSuffix(summary, ".")+". Your data has not been changed.", width) {
 		lines = append(lines, line(ui.Span{Text: text}))
-	}
-	if stderr != "" {
-		lines = append(lines, "", m.Styles.Line(width, ui.FillPanel, ui.Span{Text: " stderr", Tone: ui.ToneMuted}))
-		for _, text := range strings.Split(stderr, "\n") {
-			for _, wrapped := range ui.WrapText(text, max(1, width-1)) {
-				lines = append(lines, m.Styles.Line(width, ui.FillPanel, ui.Span{Text: " " + wrapped}))
-			}
-		}
 	}
 	lines = append(lines, "", line(ui.Span{Text: "Fix the cause, then press ", Tone: ui.ToneMuted}, ui.Span{Text: "r", Bold: true}, ui.Span{Text: " to retry.", Tone: ui.ToneMuted}))
 	return strings.Join(lines, "\n")
@@ -535,7 +513,7 @@ func (m *Model) footerHints(layout ui.Layout) (hints, extra []ui.Hint) {
 func (m *Model) renderStatusBar(width int, narrow bool) string {
 	now := m.nowTime()
 	left := m.statusMessage(now, narrow)
-	glyph, word := m.syncState(now)
+	glyph, word := m.serverState(now)
 	right := append([]ui.Span{glyph}, word...)
 	if narrow {
 		right = []ui.Span{glyph}
@@ -551,8 +529,6 @@ func (m *Model) renderStatusBar(width int, narrow bool) string {
 				left = append(left, ui.Span{Text: hint.Key, Bold: true}, ui.Span{Text: " " + hint.Label, Tone: ui.ToneMuted})
 			}
 		}
-	} else if m.TaskContext != "" {
-		right = append([]ui.Span{{Text: "context ", Tone: ui.ToneMuted}, {Text: oneLine(m.TaskContext)}, {Text: "  "}}, right...)
 	}
 	spans := []ui.Span{{Text: " "}}
 	room := width - 3 - spansWidth(right)
@@ -566,10 +542,8 @@ func (m *Model) renderStatusBar(width int, narrow bool) string {
 func (m *Model) statusMessage(now time.Time, narrow bool) []ui.Span {
 	var spans []ui.Span
 	switch {
-	case m.Mode == ModeLoading && m.Backend:
-		spans = []ui.Span{{Text: m.Icons.Syncing, Tone: ui.ToneAccent}, {Text: " Loading tasks from the server…"}}
 	case m.Mode == ModeLoading:
-		spans = []ui.Span{{Text: m.Icons.Syncing, Tone: ui.ToneAccent}, {Text: " Loading tasks from Taskwarrior…"}}
+		spans = []ui.Span{{Text: m.Icons.Syncing, Tone: ui.ToneAccent}, {Text: " Loading tasks from the server…"}}
 	case m.Err != nil:
 		spans = []ui.Span{{Text: m.Icons.Error + " ", Tone: ui.ToneRed, Bold: true}, {Text: oneLine(conciseError(m.Err))}}
 	case m.Search.Active:
@@ -578,26 +552,24 @@ func (m *Model) statusMessage(now time.Time, narrow bool) []ui.Span {
 			{Text: " " + ui.SearchSummary(len(m.tasksForUnfiltered()), len(m.tasksFor(m.ActiveView)), m.Search.Query)},
 			{Text: fmt.Sprintf(" %q", oneLine(m.Search.Query)), Tone: ui.ToneMuted},
 		}
-	case m.Status != "" && oneLine(m.Status) != m.SyncStatus(now):
-		// The sync state already owns the right edge; do not repeat it.
+	case m.Status != "" && oneLine(m.Status) != m.ServerStatus(now):
+		// The server state already owns the right edge; do not repeat it.
 		status := oneLine(m.Status)
 		switch {
 		case statusIsError(status):
 			spans = []ui.Span{{Text: m.Icons.Error + " ", Tone: ui.ToneRed, Bold: true}, {Text: status}}
-		case strings.HasPrefix(status, "Syncing"):
-			spans = []ui.Span{{Text: m.Icons.Syncing + " ", Tone: ui.ToneAccent}, {Text: status}}
 		default:
 			spans = []ui.Span{{Text: m.Icons.Synced + " ", Tone: ui.ToneAccent}, {Text: status}}
 		}
 	}
-	if m.Sync.UndoAvailable && !m.Sync.UndoUntil.IsZero() && m.Sync.MutationDelay > 0 {
-		remaining := m.Sync.UndoUntil.Sub(now)
+	if m.Undo.Available(now) {
+		remaining := m.Undo.Until.Sub(now)
 		if remaining > 0 {
 			cells := 20
 			if narrow {
 				cells = 8
 			}
-			filled := int(math.Ceil(float64(cells) * remaining.Seconds() / m.Sync.MutationDelay.Seconds()))
+			filled := int(math.Ceil(float64(cells) * remaining.Seconds() / m.Undo.Delay.Seconds()))
 			filled = min(cells, max(0, filled))
 			if len(spans) > 0 {
 				spans = append(spans, ui.Span{Text: "   "})
@@ -622,12 +594,11 @@ func statusIsError(status string) bool {
 	return false
 }
 
-// syncState is a glyph and a word for every sync state, so it reads without
-// color: ✓ ready, ↻ syncing, • local changes, ! failed, · local only. Backend
-// mode uses ✓ online, • saved with undo, and ! for an unreachable server or
-// an ended sign-in.
-func (m *Model) syncState(now time.Time) (ui.Span, []ui.Span) {
-	text := m.SyncStatus(now)
+// serverState is a glyph and a word for every server state, so it reads
+// without color: ✓ online, • saved with undo, ! an unreachable server or an
+// ended sign-in.
+func (m *Model) serverState(now time.Time) (ui.Span, []ui.Span) {
+	text := m.ServerStatus(now)
 	word := func(tone ui.Tone, bold bool, head, tail string) []ui.Span {
 		spans := []ui.Span{{Text: " " + head, Tone: tone, Bold: bold}}
 		if tail != "" {
@@ -635,35 +606,16 @@ func (m *Model) syncState(now time.Time) (ui.Span, []ui.Span) {
 		}
 		return spans
 	}
-	split := func(value string) (string, string) {
-		head, tail, _ := strings.Cut(value, " · ")
-		return head, tail
-	}
+	head, tail, _ := strings.Cut(text, " · ")
 	switch {
-	case m.Mode == ModeLoading && m.Backend:
-		return ui.Span{Text: m.Icons.Syncing, Tone: ui.ToneMuted}, word(ui.ToneMuted, false, "Waiting for the server", "")
 	case m.Mode == ModeLoading:
-		return ui.Span{Text: m.Icons.Syncing, Tone: ui.ToneMuted}, word(ui.ToneMuted, false, "Waiting for task export", "")
+		return ui.Span{Text: m.Icons.Syncing, Tone: ui.ToneMuted}, word(ui.ToneMuted, false, "Waiting for the server", "")
 	case m.MigrationRunning:
-		head, tail := split(text)
 		return ui.Span{Text: m.Icons.Local, Tone: ui.ToneMedium}, word(ui.ToneMedium, false, head, tail)
-	case m.Backend && (m.Server == ServerSignedOut || m.Server == ServerUnreachable):
-		head, tail := split(text)
+	case m.Server == ServerSignedOut || m.Server == ServerUnreachable:
 		return ui.Span{Text: m.Icons.Failed, Tone: ui.ToneRed, Bold: true}, word(ui.ToneRed, true, head, tail)
-	case m.Backend && m.Sync.UndoAvailable && m.Sync.UndoUntil.After(now):
-		head, tail := split(text)
+	case m.Undo.Available(now):
 		return ui.Span{Text: m.Icons.Local, Tone: ui.ToneMedium}, word(ui.ToneMedium, false, head, tail)
-	case m.Backend:
-		return ui.Span{Text: m.Icons.Synced, Tone: ui.ToneMuted}, word(ui.ToneMuted, false, text, "")
-	case !m.SyncConfigured || m.Sync.Phase == SyncDisabled:
-		return ui.Span{Text: m.Icons.Off, Tone: ui.ToneMuted}, word(ui.ToneMuted, false, text, "")
-	case m.Sync.UndoAvailable && !m.Sync.UndoUntil.IsZero():
-		return ui.Span{Text: m.Icons.Local, Tone: ui.ToneMedium}, word(ui.ToneMedium, false, "Local changes", "not synced yet")
-	case m.Sync.Phase == SyncRetrying:
-		head, tail := split(text)
-		return ui.Span{Text: m.Icons.Failed, Tone: ui.ToneRed, Bold: true}, word(ui.ToneRed, true, head, tail)
-	case m.Sync.Phase == SyncInFlight:
-		return ui.Span{Text: m.Icons.Syncing, Tone: ui.ToneAccent}, word(ui.ToneAccent, false, text, "")
 	default:
 		return ui.Span{Text: m.Icons.Synced, Tone: ui.ToneMuted}, word(ui.ToneMuted, false, text, "")
 	}
