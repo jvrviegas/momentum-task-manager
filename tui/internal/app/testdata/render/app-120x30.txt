@@ -28,7 +28,7 @@
                         │
 
   c  capture   /  search   enter  details   ?  help   q  quit                                                1-4  views
-                                                                                                           ✓ Sync ready
+                                                                                                               ✓ Online
 
 === inbox ===
  Momentum               │  Inbox  1 task                                                            grouped by project
@@ -60,7 +60,7 @@
                         │
 
   c  capture   /  search   enter  details   ?  help   q  quit                                                1-4  views
-                                                                                                           ✓ Sync ready
+                                                                                                               ✓ Online
 
 === empty ===
  Momentum               │  Inbox  0 tasks                                                           grouped by project
@@ -92,7 +92,7 @@
                         │
 
   c  capture   /  search   enter  details   ?  help   q  quit                                                1-4  views
-                                                                                                           ✓ Sync ready
+                                                                                                               ✓ Online
 
 === loading ===
  Momentum               │  Today                                                                     sorted by urgency
@@ -124,7 +124,7 @@
                         │
 
   c  capture   /  search   enter  details   ?  help   q  quit                                                1-4  views
- ↻ Loading tasks from Taskwarrior…                                                            ↻ Waiting for task export
+ ↻ Loading tasks from the server…                                                              ↻ Waiting for the server
 
 === error ===
  Momentum               │  Today                                                                     sorted by urgency
@@ -132,7 +132,7 @@
  VIEWS                  │
   ▱ Inbox               │
 ▌ ◷ Today               │  ! Could not load tasks
-  ✓ Completed           │  fixture Taskwarrior unavailable. Your data has not been changed.
+  ✓ Completed           │  fixture server unavailable. Your data has not been changed.
                         │
  MANAGE                 │  Fix the cause, then press r to retry.
   ⚙ Settings            │
@@ -156,7 +156,7 @@
                         │
 
   r  retry   ?  help   q  quit                                                                               1-4  views
- ! fixture Taskwarrior unavailable                                                                         ✓ Sync ready
+ ! fixture server unavailable                                                                                  ✓ Online
 
 === search ===
  Momentum               │  Today  1 of 3                                                             sorted by urgency
@@ -188,7 +188,7 @@
                         │
 
   esc  clear   ↑↓  move   enter  details   /  edit search                                                    1-4  views
- ⌕ 1 of 3 match "scheduled"                                                                                ✓ Sync ready
+ ⌕ 1 of 3 match "scheduled"                                                                                    ✓ Online
 
 === settings-list ===
  Momentum               │  Settings
@@ -220,7 +220,7 @@
                         │
 
   esc  back   1-3  views   q  quit
-                                                                                                           ✓ Sync ready
+                                                                                                               ✓ Online
 
 === settings-editor ===
  Momentum               │  Settings
@@ -252,4 +252,4 @@
                         │
 
   esc  back   1-3  views   q  quit
-                                                                                                           ✓ Sync ready
+                                                                                                               ✓ Online
