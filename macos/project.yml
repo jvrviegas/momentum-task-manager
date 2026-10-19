@@ -28,6 +28,9 @@ targets:
         GENERATE_INFOPLIST_FILE: YES
         INFOPLIST_KEY_CFBundleDisplayName: Momentum Task Manager
         INFOPLIST_KEY_LSApplicationCategoryType: public.app-category.productivity
+        # Teal, from the design. The dark value is deeper than the design's
+        # dark accent so white text on default buttons stays legible.
+        ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME: AccentColor
         # The app runs `task` and lets Taskwarrior read ~/.taskrc and its data,
         # so it is not sandboxed.
         ENABLE_APP_SANDBOX: NO
