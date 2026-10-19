@@ -9,16 +9,16 @@ Momentum is a monorepo. The root `go.work` joins its Go modules for local builds
   - `api` — the backend's HTTP contract: routes, request and response types, errors, and the client the apps use
 - `tui/` — the terminal app, and the Go code the macOS app shares (module `github.com/jvrviegas/momentum-task-manager/tui`)
   - `cmd/momentum` — CLI parsing, startup validation, and version metadata
-  - `internal/app` — Bubble Tea model, messages, commands, actions, sync state, composition
+  - `internal/app` — Bubble Tea model, messages, commands, actions, undo window, composition
   - `internal/ui` — pure rendering and overlay components
-  - `internal/taskwarrior` — direct `task` argv adapter and captured errors
-  - `internal/backend` — backend mode: the server client behind the Taskwarrior adapter's interfaces, the saved sign-in, and the device's time zone
+  - `internal/taskwarrior` — reads `task export` for `momentum import`, the only code that runs `task`
+  - `internal/backend` — the server client, the saved sign-in, the device's time zone, and the import plan
   - `internal/config` — strict TOML and XDG resolution
   - `internal/quickadd` — trigger parser and suggestions
   - `internal/diagnostics` — doctor checks and redacted logging
   - `internal/bridge`, `cmd/momentum-bridge` — JSON-lines service that exposes the packages above to the macOS app
 - `macos/` — native SwiftUI app (see [`macos/README.md`](./macos/README.md)); run `xcodebuild -scheme Momentum test` there when it changes
-- `backend/` — Go and PostgreSQL replacement for Taskwarrior, in progress (module `github.com/jvrviegas/momentum-task-manager/backend`; [ADR 0002](./docs/adr/0002-go-postgres-backend.md), [plan](./docs/plans/backend.md), [README](./backend/README.md))
+- `backend/` — the Momentum server in Go and PostgreSQL (module `github.com/jvrviegas/momentum-task-manager/backend`; [ADR 0002](./docs/adr/0002-go-postgres-backend.md), [plan](./docs/plans/backend.md), [README](./backend/README.md))
   - `cmd/momentum-server` — configuration, listening, graceful shutdown, and the `migrate` command
   - `internal/httpapi` — routes, JSON errors, request logging, and the sign-in pages
   - `internal/auth` — device sign-in, Google and GitHub providers, and sessions
@@ -31,7 +31,7 @@ Momentum is a monorepo. The root `go.work` joins its Go modules for local builds
 
 ## Before a change
 
-Read [`tui/DESIGN.md`](./tui/DESIGN.md) and the relevant implementation-plan task. In `tui/`, keep Taskwarrior as the source of truth. Do not add persistence, a shell, a background service, telemetry, or direct access to `~/.task`. The backend in ADR 0002 is the planned exception and follows its own plan.
+Read [`tui/DESIGN.md`](./tui/DESIGN.md) and the relevant implementation-plan task. The Momentum server is the source of truth for tasks ([ADR 0002](./docs/adr/0002-go-postgres-backend.md)). In the apps, do not add a local task store, a shell, a background service, telemetry, or access to `~/.task`.
 
 ## Tests and safety
 
@@ -58,9 +58,9 @@ docker build -f backend/Dockerfile .
 
 Backend store tests run only against a local PostgreSQL server named by `MOMENTUM_TEST_DATABASE_URL`; `docker compose up -d --wait postgres` starts one from [`compose.yaml`](./compose.yaml) (see [`backend/README.md`](./backend/README.md)), and each test uses a database of its own. Never point them, or `cmd/migration-diff`, at Neon. After changing `backend/internal/store/ent/schema`, run `go generate ./...` in `backend/` and commit the generated code with a reviewed migration.
 
-Taskwarrior integration tests must use temporary `TASKRC` and `TASKDATA` values. They must not run in parallel and must retain the guard that rejects `~/.taskrc` and `~/.task`. Never use a real sync server or production task database in tests.
+The import's Taskwarrior tests must use temporary `TASKRC` and `TASKDATA` values. They must not run in parallel and must retain the guard that rejects `~/.taskrc` and `~/.task`. Never use the deployed server or a production task database in tests; the apps' tests use fake servers.
 
-UI tests should assert terminal display width with Lip Gloss helpers and cover wide, compact, narrow, empty, loading, modal, suggestion, error, and local-only states. Subprocess code must use `exec.CommandContext` with separate arguments.
+UI tests should assert terminal display width with Lip Gloss helpers and cover wide, compact, narrow, empty, loading, modal, suggestion, error, and unreachable-server states. Subprocess code must use `exec.CommandContext` with separate arguments.
 
 ## Changes
 
