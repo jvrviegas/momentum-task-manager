@@ -8,7 +8,6 @@ import (
 	tea "charm.land/bubbletea/v2"
 
 	"github.com/jvrviegas/momentum-task-manager/core/domain"
-	"github.com/jvrviegas/momentum-task-manager/tui/internal/taskwarrior"
 	"github.com/jvrviegas/momentum-task-manager/tui/internal/ui"
 )
 
@@ -69,7 +68,7 @@ func refreshRenameScope(t *testing.T, model *Model) {
 }
 
 func TestValueEditCatalogOnlySavesAfterExplicitPreviewConfirmation(t *testing.T) {
-	migrationClient := &coordinatorClient{export: taskwarrior.ProjectMigrationExport{Tasks: []domain.Task{{UUID: "one", Status: "pending", Project: "work"}}}}
+	migrationClient := &coordinatorClient{tasks: []domain.Task{{UUID: "one", Status: "pending", Project: "work"}}}
 	model, store := workflowModel(migrationClient)
 	openValueRenamePreview(t, model, "delivery")
 	if model.ProjectRename.Mode != ui.ProjectRenameCatalogOnly || len(store.saved) != 0 || len(migrationClient.calls) != 0 {
@@ -90,10 +89,7 @@ func TestValueEditCatalogOnlySavesAfterExplicitPreviewConfirmation(t *testing.T)
 }
 
 func TestValueEditPendingFlowRunsOnlyConfirmedMappingsAndRefreshes(t *testing.T) {
-	migrationClient := &coordinatorClient{
-		export:   taskwarrior.ProjectMigrationExport{Scope: taskwarrior.ProjectMigrationScope{ContextName: "work", ReadFilter: "project:work"}, Tasks: []domain.Task{{UUID: "one", Status: "pending", Project: "work"}}},
-		outcomes: []taskwarrior.ProjectTaskOutcome{{Kind: taskwarrior.ProjectTaskChanged}},
-	}
+	migrationClient := &coordinatorClient{tasks: []domain.Task{{UUID: "one", Status: "pending", Project: "work"}}}
 	model, store := workflowModel(migrationClient)
 	openValueRenamePreview(t, model, "delivery")
 	refreshRenameScope(t, model)
@@ -107,7 +103,7 @@ func TestValueEditPendingFlowRunsOnlyConfirmedMappingsAndRefreshes(t *testing.T)
 		t.Fatalf("message=%T", migrationCmd())
 	}
 	_, refreshCmd := model.Update(result)
-	if refreshCmd == nil || !model.Sync.Unsynced || model.Sync.UndoAvailable {
+	if refreshCmd == nil || model.Undo.Available(model.now()) {
 		t.Fatalf("migration result state=%#v refresh=%v", model, refreshCmd)
 	}
 	model.Update(refreshCmd())
@@ -120,11 +116,11 @@ func TestValueEditPendingFlowRunsOnlyConfirmedMappingsAndRefreshes(t *testing.T)
 }
 
 func TestValueEditStalePreviewKeepsDraftAndPerformsNoWrites(t *testing.T) {
-	migrationClient := &coordinatorClient{export: taskwarrior.ProjectMigrationExport{Tasks: []domain.Task{{UUID: "one", Status: "pending", Project: "work"}}}}
+	migrationClient := &coordinatorClient{tasks: []domain.Task{{UUID: "one", Status: "pending", Project: "work"}}}
 	model, store := workflowModel(migrationClient)
 	openValueRenamePreview(t, model, "delivery")
 	refreshRenameScope(t, model)
-	migrationClient.export.Tasks = nil
+	migrationClient.tasks = nil
 	confirmMsg := confirmRename(t, model)()
 	_, migrationCmd := model.Update(confirmMsg)
 	result := migrationCmd().(ProjectMigrationMsg)
@@ -136,7 +132,7 @@ func TestValueEditStalePreviewKeepsDraftAndPerformsNoWrites(t *testing.T) {
 		t.Fatal("stale preview discarded the editable draft")
 	}
 
-	migrationClient.export.Tasks = []domain.Task{{UUID: "one", Status: "pending", Project: "work"}}
+	migrationClient.tasks = []domain.Task{{UUID: "one", Status: "pending", Project: "work"}}
 	_, retryIntent := model.Update(key("r"))
 	if retryIntent == nil {
 		t.Fatal("stale preview did not offer explicit retry")
@@ -156,10 +152,10 @@ func TestValueEditStalePreviewKeepsDraftAndPerformsNoWrites(t *testing.T) {
 }
 
 func TestTaskOnlyDestinationWarningIsNotBypassedByWorkflow(t *testing.T) {
-	migrationClient := &coordinatorClient{export: taskwarrior.ProjectMigrationExport{Tasks: []domain.Task{
+	migrationClient := &coordinatorClient{tasks: []domain.Task{
 		{UUID: "source", Status: "pending", Project: "work"},
 		{UUID: "existing", Status: "pending", Project: "delivery"},
-	}}}
+	}}
 	model, store := workflowModel(migrationClient)
 	openValueRenamePreview(t, model, "delivery")
 	refreshRenameScope(t, model)
