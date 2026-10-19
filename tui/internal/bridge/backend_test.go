@@ -57,12 +57,12 @@ func answer(status int, body string) func(string) (int, string) {
 func newBackendBridge(url string) *Server {
 	settings := config.Defaults()
 	settings.Backend.URL = url
-	server := NewServer(backend.New(url, "mtk_device", "Europe/Lisbon"), settings, "/tmp/config.toml")
+	server := NewServer(func(string) Client { return backend.New(url, "mtk_device", "Europe/Lisbon") }, settings, "/tmp/config.toml")
 	server.now = func() time.Time { return testNow }
 	return server
 }
 
-func TestBackendModeReachesTheServer(t *testing.T) {
+func TestTheBridgeReachesTheServer(t *testing.T) {
 	const id = "6b9a5f9e-3c39-4a51-9d55-0d3c8f7f1a10"
 	task := `{"uuid":"` + id + `","description":"Send invoice","status":"pending","project":"work",` +
 		`"entry":"2026-10-13T09:00:00Z","modified":"2026-10-13T09:00:00Z","due":"2026-10-14T16:00:00Z","estimateMinutes":30,"urgency":9.5}`
@@ -97,19 +97,17 @@ func TestBackendModeReachesTheServer(t *testing.T) {
 		request(t, 5, "modify", modifyParams{UUID: id, Before: before, After: after}),
 		request(t, 6, "complete", uuidParams{UUID: id}),
 		request(t, 7, "undo", nil),
-		request(t, 8, "sync", nil),
 	)
 
 	var status statusResult
 	json.Unmarshal(responses[1].Result, &status)
-	if responses[1].Error != nil || status.TaskwarriorVersion != "" || status.SyncConfigured || status.EstimateUDA != "configured" ||
-		status.BackendURL != fake.url {
+	if responses[1].Error != nil || status.MutationDelaySeconds != 15 || status.RefreshIntervalSeconds != 60 || status.BackendURL != fake.url {
 		t.Errorf("status = %s %+v", responses[1].Result, responses[1].Error)
 	}
 	var load loadResult
 	json.Unmarshal(responses[2].Result, &load)
 	if responses[2].Error != nil || len(load.Tasks) != 1 || load.Tasks[0].UUID != id || load.Tasks[0].Edit.Estimate != "30m" ||
-		load.Context != "" || len(load.Projects) != 1 || load.Projects[0].Value != "work" {
+		len(load.Projects) != 1 || load.Projects[0].Value != "work" {
 		t.Errorf("load = %s %+v", responses[2].Result, responses[2].Error)
 	}
 	for _, id := range []int64{3, 5, 6} {
@@ -122,9 +120,6 @@ func TestBackendModeReachesTheServer(t *testing.T) {
 	}
 	if got := responses[7].Error; got == nil || got.Field != "" || got.Message != "the task changed since; undo is not available" {
 		t.Errorf("undo error = %+v", got)
-	}
-	if string(responses[8].Result) != `{"changed":false}` {
-		t.Errorf("sync = %s", responses[8].Result)
 	}
 
 	due := time.Date(2026, 10, 20, 0, 0, 0, 0, time.Local).UTC().Format(time.RFC3339)
@@ -144,7 +139,7 @@ func TestBackendModeReachesTheServer(t *testing.T) {
 	}
 }
 
-// newSigningInBridge returns a backend-mode bridge whose server starts
+// newSigningInBridge returns a bridge whose server starts
 // sign-ins with device code "dc", answers each poll with the next of polls,
 // lists tasks only for a token, and revokes any token but "mtk_old", which it
 // no longer accepts. It records each request's route, body, and token.
@@ -199,7 +194,7 @@ func newSigningInBridge(t *testing.T, polls ...string) (*Server, *[]string) {
 
 	settings := config.Defaults()
 	settings.Backend.URL = fake.URL
-	server := NewBackendServer(func(token string) Client { return backend.New(fake.URL, token, "") }, settings, "/tmp/config.toml")
+	server := NewServer(func(token string) Client { return backend.New(fake.URL, token, "") }, settings, "/tmp/config.toml")
 	server.now = func() time.Time { return testNow }
 	return server, &requests
 }
@@ -226,7 +221,7 @@ func TestBackendSignInThroughTheBridge(t *testing.T) {
 
 	var status statusResult
 	json.Unmarshal(responses[1].Result, &status)
-	if status.BackendURL == "" || status.TaskwarriorVersion != "" {
+	if status.BackendURL == "" {
 		t.Errorf("status = %s %+v", responses[1].Result, responses[1].Error)
 	}
 	for _, id := range []int64{2, 12} {
@@ -306,15 +301,28 @@ func TestBackendErrorsSayTheServerIsUnreachable(t *testing.T) {
 	}
 }
 
-func TestSignInNeedsBackendMode(t *testing.T) {
-	responses := serve(t, newTestServer(&fakeClient{}, config.Defaults()),
-		request(t, 1, "setToken", tokenParams{Token: "mtk_new"}),
-		request(t, 2, "signInStart", nil),
-		request(t, 3, "signInPoll", signInPollParams{DeviceCode: "dc"}),
-		request(t, 4, "revoke", tokenParams{Token: "mtk_new"}),
+func TestServerOperationsNeedABackendURL(t *testing.T) {
+	server := NewServer(func(string) Client { return &fakeClient{} }, config.Defaults(), "/tmp/config.toml")
+	responses := serve(t, server,
+		request(t, 1, "status", nil),
+		request(t, 2, "interpret", interpretParams{Input: "Call Ana tomorrow"}),
+		request(t, 3, "load", nil),
+		request(t, 4, "complete", uuidParams{UUID: "a"}),
+		request(t, 5, "setToken", tokenParams{Token: "mtk_new"}),
+		request(t, 6, "signInStart", nil),
+		request(t, 7, "signInPoll", signInPollParams{DeviceCode: "dc"}),
+		request(t, 8, "revoke", tokenParams{Token: "mtk_new"}),
 	)
-	for id := int64(1); id <= 4; id++ {
-		if got := responses[id].Error; got == nil || got.Message != "sign-in needs a [backend] url in /tmp/config.toml" {
+	var status statusResult
+	json.Unmarshal(responses[1].Result, &status)
+	if responses[1].Error != nil || status.BackendURL != "" || status.ConfigPath != "/tmp/config.toml" {
+		t.Errorf("status = %s %+v", responses[1].Result, responses[1].Error)
+	}
+	if responses[2].Error != nil {
+		t.Errorf("interpret: %+v", responses[2].Error)
+	}
+	for id := int64(3); id <= 8; id++ {
+		if got := responses[id].Error; got == nil || got.Message != "Momentum needs a server: add a [backend] url to /tmp/config.toml, then sign in" {
 			t.Errorf("response %d: %+v", id, got)
 		}
 	}
