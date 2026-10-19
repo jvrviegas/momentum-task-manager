@@ -5,7 +5,6 @@ import (
 
 	"github.com/jvrviegas/momentum-task-manager/core/domain"
 	"github.com/jvrviegas/momentum-task-manager/tui/internal/config"
-	"github.com/jvrviegas/momentum-task-manager/tui/internal/taskwarrior"
 	"github.com/jvrviegas/momentum-task-manager/tui/internal/ui"
 )
 
@@ -44,23 +43,11 @@ type MutationMsg struct {
 	PlanTotal   int
 }
 
-// SyncMsg is returned by a native Taskwarrior sync command.
-type SyncMsg struct {
-	Result taskwarrior.SyncResult
-	Err    error
-}
-
-// SyncConfigMsg reports sync readiness without exposing credentials.
-type SyncConfigMsg struct {
-	Configured bool
-	Err        error
-}
-
-// SyncTickMsg and RefreshTickMsg keep the two independent clocks explicit.
-type SyncTickMsg time.Time
+// UndoTickMsg and RefreshTickMsg keep the two independent clocks explicit.
+type UndoTickMsg time.Time
 type RefreshTickMsg time.Time
 
-// TickMsg drives refresh, sync, and countdown timers.
+// TickMsg drives refresh and countdown timers.
 type TickMsg time.Time
 
 // RefreshRequestedMsg asks the root model to keep the current content while it
@@ -73,12 +60,6 @@ type RefreshRequestedMsg struct {
 type MutationRequestedMsg struct {
 	Request MutationRequest
 	Done    chan struct{}
-}
-
-// ContextMsg reports the active Taskwarrior context without changing it.
-type ContextMsg struct {
-	Name string
-	Err  error
 }
 
 // ProjectsMsg and TagsMsg populate contextual autocomplete data.
@@ -95,7 +76,7 @@ type TagsMsg struct {
 }
 
 // CalendarMsg contains the ephemeral read-only calendar projection used by
-// the open planner. Event details never reach Taskwarrior or disk.
+// the open planner. Event details never reach the server or disk.
 type CalendarMsg struct {
 	ID     uint64
 	Result CalendarState
