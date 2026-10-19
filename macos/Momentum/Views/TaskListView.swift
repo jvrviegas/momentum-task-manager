@@ -2,13 +2,16 @@ import SwiftUI
 
 struct TaskListView: View {
     @Environment(AppStore.self) private var store
+    @Environment(\.appearsActive) private var appearsActive
     @FocusState private var listFocused: Bool
+    @State private var compact = false
     let focusSearch: () -> Void
 
     var body: some View {
         content
             .navigationTitle(store.view.title)
             .navigationSubtitle(subtitle)
+            .background(Theme.content)
     }
 
     @ViewBuilder
@@ -48,18 +51,22 @@ struct TaskListView: View {
                     EstimateBanner()
                 }
                 if store.view == .completed, let error = store.snapshot?.completedError {
-                    Label(error, systemImage: "exclamationmark.triangle").foregroundStyle(.orange)
+                    Label(error, systemImage: "exclamationmark.triangle").foregroundStyle(Theme.warn)
                 }
                 ForEach(store.visibleSections) { section in
                     Section {
                         ForEach(section.tasks) { task in
-                            TaskRow(task: task).tag(task.uuid)
+                            TaskRow(task: task, compact: compact, emphasized: listFocused && appearsActive && store.selection == task.uuid)
+                                .tag(task.uuid)
                         }
                     } header: {
                         SectionHeader(section: section, view: store.view)
                     }
                 }
+                .listRowSeparatorTint(Theme.separator)
             }
+            .scrollContentBackground(.hidden)
+            .onGeometryChange(for: Bool.self) { $0.size.width < 600 } action: { compact = $0 }
             .overlay {
                 if store.visibleSections.isEmpty {
                     emptyState
@@ -128,19 +135,21 @@ struct SectionHeader: View {
     let view: ViewName
 
     var body: some View {
-        HStack(spacing: 6) {
+        HStack(alignment: .firstTextBaseline, spacing: 8) {
             if view == .inbox, section.project != nil {
-                Image(systemName: "folder")
+                Image(systemName: "folder").foregroundStyle(Theme.text3)
             }
             Text(section.title)
-                .foregroundStyle(section.title == "Overdue" && view == .today ? AnyShapeStyle(.red) : AnyShapeStyle(.primary))
+                .font(.system(size: 12, weight: .semibold))
+                .foregroundStyle(section.title == "Overdue" && view == .today ? Theme.danger : Theme.text2)
             Text("\(section.tasks.count)")
-                .foregroundStyle(.secondary)
+                .font(.system(size: 11.5))
+                .foregroundStyle(Theme.text3)
                 .monospacedDigit()
             if view == .inbox, let project = section.project, project != section.title {
                 Text(project)
-                    .font(.caption.monospaced())
-                    .foregroundStyle(.tertiary)
+                    .font(.system(size: 11, design: .monospaced))
+                    .foregroundStyle(Theme.text3)
             }
         }
     }
@@ -148,17 +157,21 @@ struct SectionHeader: View {
 
 struct EstimateBanner: View {
     var body: some View {
-        Label {
+        HStack(alignment: .firstTextBaseline, spacing: 10) {
+            Image(systemName: "exclamationmark.triangle").foregroundStyle(Theme.warn)
             VStack(alignment: .leading, spacing: 2) {
-                Text("Estimates are read-only on this Mac.").bold()
+                Text("Estimates are read-only on this Mac.").fontWeight(.semibold)
                 Text("Add `uda.estimate.type=duration` and `uda.estimate.label=Estimate` to ~/.taskrc. Other actions keep working.")
-                    .foregroundStyle(.secondary)
+                    .foregroundStyle(Theme.text2)
             }
-        } icon: {
-            Image(systemName: "exclamationmark.triangle").foregroundStyle(.orange)
         }
-        .font(.callout)
-        .padding(.vertical, 4)
+        .font(.system(size: 12.5))
+        .foregroundStyle(Theme.text)
+        .padding(.horizontal, 12)
+        .padding(.vertical, 9)
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .background(Theme.warnSoft, in: RoundedRectangle(cornerRadius: 9))
+        .listRowSeparator(.hidden)
     }
 }
 
