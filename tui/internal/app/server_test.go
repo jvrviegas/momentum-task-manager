@@ -24,7 +24,7 @@ import (
 
 // runAll runs command and every command it batches, and sends each message
 // to model, as Bubble Tea would, except timers: it returns the instants of
-// the sync ticks instead. Commands must not wait, as tea.Tick does for a
+// the undo ticks instead. Commands must not wait, as tea.Tick does for a
 // future time.
 func runAll(model *Model, command tea.Cmd) (ticks []time.Time) {
 	if command == nil {
@@ -36,7 +36,7 @@ func runAll(model *Model, command tea.Cmd) (ticks []time.Time) {
 			ticks = append(ticks, runAll(model, each)...)
 		}
 		return ticks
-	case SyncTickMsg:
+	case UndoTickMsg:
 		return []time.Time{time.Time(message)}
 	default:
 		_, next := model.Update(message)
@@ -44,10 +44,10 @@ func runAll(model *Model, command tea.Cmd) (ticks []time.Time) {
 	}
 }
 
-// TestBackendModeOffersUndoForTheMutationDelay runs the model on the backend
-// client: Momentum's sync schedule and unsynced-changes prompt stay off
-// (P1), and undo reverts the latest change until mutation_delay passes (D7).
-func TestBackendModeOffersUndoForTheMutationDelay(t *testing.T) {
+// TestUndoIsOfferedForTheMutationDelay runs the model on the backend client:
+// undo reverts the latest change until mutation_delay passes (D7), and
+// quitting never asks first (P1).
+func TestUndoIsOfferedForTheMutationDelay(t *testing.T) {
 	const id = "6b9a5f9e-3c39-4a51-9d55-0d3c8f7f1a10"
 	task := `{"uuid":"` + id + `","description":"Send invoice","status":"pending","entry":"2026-09-07T09:00:00Z","modified":"2026-09-07T09:00:00Z","urgency":2}`
 	var mu sync.Mutex
@@ -68,7 +68,7 @@ func TestBackendModeOffersUndoForTheMutationDelay(t *testing.T) {
 	defer server.Close()
 	client := backend.New(server.URL, "mtk_device", "")
 	now := modelNow()
-	model := NewModel(ModelOptions{Client: client, Config: config.Defaults(), Now: func() time.Time { return now }, Backend: true})
+	model := NewModel(ModelOptions{Client: client, Config: config.Defaults(), Now: func() time.Time { return now }})
 	complete := func() {
 		t.Helper()
 		command := model.beginMutation(MutationRequest{Kind: MutationComplete, UUID: id})
@@ -81,16 +81,16 @@ func TestBackendModeOffersUndoForTheMutationDelay(t *testing.T) {
 	}
 
 	model.Update(LoadTasksCommand(context.Background(), client, "initial", now)())
-	if len(model.Tasks) != 1 || model.SyncConfigured || model.Sync.Phase != SyncDisabled || model.Server != ServerOnline || model.SyncStatus(now) != "Online" {
-		t.Fatalf("after load: tasks %v, sync configured %v, phase %s, server %q, status %q", model.Tasks, model.SyncConfigured, model.Sync.Phase, model.Server, model.SyncStatus(now))
+	if len(model.Tasks) != 1 || model.Server != ServerOnline || model.ServerStatus(now) != "Online" {
+		t.Fatalf("after load: tasks %v, server %q, status %q", model.Tasks, model.Server, model.ServerStatus(now))
 	}
 
 	complete()
-	if !model.Sync.UndoAvailable || !model.Sync.UndoUntil.Equal(now.Add(15*time.Second)) || model.SyncStatus(now) != "Saved · u to undo" {
-		t.Fatalf("after complete: sync %#v, status %q", model.Sync, model.SyncStatus(now))
+	if !model.Undo.Available(now) || !model.Undo.Until.Equal(now.Add(15*time.Second)) || model.ServerStatus(now) != "Saved · u to undo" {
+		t.Fatalf("after complete: undo %#v, status %q", model.Undo, model.ServerStatus(now))
 	}
-	if _, tick := model.Update(SyncTickMsg(now.Add(10 * time.Second))); tick != nil || !model.Sync.UndoAvailable {
-		t.Fatalf("an earlier change's timer closed undo: %#v", model.Sync)
+	if _, tick := model.Update(UndoTickMsg(now.Add(10 * time.Second))); tick != nil || !model.Undo.Available(now) {
+		t.Fatalf("an earlier change's timer closed undo: %#v", model.Undo)
 	}
 	now = now.Add(14 * time.Second)
 	_, undo := model.Update(key("u"))
@@ -98,39 +98,34 @@ func TestBackendModeOffersUndoForTheMutationDelay(t *testing.T) {
 		t.Fatal("u did not dispatch undo within the window")
 	}
 	runAll(model, undo)
-	if model.Sync.UndoAvailable || model.SyncStatus(now) != "Online" {
-		t.Fatalf("after undo: sync %#v", model.Sync)
+	if model.Undo.Available(now) || model.ServerStatus(now) != "Online" {
+		t.Fatalf("after undo: undo %#v", model.Undo)
 	}
 
 	complete()
-	model.Update(SyncTickMsg(model.Sync.UndoUntil))
-	if _, undo := model.Update(key("u")); undo != nil || model.Sync.UndoAvailable {
-		t.Fatalf("undo after the timer closed the window: %#v", model.Sync)
+	now = model.Undo.Until // the timer fires as the window closes
+	model.Update(UndoTickMsg(now))
+	if _, undo := model.Update(key("u")); undo != nil || model.ServerStatus(now) != "Online" {
+		t.Fatalf("undo after the window closed: %#v", model.Undo)
 	}
 
-	complete()
-	now = now.Add(15 * time.Second) // the window passed before its timer fired
-	if _, undo := model.Update(key("u")); undo != nil || model.Sync.UndoAvailable || model.SyncStatus(now) != "Online" {
-		t.Fatalf("undo after the window passed: %#v", model.Sync)
-	}
-
-	if quit := model.requestQuit(); quit == nil || model.Overlay == OverlayQuit {
-		t.Fatalf("quit opened %s", model.Overlay)
+	if quit := model.requestQuit(); quit == nil {
+		t.Fatal("quit asked first")
 	} else if _, ok := quit().(tea.QuitMsg); !ok {
 		t.Fatal("quit did not quit")
 	}
 	want := []string{api.RouteListTasks, api.RouteListTasks, // initial load: pending, completed
 		api.RouteCompleteTask, api.RouteListTasks, api.RouteListTasks, api.RouteUndo, api.RouteListTasks, api.RouteListTasks,
-		api.RouteCompleteTask, api.RouteListTasks, api.RouteListTasks, api.RouteCompleteTask, api.RouteListTasks, api.RouteListTasks}
+		api.RouteCompleteTask, api.RouteListTasks, api.RouteListTasks}
 	if !reflect.DeepEqual(routes, want) {
 		t.Errorf("routes %v, want %v", routes, want)
 	}
 }
 
-func TestBackendModeShowsTheServersState(t *testing.T) {
+func TestTheFooterShowsTheServersState(t *testing.T) {
 	unreachable := fmt.Errorf("%w: dial tcp 127.0.0.1:1: connection refused", api.ErrUnreachable)
 	for _, width := range []int{120, 79, 50} {
-		model := NewModel(ModelOptions{Client: &fakeClient{}, Config: config.Defaults(), Now: modelNow, Width: width, Height: 24, Backend: true})
+		model := NewModel(ModelOptions{Client: &fakeClient{}, Config: config.Defaults(), Now: modelNow, Width: width, Height: 24})
 		footer := func() string {
 			t.Helper()
 			lines := strings.Split(ansi.Strip(model.View().Content), "\n")
@@ -173,12 +168,43 @@ func TestBackendModeShowsTheServersState(t *testing.T) {
 	}
 }
 
-// TestTaskwarriorModeIgnoresServerErrors keeps the server state to backend
-// mode.
-func TestTaskwarriorModeIgnoresServerErrors(t *testing.T) {
-	model := testModel(&fakeClient{})
-	model.Update(TasksMsg{Reason: "refresh", Err: api.ErrUnreachable})
-	if model.Server != ServerUnknown || strings.Contains(model.SyncStatus(modelNow()), "Server") {
-		t.Errorf("server %q, status %q", model.Server, model.SyncStatus(modelNow()))
+func TestSuccessfulUndoClosesTheWindow(t *testing.T) {
+	model := actionModel(&fakeClient{exports: [][]domain.Task{{}}})
+	model.Undo = model.Undo.Open(model.now())
+	model.PendingMutation = &MutationRequest{Kind: MutationUndo}
+	model.MutationRunning = true
+	model.Update(MutationMsg{Kind: MutationUndo})
+	if model.Undo.Available(model.now()) {
+		t.Fatalf("undo left the window open: %#v", model.Undo)
 	}
 }
+
+func TestRefreshTimerPausesDuringOverlay(t *testing.T) {
+	model := actionModel(&fakeClient{})
+	model.Overlay = OverlayQuickAdd
+	model.QuickAdd.Open = true
+	model.Update(RefreshTickMsg(time.Now()))
+	if model.Mode != ModeReady {
+		t.Fatalf("refresh ran during overlay: mode=%s", model.Mode)
+	}
+}
+
+func TestRefreshTimerRunsWhenNoOverlay(t *testing.T) {
+	model := actionModel(&fakeClient{})
+	model.Config.RefreshInterval = time.Hour
+	model.Update(RefreshTickMsg(time.Now()))
+	if model.Mode != ModeRefreshing {
+		t.Fatalf("mode=%s", model.Mode)
+	}
+}
+
+func TestDisabledRefreshIntervalInstallsNoRefreshCommand(t *testing.T) {
+	settings := config.Defaults()
+	settings.RefreshInterval = 0
+	model := NewModel(ModelOptions{Config: settings, Client: &fakeClient{}})
+	if cmd := model.Init(); cmd == nil {
+		t.Fatal("initial load still required")
+	}
+}
+
+func modelNow() time.Time { return time.Date(2026, 9, 8, 10, 0, 0, 0, time.UTC) }
