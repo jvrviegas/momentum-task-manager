@@ -16,8 +16,9 @@ var (
 	ErrEmptyDiff   = errors.New("task edit contains no changed supported fields")
 )
 
-// AddArgs builds the exact argv for a safe Taskwarrior add operation.
-func AddArgs(input domain.NewTask) ([]string, error) {
+// AddArgs builds the exact argv for a safe Taskwarrior add operation,
+// resolving next-week at now.
+func AddArgs(input domain.NewTask, now time.Time) ([]string, error) {
 	if strings.TrimSpace(input.Description) == "" {
 		return nil, errors.New("task description is required")
 	}
@@ -26,10 +27,10 @@ func AddArgs(input domain.NewTask) ([]string, error) {
 		args = append(args, "project:"+input.Project)
 	}
 	if input.Due != "" {
-		args = append(args, "due:"+normalizeDate(input.Due))
+		args = append(args, "due:"+normalizeDate(input.Due, now))
 	}
 	if input.Scheduled != "" {
-		args = append(args, "scheduled:"+normalizeDate(input.Scheduled))
+		args = append(args, "scheduled:"+normalizeDate(input.Scheduled, now))
 	}
 	if input.Recurrence != "" {
 		recurrence, err := domain.ParseRecurrence(input.Recurrence)
@@ -60,8 +61,9 @@ func AddArgs(input domain.NewTask) ([]string, error) {
 	return args, nil
 }
 
-// ModifyArgs builds UUID-based argv for a minimal supported-field edit.
-func ModifyArgs(uuid string, diff domain.TaskDiff) ([]string, error) {
+// ModifyArgs builds UUID-based argv for a minimal supported-field edit,
+// resolving next-week at now.
+func ModifyArgs(uuid string, diff domain.TaskDiff, now time.Time) ([]string, error) {
 	if err := validateUUID(uuid); err != nil {
 		return nil, err
 	}
@@ -80,8 +82,8 @@ func ModifyArgs(uuid string, diff domain.TaskDiff) ([]string, error) {
 	appendChange("description", diff.Description)
 	appendChange("project", diff.Project)
 	appendChange("priority", diff.Priority)
-	diff.Due.Value = normalizeDate(diff.Due.Value)
-	diff.Scheduled.Value = normalizeDate(diff.Scheduled.Value)
+	diff.Due.Value = normalizeDate(diff.Due.Value, now)
+	diff.Scheduled.Value = normalizeDate(diff.Scheduled.Value, now)
 	appendChange("due", diff.Due)
 	appendChange("scheduled", diff.Scheduled)
 	if diff.Recurrence.Kind == domain.Set {
@@ -124,13 +126,17 @@ func ModifyArgs(uuid string, diff domain.TaskDiff) ([]string, error) {
 	return args, nil
 }
 
-// normalizeDate expands the next-week alias and rewrites the editor's
-// "YYYY-MM-DD HH:MM" form as ISO 8601. Taskwarrior 3.5 reads
-// "2026-10-15 09:30" as midnight and silently drops the time, while
-// "2026-10-15T09:30" keeps it. Other expressions pass through.
-func normalizeDate(value string) string {
+// normalizeDate resolves the next-week alias to its date at now and rewrites
+// the editor's "YYYY-MM-DD HH:MM" form as ISO 8601. Taskwarrior adds a
+// relative sow+1w+4d as seconds, so across a DST change it lands an hour off
+// Friday midnight, while it reads a plain date as that day's midnight.
+// Taskwarrior 3.5 reads "2026-10-15 09:30" as midnight and silently drops the
+// time, while "2026-10-15T09:30" keeps it. Other expressions pass through.
+func normalizeDate(value string, now time.Time) string {
 	if strings.EqualFold(strings.TrimSpace(value), "next-week") {
-		return "sow+1w+4d"
+		if friday, err := domain.ResolveDate("next-week", now); err == nil {
+			return friday.Format("2006-01-02")
+		}
 	}
 	if parsed, err := time.Parse("2006-01-02 15:04", strings.TrimSpace(value)); err == nil {
 		return parsed.Format("2006-01-02T15:04")
@@ -154,7 +160,7 @@ func simpleUUIDArgs(uuid, action string) ([]string, error) {
 
 // Add invokes Taskwarrior after building argv from the parsed task.
 func (c *CommandClient) Add(ctx context.Context, input domain.NewTask) error {
-	args, err := AddArgs(input)
+	args, err := AddArgs(input, time.Now())
 	if err != nil {
 		return err
 	}
@@ -169,7 +175,7 @@ func (c *CommandClient) Add(ctx context.Context, input domain.NewTask) error {
 
 // Modify invokes one UUID-based modify command.
 func (c *CommandClient) Modify(ctx context.Context, uuid string, diff domain.TaskDiff) error {
-	args, err := ModifyArgs(uuid, diff)
+	args, err := ModifyArgs(uuid, diff, time.Now())
 	if err != nil {
 		return err
 	}
