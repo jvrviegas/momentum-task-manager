@@ -4,16 +4,12 @@ import Foundation
 // same unit as Go runes.
 
 struct BridgeStatus: Decodable, Sendable, Equatable {
-    var taskwarriorVersion: String
-    var syncConfigured: Bool
-    var estimateUDA: String
     var configPath: String
-    var sync: SyncSettings
+    /// How long the latest change can be undone.
+    var mutationDelaySeconds: Int
     var refreshIntervalSeconds: Int
-    /// The [backend] server in backend mode; nil when Momentum uses Taskwarrior.
+    /// The [backend] server; nil until config.toml names one.
     var backendUrl: String?
-
-    var estimatesWritable: Bool { estimateUDA == "configured" }
 }
 
 /// A started device sign-in: show userCode, open verificationUrlComplete, and
@@ -36,21 +32,12 @@ struct SignInPoll: Decodable, Sendable, Equatable {
     var expiresAt: Date?
 }
 
-struct SyncSettings: Decodable, Sendable, Equatable {
-    var enabled: Bool
-    var startup: Bool
-    var shutdown: Bool
-    var intervalSeconds: Int
-    var mutationDelaySeconds: Int
-}
-
 struct Snapshot: Decodable, Sendable, Equatable {
     var tasks: [TaskItem]
     var today: [TaskSection]
     var inbox: [TaskSection]
     var completed: [TaskSection]
     var completedError: String?
-    var context: String?
     var projects: [ProjectEntry]
 }
 
