@@ -2,6 +2,7 @@ package app
 
 import (
 	"context"
+	"fmt"
 	"time"
 
 	tea "charm.land/bubbletea/v2"
@@ -62,7 +63,7 @@ func (m *Model) DeleteSelected() {
 		return
 	}
 	m.DeleteTarget = task.UUID
-	m.Confirm.OpenTask("Delete task", task, "Removes it from Taskwarrior. u undoes it until the next sync.", m.nowTime())
+	m.Confirm.OpenTask("Delete task", task, fmt.Sprintf("Deletes it on the server. u undoes it for %s afterwards.", m.Undo.Delay), m.nowTime())
 	m.Confirm.SetSize(m.Width, m.Height)
 	m.Overlay = OverlayConfirm
 }
@@ -89,8 +90,6 @@ func (m *Model) ConfirmDelete(action ui.ConfirmAction) tea.Cmd {
 	return m.beginMutation(MutationRequest{Kind: MutationDelete, UUID: uuid})
 }
 
-// UndoLast invokes native Taskwarrior undo while the last app mutation is
-// undoable. In local-only mode no sync can close the undo window.
 // StopRecurrenceSelected explains and confirms a native recurrence-template
 // change. Generated instances target their parent template; history is never
 // rewritten.
@@ -108,11 +107,10 @@ func (m *Model) StopRecurrenceSelected() tea.Cmd {
 	return nil
 }
 
+// UndoLast asks the server to revert this device's latest change while the
+// undo window is open.
 func (m *Model) UndoLast() tea.Cmd {
-	if m.Backend {
-		m.Sync, _ = m.Sync.Timer(m.now()) // close a window whose timer has not fired yet
-	}
-	if !m.Sync.UndoAvailable || m.MutationRunning || m.MigrationRunning {
+	if !m.Undo.Available(m.now()) || m.MutationRunning || m.MigrationRunning {
 		return nil
 	}
 	return m.beginMutation(MutationRequest{Kind: MutationUndo})
@@ -224,69 +222,10 @@ func (m *Model) Context() context.Context {
 	return m.ctx
 }
 
-func (m *Model) beginSync() tea.Cmd {
-	if m.MigrationRunning {
-		m.SyncDeferred = true
-		m.Status = "Sync deferred until project migration finishes"
-		return nil
-	}
-	if m.Sync.Phase == SyncDisabled || !m.SyncConfigured || m.Client == nil {
-		return nil
-	}
-	state, effect := m.Sync.Manual(m.now())
-	m.Sync = state
-	if effect.Action != SyncRun {
-		return nil
-	}
-	m.Status = "Syncing…"
-	return SyncCommand(m.ctx, m.Client)
-}
-
 func (m *Model) requestQuit() tea.Cmd {
 	if m.MigrationRunning {
 		m.Status = "Quit deferred until project migration finishes"
 		return nil
 	}
-	if !m.Sync.Enabled || !m.SyncConfigured {
-		return quitCommand()
-	}
-	state, effect := m.Sync.Apply(SyncEvent{Kind: SyncQuitRequested, At: m.now()})
-	m.Sync = state
-	switch effect.Action {
-	case SyncPromptQuit:
-		m.Quit.OpenQuit()
-		m.Quit.SetSize(m.Width, m.Height)
-		m.Overlay = OverlayQuit
-		return nil
-	case SyncQuit:
-		return quitCommand()
-	default:
-		return nil
-	}
-}
-
-func (m *Model) handleQuitChoice(choice ui.QuitChoice) tea.Cmd {
-	var event SyncEvent
-	switch choice {
-	case ui.QuitSync:
-		event.Kind = SyncSyncAndQuit
-	case ui.QuitLocal:
-		event.Kind = SyncQuitLocally
-	case ui.QuitCancel:
-		event.Kind = SyncQuitCancelled
-	default:
-		return nil
-	}
-	state, effect := m.Sync.Apply(SyncEvent{Kind: event.Kind, At: m.now()})
-	m.Sync = state
-	switch effect.Action {
-	case SyncRun:
-		m.Status = effect.Message
-		return SyncCommand(m.ctx, m.Client)
-	case SyncQuit:
-		return quitCommand()
-	case SyncCancelQuit:
-		m.Overlay = OverlayNone
-	}
-	return nil
+	return quitCommand()
 }
