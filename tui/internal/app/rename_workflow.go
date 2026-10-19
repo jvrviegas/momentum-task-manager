@@ -6,7 +6,6 @@ import (
 	tea "charm.land/bubbletea/v2"
 
 	"github.com/jvrviegas/momentum-task-manager/core/domain"
-	"github.com/jvrviegas/momentum-task-manager/tui/internal/taskwarrior"
 	"github.com/jvrviegas/momentum-task-manager/tui/internal/ui"
 )
 
@@ -86,18 +85,10 @@ func (m *Model) handleProjectRenameConfirm(message ui.ProjectRenameConfirmMsg) t
 	request := ProjectMigrationRequest{
 		Plan:         cloneAppProjectPlan(message.Plan),
 		Snapshot:     m.ProjectSnapshot,
-		Scope:        migrationScopeFromPreview(message.Preview),
 		TaskMappings: append([]domain.ProjectTaskMapping(nil), message.TaskMappings...),
 		MigrateTasks: true,
 	}
 	return m.beginProjectMigration(request)
-}
-
-func migrationScopeFromPreview(preview ui.ProjectRenamePreview) taskwarrior.ProjectMigrationScope {
-	return taskwarrior.ProjectMigrationScope{
-		ContextName: preview.ContextName,
-		ReadFilter:  preview.ReadFilter,
-	}
 }
 
 func cloneAppProjectPlan(plan domain.ProjectCatalogPlan) domain.ProjectCatalogPlan {
