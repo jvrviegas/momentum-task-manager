@@ -17,20 +17,16 @@ struct ToastView: View {
                     .frame(maxWidth: 380, alignment: .leading)
                     .fixedSize(horizontal: false, vertical: true)
                     .textSelection(.enabled)
-                if toast.offersUndo, store.sync.undoAvailable {
-                    if let until = store.undoClosesAt {
-                        TimelineView(.periodic(from: .now, by: 1)) { context in
-                            let seconds = max(0, Int(until.timeIntervalSince(context.date).rounded(.up)))
-                            HStack(spacing: 6) {
-                                if store.sync.mutationDelay > 0 {
-                                    CountdownRing(remaining: Double(seconds) / store.sync.mutationDelay)
-                                }
-                                Text(store.isBackend ? "\(seconds)s left" : "Syncs in \(seconds)s")
-                            }
-                            .monospacedDigit()
-                            .foregroundStyle(Theme.text3)
-                            .help(store.isBackend ? "Undo closes when the countdown ends" : "Syncs when the countdown ends")
+                if toast.offersUndo, let until = store.undoClosesAt {
+                    TimelineView(.periodic(from: .now, by: 1)) { context in
+                        let seconds = max(0, Int(until.timeIntervalSince(context.date).rounded(.up)))
+                        HStack(spacing: 6) {
+                            CountdownRing(remaining: Double(seconds) / store.undoWindow.delay)
+                            Text("\(seconds)s left")
                         }
+                        .monospacedDigit()
+                        .foregroundStyle(Theme.text3)
+                        .help("Undo closes when the countdown ends")
                     }
                     Button {
                         Task { await store.undo() }
@@ -97,7 +93,7 @@ struct ShortcutsView: View {
                           ("D", "Due"), ("S", "Scheduled"), ("t", "Tags"), ("R", "Repeats")]),
         ("Quick capture", [("↩", "Add (or review)"), ("↑ ↓", "Choose suggestion"), ("⇥", "Accept suggestion"),
                            ("esc", "Keep phrase as text / close"), ("\\#", "Literal trigger")]),
-        ("App", [("⌘N", "New task"), ("⌘F", "Search"), ("⌘R", "Sync now"), ("⌘Z", "Undo last change"),
+        ("App", [("⌘N", "New task"), ("⌘F", "Search"), ("⌘Z", "Undo last change"),
                  ("⌘E", "Edit"), ("⌘↩", "Complete"), ("⌃⌘I", "Inspector")]),
     ]
 
