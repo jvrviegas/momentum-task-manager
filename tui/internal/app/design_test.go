@@ -1,14 +1,15 @@
 package app
 
 import (
+	"fmt"
 	"strings"
 	"testing"
 
 	tea "charm.land/bubbletea/v2"
 	"charm.land/lipgloss/v2"
 
+	"github.com/jvrviegas/momentum-task-manager/core/api"
 	"github.com/jvrviegas/momentum-task-manager/core/domain"
-	"github.com/jvrviegas/momentum-task-manager/tui/internal/taskwarrior"
 )
 
 func TestWidePlusShowsReadOnlyDetailsPane(t *testing.T) {
@@ -44,13 +45,13 @@ func TestOverflowingListReportsTasksBelow(t *testing.T) {
 	}
 }
 
-func TestLoadErrorShowsStderrBlockAndNextStep(t *testing.T) {
+func TestLoadErrorSaysNothingChangedAndNextStep(t *testing.T) {
 	model := readyCompositionModel(120, 30)
 	model.Tasks, model.Views = nil, domain.Views{}
 	model.Mode = ModeError
-	model.Err = &taskwarrior.CommandError{Kind: "export", ExitCode: 2, Stderr: "Could not open ~/.task-work/taskchampion.sqlite3"}
+	model.Err = fmt.Errorf("%w: dial tcp: connection refused", api.ErrUnreachable)
 	content := sanitizeRender(model.View().Content)
-	for _, want := range []string{"! Could not load tasks", "task export exited with status 2. Your data has not been changed.", " stderr", "Could not open ~/.task-work", "press r to retry", "r  retry"} {
+	for _, want := range []string{"! Could not load tasks", "cannot reach the Momentum server: dial tcp: connection refused.", "Your data has not been", "press r to retry", "r  retry"} {
 		if !strings.Contains(content, want) {
 			t.Fatalf("missing %q in %s", want, content)
 		}
