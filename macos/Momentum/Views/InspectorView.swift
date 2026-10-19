@@ -195,9 +195,6 @@ private struct TaskDetails: View {
                     } else {
                         Text("Unknown").foregroundStyle(Theme.text3)
                     }
-                    if !store.estimatesWritable {
-                        Text("Estimate UDA not configured — read-only.").font(.system(size: 11.5)).foregroundStyle(Theme.text3)
-                    }
                 }
             }
             row("Tags") {
@@ -223,7 +220,7 @@ private struct TaskDetails: View {
                     Image(systemName: "chevron.right")
                         .font(.system(size: 9, weight: .semibold))
                         .rotationEffect(.degrees(showTechnical ? 90 : 0))
-                    Text("Taskwarrior details")
+                    Text("Details")
                 }
                 .font(.system(size: 11.5, weight: .semibold))
                 .foregroundStyle(Theme.text3)
@@ -234,7 +231,6 @@ private struct TaskDetails: View {
             if showTechnical {
                 Grid(alignment: .leadingFirstTextBaseline, horizontalSpacing: 12, verticalSpacing: 6) {
                     technical("UUID", task.uuid)
-                    technical("ID", task.number == 0 ? "—" : "\(task.number)")
                     technical("Status", task.status)
                     technical("Urgency", task.urgency.formatted(.number.precision(.fractionLength(3))))
                     if let entry = task.entry { technical("Entry", entry.formatted(.iso8601)) }
