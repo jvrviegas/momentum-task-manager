@@ -4,17 +4,17 @@
 **Application:** Momentum  
 **Module path:** `github.com/jvrviegas/momentum-task-manager/tui`  
 **Target directory:** `/home/joaovvr/Projects/Personal/momentum`  
-**Last updated:** 2026-10-02
+**Last updated:** 2026-10-19 (Taskwarrior replaced by the Momentum server, backend plan T19)
 
 ## 1. Product Summary
 
-Momentum is a polished, keyboard-first terminal frontend for Taskwarrior 3.x. It gives Taskwarrior a focused two-view workflow, fast structured editing, a quick-add command bar with contextual suggestions, and optional synchronization through Taskwarrior's native sync command.
+Momentum is a polished, keyboard-first terminal task manager. It gives tasks a focused two-view workflow, fast structured editing, and a quick-add command bar with contextual suggestions.
 
-Momentum is a stateless wrapper for task data. Taskwarrior remains the only source of truth for tasks and owns their persistence, recurrence, hooks, validation, contexts, synchronization, and conflict handling. Momentum may store a local project suggestion catalog in its configuration; these entries are not Taskwarrior entities and never change existing task assignments.
+Tasks live on a Momentum server ([ADR 0002](../docs/adr/0002-go-postgres-backend.md)): a Go service with PostgreSQL that keeps Taskwarrior's task model, urgency, and recurrence presets, and that the TUI and the macOS app reach over HTTPS. The apps keep no local task store; the server owns persistence, validation, recurrence, and undo history. Taskwarrior is used only by `momentum import`, which copies its tasks to the server. Momentum may store a local project suggestion catalog in its configuration; these entries are not tasks and never change existing task assignments.
 
 ### Delivered extension: Settings → Projects
 
-Momentum includes in-app catalog management and an explicit opt-in to migrate changed project values on eligible pending tasks while leaving historical values intact. The narrow exception to the bulk-operations non-goal is recorded in [ADR 0001](docs/adr/0001-project-settings-and-pending-task-renames.md); detailed [requirements](docs/spec/settings-projects.md), [implementation evidence](docs/plans/settings-projects.md), and [UAT evidence](docs/UAT.md) govern the shipped behavior. Active-context scope, child-removal prompts, duplicate rejection, catalog-first partial outcomes, no batch undo, and symlink preservation are implemented as recorded.
+Momentum includes in-app catalog management and an explicit opt-in to migrate changed project values on eligible pending tasks while leaving historical values intact. The narrow exception to the bulk-operations non-goal is recorded in [ADR 0001](docs/adr/0001-project-settings-and-pending-task-renames.md); detailed [requirements](docs/spec/settings-projects.md), [implementation evidence](docs/plans/settings-projects.md), and [UAT evidence](docs/UAT.md) govern the shipped behavior. Child-removal prompts, duplicate rejection, catalog-first outcomes, no batch undo, and symlink preservation are implemented as recorded; since the server replaced Taskwarrior, it applies a confirmed migration in one transaction and contexts no longer scope it.
 
 ## 2. Goals
 
@@ -22,20 +22,18 @@ Momentum includes in-app catalog management and an explicit opt-in to migrate ch
 - Make task capture fast through a command bar and compact trigger syntax.
 - Make common field edits reachable with one key.
 - Provide a visually polished, responsive Bubble Tea interface.
-- Preserve full interoperability with the regular `task` CLI.
-- Work offline and synchronize safely when configured.
+- Keep every device on the same tasks through one server, and say plainly when it is unreachable.
 - Support macOS and Linux without requiring a Nerd Font.
-- Remain usable with no Momentum config and no sync configuration.
+- Need nothing but a `[backend] url` and a sign-in.
 
 ## 3. Non-goals for v1
 
-- Replacing Taskwarrior's storage or synchronization protocol.
-- Writing directly to `~/.task` or any Taskwarrior database file.
+- Offline use or a local task store ([ADR 0002](../docs/adr/0002-go-postgres-backend.md), P1).
 - Custom or user-defined views.
 - A Kanban board.
 - General bulk task operations. The explicit Settings → Projects pending-only value migration is the narrow documented exception; it is not a general bulk editor.
 - Editing annotations, dependencies, or arbitrary UDAs. Native recurrence presets and daily-plan tags are supported extensions documented below.
-- Changing Taskwarrior contexts from Momentum.
+- Contexts and hooks ([ADR 0002](../docs/adr/0002-go-postgres-backend.md), D6).
 - Desktop notifications or background execution while Momentum is closed.
 - Native Windows support.
 - Automatic update checks, telemetry, or crash reporting.
@@ -46,19 +44,19 @@ Momentum includes in-app catalog management and an explicit opt-in to migrate ch
 
 ### Views
 
-- **VIEW-01:** Inbox contains pending tasks visible in the active Taskwarrior context that are not overdue, due today, or scheduled today.
+- **VIEW-01:** Inbox contains pending tasks that are not overdue, due today, or scheduled today.
 - **VIEW-02:** Today contains unique pending tasks that are overdue, due today, scheduled today, or explicitly planned for today.
 - **VIEW-03:** Today groups tasks in this order: Overdue, Due Today, Scheduled Today, Planned Today.
 - **VIEW-04:** A task matching more than one Today group appears once in its highest-priority group.
-- **VIEW-05:** Inbox sorts by Taskwarrior urgency descending.
-- **VIEW-06:** Today sorts by group and then Taskwarrior urgency descending within each group.
+- **VIEW-05:** Inbox sorts by urgency descending. Urgency is Taskwarrior's default formula, computed in `core/domain`.
+- **VIEW-06:** Today sorts by group and then urgency descending within each group.
 - **VIEW-07:** Date classification uses the machine's local calendar date.
 - **VIEW-08:** Startup opens Today when it is non-empty and Inbox otherwise.
 - **VIEW-09:** Sidebar counts show the unique number of tasks in each view.
 - **VIEW-10:** Selection is preserved by task UUID across refreshes when possible.
-- **VIEW-11:** Completed contains context-scoped tasks completed in the last 30 local calendar days, including today.
+- **VIEW-11:** Completed contains tasks completed in the last 30 local calendar days, including today.
 - **VIEW-12:** Completed groups tasks into Today, Yesterday, and Earlier, with newest completion first in each group.
-- **VIEW-13:** Completed tasks support navigation, search, details, refresh, and sync but not task-targeted mutations; quick capture and global undo remain available.
+- **VIEW-13:** Completed tasks support navigation, search, details, and refresh but not task-targeted mutations; quick capture and global undo remain available.
 - **VIEW-14:** Automatic startup never selects Completed.
 
 Today classification precedence:
@@ -77,7 +75,7 @@ A scheduled date before today does not make a task overdue. Overdue is based on 
 - **ROW-03:** Color is never the only indication of state.
 - **ROW-04:** Selected rows use three cues: a `▌` gutter on both lines (ASCII `>` on the first), the Selection fill, and a bold title.
 - **ROW-05:** Comfortable rows are two lines. Line 1 is gutter, state glyph, title, and a right-edge 6-cell slot (priority, or completion time in Completed). Line 2 starts at the title column with `Active · #project · due or scheduled · Estimate`, joined by ` · `, and drops parts in a fixed order (Estimate, then project, then Active/scheduled, then the overdue phrase last) instead of wrapping. Completed rows never show an estimate. Below 50 columns a row is one line with a trailing `!` when overdue.
-- **ROW-06:** Daily-plan tags remain ordinary Taskwarrior data and are not a Momentum-owned task store.
+- **ROW-06:** Daily-plan tags remain ordinary task tags and are not a separate plan store.
 
 Example:
 
@@ -94,20 +92,20 @@ Example:
 - **ADD-02:** Plain text becomes the task description.
 - **ADD-03:** Metadata triggers activate only at the start of a whitespace-delimited token.
 - **ADD-04:** A leading backslash escapes a trigger and is removed from the final description.
-- **ADD-05:** Commands are converted to an argument vector and never executed through a shell.
-- **ADD-06:** Taskwarrior performs final date and mutation validation.
+- **ADD-05:** Capture reaches the server as structured fields; no typed text is executed.
+- **ADD-06:** The app resolves date expressions to instants in the device's time zone ([ADR 0002](../docs/adr/0002-go-postgres-backend.md), D3), and the server validates every change.
 
 Trigger grammar:
 
-| Trigger | Field | Examples | Taskwarrior translation |
+| Trigger | Field | Examples | Stored as |
 |---|---|---|---|
-| `#` | Project | `#work.client` | `project:work.client` |
-| `!` | Priority | `!high`, `!medium`, `!low`, `!none` | `priority:H/M/L/` |
-| `@` | Due | `@today`, `@tomorrow`, `@2026-09-20` | `due:<value>` |
-| `>` | Scheduled | `>today`, `>monday` | `scheduled:<value>` |
-| `+` | Tag | `+planning` | `+planning` |
-| `~` | Estimate | `~15m`, `~1h30m` | `estimate:<minutes>min` |
-| `^` | Recurrence | `^daily`, `^weekly`, `^2wks` | `recur:<validated expression>` |
+| `#` | Project | `#work.client` | project `work.client` |
+| `!` | Priority | `!high`, `!medium`, `!low`, `!none` | priority `H`, `M`, `L`, or none |
+| `@` | Due | `@today`, `@tomorrow`, `@2026-09-20` | due instant |
+| `>` | Scheduled | `>today`, `>monday` | scheduled instant |
+| `+` | Tag | `+planning` | tag `planning` |
+| `~` | Estimate | `~15m`, `~1h30m` | estimate in minutes |
+| `^` | Recurrence | `^daily`, `^weekly`, `^2wks` | validated recurrence rule |
 
 Rules:
 
@@ -131,7 +129,7 @@ Autocomplete:
 - Projects and tags use fuzzy matching.
 - Priority uses a fixed list.
 - Due and scheduled suggestions include today, tomorrow, upcoming weekdays, `next-week` (Friday of the next calendar week), and ISO-date guidance.
-- Any Taskwarrior-compatible date expression may be submitted even if it was not suggested.
+- A date need not be suggested to be accepted: Taskwarrior's named dates (`sod`, `eow`, `eom`, `soy`, `eoq`, `later`, `1st`, …), weekdays, ISO dates, and `YYYY-MM-DD HH:MM` resolve on the device. Date arithmetic, bare durations, and holidays (`today+3d`, `2wks`, `easter`) are refused with a message (D3).
 
 ### Structured editing
 
@@ -156,7 +154,7 @@ Fields and direct shortcuts:
 | `S` | Scheduled |
 | `t` | Tags |
 
-Editable fields are Description, Project, Priority, Due, Scheduled, Tags, Estimate, and Recurrence. Project/tag/estimate fields autocomplete, priority uses a selection list, and date fields show existing timestamps in local `YYYY-MM-DD HH:MM` form while still accepting Taskwarrior expressions. Estimate values use the shared positive whole-minute parser and display compactly (`15m`, `1h`, `1h 30m`); `E` focuses Estimate while lowercase `e` remains Description. Momentum serializes minutes as `<minutes>min` because Taskwarrior interprets `m` as months. On a date field, `Ctrl+Left`/`Ctrl+Right` step one calendar day and `Ctrl+Up`/`Ctrl+Down` step 30 minutes. Removing a field value clears it through a Taskwarrior `modify` command.
+Editable fields are Description, Project, Priority, Due, Scheduled, Tags, Estimate, and Recurrence. Project/tag/estimate fields autocomplete, priority uses a selection list, and date fields show existing timestamps in local `YYYY-MM-DD HH:MM` form while still accepting the date expressions quick add does. Estimate values use the shared positive whole-minute parser and display compactly (`15m`, `1h`, `1h 30m`); `E` focuses Estimate while lowercase `e` remains Description. On a date field, `Ctrl+Left`/`Ctrl+Right` step one calendar day and `Ctrl+Up`/`Ctrl+Down` step 30 minutes. Removing a field value clears it on the server.
 
 ### Details
 
@@ -170,11 +168,11 @@ Editable fields are Description, Project, Priority, Due, Scheduled, Tags, Estima
 - **MUT-01:** `Space` completes the selected task immediately.
 - **MUT-02:** `s` starts or stops the selected task.
 - **MUT-03:** `d` requests deletion and requires `y/n` confirmation.
-- **MUT-04:** `u` invokes Taskwarrior undo while undo remains available.
+- **MUT-04:** `u` asks the server to undo this device's latest change while the undo window is open (`mutation_delay`; ADR 0002, D7).
 - **MUT-05:** Only one mutation runs at a time.
-- **MUT-06:** Every successful mutation is followed by a fresh Taskwarrior export.
-- **MUT-07:** Taskwarrior hooks run normally.
-- **MUT-08:** Momentum owns interactive confirmations and invokes Taskwarrior non-interactively afterward.
+- **MUT-06:** Every successful mutation is followed by a fresh load from the server.
+- **MUT-07:** Hooks are not supported (ADR 0002, D6).
+- **MUT-08:** Momentum owns confirmations; the server never prompts.
 - **MUT-09:** Success and failure messages appear inside the TUI.
 - **MUT-10:** After completion or deletion, selection moves predictably to the next task, then the previous task if no next task exists.
 
@@ -182,7 +180,7 @@ Editable fields are Description, Project, Priority, Due, Scheduled, Tags, Estima
 
 - **SEARCH-01:** `/` opens a local fuzzy filter for the current view.
 - **SEARCH-02:** Search covers description, project, and tags.
-- **SEARCH-03:** Search filters the in-memory view and does not invoke Taskwarrior.
+- **SEARCH-03:** Search filters the in-memory view and does not reach the server.
 - **SEARCH-04:** `project:<name>` restricts results to an exact case-insensitive project match and can be combined with fuzzy text; `project:none` selects unassigned tasks.
 - **SEARCH-04:** `Enter` keeps the filter active; `Esc` clears it.
 - **SEARCH-05:** The UI displays match count while filtering.
@@ -223,7 +221,7 @@ Completed:
   [c] capture a task    [2] open Today
 ```
 
-Loading draws `░` skeleton rows at the real row positions and omits counts until they are known. A load failure shows `! Could not load tasks`, states that no data changed, shows Taskwarrior stderr in a Panel block, and offers `r` to retry.
+Loading draws `░` skeleton rows at the real row positions and omits counts until they are known. A load failure shows `! Could not load tasks`, the error, that no data changed, and `r` to retry.
 
 ## 5. Keyboard and Mouse Map
 
@@ -243,11 +241,10 @@ Loading draws `░` skeleton rows at the real row positions and omits counts unt
 | `X` | Stop the selected recurrence template |
 | `s` | Start/stop task |
 | `d` | Delete confirmation |
-| `u` | Taskwarrior undo |
-| `r` | Refresh local tasks |
-| `Ctrl+R` | Synchronize now |
+| `u` | Undo the latest change while the undo window is open |
+| `r` | Reload tasks from the server |
 | `?` | Help |
-| `q` | Quit or open unsynced-changes prompt |
+| `q` | Quit |
 | `Esc` | Close/cancel the active overlay |
 
 Mouse support is intentionally limited:
@@ -269,7 +266,7 @@ Momentum's visual language is built only from what a terminal can draw: foregrou
 - **Modals are framed, not listed.** Title and context sit in the top border, keys in the bottom border, a scroll thumb `┃` and `a-b of n` show position, every cell has a Panel fill, and the view behind is redrawn in one Dim color with its fills removed. Destructive frames use a Red border and a `! Title`.
 - **Forms** use a 12-cell label column: `•` marks a changed field with a Muted `was …`, the focused field gets `▌`, a bold label and a filled input with a reverse-video cursor cell, and an invalid value swaps `•` for a bold Red `!` with the message under the value column.
 - **Quick capture** underlines parsed trigger tokens and recognized natural-language phrases in their field color (project cyan, priority High, due Accent, scheduled Medium, tag Green, estimate Purple, recurrence Teal) as you type (phrases that would block the capture in red), and shows a trigger guide that suggestions replace while a trigger is active. It sits at row 5 so the list stays visible.
-- **Footer** is a hints row of key chips plus a full-width Panel status bar: the message on the left (with an undo countdown bar during the grace window) and the sync state on the right. Each sync state has a glyph and a word (`✓` ready, `↻` syncing, `•` local changes, `!` failed, `·` local only), so nothing relies on color.
+- **Footer** is a hints row of key chips plus a full-width Panel status bar: the message on the left (with an undo countdown bar while the undo window is open) and the server state on the right. Each server state has a glyph and a word (`✓` online, `•` saved with undo, `!` unreachable or signed out, `↻` waiting for the server), so nothing relies on color.
 - **Faint text, strikethrough, drop shadows and translucent backdrops are not used**; Border and Dim are explicit colors.
 
 The default palette is Tokyo Night-inspired. Tokens are Surface (never painted, so transparent terminals work), Panel, Selection, Text, Muted, Muted-on-fill, Accent, Cyan, Red, High, Medium, Low, Green, Purple, Teal, Border and Dim. Light Muted, Cyan, Red, High, Medium, Green, Purple and Teal are darkened to clear 4.5:1 on Panel and Selection.
@@ -317,7 +314,7 @@ momentum --version        Print version
 momentum --help           Show help
 ```
 
-Arbitrary Taskwarrior filters and custom views are deferred.
+Custom filters and views are deferred.
 
 ## 8. Configuration
 
@@ -327,19 +324,18 @@ Location resolution:
 2. `$XDG_CONFIG_HOME/momentum/config.toml`
 3. `~/.config/momentum/config.toml`
 
-Momentum works with defaults when the file does not exist.
+Every setting has a default except `[backend] url`, the server's address, which the apps need; without it, `momentum` prints setup steps and exits, and the macOS app shows them.
 
 ```toml
 refresh_interval = "60s"
 theme = "auto"       # auto, dark, light, terminal
 icons = "unicode"    # unicode, nerd, ascii
 
+[backend]
+url = "https://momentum.example.com"
+
 [sync]
-enabled = true
-interval = "5m"
-mutation_delay = "15s"
-startup = true
-shutdown = true
+mutation_delay = "15s"   # how long u can undo the latest change
 
 [planning]
 enabled = true
@@ -366,7 +362,7 @@ Environment overrides in v1:
 MOMENTUM_ICONS=nerd|unicode|ascii
 ```
 
-Invalid configuration fails with a concise actionable message. Unknown keys should be rejected to detect typos.
+Invalid configuration fails with a concise actionable message. Unknown keys should be rejected to detect typos. `[sync]`'s `enabled`, `interval`, `startup`, and `shutdown` drove Taskwarrior sync; a config that still sets one fails with a message saying so.
 
 ## 9. Architecture
 
@@ -376,7 +372,8 @@ Invalid configuration fails with a concise actionable message. Unknown keys shou
 cmd/momentum/          CLI parsing, startup, version metadata
 internal/app/          Root Bubble Tea model, update loop, orchestration
 internal/ui/           Components, styles, responsive rendering
-internal/taskwarrior/  Process adapter, JSON decoding, mutations, sync
+internal/backend/      Server client, sign-in, saved credentials, import plan
+internal/taskwarrior/  Reads Taskwarrior's tasks for momentum import
 internal/config/       TOML loading, XDG paths, defaults, validation
 ../core/domain/        Task, view, grouping, sorting, edit-diff models (shared core module)
 internal/quickadd/     Trigger parser and autocomplete context
@@ -391,7 +388,7 @@ Recommended dependencies:
 - Bubbles for text input, viewport/list primitives, and spinner behavior.
 - Lip Gloss for layout and styling.
 - A small TOML library for strict configuration decoding.
-- Prefer the standard library for CLI parsing, process execution, logging, time, and JSON.
+- Prefer the standard library for CLI parsing, HTTP, logging, time, and JSON.
 - Use a small fuzzy matcher only if a straightforward internal implementation is insufficient.
 
 The implementing agent must confirm current stable Charm APIs in official documentation before pinning dependency versions.
@@ -402,9 +399,9 @@ The implementing agent must confirm current stable Charm APIs in official docume
 User input
   -> Bubble Tea Update
   -> pure state transition or asynchronous command
-  -> Taskwarrior adapter executes `task` with argv (never a shell)
+  -> backend client sends HTTPS + JSON to the Momentum server
   -> typed result message
-  -> refresh from `task ... export`
+  -> reload pending and recent completed tasks
   -> derive Inbox/Today and recent Completed sections in Go
   -> render
 ```
@@ -423,12 +420,11 @@ type Client interface {
     Start(ctx context.Context, uuid string) error
     Stop(ctx context.Context, uuid string) error
     Undo(ctx context.Context) error
-    Sync(ctx context.Context) (SyncResult, error)
     Projects(ctx context.Context) ([]string, error)
 }
 ```
 
-The UI depends on this interface and uses a fake implementation in tests. The explicit project migration uses a separate injected seam: it captures the active context read filter, exports `status:pending recur.none:`, applies one guarded UUID assignment with `project.is:<old>`, and reconciles the UUID afterward. It is not a general bulk-edit interface.
+The UI depends on this interface and uses a fake implementation in tests; `internal/backend` implements it. The explicit project migration uses a separate injected seam: it exports pending tasks for the preview, and the server applies the confirmed UUID mappings in one transaction that refuses them all if any task changed since (backend plan T12). It is not a general bulk-edit interface.
 
 ### Task data model
 
@@ -442,192 +438,54 @@ Dependencies, Recurrence, recurrence parent/mask metadata, Urgency, RawFields
 
 - UUID is the stable selection and mutation identity.
 - Optional timestamps retain absence distinctly from zero values.
-- Export timestamps are parsed and converted to local time for classification/display.
+- Timestamps are parsed and converted to local time for classification/display.
 - Unknown JSON properties are retained when useful for details/debugging but never rewritten.
-- Numeric task IDs are display-only and never used for mutations.
 - A daily commitment is the inspectable tag `momentum-plan-YYYY-MM-DD`; planned tasks appear in a distinct Planned Today group without changing due dates.
-- Recurrence is delegated to Taskwarrior templates and generated instances. Momentum expires a template with `until:today` when the user stops a series; it does not run a recurrence scheduler.
+- Recurrence keeps Taskwarrior's template-and-instance model on the server: one pending instance at a time, and the next when it is completed or deleted (ADR 0002, D5). Stopping a series ends it and keeps its pending instance.
 
 ### Asynchronous execution
 
-- All subprocesses run through Bubble Tea commands and never block `Update`.
+- All server requests run through Bubble Tea commands and never block `Update`.
 - Mutations are serialized.
 - Initial load shows a subtle loading state.
 - Refreshes retain old content.
 - Operations use contexts and finite timeouts.
 - Results return typed messages, not shared mutable callbacks.
 
-## 10. Taskwarrior Integration
+## 10. Server
 
-Momentum targets Taskwarrior 3.x on macOS and Linux. Compatibility with 2.6 may be retained when inexpensive but is not guaranteed.
+The apps keep tasks on a Momentum server ([ADR 0002](../docs/adr/0002-go-postgres-backend.md), [backend README](../backend/README.md)): JSON over HTTPS under `/v1`, with request and response types in `core/api`. Every request is scoped to the signed-in user.
 
-Read path:
+- **Sign-in:** `momentum login` runs the device flow (D1): it shows a code and opens the browser, where the person signs in with Google or GitHub. The token is saved in `credentials.json` next to `config.toml`, with mode `0600`; `momentum logout` revokes it. The macOS app signs in on its own and keeps its token in the Keychain.
+- **Changes:** each change carries an idempotency key, so a retried request applies once, and is on the server once it answers.
+- **Dates:** the app resolves date expressions to instants in the device's time zone and sends the zone with the first change (D3).
+- **Estimates** are a task field on the server; no configuration is needed.
+- **Import:** `momentum import` reads `task export` with recurrence, garbage collection, and hooks off, previews what the server would create, and creates only tasks the user does not have, keeping their UUIDs (backend plan T16). Taskwarrior's data is never changed.
 
-```sh
-task status:pending export
-```
+Project suggestions combine the server's list of projects in pending tasks with optional Momentum `[[projects]]` configuration entries, which supply a readable `name` and unique lowercase dotted `value`. Configured entries precede discovered values for an empty query, remain available without tasks or successful discovery, and supply breadcrumbs in quick capture, the project editor, and Settings → Projects. Matching uses labels and values; completion inserts only the value. Settings catalog saves take effect immediately without restart and never mutate tasks by themselves. An explicitly confirmed value migration is the narrow pending-only exception: it preserves historical values, and the server applies it in one transaction without batch undo. Tag suggestions come from the tags of pending tasks. Unknown project/tag values remain valid.
 
-Momentum computes disjoint Inbox/Today views locally from one consistent export. Taskwarrior 3.x deliberately leaves machine-readable `export` unencumbered by the active context, so a context-scoped operation must explicitly read `_get rc.context` and `_get rc.context.<name>.read`, then add that filter to its export/modify argv. The existing generic export path must not be treated as context-safe for the pending-only migration; this correction is tracked in the [Settings → Projects plan](docs/plans/settings-projects.md#t00-feasibility-record--2026-09-16).
+## 11. Undo and Connectivity
 
-Mutation examples:
+Nothing syncs: a change is on the server once it answers, and every device reads the same tasks.
 
-```sh
-task add "Prepare proposal" project:work.client due:tomorrow +planning priority:H
-task <uuid> modify project:work.client
-task <uuid> done
-task <uuid> start
-task <uuid> stop
-task <uuid> delete
-task undo
-task sync
-```
+- After a change, `u` undoes it for `[sync] mutation_delay` (15 seconds by default), unless the task changed since (D7). A new change restarts the window; an undo or a project migration closes it.
+- The footer reads `✓ Online`, `• Saved · u to undo` with a countdown bar, `! Server unreachable · r to retry`, or `! Signed out · run momentum login`.
+- When the server is unreachable, loaded tasks stay visible and nothing is queued (P1); `r` and the refresh timer try again.
+- `q` quits immediately; there is nothing left to send.
 
-Actual invocation uses `exec.CommandContext` with separate arguments. It must never use `sh -c` or interpolate user text into a command string.
+## 12. Hosting
 
-Optional estimates use the Taskwarrior UDA `estimate` with `type=duration` and `label=Estimate`. The same definition must exist in every synchronized client's `.taskrc`; the UDA value is task data, while its definition is local configuration. Momentum checks `_get rc.uda.estimate.type` immediately before estimate-bearing add/modify commands and refuses the mutation when the type is missing, wrong, or unavailable.
-
-The adapter must:
-
-- force machine-readable output where applicable
-- suppress Taskwarrior's interactive confirmation only after Momentum has confirmed
-- capture stdout, stderr, exit code, and duration
-- preserve hooks and Taskwarrior validation
-- redact secrets and task descriptions from debug logs where practical
-- return typed errors suitable for concise UI display and detailed logs
-
-Project suggestions use Taskwarrior's script-oriented project listing when supported and supplement it with projects found in the pending export. Optional Momentum `[[projects]]` configuration entries supply a readable `name` and unique lowercase dotted `value`. Configured entries precede discovered values for an empty query, remain available without tasks or successful discovery, and supply breadcrumbs in quick capture, the project editor, and Settings → Projects. Matching uses labels and values; completion inserts only the Taskwarrior value. Settings catalog saves take effect immediately without restart and never mutate tasks by themselves. An explicitly confirmed value migration is the narrow pending-only exception: it uses active context scope, preserves historical values, and reports partial results without batch undo. Tag suggestions should come from actual exported user tags to avoid suggesting Taskwarrior virtual tags. Unknown project/tag values remain valid.
-
-## 11. Synchronization Design
-
-Momentum does not implement sync. It invokes `task sync` and relies on TaskChampion for merge behavior.
-
-Taskwarrior owns these settings:
-
-```text
-sync.server.url
-sync.server.client_id
-sync.encryption_secret
-```
-
-Momentum owns only sync timing and UI state.
-
-### Sync behavior
-
-- Load local tasks before startup sync so startup is not blocked by network cold starts.
-- Start sync asynchronously after local data is visible.
-- Refresh tasks after successful sync.
-- Sync every five minutes while Momentum is running.
-- Do not install systemd timers, LaunchAgents, or any background service.
-- Continue all local task operations while offline.
-- `Ctrl+R` triggers immediate sync.
-- Failed sync retries after 15s, 30s, 1m, 2m, then every 5m.
-- Successful sync resets retry backoff.
-
-### Undo grace period
-
-Taskwarrior cannot undo changes once they have been synchronized. Therefore:
-
-- After a mutation, mark local changes unsynced.
-- Delay sync for 15 seconds after the latest mutation.
-- Reset the delay after each new mutation.
-- Show a countdown such as `Syncing in 12s · u to undo`.
-- `u` invokes Taskwarrior undo during the grace period and reloads tasks.
-- Manual sync ends the undo window immediately.
-- After successful sync, disable undo and report `Changes synced`.
-
-### Shutdown
-
-When no app-originated unsynced changes exist, `q` quits immediately. Otherwise display a "Quit Momentum?" frame:
-
-```text
-• Unsynced changes
-[s] Sync and quit     [q] Quit without syncing
-esc Cancel
-```
-
-Sync-and-quit has a finite timeout. Quitting without sync leaves changes in Taskwarrior and uploads them on the next Momentum launch. Forced process termination cannot guarantee sync.
-
-### Local-only behavior
-
-When Taskwarrior sync is not configured:
-
-- Momentum remains fully functional, including native undo of the latest in-app mutation until another mutation or exit; no sync timer closes local-only undo.
-- The status bar shows `· Local only`, with `u to undo` when the last mutation is undoable.
-- `momentum doctor` reports missing settings without printing secret values.
-- `[sync].enabled = false` disables checks and suppresses the status warning.
-
-## 12. Self-hosted Sync Deployment Notes
-
-Infrastructure is configured manually and is not part of the Momentum repository.
-
-Chosen topology:
-
-```text
-macOS Taskwarrior ----\
-                       -> Cloud Run TaskChampion Sync Server -> Neon PostgreSQL
-Linux Taskwarrior ----/
-```
-
-Decisions:
-
-- Use the official TaskChampion PostgreSQL container image, pinned to an explicit release tag.
-- Use Cloud Run's generated `run.app` HTTPS URL.
-- Cloud Run permits unauthenticated HTTP access because Taskwarrior does not automatically mint Google IAM tokens.
-- Restrict TaskChampion to one high-entropy client UUID.
-- Disable automatic client creation after provisioning, or pre-create the allowed client row in Neon.
-- Store the Neon direct TLS connection string in Google Secret Manager.
-- Prefer Neon's direct endpoint over its pooler because TaskChampion already pools connections and uses serializable transactions.
-- Configure Cloud Run with minimum instances `0` and maximum instances `1` for this two-device workload.
-- Expect occasional combined Cloud Run and Neon cold-start latency.
-- Apply the `postgres/schema.sql` matching the deployed TaskChampion server release before startup.
-- Keep the Taskwarrior encryption secret only on clients; it is never sent to or stored by the server.
-
-Both machines share:
-
-```text
-sync.server.url          same Cloud Run URL
-sync.server.client_id    same generated UUID
-sync.encryption_secret   same random 256-bit secret
-```
-
-Linux is the designated recurrence primary:
-
-```sh
-task config recurrence on
-```
-
-macOS must use:
-
-```sh
-task config recurrence off
-```
-
-Initial provisioning starts on Linux with an empty collection, performs the first sync, then configures macOS as a second empty replica. Never copy `~/.task` between machines or synchronize it with rsync/Syncthing.
+The server runs on Cloud Run with Neon PostgreSQL; [`backend/DEPLOY.md`](../backend/DEPLOY.md) is the deploy guide. Infrastructure is configured by hand and is not provisioned by this repository.
 
 ## 13. Dotfiles and Secret Management
 
-Preserve Taskwarrior's current default paths:
-
-```text
-~/.taskrc   configuration
-~/.task     task data
-```
-
-The dotfiles repository may track a common `.taskrc` containing non-secret preferences and:
-
-```text
-include ~/.config/taskwarrior/secrets.rc
-```
-
-The untracked `secrets.rc` contains the sync URL, client ID, and encryption secret. It must be transferred through a password manager and created with mode `0600`.
-
-The dotfiles repository may also track:
+The dotfiles repository may track:
 
 ```text
 ~/.config/momentum/config.toml
 ```
 
-A non-secret bootstrap script may prompt without echo, create `secrets.rc`, set permissions, run `task sync`, and verify configuration without printing secrets.
+`credentials.json`, which holds the TUI's sign-in, must not be tracked.
 
 ## 14. Diagnostics, Privacy, and Errors
 
@@ -635,12 +493,12 @@ A non-secret bootstrap script may prompt without echo, create `secrets.rc`, set 
 
 | Scenario | Behavior |
 |---|---|
-| `task` missing | Exit startup with installation guidance; `doctor` fails the check |
-| Unsupported export JSON | Keep UI safe, show parse error, log redacted details |
-| Mutation rejected | Preserve current view and show Taskwarrior stderr concisely |
-| Hook failure | Surface hook error; do not pretend mutation succeeded |
+| No `[backend] url` | Exit startup with setup steps; `doctor` fails the Backend server check |
+| Not signed in | Exit startup asking for `momentum login`; a refused token shows `Signed out` |
+| Unexpected server answer | Keep UI safe, show the error, log redacted details |
+| Mutation rejected | Preserve current view and show the server's message, on the field it names |
 | Refresh failure | Keep stale tasks visible and show degraded status |
-| Sync unavailable | Continue offline and apply retry backoff |
+| Server unreachable | Keep loaded tasks visible, say so, and retry on `r`; nothing is queued |
 | Invalid config | Exit with exact key/value validation error |
 | Terminal too small | Render minimum-size message |
 
@@ -651,37 +509,36 @@ A non-secret bootstrap script may prompt without echo, create `secrets.rc`, set 
 1. `$XDG_STATE_HOME/momentum/momentum.log`
 2. `~/.local/state/momentum/momentum.log`
 
-Logs include command kind, duration, exit status, state transitions, and redacted error details. They should avoid task descriptions and never contain Taskwarrior sync secrets or database credentials.
+Logs include state transitions and redacted error details. They should avoid task descriptions and never contain tokens or other credentials.
 
 ### Doctor
 
 `momentum doctor` checks:
 
-- Taskwarrior executable and version
-- export command and JSON decoding
+- the `[backend]` server answers, and its version
+- the saved sign-in is valid there
+- the device's time zone is known
 - config path, syntax, and values
-- sync setting presence without printing values
-- Estimate UDA readiness (`uda.estimate.type=duration`) without changing Taskwarrior configuration
-- a safe sync readiness check where possible
+- calendar sources, when enabled
 - terminal capabilities
 - writable state/log directories
 
-Doctor must not mutate tasks or run an irreversible sync unless explicitly documented and confirmed. Prefer configuration validation over active synchronization.
+Doctor must not mutate tasks.
 
 ### Privacy
 
 - No telemetry.
 - No crash reporting.
 - No automatic update checks.
-- No application network traffic except Taskwarrior sync initiated through `task sync`; calendar awareness reads configured local ICS files only.
+- No network traffic except requests to the configured Momentum server and the browser sign-in it starts; calendar awareness reads configured local ICS files only.
 
 ## 15. Testing Strategy
 
 - Unit tests for task JSON decoding, date conversion, Today/planned classification, grouping, deterministic sorting, edit diffs, recurrence/plan projections, configuration, quick-add interpretation, and autocomplete context.
 - Calendar tests use fixture ICS files and assert overlap merging, recurrence expansion, all-day/transparency policy, stale/missing degradation, and no event persistence.
-- Update-loop tests use typed messages and a fake Taskwarrior client.
-- Rendering tests cover normal, narrow, very narrow, empty, loading, modal, suggestion, offline, and error states.
-- Integration tests use isolated temporary Taskwarrior configuration/data and never touch the user's `~/.task` or `~/.taskrc`.
+- Update-loop tests use typed messages and a fake client; backend client tests use a fake HTTP server.
+- Rendering tests cover normal, narrow, very narrow, empty, loading, modal, suggestion, unreachable, and error states.
+- Taskwarrior is read only by `momentum import`; its tests use isolated temporary Taskwarrior configuration/data and never touch the user's `~/.task` or `~/.taskrc`.
 - Manual UAT runs on Linux and macOS with small and large terminals.
 - Baseline gate: `go test ./...`.
 - Additional gates: `gofmt`, `go vet ./...`, and cross-platform build checks.
@@ -703,27 +560,27 @@ First published releases should provide binaries for:
 
 GitHub Actions runs tests, vet, and build checks. GoReleaser builds tagged releases after the application stabilizes. A Homebrew tap is deferred.
 
-The project uses the MIT license and should include a README, CONTRIBUTING guide, example config, screenshots, quick-add grammar, keybinding reference, and sync setup notes.
+The project uses the MIT license and should include a README, CONTRIBUTING guide, example config, screenshots, quick-add grammar, keybinding reference, and server setup notes.
 
 ## 17. Acceptance Criteria
 
 Momentum v1 is ready when:
 
-1. It launches against Taskwarrior 3.x on Linux and macOS.
+1. It launches against a Momentum server on Linux and macOS.
 2. Inbox and Today exactly follow the agreed disjoint semantics.
 3. Today correctly groups overdue, due-today, and scheduled-today tasks without duplicates.
 4. Quick add safely creates tasks with all supported explicit trigger types and autocomplete, including optional estimates and native recurrence.
 5. Structured edit can directly focus and change every supported field without altering unsupported fields.
-6. Complete, start/stop, delete, and undo work through UUID-based Taskwarrior commands.
+6. Complete, start/stop, delete, and undo work through UUID-based server requests.
 7. Search, keyboard navigation, limited mouse interaction, details, help, and responsive layouts work.
-8. Refresh and synchronization remain asynchronous and never freeze the update loop.
-9. Offline operation, retry backoff, undo delay, and unsynced-quit behavior work as designed.
-10. Local-only mode works without sync configuration.
-11. No operation reads or writes Taskwarrior's database files directly.
+8. Refresh and server requests remain asynchronous and never freeze the update loop.
+9. An unreachable server, the undo window, and quitting work as designed.
+10. Without a `[backend] url`, Momentum exits with setup steps.
+11. No operation reads or writes Taskwarrior's database files; `momentum import` only runs `task export`.
 12. Debug logs and doctor checks do not disclose secrets.
 13. Automated tests never access real user task data and `go test ./...` plus `go vet ./...` pass.
-14. Documentation explains installation, configuration, controls, and manual Cloud Run/Neon synchronization setup.
-15. The daily ritual can be canceled/reopened, records selected commitments as inspectable Taskwarrior tags, distinguishes obligations/rollover/candidates, reports capacity and unestimated work, and warns without blocking over-capacity plans.
-16. Native recurring tasks support the approved presets and interval, show template/instance metadata, use Taskwarrior generation, and stop by expiring the template without rewriting history.
+14. Documentation explains installation, configuration, controls, and the server's manual Cloud Run/Neon setup.
+15. The daily ritual can be canceled/reopened, records selected commitments as inspectable tags, distinguishes obligations/rollover/candidates, reports capacity and unestimated work, and warns without blocking over-capacity plans.
+16. Recurring tasks support the approved presets and interval, show template/instance metadata, keep one pending instance at a time (ADR 0002, D5), and stop without rewriting history.
 17. Natural-language capture supports the documented local date/time/effort/priority/recurrence whitelist, opens review before inferred mutation, preserves prose, and retains explicit-trigger precedence.
 18. Optional local ICS awareness merges overlapping in-hours events, treats all-day/transparent events by configuration, and degrades to task-only planning when unavailable or stale.
