@@ -49,12 +49,12 @@ func TestBackendConfigTakesTheTokenFromTheApp(t *testing.T) {
 	}, "\n") + "\n"
 
 	var out, errOut bytes.Buffer
-	code := run([]string{"-config", config, "-task", filepath.Join(root, "no-task")}, strings.NewReader(lines), &out, &errOut)
+	code := run([]string{"-config", config}, strings.NewReader(lines), &out, &errOut)
 	if code != 0 || errOut.Len() != 0 {
 		t.Fatalf("code %d, stderr %s", code, errOut.String())
 	}
 	for _, want := range []string{
-		`{"id":1,"result":{"taskwarriorVersion":"",`, `"estimateUDA":"configured"`, `"backendUrl":"` + server.URL + `"`,
+		`{"id":1,"result":{"configPath":"` + config + `","mutationDelaySeconds":15,"refreshIntervalSeconds":60,"backendUrl":"` + server.URL + `"}}`,
 		`{"id":2,"error":{"message":"sign in again","code":"unauthorized"}}`,
 		`{"id":3,"result":{}}`,
 		`{"id":4,"result":{"tasks":[]`,
