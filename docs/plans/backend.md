@@ -141,7 +141,7 @@ Next: T18 can start. The server is deployed (see T17 and [`backend/DEPLOY.md`](.
   - Names that work in Taskwarrior 3.5 but are undocumented: `soww`, `eoww`, `sopd`, `eopd`, `sond`, `eond`, `juhannus`, and informal times such as `9am`.
   - Arithmetic and durations (`eom-1d`, `3d`), epoch seconds, and ISO week or ordinal dates (`2026-W43`, `2026-293`).
 - Where the result differs from Taskwarrior 3.5:
-  - `next-week` stays on Friday midnight across a DST change. Taskwarrior adds the TUI's `sow+1w+4d` as seconds, so Taskwarrior mode lands on Thursday 23:00 or Friday 01:00 in those weeks. That Taskwarrior-mode bug is unchanged.
+  - `next-week` stays on Friday midnight across a DST change. Taskwarrior adds the TUI's `sow+1w+4d` as seconds, so Taskwarrior mode lands on Thursday 23:00 or Friday 01:00 in those weeks. Fixed 2026-10-19: Taskwarrior mode now resolves `next-week` with `ResolveDate` and sends the date, which Taskwarrior reads as midnight.
   - An ordinal missing from its month is an error, as Taskwarrior's documentation says. For example, `31st` on 31 October, or `30th` in February. Taskwarrior 3.5 rolls it into the next month.
   - A typed time that a DST change skips or repeats is rejected, by the user's choice. This matches capture review. Taskwarrior moves a skipped time forward and picks one occurrence of a repeated time.
   - `Today` resolves; Taskwarrior accepts `Monday` but not `Today`.
