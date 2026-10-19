@@ -27,9 +27,6 @@ type ProjectRenamePreview struct {
 	ExactTasks      []domain.ProjectTaskMapping
 	SubprojectTasks []domain.ProjectTaskMapping
 
-	ContextName         string
-	ReadFilter          string
-	HasActiveContext    bool
 	DestinationTaskOnly bool
 	CollisionMessage    string
 }
@@ -353,11 +350,6 @@ func (p ProjectRenameModel) previewRows() []FrameRow {
 		count("Task descendants:", p.taskDescendantCount()),
 		count("Pending tasks:", len(p.activeTasks())),
 	)
-	if p.Preview.HasActiveContext {
-		rows = append(rows, row(muted("Active context: "), txt(p.Preview.ContextName)))
-	} else {
-		rows = append(rows, row(muted("No active context (all eligible pending tasks)")))
-	}
 	rows = append(rows, FrameRow{})
 
 	if plan.ValueChanged() {
@@ -384,13 +376,13 @@ func (p ProjectRenameModel) previewRows() []FrameRow {
 	}
 	rows = append(rows, FrameRow{},
 		row(muted("Historical tasks retain their values")),
-		row(muted("native u cannot reverse this catalog/task operation")))
+		row(muted("u cannot reverse this catalog/task operation")))
 	return append(rows, FrameRow{})
 }
 
 func (p ProjectRenameModel) renderMergeWarning() string {
 	rows := []FrameRow{{}}
-	for _, line := range WrapText("The destination is used by Taskwarrior tasks but is not in the catalog. Migrating will combine task projects under one effective value.", FrameContentWidth(p.frameWidth())) {
+	for _, line := range WrapText("The destination is used by tasks but is not in the catalog. Migrating will combine task projects under one effective value.", FrameContentWidth(p.frameWidth())) {
 		rows = append(rows, row(txt(line)))
 	}
 	rows = append(rows, FrameRow{}, row(chip("enter", FillAccent), txt(" confirm warning"), gap(5), chip("esc", FillSelection), muted(" cancel")), FrameRow{})
