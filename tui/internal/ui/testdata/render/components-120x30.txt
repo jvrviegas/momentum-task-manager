@@ -39,10 +39,10 @@
 │                                                                                    │
 │   NAVIGATE                  TASKS                     APP                          │
 │   ↑ k       up              c         capture         r         refresh            │
-│   ↓ j       down            ctrl+k    capture         ctrl+r    sync now           │
-│   g G       first / last    space     complete        4         settings           │
-│   1-4       jump to view    s         start / stop    ?         this help          │
-│   h l tab   sidebar / list  e         edit            q         quit               │
+│   ↓ j       down            ctrl+k    capture         4         settings           │
+│   g G       first / last    space     complete        ?         this help          │
+│   1-4       jump to view    s         start / stop    q         quit               │
+│   h l tab   sidebar / list  e         edit                                         │
 │   enter     details         p ! D S t edit one field                               │
 │   /         search          E         edit estimate                                │
 │   esc       close / back    R         edit recurrence                              │
@@ -93,17 +93,6 @@
 │    y  yes      n  no                                         │
 │                                                              │
 ╰─ esc cancel ─────────────────────────────────────────────────╯
-
-=== quit ===
-╭─ Quit Momentum? ─────────────────────────────────────────╮
-│                                                          │
-│   • Unsynced changes                                     │
-│   Quitting without syncing keeps them in Taskwarrior for │
-│   the next sync.                                         │
-│                                                          │
-│    s  Sync and quit      q  Quit without syncing         │
-│                                                          │
-╰─ esc Cancel ─────────────────────────────────────────────╯
 
 === settings-list ===
 ╭─ Settings / Projects ─────────────────────────────────── 2 projects ─╮
