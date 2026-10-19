@@ -13,65 +13,75 @@ struct CaptureView: View {
         Group {
             if model.review != nil {
                 CaptureReviewView(model: model)
+                    .frame(width: 620)
+                    .background(Theme.panel)
             } else {
                 capture
+                    .frame(width: 680)
+                    .background(Theme.elevated)
             }
         }
-        .frame(width: 640)
     }
+
+    /// Lines up with the text, past the lead circle.
+    private static let inset: CGFloat = 50
 
     private var capture: some View {
         VStack(alignment: .leading, spacing: 0) {
-            HStack(alignment: .top, spacing: 10) {
-                Image(systemName: "plus.circle.fill")
-                    .font(.title2)
-                    .foregroundStyle(.tint)
-                    .padding(.top, 4)
+            HStack(alignment: .top, spacing: 12) {
+                Circle()
+                    .strokeBorder(Theme.text3, lineWidth: 1.4)
+                    .frame(width: 20, height: 20)
+                    .padding(.top, 7)
+                    .accessibilityHidden(true)
                 ZStack(alignment: .topLeading) {
                     CaptureTextView(model: model, text: model.input, revision: model.textRevision, interpretation: model.currentInterpretation) {
                         dismiss()
                     }
-                    .frame(height: 58)
+                    .frame(height: 54)
                     if model.input.isEmpty {
                         Text("Prepare proposal tomorrow at 3pm, p1, every Friday, about 1h #work.client")
-                            .font(.title3)
-                            .foregroundStyle(.tertiary)
+                            .font(.system(size: CaptureTextView.font.pointSize))
+                            .foregroundStyle(Theme.text3)
+                            .lineLimit(1)
                             .padding(.top, 4)
                             .allowsHitTesting(false)
                     }
                 }
             }
-            .padding(16)
+            .padding(.horizontal, 18)
+            .padding(.top, 16)
 
-            Divider()
-
-            VStack(alignment: .leading, spacing: 10) {
+            VStack(alignment: .leading, spacing: 12) {
                 if !model.visibleSuggestions.isEmpty {
                     suggestions
                 } else if let interpretation = model.currentInterpretation, !interpretation.candidates.isEmpty {
                     chips(interpretation)
-                } else {
-                    Text("# project · ! priority · @ due · > scheduled · + tag · ~ estimate · ^ repeat")
-                        .font(.callout.monospaced())
-                        .foregroundStyle(.secondary)
                 }
                 if let error = model.error ?? model.parseError {
                     Label(error, systemImage: "exclamationmark.triangle.fill")
-                        .foregroundStyle(.red)
+                        .font(.system(size: 12))
+                        .foregroundStyle(Theme.danger)
                         .textSelection(.enabled)
                 } else if let interpretation = model.currentInterpretation {
                     preview(interpretation)
                 }
             }
-            .padding(16)
+            .padding(.leading, Self.inset)
+            .padding(.trailing, 18)
+            .padding(.bottom, 12)
 
-            Divider()
+            Rectangle().fill(Theme.separator).frame(height: 0.5)
 
             HStack(spacing: 14) {
                 hint("↩", model.currentInterpretation?.valid == false ? "Review" : "Add")
-                hint("⇥", "Accept suggestion")
                 hint("esc", model.currentInterpretation?.candidates.contains { $0.isInferred && $0.isHighlighted } == true ? "Keep phrase as text / Close" : "Close")
                 Spacer()
+                let triggers = "# project · ! priority · @ due · > scheduled · + tag · ~ estimate · ^ repeat"
+                Text(triggers)
+                    .lineLimit(1)
+                    .truncationMode(.tail)
+                    .help("Triggers: \(triggers)")
                 if let context = model.store.snapshot?.context {
                     Chip(text: "Context \(context)")
                         .help("Taskwarrior applies the active context to new tasks")
@@ -80,50 +90,89 @@ struct CaptureView: View {
                     ProgressView().controlSize(.small)
                 }
             }
-            .font(.caption)
-            .foregroundStyle(.secondary)
+            .font(.system(size: 11.5))
+            .foregroundStyle(Theme.text3)
             .padding(.horizontal, 16)
-            .padding(.vertical, 10)
+            .padding(.vertical, 9)
         }
     }
 
     private var suggestions: some View {
-        VStack(alignment: .leading, spacing: 2) {
+        VStack(alignment: .leading, spacing: 0) {
             ForEach(Array(model.visibleSuggestions.prefix(8).enumerated()), id: \.offset) { index, suggestion in
-                HStack {
+                let selected = index == model.highlightedSuggestion
+                HStack(spacing: 10) {
                     Text(suggestion.label ?? suggestion.value)
+                        .lineLimit(1)
+                    Spacer(minLength: 0)
                     if suggestion.label != nil {
-                        Text(suggestion.value).font(.callout.monospaced()).foregroundStyle(.secondary)
+                        Text(suggestion.value)
+                            .font(.system(size: 11.5, design: .monospaced))
+                            .foregroundStyle(selected ? Theme.accentInk.opacity(0.8) : Theme.text3)
                     }
-                    Spacer()
                 }
-                .padding(.horizontal, 8)
-                .padding(.vertical, 4)
-                .background(index == model.highlightedSuggestion ? AnyShapeStyle(.selection) : AnyShapeStyle(.clear), in: RoundedRectangle(cornerRadius: 5))
+                .foregroundStyle(selected ? Theme.accentInk : Theme.text)
+                .padding(.horizontal, 9)
+                .frame(height: 30)
+                .background(selected ? Theme.accent : .clear, in: RoundedRectangle(cornerRadius: 6))
                 .contentShape(Rectangle())
                 .onTapGesture { model.accept(index) }
             }
+            HStack(spacing: 4) {
+                KeyCap("↑")
+                KeyCap("↓")
+                Text("select ·")
+                KeyCap("⇥")
+                Text("accept")
+                if let kind = model.suggestions.kind {
+                    Text("· \(FieldStyle.label(for: kind))")
+                }
+            }
+            .font(.system(size: 11))
+            .foregroundStyle(Theme.text3)
+            .padding(.horizontal, 9)
+            .padding(.top, 5)
+            .padding(.bottom, 3)
+            .frame(maxWidth: .infinity, alignment: .leading)
+            .overlay(alignment: .top) { Rectangle().fill(Theme.separator).frame(height: 0.5) }
+            .padding(.top, 3)
         }
+        .padding(4)
+        .frame(maxWidth: 420)
+        .background(Theme.elevated, in: RoundedRectangle(cornerRadius: 9))
+        .overlay(RoundedRectangle(cornerRadius: 9).strokeBorder(Theme.separatorStrong, lineWidth: 0.5))
+        .shadow(color: .black.opacity(0.14), radius: 12, y: 8)
     }
 
     private func chips(_ interpretation: Interpretation) -> some View {
         FlowLayout(spacing: 6) {
             ForEach(interpretation.candidates.filter(\.isHighlighted), id: \.self) { candidate in
-                HStack(spacing: 4) {
-                    Text(FieldStyle.label(for: candidate.field)).foregroundStyle(.secondary)
+                HStack(spacing: 5) {
+                    Text(FieldStyle.label(for: candidate.field))
+                        .foregroundStyle(candidate.blocking ? Theme.danger : Theme.text3)
                     Text(candidate.field == "tag" ? "+\(candidate.value)" : candidate.text)
+                        .foregroundStyle(Theme.text)
                     Button {
                         model.keepAsText(candidate)
                     } label: {
                         Image(systemName: "xmark")
+                            .font(.system(size: 9, weight: .semibold))
+                            .frame(width: 18, height: 18)
+                            .contentShape(Rectangle())
                     }
-                    .buttonStyle(.borderless)
+                    .buttonStyle(.plain)
+                    .foregroundStyle(Theme.text3)
                     .help(candidate.isInferred ? "Keep “\(candidate.text)” as text" : "Remove \(candidate.text)")
                 }
-                .font(.callout)
-                .padding(.horizontal, 8)
-                .padding(.vertical, 3)
-                .background((candidate.blocking ? Color.red : FieldStyle.color(for: candidate.field)).opacity(0.15), in: Capsule())
+                .font(.system(size: 12))
+                .padding(.leading, 8)
+                .padding(.trailing, 4)
+                .frame(height: 24)
+                .background(candidate.blocking ? Theme.dangerSoft : Theme.sunken, in: RoundedRectangle(cornerRadius: 6))
+                .overlay(
+                    RoundedRectangle(cornerRadius: 6)
+                        .strokeBorder(candidate.blocking || candidate.conflict ? Theme.danger : Theme.separator, lineWidth: 0.5)
+                )
                 .help(candidate.diagnostic ?? (candidate.isInferred ? "Recognized from “\(candidate.text)”" : candidate.text))
             }
         }
@@ -131,18 +180,20 @@ struct CaptureView: View {
 
     private func preview(_ interpretation: Interpretation) -> some View {
         HStack(spacing: 6) {
-            Text("Saves as").foregroundStyle(.secondary)
-            Text("“\(interpretation.description.isEmpty ? "…" : interpretation.description)”").bold().lineLimit(1)
+            Text("Saves as").foregroundStyle(Theme.text3)
+            Text("“\(interpretation.description.isEmpty ? "…" : interpretation.description)”")
+                .foregroundStyle(Theme.text2)
+                .lineLimit(1)
             if !interpretation.valid {
-                Text("· needs review").foregroundStyle(.red)
+                Text("· needs review").foregroundStyle(Theme.danger)
             }
         }
-        .font(.callout)
+        .font(.system(size: 12))
     }
 
     private func hint(_ key: String, _ label: String) -> some View {
-        HStack(spacing: 4) {
-            Text(key).font(.caption.monospaced()).padding(.horizontal, 4).background(.quaternary, in: RoundedRectangle(cornerRadius: 3))
+        HStack(spacing: 5) {
+            KeyCap(key)
             Text(label)
         }
     }
@@ -157,7 +208,7 @@ struct CaptureTextView: NSViewRepresentable {
     let interpretation: Interpretation?
     let close: () -> Void
 
-    static let font = NSFont.systemFont(ofSize: NSFont.preferredFont(forTextStyle: .title3).pointSize)
+    static let font = NSFont.systemFont(ofSize: 19)
 
     func makeCoordinator() -> Coordinator {
         Coordinator(model: model, close: close)
@@ -173,6 +224,7 @@ struct CaptureTextView: NSViewRepresentable {
         textView.allowsUndo = true
         textView.drawsBackground = false
         textView.font = Self.font
+        textView.insertionPointColor = NSColor(Theme.accent)
         textView.textContainerInset = NSSize(width: 0, height: 4)
         textView.textContainer?.lineFragmentPadding = 0
         textView.isAutomaticQuoteSubstitutionEnabled = false
@@ -250,17 +302,20 @@ struct CaptureTextView: NSViewRepresentable {
 
         func highlight(_ textView: NSTextView, _ interpretation: Interpretation?) {
             guard !textView.hasMarkedText(), let storage = textView.textStorage else { return }
-            let base: [NSAttributedString.Key: Any] = [.font: CaptureTextView.font, .foregroundColor: NSColor.textColor]
+            let base: [NSAttributedString.Key: Any] = [.font: CaptureTextView.font, .foregroundColor: NSColor(Theme.text)]
             storage.beginEditing()
             storage.setAttributes(base, range: NSRange(location: 0, length: storage.length))
             if let interpretation, interpretation.source == textView.string {
                 for candidate in interpretation.candidates where candidate.isHighlighted {
-                    let color = NSColor(candidate.blocking || candidate.conflict ? .red : FieldStyle.color(for: candidate.field))
-                    storage.addAttributes([
-                        .foregroundColor: color,
-                        .underlineStyle: NSUnderlineStyle.single.rawValue,
-                        .underlineColor: color,
-                    ], range: textView.string.nsRange(ofScalars: candidate.start, candidate.end))
+                    let range = textView.string.nsRange(ofScalars: candidate.start, candidate.end)
+                    let flagged = candidate.blocking || candidate.conflict
+                    storage.addAttribute(.backgroundColor, value: NSColor(flagged ? Theme.markError : FieldStyle.mark(for: candidate.field)), range: range)
+                    if candidate.blocking {
+                        storage.addAttributes([
+                            .underlineStyle: NSUnderlineStyle.thick.rawValue,
+                            .underlineColor: NSColor(Theme.danger),
+                        ], range: range)
+                    }
                 }
             }
             storage.endEditing()
@@ -279,33 +334,74 @@ struct CaptureReviewView: View {
     @Bindable var model: CaptureModel
     @Environment(\.dismiss) private var dismiss
 
+    /// The design's field order; values keep quickadd's order.
+    private static let order = [
+        ReviewDraft.description, ReviewDraft.project, ReviewDraft.priority, ReviewDraft.due,
+        ReviewDraft.scheduled, ReviewDraft.recurrence, ReviewDraft.estimate, ReviewDraft.tags,
+    ]
+    private static let prompts = [
+        ReviewDraft.project: "none", ReviewDraft.priority: "none", ReviewDraft.due: "none", ReviewDraft.scheduled: "none",
+        ReviewDraft.recurrence: "does not repeat", ReviewDraft.estimate: "e.g. 45m", ReviewDraft.tags: "space separated",
+    ]
+
     var body: some View {
         if let review = model.review {
-            VStack(alignment: .leading, spacing: 14) {
+            VStack(alignment: .leading, spacing: 0) {
                 VStack(alignment: .leading, spacing: 4) {
-                    Text("Review before adding").font(.title3.bold())
+                    Text("Review before adding").font(.system(size: 14, weight: .semibold))
                     Text("Momentum couldn’t add this unambiguously. Correct the highlighted fields, or keep a field as it is.")
-                        .foregroundStyle(.secondary)
+                        .font(.system(size: 12.5))
+                        .foregroundStyle(Theme.text2)
                 }
+                .padding(.horizontal, 20)
+                .padding(.top, 16)
+                .padding(.bottom, 10)
                 Text(sourceMarks(review.interpretation))
-                    .padding(10)
+                    .font(.system(size: 12, design: .monospaced))
+                    .lineSpacing(6)
+                    .padding(.horizontal, 11)
+                    .padding(.vertical, 9)
                     .frame(maxWidth: .infinity, alignment: .leading)
-                    .background(.quaternary.opacity(0.5), in: RoundedRectangle(cornerRadius: 6))
-                ForEach(review.interpretation.diagnostics.filter(\.blocking), id: \.self) { diagnostic in
-                    Label(diagnostic.message, systemImage: "exclamationmark.triangle.fill").foregroundStyle(.red)
+                    .background(Theme.sunken, in: RoundedRectangle(cornerRadius: 8))
+                    .padding(.horizontal, 20)
+                    .accessibilityLabel("Your input: \(review.interpretation.source)")
+                let diagnostics = review.interpretation.diagnostics.filter(\.blocking)
+                if !diagnostics.isEmpty {
+                    VStack(alignment: .leading, spacing: 4) {
+                        ForEach(diagnostics, id: \.self) { diagnostic in
+                            HStack(alignment: .firstTextBaseline, spacing: 8) {
+                                Image(systemName: "exclamationmark.triangle.fill").foregroundStyle(Theme.danger)
+                                Text(diagnostic.message)
+                            }
+                        }
+                    }
+                    .font(.system(size: 12.5))
+                    .padding(.horizontal, 12)
+                    .padding(.vertical, 9)
+                    .frame(maxWidth: .infinity, alignment: .leading)
+                    .background(Theme.dangerSoft, in: RoundedRectangle(cornerRadius: 8))
+                    .padding(.horizontal, 20)
+                    .padding(.top, 10)
                 }
-                Form {
-                    ForEach(ReviewDraft.labels.indices, id: \.self) { index in
+                VStack(alignment: .leading, spacing: 9) {
+                    ForEach(Self.order, id: \.self) { index in
                         field(index, review)
                     }
                 }
-                .formStyle(.grouped)
-                .scrollDisabled(true)
+                .padding(.horizontal, 20)
+                .padding(.vertical, 14)
                 if let error = review.error {
-                    Label(error, systemImage: "exclamationmark.triangle.fill").foregroundStyle(.red).textSelection(.enabled)
+                    Label(error, systemImage: "exclamationmark.triangle.fill")
+                        .font(.system(size: 12))
+                        .foregroundStyle(Theme.danger)
+                        .textSelection(.enabled)
+                        .padding(.horizontal, 20)
+                        .padding(.bottom, 12)
                 }
-                HStack {
+                HStack(spacing: 8) {
                     Button("Edit Text", systemImage: "chevron.left") { model.leaveReview() }
+                        .buttonStyle(.borderless)
+                        .foregroundStyle(Theme.text2)
                     Button("Add Using Triggers Only") { Task { await model.submitExplicitOnly() } }
                         .help("Ignore natural language and add the text with # ! @ > + ~ ^ triggers only")
                     Spacer()
@@ -313,35 +409,58 @@ struct CaptureReviewView: View {
                         .keyboardShortcut(.cancelAction)
                     Button("Add Task") { Task { await model.submitReview() } }
                         .keyboardShortcut(.defaultAction)
+                        .tint(Theme.tint)
                         .disabled(model.submitting)
                 }
+                .padding(.horizontal, 20)
+                .padding(.vertical, 12)
+                .overlay(alignment: .top) { Rectangle().fill(Theme.separator).frame(height: 0.5) }
             }
-            .padding(20)
         }
     }
 
+    /// Labels sit right-aligned in a column; hints and problems line up
+    /// under the field.
+    private static let labelWidth: CGFloat = 110, labelSpacing: CGFloat = 14
+
     private func field(_ index: Int, _ review: ReviewDraft) -> some View {
         let problems = review.problems(for: index)
+        let monospaced = index == ReviewDraft.project || index == ReviewDraft.recurrence
         return VStack(alignment: .leading, spacing: 4) {
-            TextField(ReviewDraft.labels[index], text: Binding(
-                get: { model.review?.values[index] ?? "" },
-                set: { model.review?.set(index, $0) }
-            ))
-            if index == ReviewDraft.due, let date = Format.reviewDate(review.values[index]) {
-                Text(date).font(.caption).foregroundStyle(.secondary)
+            HStack(alignment: .firstTextBaseline, spacing: Self.labelSpacing) {
+                Text(ReviewDraft.labels[index])
+                    .font(.system(size: 12.5))
+                    .foregroundStyle(Theme.text2)
+                    .frame(width: Self.labelWidth, alignment: .trailing)
+                TextField(ReviewDraft.labels[index], text: Binding(
+                    get: { model.review?.values[index] ?? "" },
+                    set: { model.review?.set(index, $0) }
+                ), prompt: Self.prompts[index].map { Text($0) })
+                .labelsHidden()
+                .textFieldStyle(.roundedBorder)
+                .font(monospaced ? .system(size: 12, design: .monospaced) : nil)
             }
-            if !problems.isEmpty {
-                HStack(alignment: .firstTextBaseline) {
-                    Text(problems.joined(separator: " ")).font(.caption).foregroundStyle(.red)
-                    Spacer()
-                    if review.decisions[index] {
-                        Label("Kept", systemImage: "checkmark").font(.caption).foregroundStyle(.secondary)
-                    } else {
-                        Button("Keep as Is") { model.review?.keep(index) }
-                            .controlSize(.small)
+            Group {
+                if index == ReviewDraft.due, let date = Format.reviewDate(review.values[index]) {
+                    Text(date).font(.system(size: 11.5)).foregroundStyle(Theme.text3)
+                }
+                if !problems.isEmpty {
+                    HStack(alignment: .firstTextBaseline) {
+                        Text(problems.joined(separator: " "))
+                            .font(.system(size: 11.5))
+                            .foregroundStyle(Theme.danger)
+                            .fixedSize(horizontal: false, vertical: true)
+                        Spacer()
+                        if review.decisions[index] {
+                            Label("Kept", systemImage: "checkmark").font(.system(size: 11.5)).foregroundStyle(Theme.text3)
+                        } else {
+                            Button("Keep as Is") { model.review?.keep(index) }
+                                .controlSize(.small)
+                        }
                     }
                 }
             }
+            .padding(.leading, Self.labelWidth + Self.labelSpacing)
         }
     }
 
@@ -352,8 +471,7 @@ struct CaptureReviewView: View {
             let range = source.nsRange(ofScalars: candidate.start, candidate.end)
             guard let bounds = Range(range, in: source), let lower = AttributedString.Index(bounds.lowerBound, within: text),
                   let upper = AttributedString.Index(bounds.upperBound, within: text) else { continue }
-            text[lower..<upper].foregroundColor = candidate.blocking || candidate.conflict ? .red : FieldStyle.color(for: candidate.field)
-            text[lower..<upper].underlineStyle = .single
+            text[lower..<upper].backgroundColor = candidate.blocking || candidate.conflict ? Theme.markError : FieldStyle.mark(for: candidate.field)
         }
         return text
     }
