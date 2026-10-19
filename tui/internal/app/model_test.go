@@ -11,7 +11,6 @@ import (
 
 	"github.com/jvrviegas/momentum-task-manager/core/domain"
 	"github.com/jvrviegas/momentum-task-manager/tui/internal/config"
-	"github.com/jvrviegas/momentum-task-manager/tui/internal/taskwarrior"
 	"github.com/jvrviegas/momentum-task-manager/tui/internal/ui"
 )
 
@@ -19,7 +18,6 @@ type fakeClient struct {
 	exports    [][]domain.Task
 	exportErr  error
 	mutations  []MutationRequest
-	syncs      int
 	projects   []string
 	tags       []string
 	completeCh chan struct{}
@@ -64,10 +62,6 @@ func (f *fakeClient) Undo(_ context.Context) error {
 	f.mutations = append(f.mutations, MutationRequest{Kind: MutationUndo})
 	return nil
 }
-func (f *fakeClient) Sync(context.Context) (taskwarrior.SyncResult, error) {
-	f.syncs++
-	return taskwarrior.SyncResult{}, nil
-}
 func (f *fakeClient) Projects(context.Context) ([]string, error) { return f.projects, nil }
 func (f *fakeClient) Tags(context.Context) ([]string, error)     { return f.tags, nil }
 
@@ -75,7 +69,7 @@ func testTask(uuid string, urgency float64) domain.Task {
 	return domain.Task{UUID: uuid, Description: uuid, Status: "pending", Urgency: urgency}
 }
 
-func testModel(client taskwarrior.Client) *Model {
+func testModel(client Client) *Model {
 	settings := config.Defaults()
 	return NewModel(ModelOptions{
 		Client:      client,
