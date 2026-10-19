@@ -7,7 +7,7 @@ struct MomentumApp: App {
     @State private var store = AppStore(bridge: ProcessBridge.bundled())
 
     var body: some Scene {
-        Window("Momentum", id: "main") {
+        Window("Momentum Task Manager", id: "main") {
             ContentView()
                 .environment(store)
                 .frame(minWidth: 760, minHeight: 460)
