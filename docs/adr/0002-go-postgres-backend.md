@@ -1,14 +1,14 @@
 # ADR 0002 — Go and PostgreSQL backend to replace Taskwarrior
 
 - **Date:** 2026-10-14
-- **Status:** Accepted: backend language, storage, and product policies P1–P4. Technical choices D1–D10 were approved on 2026-10-14 and are recorded in the [implementation plan](../plans/backend.md#decisions).
+- **Status:** Accepted: backend language, storage, and product policies P1–P4. Technical choices D1–D10 were approved on 2026-10-14 and are recorded in the [implementation plan](../plans/backend.md#decisions). Implemented: since 2026-10-19 (T19) the backend is the apps' only storage, and Taskwarrior is used only by `momentum import`.
 - **Source:** User conversation following the monorepo reorganization (`99bc675`)
 - **Delivery:** [Backend implementation plan](../plans/backend.md)
 - **Numbering:** ADR numbers are shared across the repository. [ADR 0001](../../tui/docs/adr/0001-project-settings-and-pending-task-renames.md) predates the monorepo layout and lives with the TUI.
 
 ## Context
 
-Momentum is a stateless frontend over Taskwarrior 3.x. Taskwarrior owns persistence, recurrence generation, urgency, date expressions, contexts, hooks, undo, and synchronization. Sync runs through a TaskChampion server on Cloud Run backed by Neon PostgreSQL, end-to-end encrypted ([`tui/docs/sync.md`](../../tui/docs/sync.md)). There are two apps: the Go TUI and the SwiftUI macOS app, which reaches the same Go code through `momentum-bridge`.
+Momentum is a stateless frontend over Taskwarrior 3.x. Taskwarrior owns persistence, recurrence generation, urgency, date expressions, contexts, hooks, undo, and synchronization. Sync runs through a TaskChampion server on Cloud Run backed by Neon PostgreSQL, end-to-end encrypted (`tui/docs/sync.md`, removed in T19; see its history). There are two apps: the Go TUI and the SwiftUI macOS app, which reaches the same Go code through `momentum-bridge`.
 
 The user wants Momentum to own its task storage: a backend with PostgreSQL on Neon instead of Taskwarrior. The choice was between NestJS (TypeScript) and Go.
 
