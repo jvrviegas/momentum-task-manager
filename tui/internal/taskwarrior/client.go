@@ -7,34 +7,14 @@ import (
 	"errors"
 	"fmt"
 	"os/exec"
-	"sort"
 	"strings"
 	"time"
 
 	"github.com/jvrviegas/momentum-task-manager/core/domain"
+	"github.com/jvrviegas/momentum-task-manager/tui/internal/diagnostics"
 )
 
 const defaultTimeout = 15 * time.Second
-
-// Client is the application-facing Taskwarrior adapter.
-type Client interface {
-	ExportPending(ctx context.Context) ([]domain.Task, error)
-	Add(ctx context.Context, input domain.NewTask) error
-	Modify(ctx context.Context, uuid string, diff domain.TaskDiff) error
-	Complete(ctx context.Context, uuid string) error
-	Delete(ctx context.Context, uuid string) error
-	Start(ctx context.Context, uuid string) error
-	Stop(ctx context.Context, uuid string) error
-	Undo(ctx context.Context) error
-	Sync(ctx context.Context) (SyncResult, error)
-	Projects(ctx context.Context) ([]string, error)
-}
-
-// SyncResult reports a completed Taskwarrior sync.
-type SyncResult struct {
-	Changed bool
-	Output  string
-}
 
 // CommandResult is the captured result of one Taskwarrior process.
 type CommandResult struct {
@@ -44,7 +24,7 @@ type CommandResult struct {
 	Duration time.Duration
 }
 
-// Runner is injectable so adapter tests never need the user's Taskwarrior.
+// Runner is injectable so tests never need the user's Taskwarrior.
 type Runner interface {
 	Run(ctx context.Context, command string, args ...string) (CommandResult, error)
 }
@@ -78,15 +58,14 @@ func (ExecRunner) Run(ctx context.Context, command string, args ...string) (Comm
 	return result, err
 }
 
-// CommandClient implements Client using a Taskwarrior executable.
+// CommandClient reads tasks with a Taskwarrior executable.
 type CommandClient struct {
-	Binary    string
-	Runner    Runner
-	Timeout   time.Duration
-	OnCommand func(kind string, result CommandResult, err error)
+	Binary  string
+	Runner  Runner
+	Timeout time.Duration
 }
 
-// NewClient constructs a real Taskwarrior adapter.
+// NewClient constructs a reader that runs binary.
 func NewClient(binary string) *CommandClient {
 	if binary == "" {
 		binary = "task"
@@ -94,8 +73,7 @@ func NewClient(binary string) *CommandClient {
 	return &CommandClient{Binary: binary, Runner: ExecRunner{}, Timeout: defaultTimeout}
 }
 
-// NewClientWithRunner constructs an adapter for unit tests or an alternate
-// process supervisor.
+// NewClientWithRunner constructs a reader for unit tests.
 func NewClientWithRunner(binary string, runner Runner) *CommandClient {
 	client := NewClient(binary)
 	if runner != nil {
@@ -118,41 +96,17 @@ func (c *CommandClient) run(ctx context.Context, kind string, args ...string) (C
 	commandCtx, cancel := context.WithTimeout(ctx, timeout)
 	defer cancel()
 	result, err := c.Runner.Run(commandCtx, c.Binary, args...)
-	if c.OnCommand != nil {
-		c.OnCommand(kind, result, err)
-	}
 	if err != nil || result.ExitCode != 0 {
 		return result, &CommandError{
 			Kind:     kind,
 			Args:     append([]string(nil), args...),
 			ExitCode: result.ExitCode,
-			Stderr:   Redact(result.Stderr),
+			Stderr:   diagnostics.Redact(result.Stderr),
 			Duration: result.Duration,
 			Cause:    err,
 		}
 	}
 	return result, nil
-}
-
-// Version reads Taskwarrior's version without touching task data.
-func (c *CommandClient) Version(ctx context.Context) (string, error) {
-	result, err := c.run(ctx, "version", "--version")
-	if err != nil {
-		return "", err
-	}
-	return strings.TrimSpace(result.Stdout), nil
-}
-
-// ExportPending reads one context-respecting, machine-readable export.
-func (c *CommandClient) ExportPending(ctx context.Context) ([]domain.Task, error) {
-	return c.exportFilteredTasks(ctx, "status:pending")
-}
-
-// ExportRecurring reads recurrence templates for diagnostics and future
-// template-aware surfaces. Pending exports intentionally contain generated
-// instances only.
-func (c *CommandClient) ExportRecurring(ctx context.Context) ([]domain.Task, error) {
-	return c.exportFilteredTasks(ctx, "status:recurring")
 }
 
 // ExportAll reads every task, whatever its status, for an import, and leaves
@@ -162,31 +116,6 @@ func (c *CommandClient) ExportRecurring(ctx context.Context) ([]domain.Task, err
 // case another version runs them on their own.
 func (c *CommandClient) ExportAll(ctx context.Context) ([]domain.Task, error) {
 	return c.exportFilteredTasks(ctx, "rc.recurrence=off", "rc.gc=off", "rc.hooks=off")
-}
-
-// RecurrenceGeneration reads the local generation toggle without changing it.
-func (c *CommandClient) RecurrenceGeneration(ctx context.Context) (string, error) {
-	result, err := c.run(ctx, "recurrence", "_get", "recurrence")
-	if err != nil {
-		return "", err
-	}
-	return strings.TrimSpace(result.Stdout), nil
-}
-
-// ExportCompleted reads completed tasks after the exclusive local-date
-// boundary. Export ignores Taskwarrior contexts, so the active context's read
-// filter is captured and passed explicitly.
-func (c *CommandClient) ExportCompleted(ctx context.Context, after time.Time) ([]domain.Task, error) {
-	scope, err := c.projectMigrationScope(ctx)
-	if err != nil {
-		return nil, err
-	}
-	filters := make([]string, 0, 3)
-	if filter := contextFilterArg(scope.ReadFilter); filter != "" {
-		filters = append(filters, filter)
-	}
-	filters = append(filters, "status:completed", "end.after:"+after.Format("2006-01-02"))
-	return c.exportFilteredTasks(ctx, filters...)
 }
 
 func (c *CommandClient) exportFilteredTasks(ctx context.Context, filters ...string) ([]domain.Task, error) {
@@ -203,66 +132,4 @@ func (c *CommandClient) exportFilteredTasks(ctx context.Context, filters ...stri
 		return nil, fmt.Errorf("decode Taskwarrior export: %w", err)
 	}
 	return tasks, nil
-}
-
-// Context returns the active Taskwarrior context without changing it.
-func (c *CommandClient) Context(ctx context.Context) (string, error) {
-	result, err := c.run(ctx, "context", "_get", "rc.context")
-	if err != nil {
-		return "", err
-	}
-	return strings.TrimSpace(result.Stdout), nil
-}
-
-// Projects combines script-oriented project output with projects in the
-// current export. A failing _projects command is tolerated if export succeeds.
-func (c *CommandClient) Projects(ctx context.Context) ([]string, error) {
-	result, projectErr := c.run(ctx, "projects", "_projects")
-	values := make(map[string]struct{})
-	for _, line := range strings.Split(result.Stdout, "\n") {
-		if value := strings.TrimSpace(line); value != "" {
-			values[value] = struct{}{}
-		}
-	}
-
-	tasks, exportErr := c.ExportPending(ctx)
-	if exportErr == nil {
-		for _, task := range tasks {
-			if task.Project != "" {
-				values[task.Project] = struct{}{}
-			}
-		}
-	}
-	projects := make([]string, 0, len(values))
-	for value := range values {
-		projects = append(projects, value)
-	}
-	sort.Strings(projects)
-	if projectErr != nil && exportErr != nil {
-		return nil, fmt.Errorf("discover projects: %w (export: %v)", projectErr, exportErr)
-	}
-	return projects, nil
-}
-
-// Tags returns actual user tags found in pending export data. Taskwarrior
-// virtual tags are not included because they are not present in task.tags.
-func (c *CommandClient) Tags(ctx context.Context) ([]string, error) {
-	tasks, err := c.ExportPending(ctx)
-	if err != nil {
-		return nil, err
-	}
-	values := make(map[string]struct{})
-	for _, task := range tasks {
-		for _, tag := range task.Tags {
-			if tag != "" {
-				values[tag] = struct{}{}
-			}
-		}
-	}
-	result := make([]string, 0, len(values))
-	for value := range values {
-		result = append(result, value)
-	}
-	sort.Strings(result)
-	return result, nil
 }
