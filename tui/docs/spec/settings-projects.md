@@ -3,7 +3,8 @@
 **Date:** 2026-09-16  
 **Status:** Implemented; acceptance evidence is recorded in [docs/UAT.md](../UAT.md) and the execution tracker. All product policies were confirmed on 2026-09-16.  
 **Decision:** [ADR 0001](../adr/0001-project-settings-and-pending-task-renames.md)  
-**Tracking / handoff entry point:** [Implementation plan](../plans/settings-projects.md)
+**Tracking / handoff entry point:** [Implementation plan](../plans/settings-projects.md)  
+**Updated:** 2026-10-19: the Momentum server replaced Taskwarrior ([backend plan](../../../docs/plans/backend.md) T12 and T19). It applies a migration in one transaction, and contexts no longer scope it; SP-09, SP-11, SP-12, SP-14, SP-15, and SP-16 are revised for that. The decision notes below record the Taskwarrior-era reasoning.
 
 ## Problem and scope
 
@@ -12,10 +13,10 @@ Users previously edited `[[projects]]` manually and restarted Momentum. Settings
 ### Terminology
 
 - **Display name:** `Project.Name`, e.g. `Carbon Products`; labels the final path segment.
-- **Project value:** `Project.Value`, e.g. `carbon-products.dash2zero`; stored on a Taskwarrior task.
+- **Project value:** `Project.Value`, e.g. `carbon-products.dash2zero`; stored on a task.
 - **Descendant:** value starting with `old + "."`, not merely starting with `old`.
-- **Pending:** exactly Taskwarrior `status:pending`. Do not silently include waiting, recurring-template, completed, or deleted statuses. Verify version-specific export behavior in isolated integration tests.
-- **Catalog-only save:** edits Momentum configuration without any Taskwarrior mutation.
+- **Pending:** exactly status `pending`, not waiting. Do not silently include waiting, recurring-template, completed, or deleted statuses.
+- **Catalog-only save:** edits Momentum configuration without any task mutation.
 - **Migration:** explicitly confirmed project-value reassignment on eligible pending tasks.
 
 ## Agreed functional requirements
@@ -39,12 +40,12 @@ Users previously edited `[[projects]]` manually and restarted Momentum. Settings
 | ID | Acceptance criterion |
 |---|---|
 | SP-08 | WHEN the project value changes, the save flow SHALL offer **Catalog only** (default) and **Catalog + pending tasks** (explicit opt-in). Migration options SHALL reset for each edit and never inherit consent from a previous edit. |
-| SP-09 | WHEN migration is chosen, only eligible tasks with `status:pending` in the **active Taskwarrior context** SHALL receive the new project value. Today/search filters SHALL NOT restrict or broaden migration scope. Completed/deleted tasks and unrelated task fields SHALL remain unchanged by Momentum. No other status is implicitly eligible. |
+| SP-09 | WHEN migration is chosen, only the user's eligible tasks with status `pending` SHALL receive the new project value; there are no contexts. Today/search filters SHALL NOT restrict or broaden migration scope. Completed/deleted tasks and unrelated task fields SHALL remain unchanged by Momentum. No other status is implicitly eligible. |
 | SP-10 | WHEN **Include subprojects** is off, a parent value rename SHALL affect only the selected catalog entry and exact-match pending tasks if migration is selected. WHEN on, the same explicit option SHALL rename configured descendant values and, only when task migration is selected, eligible dot-delimited pending-task descendants, preserving suffixes. `workshop` SHALL NOT match a rename of `work`. The preview SHALL show catalog-descendant and task-descendant counts separately; descendants SHALL never move silently. |
-| SP-11 | BEFORE a migration, Momentum SHALL show old→new values, eligible task count, active context (or explicitly no active context), descendant choice, and any collision/merge implications; duplicate catalog values SHALL block saving rather than offer a merge; a destination used by Taskwarrior tasks but absent from the catalog SHALL require an explicit effective-merge warning and confirmation; it SHALL state that historical tasks retain their values. No task mutations SHALL occur before explicit confirmation. Zero matches SHALL be a valid catalog save with no task mutations. |
-| SP-12 | WHEN a preview becomes stale, Momentum SHALL NOT broaden the confirmed task set or alter newly ineligible tasks. Revalidate on confirmation; changed eligibility/mapping/scope, including a changed active context, SHALL require a fresh preview and confirmation. Execution SHALL remain pending-only even if a task is completed after preview. |
+| SP-11 | BEFORE a migration, Momentum SHALL show old→new values, eligible task count, descendant choice, and any collision/merge implications; duplicate catalog values SHALL block saving rather than offer a merge; a destination used by tasks but absent from the catalog SHALL require an explicit effective-merge warning and confirmation; it SHALL state that historical tasks retain their values. No task mutations SHALL occur before explicit confirmation. Zero matches SHALL be a valid catalog save with no task mutations. |
+| SP-12 | WHEN a preview becomes stale, Momentum SHALL NOT broaden the confirmed task set or alter newly ineligible tasks. Revalidate on confirmation; changed eligibility or mapping SHALL require a fresh preview and confirmation, and the server refuses the whole migration if any confirmed task changed since. Execution SHALL remain pending-only even if a task is completed after preview. |
 
-**Independent demo:** Seed pending, completed, deleted, waiting, and subproject tasks in an isolated Taskwarrior database. Confirm a pending-only rename; verify only the explicitly previewed eligible set changes. Repeat with the subproject toggle off/on.
+**Independent demo:** Seed pending, completed, deleted, waiting, and subproject tasks on a local server. Confirm a pending-only rename; verify only the explicitly previewed eligible set changes. Repeat with the subproject toggle off/on.
 
 ## Required engineering safeguards
 
@@ -53,16 +54,16 @@ These are derived safety/quality constraints, not claims that the user selected 
 | ID | Acceptance criterion |
 |---|---|
 | SP-13 | Saving SHALL preserve unrelated TOML settings and comments; SHALL NOT serialize environment-derived overrides as file settings; and SHALL detect external file changes rather than blindly overwrite them. Use safe same-directory replacement and deliberate permissions handling. For symlinked configs, preserve the link and safely update its resolved target with conflict checks on both link resolution and target content; do not replace the symlink. On parse, permission, conflict, or write error, retain the user's draft and the previous live catalog. Missing config can be created at the resolved path. |
-| SP-14 | Config and Taskwarrior operations SHALL execute asynchronously through typed app results. Migration SHALL be serialized with Momentum task writes and sync; the UI SHALL remain responsive. Block/defer competing actions and quit during execution with clear status; no hidden task commands from Settings keybindings. |
-| SP-15 | After validation/preflight, save the catalog **before** migrating the confirmed tasks. If catalog saving fails, no task migration SHALL run. If task updates fail afterward, retain the saved catalog and successful task updates, report their outcomes separately, refresh task state after any task changes, and require fresh preview/confirmation to retry. No automatic rollback/retry or batch undo. Explain before confirmation that native `u` cannot reverse the migration/config save; disable it during migration and prevent misleading prior undo state after task changes, while preserving ordinary single-task undo afterward. Task changes alone participate in native sync; catalog-only edits SHALL not trigger task undo/sync bookkeeping. |
-| SP-16 | Tests SHALL isolate filesystem/config writes and all real Taskwarrior commands from the user's data. Include read-only config, discovery errors, stale previews, failure mid-migration, history retention, hierarchy boundary matching, and width/input-routing regressions. Test hooks/concurrent task changes enough to establish the chosen adapter's guarantees; do not disable real-user hooks as an implementation shortcut. |
+| SP-14 | Config and server operations SHALL execute asynchronously through typed app results. Migration SHALL be serialized with Momentum task writes; the UI SHALL remain responsive. Block/defer competing actions and quit during execution with clear status; no hidden task commands from Settings keybindings. |
+| SP-15 | After validation/preflight, save the catalog **before** migrating the confirmed tasks. If catalog saving fails, no task migration SHALL run. The server moves every confirmed task in one transaction or none; if it refuses or fails afterward, retain the saved catalog, report the outcome separately, refresh task state after any task changes, and require fresh preview/confirmation to retry. No automatic rollback/retry or batch undo. Explain before confirmation that `u` cannot reverse the migration/config save; disable it during migration and close the undo window after task changes, while preserving ordinary single-task undo afterward. Catalog-only edits SHALL not trigger task undo bookkeeping. |
+| SP-16 | Tests SHALL isolate filesystem/config writes from the user's data and use fake or local servers. Include read-only config, discovery errors, stale previews, a refused migration, history retention, hierarchy boundary matching, and width/input-routing regressions; the server's one-transaction guarantee is tested in `backend/internal/tasks`. |
 
 ## Behavior examples
 
 | Edit | Choice | Expected task effect |
 |---|---|---|
-| Name `Carbon Products` → `Carbon`; value unchanged | Label only | No Taskwarrior mutations; descendant breadcrumbs reflect the new ancestor label. |
-| Value `carbon-products` → `carbon` | Catalog only | No Taskwarrior mutations. Old task values may still appear through discovery. |
+| Name `Carbon Products` → `Carbon`; value unchanged | Label only | No task mutations; descendant breadcrumbs reflect the new ancestor label. |
+| Value `carbon-products` → `carbon` | Catalog only | No task mutations. Old task values may still appear through discovery. |
 | Same value change | Pending tasks; descendants off | Eligible tasks at exact `carbon-products` become `carbon`; child and historical tasks retain values. |
 | Same value change | Pending tasks; descendants on | Eligible `carbon-products.dash2zero` becomes `carbon.dash2zero`; suffix and all historical values remain intact. |
 | Remove catalog `carbon-products` | No to removing children | Remove only the parent catalog entry; retain descendant entries/values. No task mutation. |
@@ -87,7 +88,7 @@ The existing BurntSushi encoder is not source-preserving. T00 verified a lossles
 - Project dashboards, progress metrics, archived project states, separate database or stable IDs.
 - Migrating completed/deleted/waiting/recurring-template tasks, changing recurrence definitions, or retroactively rewriting history.
 - General bulk task editing, automatic merges, automatic catalog growth from tasks.
-- Cloud sync of the catalog, a new sync protocol, or direct access to Taskwarrior data files.
+- Storing the catalog on the server.
 - Cross-store transactional rollback, native batch undo guarantees, or a persistent migration journal unless separately approved after a demonstrated need.
 
 ## Completion
