@@ -68,11 +68,9 @@ struct WireTests {
         let decoder = JSONDecoder()
         decoder.dateDecodingStrategy = .iso8601
         let status = try decoder.decode(BridgeStatus.self, from: Data("""
-        {"taskwarriorVersion":"","syncConfigured":false,"estimateUDA":"configured","configPath":"/tmp/config.toml",
-        "sync":{"enabled":true,"startup":true,"shutdown":true,"intervalSeconds":300,"mutationDelaySeconds":15},
-        "refreshIntervalSeconds":60,"backendUrl":"https://momentum.example"}
+        {"configPath":"/tmp/config.toml","mutationDelaySeconds":15,"refreshIntervalSeconds":60,"backendUrl":"https://momentum.example"}
         """.utf8))
-        #expect(status.backendUrl == "https://momentum.example")
+        #expect(status.backendUrl == "https://momentum.example" && status.mutationDelaySeconds == 15)
         let start = try decoder.decode(DeviceSignIn.self, from: Data("""
         {"deviceCode":"dc","userCode":"BCDFGHJK","verificationUrl":"https://m.example/device",
         "verificationUrlComplete":"https://m.example/device?code=BCDFGHJK","expiresAt":"2026-10-16T11:10:00Z","intervalSeconds":5}
@@ -85,11 +83,10 @@ struct WireTests {
         #expect(try decoder.decode(SignInPoll.self, from: Data(#"{"state":"pending"}"#.utf8)) == SignInPoll(state: "pending"))
         let error = try decoder.decode(BridgeError.self, from: Data(#"{"message":"sign in again","code":"unauthorized"}"#.utf8))
         #expect(error == BridgeError(message: "sign in again", code: "unauthorized"))
-        let tw = try decoder.decode(BridgeStatus.self, from: Data("""
-        {"taskwarriorVersion":"3.5.0","syncConfigured":true,"estimateUDA":"configured","configPath":"/tmp/config.toml",
-        "sync":{"enabled":true,"startup":true,"shutdown":true,"intervalSeconds":300,"mutationDelaySeconds":15},"refreshIntervalSeconds":60}
+        let unconfigured = try decoder.decode(BridgeStatus.self, from: Data("""
+        {"configPath":"/tmp/config.toml","mutationDelaySeconds":15,"refreshIntervalSeconds":60}
         """.utf8))
-        #expect(tw.backendUrl == nil)
+        #expect(unconfigured.backendUrl == nil)
     }
 }
 
