@@ -87,26 +87,21 @@ enum Format {
 extension DateLabel.Tone {
     var color: Color {
         switch self {
-        case .overdue: .red
-        case .today: .orange
-        case .normal: .secondary
+        case .overdue: Theme.danger
+        case .today: Theme.text2
+        case .normal: Theme.text3
         }
     }
 }
 
-/// Field colors from DESIGN.md: project cyan, priority high, due accent,
-/// scheduled medium, tag green, estimate purple, recurrence teal.
+/// Capture highlight colors from the macOS design: project teal, dates blue,
+/// other metadata amber.
 enum FieldStyle {
-    static func color(for field: String) -> Color {
+    static func mark(for field: String) -> Color {
         switch field {
-        case "project": .cyan
-        case "priority": .orange
-        case "due", "time": .accentColor
-        case "scheduled": .yellow
-        case "tag": .green
-        case "estimate": .purple
-        case "recurrence": .teal
-        default: .secondary
+        case "project": Theme.markProject
+        case "due", "time", "scheduled", "recurrence": Theme.markDate
+        default: Theme.markMeta
         }
     }
 
