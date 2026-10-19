@@ -9,7 +9,6 @@ import (
 	"github.com/jvrviegas/momentum-task-manager/core/api"
 	"github.com/jvrviegas/momentum-task-manager/core/domain"
 	"github.com/jvrviegas/momentum-task-manager/tui/internal/config"
-	"github.com/jvrviegas/momentum-task-manager/tui/internal/taskwarrior"
 )
 
 type coordinatorStore struct {
@@ -35,38 +34,28 @@ func (s *coordinatorStore) Save(_ context.Context, _ config.ProjectCatalogSnapsh
 	return s.snapshot, nil
 }
 
+// coordinatorClient previews a migration from tasks and applies it in one
+// request, as the server does.
 type coordinatorClient struct {
-	export    taskwarrior.ProjectMigrationExport
+	tasks     []domain.Task
 	exportErr error
-	outcomes  []taskwarrior.ProjectTaskOutcome
-	calls     []domain.ProjectTaskMapping
+	err       error
+	plans     []domain.ProjectCatalogPlan
+	calls     [][]domain.ProjectTaskMapping
 	events    *[]string
-	cancel    context.CancelFunc
 }
 
-func (c *coordinatorClient) ExportPendingInContext(context.Context) (taskwarrior.ProjectMigrationExport, error) {
-	if c.exportErr != nil {
-		return taskwarrior.ProjectMigrationExport{}, c.exportErr
-	}
-	return c.export, nil
+func (c *coordinatorClient) ExportPending(context.Context) ([]domain.Task, error) {
+	return c.tasks, c.exportErr
 }
 
-func (c *coordinatorClient) ApplyProjectTask(_ context.Context, _ taskwarrior.ProjectMigrationScope, mapping domain.ProjectTaskMapping) taskwarrior.ProjectTaskOutcome {
+func (c *coordinatorClient) ApplyProjectMigration(_ context.Context, plan domain.ProjectCatalogPlan, mappings []domain.ProjectTaskMapping) error {
 	if c.events != nil {
-		*c.events = append(*c.events, "task:"+mapping.UUID)
+		*c.events = append(*c.events, "apply")
 	}
-	c.calls = append(c.calls, mapping)
-	if c.cancel != nil {
-		c.cancel()
-		c.cancel = nil
-	}
-	if len(c.outcomes) == 0 {
-		return taskwarrior.ProjectTaskOutcome{Mapping: mapping, Kind: taskwarrior.ProjectTaskChanged}
-	}
-	outcome := c.outcomes[0]
-	c.outcomes = c.outcomes[1:]
-	outcome.Mapping = mapping
-	return outcome
+	c.plans = append(c.plans, plan)
+	c.calls = append(c.calls, mappings)
+	return c.err
 }
 
 func coordinatorPlan(t *testing.T, includeSubprojects bool) domain.ProjectCatalogPlan {
@@ -79,252 +68,31 @@ func coordinatorPlan(t *testing.T, includeSubprojects bool) domain.ProjectCatalo
 	return plan
 }
 
-func coordinatorRequest(plan domain.ProjectCatalogPlan, scope taskwarrior.ProjectMigrationScope, mappings []domain.ProjectTaskMapping, migrate bool) ProjectMigrationRequest {
-	return ProjectMigrationRequest{Plan: plan, Scope: scope, TaskMappings: mappings, MigrateTasks: migrate}
+func coordinatorRequest(plan domain.ProjectCatalogPlan, mappings []domain.ProjectTaskMapping, migrate bool) ProjectMigrationRequest {
+	return ProjectMigrationRequest{Plan: plan, TaskMappings: mappings, MigrateTasks: migrate}
 }
 
-func TestProjectMigrationCoordinatorSavesCatalogBeforeConfirmedTasks(t *testing.T) {
-	events := []string{}
-	plan := coordinatorPlan(t, false)
-	scope := taskwarrior.ProjectMigrationScope{}
-	mapping := domain.ProjectTaskMapping{UUID: "one", OldValue: "work", NewValue: "delivery"}
-	store := &coordinatorStore{events: &events}
-	client := &coordinatorClient{
-		export:   taskwarrior.ProjectMigrationExport{Scope: scope, Tasks: []domain.Task{{UUID: "one", Status: "pending", Project: "work"}}},
-		outcomes: []taskwarrior.ProjectTaskOutcome{{Kind: taskwarrior.ProjectTaskChanged}},
-		events:   &events,
-	}
-	result := NewProjectMigrationCoordinator(store, client).Execute(context.Background(), coordinatorRequest(plan, scope, []domain.ProjectTaskMapping{mapping}, true))
-	if result.Stale || result.CatalogErr != nil || !result.CatalogSaved || len(result.TaskOutcomes) != 1 || result.TaskOutcomes[0].Kind != taskwarrior.ProjectTaskChanged {
-		t.Fatalf("result=%#v", result)
-	}
-	if !reflect.DeepEqual(events, []string{"catalog-save", "task:one"}) || len(store.saved) != 1 || len(client.calls) != 1 {
-		t.Fatalf("ordering/events=%v saved=%v calls=%v", events, store.saved, client.calls)
-	}
-}
-
-func TestProjectMigrationCoordinatorCatalogFailureRunsNoTaskCommands(t *testing.T) {
-	plan := coordinatorPlan(t, false)
-	mapping := domain.ProjectTaskMapping{UUID: "one", OldValue: "work", NewValue: "delivery"}
-	storeErr := errors.New("config write failed")
-	store := &coordinatorStore{err: storeErr}
-	client := &coordinatorClient{export: taskwarrior.ProjectMigrationExport{Tasks: []domain.Task{{UUID: "one", Status: "pending", Project: "work"}}}}
-	result := NewProjectMigrationCoordinator(store, client).Execute(context.Background(), coordinatorRequest(plan, taskwarrior.ProjectMigrationScope{}, []domain.ProjectTaskMapping{mapping}, true))
-	if result.CatalogSaved || !errors.Is(result.CatalogErr, storeErr) || len(client.calls) != 0 || len(result.TaskOutcomes) != 0 {
-		t.Fatalf("result=%#v calls=%v", result, client.calls)
-	}
-}
-
-func TestProjectMigrationCoordinatorRejectsStaleScopeOrExactSetBeforeSave(t *testing.T) {
-	plan := coordinatorPlan(t, false)
-	mapping := domain.ProjectTaskMapping{UUID: "one", OldValue: "work", NewValue: "delivery"}
-	cases := []struct {
-		name   string
-		scope  taskwarrior.ProjectMigrationScope
-		export taskwarrior.ProjectMigrationExport
-	}{
-		{
-			name:  "changed context",
-			scope: taskwarrior.ProjectMigrationScope{ContextName: "work", ReadFilter: "project:work"},
-			export: taskwarrior.ProjectMigrationExport{
-				Scope: taskwarrior.ProjectMigrationScope{ContextName: "personal", ReadFilter: "project:personal"},
-				Tasks: []domain.Task{{UUID: "one", Status: "pending", Project: "work"}},
-			},
-		},
-		{
-			name:   "new task entered scope",
-			scope:  taskwarrior.ProjectMigrationScope{},
-			export: taskwarrior.ProjectMigrationExport{Tasks: []domain.Task{{UUID: "one", Status: "pending", Project: "work"}, {UUID: "two", Status: "pending", Project: "work"}}},
-		},
-	}
-	for _, tc := range cases {
-		t.Run(tc.name, func(t *testing.T) {
-			store := &coordinatorStore{}
-			client := &coordinatorClient{export: tc.export}
-			result := NewProjectMigrationCoordinator(store, client).Execute(context.Background(), coordinatorRequest(plan, tc.scope, []domain.ProjectTaskMapping{mapping}, true))
-			if !result.Stale || result.CatalogSaved || len(store.saved) != 0 || len(client.calls) != 0 {
-				t.Fatalf("result=%#v saved=%v calls=%v", result, store.saved, client.calls)
-			}
-		})
-	}
-}
-
-func TestProjectMigrationCoordinatorStopsAfterPartialFailureAndRetainsCatalog(t *testing.T) {
-	plan := coordinatorPlan(t, false)
-	mappings := []domain.ProjectTaskMapping{
-		{UUID: "one", OldValue: "work", NewValue: "delivery"},
-		{UUID: "two", OldValue: "work", NewValue: "delivery"},
-		{UUID: "three", OldValue: "work", NewValue: "delivery"},
-	}
-	outcomes := []taskwarrior.ProjectTaskOutcome{
-		{Kind: taskwarrior.ProjectTaskChanged},
-		{Kind: taskwarrior.ProjectTaskFailed, Err: errors.New("hook failed")},
-	}
-	store := &coordinatorStore{}
-	client := &coordinatorClient{
-		export: taskwarrior.ProjectMigrationExport{Tasks: []domain.Task{
-			{UUID: "one", Status: "pending", Project: "work"},
-			{UUID: "two", Status: "pending", Project: "work"},
-			{UUID: "three", Status: "pending", Project: "work"},
-		}},
-		outcomes: outcomes,
-	}
-	result := NewProjectMigrationCoordinator(store, client).Execute(context.Background(), coordinatorRequest(plan, taskwarrior.ProjectMigrationScope{}, mappings, true))
-	if !result.CatalogSaved || result.CatalogErr != nil || len(result.TaskOutcomes) != 2 || len(client.calls) != 2 || result.TaskOutcomes[1].Kind != taskwarrior.ProjectTaskFailed {
-		t.Fatalf("result=%#v calls=%v", result, client.calls)
-	}
-	if len(store.saved) != 1 || store.saved[0][0].Value != "delivery" {
-		t.Fatalf("catalog was not retained: %#v", store.saved)
-	}
-}
-
-func TestProjectMigrationCoordinatorStopsAtFirstMiddleOrLastFailure(t *testing.T) {
-	plan := coordinatorPlan(t, false)
-	mappings := []domain.ProjectTaskMapping{
-		{UUID: "one", OldValue: "work", NewValue: "delivery"},
-		{UUID: "two", OldValue: "work", NewValue: "delivery"},
-		{UUID: "three", OldValue: "work", NewValue: "delivery"},
-	}
-	for _, tc := range []struct {
-		name          string
-		failureAt     int
-		wantCallCount int
-	}{
-		{name: "first", failureAt: 0, wantCallCount: 1},
-		{name: "middle", failureAt: 1, wantCallCount: 2},
-		{name: "last", failureAt: 2, wantCallCount: 3},
-	} {
-		t.Run(tc.name, func(t *testing.T) {
-			outcomes := make([]taskwarrior.ProjectTaskOutcome, len(mappings))
-			for i := range outcomes {
-				outcomes[i].Kind = taskwarrior.ProjectTaskChanged
-			}
-			outcomes[tc.failureAt] = taskwarrior.ProjectTaskOutcome{Kind: taskwarrior.ProjectTaskFailed, Err: errors.New("failure")}
-			client := &coordinatorClient{
-				export:   taskwarrior.ProjectMigrationExport{Tasks: []domain.Task{{UUID: "one", Status: "pending", Project: "work"}, {UUID: "two", Status: "pending", Project: "work"}, {UUID: "three", Status: "pending", Project: "work"}}},
-				outcomes: outcomes,
-			}
-			result := NewProjectMigrationCoordinator(&coordinatorStore{}, client).Execute(context.Background(), coordinatorRequest(plan, taskwarrior.ProjectMigrationScope{}, mappings, true))
-			if !result.CatalogSaved || len(client.calls) != tc.wantCallCount || len(result.TaskOutcomes) != tc.wantCallCount || result.TaskOutcomes[tc.failureAt].Kind != taskwarrior.ProjectTaskFailed {
-				t.Fatalf("result=%#v calls=%v", result, client.calls)
-			}
-		})
-	}
-}
-
-func TestProjectMigrationCoordinatorReportsPreflightFailureWithoutSaving(t *testing.T) {
-	plan := coordinatorPlan(t, false)
-	store := &coordinatorStore{}
-	clientErr := errors.New("Taskwarrior unavailable")
-	client := &coordinatorClient{exportErr: clientErr}
-	result := NewProjectMigrationCoordinator(store, client).Execute(context.Background(), coordinatorRequest(plan, taskwarrior.ProjectMigrationScope{}, nil, true))
-	if result.CatalogSaved || result.Stale || !errors.Is(result.PreflightErr, clientErr) || len(store.saved) != 0 {
-		t.Fatalf("result=%#v saved=%v", result, store.saved)
-	}
-}
-
-func TestProjectMigrationCoordinatorHandlesZeroMatchesWithoutTaskWrites(t *testing.T) {
-	plan := coordinatorPlan(t, false)
-	store := &coordinatorStore{}
-	client := &coordinatorClient{export: taskwarrior.ProjectMigrationExport{Scope: taskwarrior.ProjectMigrationScope{}}}
-	result := NewProjectMigrationCoordinator(store, client).Execute(context.Background(), coordinatorRequest(plan, taskwarrior.ProjectMigrationScope{}, nil, true))
-	if result.Stale || !result.CatalogSaved || result.CatalogErr != nil || len(client.calls) != 0 || result.ChangedCount() != 0 {
-		t.Fatalf("result=%#v calls=%v", result, client.calls)
-	}
-}
-
-func TestProjectMigrationCoordinatorSupportsCatalogOnlyWithoutMigrationClient(t *testing.T) {
-	plan := coordinatorPlan(t, false)
-	store := &coordinatorStore{}
-	result := NewProjectMigrationCoordinator(store, nil).Execute(context.Background(), coordinatorRequest(plan, taskwarrior.ProjectMigrationScope{}, nil, false))
-	if !result.CatalogSaved || result.CatalogErr != nil || len(store.saved) != 1 {
-		t.Fatalf("result=%#v saved=%v", result, store.saved)
-	}
-}
-
-func TestProjectMigrationCoordinatorReportsAmbiguousOutcomeAndDoesNotRetry(t *testing.T) {
-	plan := coordinatorPlan(t, false)
-	mapping := domain.ProjectTaskMapping{UUID: "one", OldValue: "work", NewValue: "delivery"}
-	client := &coordinatorClient{
-		export:   taskwarrior.ProjectMigrationExport{Tasks: []domain.Task{{UUID: "one", Status: "pending", Project: "work"}}},
-		outcomes: []taskwarrior.ProjectTaskOutcome{{Kind: taskwarrior.ProjectTaskAmbiguous, Err: errors.New("timeout")}},
-	}
-	result := NewProjectMigrationCoordinator(&coordinatorStore{}, client).Execute(context.Background(), coordinatorRequest(plan, taskwarrior.ProjectMigrationScope{}, []domain.ProjectTaskMapping{mapping}, true))
-	if !result.CatalogSaved || len(result.TaskOutcomes) != 1 || result.TaskOutcomes[0].Kind != taskwarrior.ProjectTaskAmbiguous || len(client.calls) != 1 {
-		t.Fatalf("result=%#v calls=%v", result, client.calls)
-	}
-}
-
-func TestProjectMigrationCoordinatorStopsAfterCancellationAndRetainsPriorOutcomes(t *testing.T) {
-	plan := coordinatorPlan(t, false)
-	mappings := []domain.ProjectTaskMapping{
-		{UUID: "one", OldValue: "work", NewValue: "delivery"},
-		{UUID: "two", OldValue: "work", NewValue: "delivery"},
-	}
-	ctx, cancel := context.WithCancel(context.Background())
-	client := &coordinatorClient{
-		export: taskwarrior.ProjectMigrationExport{Tasks: []domain.Task{
-			{UUID: "one", Status: "pending", Project: "work"},
-			{UUID: "two", Status: "pending", Project: "work"},
-		}},
-		cancel: cancel,
-	}
-	result := NewProjectMigrationCoordinator(&coordinatorStore{}, client).Execute(ctx, coordinatorRequest(plan, taskwarrior.ProjectMigrationScope{}, mappings, true))
-	if !result.CatalogSaved || !result.Canceled || len(result.TaskOutcomes) != 1 || len(client.calls) != 1 {
-		t.Fatalf("result=%#v calls=%v", result, client.calls)
-	}
-}
-
-func TestProjectMigrationCoordinatorHonorsCanceledContextBeforeWrites(t *testing.T) {
-	plan := coordinatorPlan(t, false)
-	ctx, cancel := context.WithCancel(context.Background())
-	cancel()
-	store := &coordinatorStore{}
-	client := &coordinatorClient{export: taskwarrior.ProjectMigrationExport{Tasks: []domain.Task{{UUID: "one", Status: "pending", Project: "work"}}}}
-	result := NewProjectMigrationCoordinator(store, client).Execute(ctx, coordinatorRequest(plan, taskwarrior.ProjectMigrationScope{}, nil, false))
-	if !errors.Is(result.CatalogErr, context.Canceled) || result.CatalogSaved || len(store.saved) != 0 {
-		t.Fatalf("result=%#v saved=%v", result, store.saved)
-	}
-}
-
-// batchClient applies a migration in one request, as backend mode does.
-type batchClient struct {
-	export taskwarrior.ProjectMigrationExport
-	err    error
-	plans  []domain.ProjectCatalogPlan
-	calls  [][]domain.ProjectTaskMapping
-	events *[]string
-}
-
-func (c *batchClient) ExportPendingInContext(context.Context) (taskwarrior.ProjectMigrationExport, error) {
-	return c.export, nil
-}
-
-func (c *batchClient) ApplyProjectMigration(_ context.Context, plan domain.ProjectCatalogPlan, mappings []domain.ProjectTaskMapping) error {
-	if c.events != nil {
-		*c.events = append(*c.events, "apply")
-	}
-	c.plans = append(c.plans, plan)
-	c.calls = append(c.calls, mappings)
-	return c.err
-}
-
-func TestProjectMigrationCoordinatorAppliesABatchAfterTheCatalog(t *testing.T) {
+func TestProjectMigrationCoordinatorAppliesTasksAfterTheCatalog(t *testing.T) {
 	plan := coordinatorPlan(t, true)
 	mappings := []domain.ProjectTaskMapping{{UUID: "one", OldValue: "work", NewValue: "delivery"}, {UUID: "two", OldValue: "work.client", NewValue: "delivery.client"}}
-	export := taskwarrior.ProjectMigrationExport{Tasks: []domain.Task{{UUID: "one", Status: "pending", Project: "work"}, {UUID: "two", Status: "pending", Project: "work.client"}}}
+	tasks := []domain.Task{{UUID: "one", Status: "pending", Project: "work"}, {UUID: "two", Status: "pending", Project: "work.client"}}
 
 	events := []string{}
 	store := &coordinatorStore{events: &events}
-	client := &batchClient{export: export, events: &events}
-	result := NewProjectMigrationCoordinator(store, client).Execute(context.Background(), coordinatorRequest(plan, taskwarrior.ProjectMigrationScope{}, mappings, true))
-	if !result.CatalogSaved || result.Stale || result.TaskErr != nil || result.ChangedCount() != 2 || result.TaskOutcomes[1].Mapping != mappings[1] {
+	client := &coordinatorClient{tasks: tasks, events: &events}
+	result := NewProjectMigrationCoordinator(store, client).Execute(context.Background(), coordinatorRequest(plan, mappings, true))
+	if !result.CatalogSaved || result.Stale || result.TaskErr != nil || result.Changed != 2 {
 		t.Fatalf("result=%#v", result)
 	}
 	if !reflect.DeepEqual(events, []string{"catalog-save", "apply"}) || !reflect.DeepEqual(client.calls, [][]domain.ProjectTaskMapping{mappings}) || !client.plans[0].IncludeSubprojects {
 		t.Fatalf("events=%v calls=%v plans=%v", events, client.calls, client.plans)
 	}
+}
 
+func TestProjectMigrationCoordinatorKeepsTheCatalogWhenTheServerRefuses(t *testing.T) {
+	plan := coordinatorPlan(t, false)
+	mappings := []domain.ProjectTaskMapping{{UUID: "one", OldValue: "work", NewValue: "delivery"}}
+	tasks := []domain.Task{{UUID: "one", Status: "pending", Project: "work"}}
 	for _, test := range []struct {
 		name  string
 		err   error
@@ -334,34 +102,85 @@ func TestProjectMigrationCoordinatorAppliesABatchAfterTheCatalog(t *testing.T) {
 		{name: "unreachable", err: api.ErrUnreachable},
 	} {
 		store := &coordinatorStore{}
-		client := &batchClient{export: export, err: test.err}
-		result := NewProjectMigrationCoordinator(store, client).Execute(context.Background(), coordinatorRequest(plan, taskwarrior.ProjectMigrationScope{}, mappings, true))
-		if !result.CatalogSaved || len(store.saved) != 1 || result.Stale != test.stale || result.ChangedCount() != 0 || result.TaskErr == nil ||
+		client := &coordinatorClient{tasks: tasks, err: test.err}
+		result := NewProjectMigrationCoordinator(store, client).Execute(context.Background(), coordinatorRequest(plan, mappings, true))
+		if !result.CatalogSaved || len(store.saved) != 1 || result.Stale != test.stale || result.Changed != 0 || result.TaskErr == nil ||
 			errors.Is(result.TaskErr, ErrProjectMigrationStale) != test.stale {
 			t.Errorf("%s: result=%#v", test.name, result)
 		}
 	}
+}
 
-	store = &coordinatorStore{}
-	client = &batchClient{export: taskwarrior.ProjectMigrationExport{Tasks: export.Tasks[:1]}}
-	result = NewProjectMigrationCoordinator(store, client).Execute(context.Background(), coordinatorRequest(plan, taskwarrior.ProjectMigrationScope{}, mappings, true))
-	if !result.Stale || result.CatalogSaved || len(store.saved) != 0 || len(client.calls) != 0 {
-		t.Errorf("stale preflight: result=%#v calls=%v", result, client.calls)
+func TestProjectMigrationCoordinatorCatalogFailureAppliesNoTasks(t *testing.T) {
+	plan := coordinatorPlan(t, false)
+	mapping := domain.ProjectTaskMapping{UUID: "one", OldValue: "work", NewValue: "delivery"}
+	storeErr := errors.New("config write failed")
+	store := &coordinatorStore{err: storeErr}
+	client := &coordinatorClient{tasks: []domain.Task{{UUID: "one", Status: "pending", Project: "work"}}}
+	result := NewProjectMigrationCoordinator(store, client).Execute(context.Background(), coordinatorRequest(plan, []domain.ProjectTaskMapping{mapping}, true))
+	if result.CatalogSaved || !errors.Is(result.CatalogErr, storeErr) || len(client.calls) != 0 || result.Changed != 0 {
+		t.Fatalf("result=%#v calls=%v", result, client.calls)
 	}
 }
 
-// readOnlyClient can preview a migration but not apply one.
-type readOnlyClient struct{}
-
-func (readOnlyClient) ExportPendingInContext(context.Context) (taskwarrior.ProjectMigrationExport, error) {
-	return taskwarrior.ProjectMigrationExport{}, nil
+func TestProjectMigrationCoordinatorRejectsAStalePreviewBeforeSave(t *testing.T) {
+	plan := coordinatorPlan(t, false)
+	mapping := domain.ProjectTaskMapping{UUID: "one", OldValue: "work", NewValue: "delivery"}
+	store := &coordinatorStore{}
+	client := &coordinatorClient{tasks: []domain.Task{{UUID: "one", Status: "pending", Project: "work"}, {UUID: "two", Status: "pending", Project: "work"}}}
+	result := NewProjectMigrationCoordinator(store, client).Execute(context.Background(), coordinatorRequest(plan, []domain.ProjectTaskMapping{mapping}, true))
+	if !result.Stale || result.CatalogSaved || len(store.saved) != 0 || len(client.calls) != 0 {
+		t.Fatalf("result=%#v saved=%v calls=%v", result, store.saved, client.calls)
+	}
 }
 
-func TestProjectMigrationCoordinatorNeedsAClientThatApplies(t *testing.T) {
+func TestProjectMigrationCoordinatorReportsPreflightFailureWithoutSaving(t *testing.T) {
+	plan := coordinatorPlan(t, false)
+	store := &coordinatorStore{}
+	clientErr := errors.New("server unavailable")
+	client := &coordinatorClient{exportErr: clientErr}
+	result := NewProjectMigrationCoordinator(store, client).Execute(context.Background(), coordinatorRequest(plan, nil, true))
+	if result.CatalogSaved || result.Stale || !errors.Is(result.PreflightErr, clientErr) || len(store.saved) != 0 {
+		t.Fatalf("result=%#v saved=%v", result, store.saved)
+	}
+}
+
+func TestProjectMigrationCoordinatorHandlesZeroMatchesWithoutTaskWrites(t *testing.T) {
+	plan := coordinatorPlan(t, false)
+	store := &coordinatorStore{}
+	client := &coordinatorClient{}
+	result := NewProjectMigrationCoordinator(store, client).Execute(context.Background(), coordinatorRequest(plan, nil, true))
+	if result.Stale || !result.CatalogSaved || result.CatalogErr != nil || len(client.calls) != 0 || result.Changed != 0 {
+		t.Fatalf("result=%#v calls=%v", result, client.calls)
+	}
+}
+
+func TestProjectMigrationCoordinatorSupportsCatalogOnlyWithoutMigrationClient(t *testing.T) {
+	plan := coordinatorPlan(t, false)
+	store := &coordinatorStore{}
+	result := NewProjectMigrationCoordinator(store, nil).Execute(context.Background(), coordinatorRequest(plan, nil, false))
+	if !result.CatalogSaved || result.CatalogErr != nil || len(store.saved) != 1 {
+		t.Fatalf("result=%#v saved=%v", result, store.saved)
+	}
+}
+
+func TestProjectMigrationCoordinatorNeedsAClientToMoveTasks(t *testing.T) {
 	store := &coordinatorStore{}
 	mapping := domain.ProjectTaskMapping{UUID: "one", OldValue: "work", NewValue: "delivery"}
-	result := NewProjectMigrationCoordinator(store, readOnlyClient{}).Execute(context.Background(), coordinatorRequest(coordinatorPlan(t, false), taskwarrior.ProjectMigrationScope{}, []domain.ProjectTaskMapping{mapping}, true))
+	result := NewProjectMigrationCoordinator(store, nil).Execute(context.Background(), coordinatorRequest(coordinatorPlan(t, false), []domain.ProjectTaskMapping{mapping}, true))
 	if !errors.Is(result.PreflightErr, ErrProjectMigrationNoClient) || result.CatalogSaved || len(store.saved) != 0 {
 		t.Errorf("result=%#v", result)
+	}
+}
+
+func TestProjectMigrationCoordinatorHonorsCanceledContextBeforeWrites(t *testing.T) {
+	plan := coordinatorPlan(t, false)
+	ctx, cancel := context.WithCancel(context.Background())
+	cancel()
+	store := &coordinatorStore{}
+	client := &coordinatorClient{tasks: []domain.Task{{UUID: "one", Status: "pending", Project: "work"}}}
+	result := NewProjectMigrationCoordinator(store, client).Execute(ctx, coordinatorRequest(plan, nil, false))
+	if !errors.Is(result.CatalogErr, context.Canceled) || result.CatalogSaved || len(store.saved) != 0 {
+		t.Fatalf("result=%#v saved=%v", result, store.saved)
 	}
 }
