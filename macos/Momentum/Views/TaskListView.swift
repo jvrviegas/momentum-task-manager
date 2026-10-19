@@ -25,6 +25,16 @@ struct TaskListView: View {
             } actions: {
                 Button("Try Again") { Task { await store.start() } }
             }
+        } else if let status = store.status, store.backendURL == nil {
+            ContentUnavailableView {
+                Label("Add a Momentum server", systemImage: "server.rack")
+            } description: {
+                Text("Momentum keeps your tasks on a Momentum server. Add its address to \(status.configPath):")
+                Text(verbatim: "[backend]\nurl = \"https://momentum.example.com\"")
+                    .font(.system(size: 12, design: .monospaced))
+                    .textSelection(.enabled)
+                Text("Then quit and reopen Momentum Task Manager, and sign in.")
+            }
         } else if let url = store.backendURL, store.server == .signedOut, store.snapshot == nil {
             ContentUnavailableView {
                 Label("Sign in to see your tasks", systemImage: "person.crop.circle")
@@ -43,13 +53,10 @@ struct TaskListView: View {
                 Button("Try Again") { Task { await store.refresh() } }
             }
         } else if store.snapshot == nil {
-            ProgressView(store.isBackend ? "Loading tasks from the server…" : "Loading tasks…")
+            ProgressView("Loading tasks from the server…")
                 .frame(maxWidth: .infinity, maxHeight: .infinity)
         } else {
             List(selection: $store.selection) {
-                if store.view == .today, !store.estimatesWritable {
-                    EstimateBanner()
-                }
                 if store.view == .completed, let error = store.snapshot?.completedError {
                     Label(error, systemImage: "exclamationmark.triangle").foregroundStyle(Theme.warn)
                 }
@@ -152,26 +159,6 @@ struct SectionHeader: View {
                     .foregroundStyle(Theme.text3)
             }
         }
-    }
-}
-
-struct EstimateBanner: View {
-    var body: some View {
-        HStack(alignment: .firstTextBaseline, spacing: 10) {
-            Image(systemName: "exclamationmark.triangle").foregroundStyle(Theme.warn)
-            VStack(alignment: .leading, spacing: 2) {
-                Text("Estimates are read-only on this Mac.").fontWeight(.semibold)
-                Text("Add `uda.estimate.type=duration` and `uda.estimate.label=Estimate` to ~/.taskrc. Other actions keep working.")
-                    .foregroundStyle(Theme.text2)
-            }
-        }
-        .font(.system(size: 12.5))
-        .foregroundStyle(Theme.text)
-        .padding(.horizontal, 12)
-        .padding(.vertical, 9)
-        .frame(maxWidth: .infinity, alignment: .leading)
-        .background(Theme.warnSoft, in: RoundedRectangle(cornerRadius: 9))
-        .listRowSeparator(.hidden)
     }
 }
 
