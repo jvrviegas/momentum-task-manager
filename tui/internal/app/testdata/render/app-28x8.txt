@@ -36,17 +36,17 @@
        ░░░░░░░░░░░░░░░░░░░░
      ░░░░░░░░░░░░░░░░░░░░░░
        ░░░░░░░░░░░░░░░░░░░░
- ↻ Loading tasks from Ta… ↻
+ ↻ Loading tasks from th… ↻
 
 === error ===
  ◷ Today               ·•··
  ━━━━━━━───────────────────
 
  ! Could not load tasks
- fixture Taskwarrior
+ fixture server
  unavailable. Your data has
  not been changed.
- ! fixture Taskwarrior u… ✓
+ ! fixture server unavai… ✓
 
 === search ===
  ◷ Today 3             ·•··
