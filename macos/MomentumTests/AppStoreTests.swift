@@ -11,12 +11,9 @@ actor FakeBridge: TaskBridge {
     var failLoad: BridgeError?
     var polls: [Result<SignInPoll, BridgeError>] = []
 
-    init(syncConfigured: Bool = true, backendURL: String? = nil, mutationDelay: Int = 15, snapshots: [Snapshot]) {
+    init(backendURL: String? = "https://momentum.example", mutationDelay: Int = 15, snapshots: [Snapshot]) {
         statusValue = BridgeStatus(
-            taskwarriorVersion: backendURL == nil ? "3.5.0" : "", syncConfigured: syncConfigured && backendURL == nil,
-            estimateUDA: "configured", configPath: "/tmp/config.toml",
-            sync: SyncSettings(enabled: true, startup: false, shutdown: true, intervalSeconds: 300, mutationDelaySeconds: mutationDelay),
-            refreshIntervalSeconds: 0, backendUrl: backendURL)
+            configPath: "/tmp/config.toml", mutationDelaySeconds: mutationDelay, refreshIntervalSeconds: 0, backendUrl: backendURL)
         self.snapshots = snapshots
     }
 
@@ -57,7 +54,6 @@ actor FakeBridge: TaskBridge {
     }
     func perform(_ action: TaskAction, uuid: String) async throws { try record("\(action.rawValue) \(uuid)") }
     func undo() async throws { try record("undo") }
-    func sync() async throws { try record("sync") }
     func setToken(_ token: String) async throws { try record("setToken \(token)") }
     func startSignIn() async throws -> DeviceSignIn {
         try record("signInStart")
@@ -77,19 +73,27 @@ func snapshot(today: [TaskItem] = [], inbox: [TaskItem] = []) -> Snapshot {
         tasks: today + inbox,
         today: today.isEmpty ? [] : [TaskSection(title: "Due Today", project: nil, uuids: today.map(\.uuid))],
         inbox: inbox.isEmpty ? [] : [TaskSection(title: "No project", project: nil, uuids: inbox.map(\.uuid))],
-        completed: [], completedError: nil, context: nil, projects: [])
+        completed: [], completedError: nil, projects: [])
+}
+
+/// A store signed in to the bridge's server.
+@MainActor
+func signedInStore(_ bridge: FakeBridge) -> AppStore {
+    let signIns = FakeSignInStore()
+    signIns.saved[backendURL] = signIn("mtk_test")
+    return AppStore(bridge: bridge, signIns: signIns)
 }
 
 @MainActor
 struct AppStoreTests {
     @Test func startupOpensInboxWhenTodayIsEmpty() async {
-        let store = AppStore(bridge: FakeBridge(snapshots: [snapshot(inbox: [.fixture("a")])]))
+        let store = signedInStore(FakeBridge(snapshots: [snapshot(inbox: [.fixture("a")])]))
         await store.start()
         #expect(store.view == .inbox && store.selection == "a")
     }
 
     @Test func startupOpensTodayWhenItHasWork() async {
-        let store = AppStore(bridge: FakeBridge(snapshots: [snapshot(today: [.fixture("t")], inbox: [.fixture("a")])]))
+        let store = signedInStore(FakeBridge(snapshots: [snapshot(today: [.fixture("t")], inbox: [.fixture("a")])]))
         await store.start()
         #expect(store.view == .today && store.selection == "t")
     }
@@ -97,7 +101,7 @@ struct AppStoreTests {
     @Test func completionMovesSelectionToTheNextTaskThenThePrevious() async {
         let (a, b, c) = (TaskItem.fixture("a"), TaskItem.fixture("b"), TaskItem.fixture("c"))
         let bridge = FakeBridge(snapshots: [snapshot(inbox: [a, b, c]), snapshot(inbox: [a, c]), snapshot(inbox: [a])])
-        let store = AppStore(bridge: bridge)
+        let store = signedInStore(bridge)
         await store.start()
         store.selection = "b"
         await store.complete(b)
@@ -107,80 +111,60 @@ struct AppStoreTests {
         #expect(await bridge.calls.filter { $0.hasPrefix("complete") } == ["complete b", "complete c"])
     }
 
-    @Test func mutationOpensUndoUntilSyncRuns() async {
+    @Test func mutationOpensUndo() async {
         let a = TaskItem.fixture("a")
         let bridge = FakeBridge(snapshots: [snapshot(inbox: [a])])
-        let store = AppStore(bridge: bridge)
+        let store = signedInStore(bridge)
         await store.start()
         await store.toggleStart(a)
-        #expect(store.sync.phase == .grace && store.sync.undoAvailable && store.toast?.offersUndo == true)
+        #expect(store.undoWindow.isAvailable(at: .now) && store.toast?.offersUndo == true)
         await store.undo()
-        #expect(!store.sync.undoAvailable && store.sync.phase == .waiting)
+        #expect(!store.undoWindow.isAvailable(at: .now))
         #expect(await bridge.calls.contains("undo"))
     }
 
-    @Test func undoAfterSyncIsRefused() async {
+    @Test func aZeroMutationDelayOffersNoUndo() async {
         let a = TaskItem.fixture("a")
-        let bridge = FakeBridge(snapshots: [snapshot(inbox: [a])])
-        let store = AppStore(bridge: bridge)
+        let bridge = FakeBridge(mutationDelay: 0, snapshots: [snapshot(inbox: [a])])
+        let store = signedInStore(bridge)
         await store.start()
         await store.delete(a)
-        store.tick(at: .now.addingTimeInterval(16))
-        try? await Task.sleep(for: .milliseconds(100))
-        #expect(!store.sync.undoAvailable)
         await store.undo()
         #expect(await !bridge.calls.contains("undo"))
-        #expect(store.toast?.message == "Undo is only available until changes sync")
+        #expect(store.toast?.message == "Nothing to undo")
     }
 
-    @Test func localOnlyKeepsUndoWithoutSyncing() async {
-        let a = TaskItem.fixture("a")
-        let bridge = FakeBridge(syncConfigured: false, snapshots: [snapshot(inbox: [a])])
-        let store = AppStore(bridge: bridge)
+    @Test func withoutAServerNothingLoads() async {
+        let bridge = FakeBridge(backendURL: nil, snapshots: [snapshot(inbox: [.fixture("a")])])
+        let store = AppStore(bridge: bridge, signIns: FakeSignInStore())
         await store.start()
-        await store.complete(a)
-        store.tick(at: .now.addingTimeInterval(3600))
-        #expect(store.isLocalOnly && store.sync.undoAvailable)
-        await store.undo()
-        let calls = await bridge.calls
-        #expect(calls.contains("undo") && !calls.contains("sync"))
+        #expect(store.status != nil && store.backendURL == nil && store.snapshot == nil && store.server == .unknown)
+        #expect(await bridge.calls.isEmpty)
     }
 
     @Test func failedMutationShowsErrorAndKeepsUndoClosed() async {
         let a = TaskItem.fixture("a")
         let bridge = FakeBridge(snapshots: [snapshot(inbox: [a])])
-        let store = AppStore(bridge: bridge)
+        let store = signedInStore(bridge)
         await store.start()
         await bridge.setFailure(BridgeError(message: "complete failed (exit 1): hook rejected"))
         await store.complete(a)
         #expect(store.toast?.kind == .error && store.toast?.message.contains("hook rejected") == true)
-        #expect(!store.sync.undoAvailable)
+        #expect(!store.undoWindow.isAvailable(at: .now))
     }
 
     @Test func searchFiltersSectionsAndRepairsSelection() async {
-        let store = AppStore(bridge: FakeBridge(snapshots: [snapshot(inbox: [.fixture("Renew cert"), .fixture("Buy milk")])]))
+        let store = signedInStore(FakeBridge(snapshots: [snapshot(inbox: [.fixture("Renew cert"), .fixture("Buy milk")])]))
         await store.start()
         store.selection = "Renew cert"
         store.query = "milk"
         #expect(store.visibleTasks.map(\.uuid) == ["Buy milk"] && store.selection == "Buy milk")
     }
 
-    @Test func failedSyncBeforeQuitKeepsRetrying() async {
-        let a = TaskItem.fixture("a")
-        let bridge = FakeBridge(snapshots: [snapshot(inbox: [a])])
-        let store = AppStore(bridge: bridge)
-        await store.start()
-        await store.toggleStart(a)
-        #expect(store.needsQuitPrompt)
-        await bridge.setFailure(BridgeError(message: "sync failed (exit 1): connection refused"))
-        #expect(await store.syncBeforeQuit() == "sync failed (exit 1): connection refused")
-        #expect(store.sync.phase == .retrying && !store.sync.quitPending && store.needsQuitPrompt)
-    }
-
     @Test func editFieldErrorsReachTheEditor() async {
         let a = TaskItem.fixture("a")
         let bridge = FakeBridge(snapshots: [snapshot(inbox: [a])])
-        let store = AppStore(bridge: bridge)
+        let store = signedInStore(bridge)
         await store.start()
         await bridge.setFailure(BridgeError(message: "description cannot be empty", field: "description"))
         var edits = a.edit
@@ -188,6 +172,6 @@ struct AppStoreTests {
         await #expect(throws: BridgeError(message: "description cannot be empty", field: "description")) {
             try await store.save(a, edits: edits)
         }
-        #expect(!store.sync.undoAvailable)
+        #expect(!store.undoWindow.isAvailable(at: .now))
     }
 }
