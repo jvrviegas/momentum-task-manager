@@ -8,10 +8,13 @@ import (
 
 	tea "charm.land/bubbletea/v2"
 
+	"github.com/jvrviegas/momentum-task-manager/core/api"
 	"github.com/jvrviegas/momentum-task-manager/core/domain"
-	"github.com/jvrviegas/momentum-task-manager/tui/internal/taskwarrior"
 	"github.com/jvrviegas/momentum-task-manager/tui/internal/ui"
 )
+
+// estimateRefused is how the server refuses an estimate.
+var estimateRefused = &api.Error{Code: api.CodeInvalid, Message: "estimate must be 1 to 1440 minutes", Field: "estimateMinutes"}
 
 type estimateAddClient struct {
 	*fakeClient
@@ -26,7 +29,7 @@ func (c *estimateAddClient) Add(ctx context.Context, input domain.NewTask) error
 }
 
 func TestQuickAddEstimateFailureRemainsActionableAtAppSeam(t *testing.T) {
-	client := &estimateAddClient{fakeClient: &fakeClient{}, err: &taskwarrior.EstimateUDAError{State: taskwarrior.EstimateUDAMissing}}
+	client := &estimateAddClient{fakeClient: &fakeClient{}, err: estimateRefused}
 	model := testModel(client)
 	model.Mode = ModeReady
 	model.Overlay = OverlayQuickAdd
@@ -41,7 +44,7 @@ func TestQuickAddEstimateFailureRemainsActionableAtAppSeam(t *testing.T) {
 		t.Fatalf("result=%#v", result)
 	}
 	model.Update(result)
-	if !strings.Contains(model.Status, "uda.estimate.type=duration") || len(client.mutations) != 0 {
+	if !strings.Contains(model.Status, "estimate must be 1 to 1440 minutes") || len(client.mutations) != 0 {
 		t.Fatalf("status=%q mutations=%#v", model.Status, client.mutations)
 	}
 }
@@ -187,7 +190,7 @@ func TestQuickAddBusySubmissionPreservesDraft(t *testing.T) {
 }
 
 func TestQuickAddAddFailureReopensConfirmedDraft(t *testing.T) {
-	client := &estimateAddClient{fakeClient: &fakeClient{}, err: &taskwarrior.EstimateUDAError{State: taskwarrior.EstimateUDAMissing}}
+	client := &estimateAddClient{fakeClient: &fakeClient{}, err: estimateRefused}
 	model := testModel(client)
 	model.Width, model.Height = 80, 24
 	model.OpenQuickAdd()
@@ -201,7 +204,7 @@ func TestQuickAddAddFailureReopensConfirmedDraft(t *testing.T) {
 		t.Fatal("submission did not start mutation")
 	}
 	model.Update(cmd().(MutationMsg))
-	if model.Overlay != OverlayQuickAdd || !model.QuickAdd.Open || !model.QuickAdd.ReviewOpen || !strings.Contains(model.QuickAdd.View(), "estimate UDA") || len(client.mutations) != 0 {
+	if model.Overlay != OverlayQuickAdd || !model.QuickAdd.Open || !model.QuickAdd.ReviewOpen || !strings.Contains(model.QuickAdd.View(), "estimate must be") || len(client.mutations) != 0 {
 		t.Fatalf("failed draft was not recoverable: overlay=%s open=%v review=%v view=%q mutations=%#v", model.Overlay, model.QuickAdd.Open, model.QuickAdd.ReviewOpen, model.QuickAdd.View(), client.mutations)
 	}
 	client.err = nil
