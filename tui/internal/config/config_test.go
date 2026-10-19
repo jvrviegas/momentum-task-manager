@@ -23,7 +23,7 @@ func TestDefaults(t *testing.T) {
 	if got.RefreshInterval != time.Minute || got.Theme != ThemeAuto || got.Icons != IconsUnicode {
 		t.Fatalf("unexpected defaults: %#v", got)
 	}
-	if !got.Sync.Enabled || got.Sync.Interval != 5*time.Minute || got.Sync.MutationDelay != 15*time.Second || !got.Sync.Startup || !got.Sync.Shutdown {
+	if got.Sync.MutationDelay != 15*time.Second {
 		t.Fatalf("unexpected sync defaults: %#v", got.Sync)
 	}
 }
@@ -66,17 +66,13 @@ func TestLoadsTOMLAndDurations(t *testing.T) {
 theme = "light"
 icons = "ascii"
 [sync]
-enabled = false
-interval = "7m"
 mutation_delay = "2s"
-startup = false
-shutdown = false
 `)
 	got, _, err := LoadWithOptions(LoadOptions{PathOverride: path, Env: map[string]string{}})
 	if err != nil {
 		t.Fatal(err)
 	}
-	if got.RefreshInterval != 0 || got.Theme != ThemeLight || got.Icons != IconsASCII || got.Sync.Enabled || got.Sync.Interval != 7*time.Minute || got.Sync.MutationDelay != 2*time.Second || got.Sync.Startup || got.Sync.Shutdown {
+	if got.RefreshInterval != 0 || got.Theme != ThemeLight || got.Icons != IconsASCII || got.Sync.MutationDelay != 2*time.Second {
 		t.Fatalf("unexpected config: %#v", got)
 	}
 }
@@ -115,6 +111,16 @@ mutaton_delay = "1s"
 	}
 }
 
+func TestRemovedSyncKeysSayTheyWentWithTaskwarrior(t *testing.T) {
+	for _, key := range []string{"enabled = true", `interval = "5m"`, "startup = true", "shutdown = true"} {
+		path := writeConfig(t, "[sync]\n"+key+"\nmutation_delay = \"15s\"\n")
+		_, _, err := LoadWithOptions(LoadOptions{PathOverride: path, Env: map[string]string{}})
+		if err == nil || !strings.Contains(err.Error(), "removed with Taskwarrior sync") {
+			t.Errorf("%s: expected removed-key error, got %v", key, err)
+		}
+	}
+}
+
 func TestInvalidThemeAndIconValuesAreRejected(t *testing.T) {
 	for _, content := range []string{`theme = "blue"`, `icons = "emoji"`} {
 		path := writeConfig(t, content)
@@ -127,7 +133,6 @@ func TestInvalidThemeAndIconValuesAreRejected(t *testing.T) {
 
 func TestInvalidDurationsAreRejected(t *testing.T) {
 	for _, content := range []string{`refresh_interval = "-1s"`, `[sync]
-interval = "0s"`, `[sync]
 mutation_delay = "-1s"`} {
 		path := writeConfig(t, content)
 		_, _, err := LoadWithOptions(LoadOptions{PathOverride: path, Env: map[string]string{}})
