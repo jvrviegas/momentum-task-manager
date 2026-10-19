@@ -3,16 +3,15 @@ import Foundation
 struct BridgeError: Error, LocalizedError, Decodable, Sendable, Equatable {
     var message: String
     var field: String?
-    /// In backend mode, "unreachable" when the server gave no answer and
-    /// "unauthorized" when it refused the sign-in.
+    /// "unreachable" when the server gave no answer and "unauthorized" when
+    /// it refused the sign-in.
     var code: String?
 
     var errorDescription: String? { message }
 }
 
-/// Everything the app asks of Taskwarrior or, in backend mode, of the
-/// Momentum server. ProcessBridge implements it over the bundled Go
-/// `momentum-bridge`; tests use a fake.
+/// Everything the app asks of the Momentum server. ProcessBridge implements
+/// it over the bundled Go `momentum-bridge`; tests use a fake.
 protocol TaskBridge: Sendable {
     func status() async throws -> BridgeStatus
     func load() async throws -> Snapshot
@@ -24,8 +23,7 @@ protocol TaskBridge: Sendable {
     func modify(uuid: String, before: EditFields, after: EditFields) async throws -> Bool
     func perform(_ action: TaskAction, uuid: String) async throws
     func undo() async throws
-    func sync() async throws
-    // Backend mode only.
+    // Sign-in.
     func setToken(_ token: String) async throws
     func startSignIn() async throws -> DeviceSignIn
     func pollSignIn(deviceCode: String) async throws -> SignInPoll
@@ -98,10 +96,6 @@ actor ProcessBridge: TaskBridge {
         let _: Empty = try await call("undo")
     }
 
-    func sync() async throws {
-        let _: Changed = try await call("sync")
-    }
-
     func setToken(_ token: String) async throws {
         let _: Empty = try await call("setToken", TokenParams(token: token))
         self.token = token
@@ -149,12 +143,6 @@ actor ProcessBridge: TaskBridge {
 
         let process = Process()
         process.executableURL = executable
-        var environment = ProcessInfo.processInfo.environment
-        // Apps opened from Finder get a minimal PATH; Taskwarrior is usually
-        // installed with Homebrew.
-        environment["PATH"] = ["/opt/homebrew/bin", "/usr/local/bin", environment["PATH"] ?? "/usr/bin:/bin"]
-            .joined(separator: ":")
-        process.environment = environment
         let stdin = Pipe(), stdout = Pipe(), stderr = Pipe()
         process.standardInput = stdin
         process.standardOutput = stdout
