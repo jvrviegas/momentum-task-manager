@@ -20,7 +20,7 @@ func TestComponentRenderFixtures(t *testing.T) {
 	for _, size := range [][2]int{{120, 30}, {79, 24}, {49, 18}, {28, 8}} {
 		size := size
 		t.Run(fmt.Sprintf("%dx%d", size[0], size[1]), func(t *testing.T) {
-			states := []string{"task-comfortable", "task-compact", "details", "help", "quick-capture", "edit", "confirm", "quit", "settings-list", "settings-editor"}
+			states := []string{"task-comfortable", "task-compact", "details", "help", "quick-capture", "edit", "confirm", "settings-list", "settings-editor"}
 			var builder strings.Builder
 			for index, state := range states {
 				if index > 0 {
@@ -79,11 +79,6 @@ func fixtureComponentView(width, height int, state string) string {
 		confirm.SetSize(width, height)
 		confirm.OpenFor("Delete task", "Delete the selected task permanently? This cannot be undone after synchronization.")
 		return confirm.View()
-	case "quit":
-		quit := NewQuit(styles)
-		quit.SetSize(width, height)
-		quit.OpenQuit()
-		return quit.View()
 	case "settings-list", "settings-editor":
 		settings := NewProjectSettings(styles)
 		settings.SetSize(width, height)
