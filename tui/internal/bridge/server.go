@@ -14,7 +14,6 @@ import (
 	"github.com/jvrviegas/momentum-task-manager/core/domain"
 	"github.com/jvrviegas/momentum-task-manager/tui/internal/config"
 	"github.com/jvrviegas/momentum-task-manager/tui/internal/quickadd"
-	"github.com/jvrviegas/momentum-task-manager/tui/internal/taskwarrior"
 )
 
 // Request is one line read from the frontend.
@@ -32,14 +31,14 @@ type Response struct {
 }
 
 // Error is a user-facing failure. Field names the edit field that caused it,
-// and Code, in backend mode, what the failure says about the server.
+// and Code what the failure says about the server.
 type Error struct {
 	Message string `json:"message"`
 	Field   string `json:"field,omitempty"`
 	Code    string `json:"code,omitempty"`
 }
 
-// Codes of backend-mode errors.
+// Codes of server errors.
 const (
 	// CodeUnreachable: the server gave no answer of its own (api.ErrUnreachable).
 	CodeUnreachable = "unreachable"
@@ -51,16 +50,20 @@ func (e *Error) Error() string { return e.Message }
 
 func fieldError(field, message string) *Error { return &Error{Message: message, Field: field} }
 
-// Client is the Taskwarrior surface the bridge needs; *taskwarrior.CommandClient
+// Client is the Momentum server as the bridge reaches it; *backend.Client
 // implements it.
 type Client interface {
-	taskwarrior.Client
-	Version(context.Context) (string, error)
+	ExportPending(context.Context) ([]domain.Task, error)
 	ExportCompleted(context.Context, time.Time) ([]domain.Task, error)
-	Context(context.Context) (string, error)
+	Projects(context.Context) ([]string, error)
+	Add(context.Context, domain.NewTask) error
+	Modify(context.Context, string, domain.TaskDiff) error
+	Complete(context.Context, string) error
+	Delete(context.Context, string) error
+	Start(context.Context, string) error
+	Stop(context.Context, string) error
 	StopRecurrence(context.Context, string) error
-	SyncConfigured(context.Context) (bool, error)
-	EstimateUDAReadiness(context.Context) (taskwarrior.EstimateUDAState, error)
+	Undo(context.Context) error
 }
 
 // apiFields names the edit fields that a backend error's fields belong to.
@@ -69,15 +72,15 @@ var apiFields = map[string]string{
 	"scheduled": "scheduled", "recurrence": "recurrence", "estimateMinutes": "estimate", "tags": "tags",
 }
 
-// Pure operations never call Taskwarrior and may answer out of order.
+// Pure operations never reach the server and may answer out of order.
 var pureOps = map[string]bool{"interpret": true, "suggest": true}
 
 const maxReviews = 8
 
 type Server struct {
 	client Client
-	// connect returns a backend client signed in with a token; nil outside
-	// backend mode.
+	// connect returns a client for the [backend] server signed in with a
+	// token.
 	connect    func(token string) Client
 	config     config.Config
 	configPath string
@@ -90,29 +93,28 @@ type Server struct {
 	nextReview int64
 }
 
-func NewServer(client Client, settings config.Config, configPath string) *Server {
-	return &Server{
-		client:     client,
+// NewServer returns a server that reaches the [backend] server in settings
+// through connect(token), where token is the one the app last sent with
+// setToken; until then it has none. Without a [backend] url, only status and
+// the pure operations answer.
+func NewServer(connect func(token string) Client, settings config.Config, configPath string) *Server {
+	server := &Server{
+		connect:    connect,
 		config:     settings,
 		configPath: configPath,
 		now:        time.Now,
 		projects:   settings.Projects,
 		reviews:    map[int64]quickadd.Interpretation{},
 	}
-}
-
-// NewBackendServer returns a server for backend mode. It reaches the server
-// in settings' [backend] through connect(token), where token is the one the
-// app last sent with setToken; until then it has none.
-func NewBackendServer(connect func(token string) Client, settings config.Config, configPath string) *Server {
-	server := NewServer(connect(""), settings, configPath)
-	server.connect = connect
+	if settings.Backend.Enabled() {
+		server.client = connect("")
+	}
 	return server
 }
 
-// Serve answers requests until r is exhausted. Taskwarrior operations run one
-// at a time in arrival order; pure operations answer immediately so capture
-// highlighting never waits behind a sync.
+// Serve answers requests until r is exhausted. Server operations run one at
+// a time in arrival order; pure operations answer immediately so capture
+// highlighting never waits behind a slow request.
 func (s *Server) Serve(ctx context.Context, r io.Reader, w io.Writer) error {
 	var writeMu sync.Mutex
 	encoder := json.NewEncoder(w)
@@ -182,6 +184,11 @@ func (s *Server) handle(ctx context.Context, request Request) Response {
 }
 
 func (s *Server) dispatch(ctx context.Context, op string, raw json.RawMessage) (any, error) {
+	if op != "status" && !pureOps[op] {
+		if _, err := s.backendURL(); err != nil {
+			return nil, err
+		}
+	}
 	switch op {
 	case "status":
 		return s.status(ctx)
@@ -231,12 +238,6 @@ func (s *Server) dispatch(ctx context.Context, op string, raw json.RawMessage) (
 		return nil, s.taskAction(ctx, op, p.UUID)
 	case "undo":
 		return nil, s.client.Undo(ctx)
-	case "sync":
-		result, err := s.client.Sync(ctx)
-		if err != nil {
-			return nil, err
-		}
-		return syncResult{Changed: result.Changed}, nil
 	case "setToken":
 		var p tokenParams
 		if err := decode(raw, &p); err != nil {
