@@ -142,7 +142,6 @@ func (m *Model) applyTheme(mode string) {
 	m.Details.Styles = styles
 	m.Confirm.Styles = styles
 	m.Help.Styles = styles
-	m.Quit.Styles = styles
 	m.ProjectSettings.Styles = styles
 	m.ProjectRename.Styles = styles
 	m.Appearance.Styles = styles
