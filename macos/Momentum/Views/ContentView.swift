@@ -20,7 +20,7 @@ struct ContentView: View {
         .searchFocused($searchFocused)
         .toolbar {
             ToolbarItem(placement: .primaryAction) {
-                SyncStatusView()
+                ServerStatusView()
             }
             ToolbarItem(placement: .primaryAction) {
                 Button {
@@ -32,7 +32,7 @@ struct ContentView: View {
                 .buttonStyle(.borderedProminent)
                 .tint(Theme.tint)
                 .help("New Task (⌘N)")
-                .disabled(store.status == nil || (store.isBackend && store.account == nil))
+                .disabled(store.account == nil)
             }
             ToolbarItem(placement: .primaryAction) {
                 Button {
@@ -65,7 +65,7 @@ struct ContentView: View {
             Button("Cancel", role: .cancel) {}
                 .keyboardShortcut("n", modifiers: [])
         } message: { task in
-            Text("The task is marked deleted in Taskwarrior. You can undo this \(store.isLocalOnly ? "until your next change" : "until it syncs")\(task.recur != nil ? "; other instances of the series are not affected" : "").")
+            Text("The task is marked deleted on the server. You can undo this for \(Duration.seconds(store.undoWindow.delay).formatted(.units(width: .wide))) afterwards\(task.recur != nil ? "; other instances of the series are not affected" : "").")
         }
         .confirmationDialog(
             "Stop repeating “\(store.pendingStopRecurrence?.description ?? "")”?",
@@ -75,7 +75,7 @@ struct ContentView: View {
             Button("Stop Repeating") { Task { await store.stopRecurrence(task) } }
             Button("Cancel", role: .cancel) {}
         } message: { _ in
-            Text("Momentum expires the recurrence template so Taskwarrior creates no new instances. Existing instances and completed history stay.")
+            Text("Momentum ends the series, so no new instances are created. Existing instances and completed history stay.")
         }
         .overlay(alignment: .bottom) {
             ToastView()
@@ -84,37 +84,34 @@ struct ContentView: View {
     }
 }
 
-struct SyncStatusView: View {
+/// What the app last learned about its server; a click signs in again or
+/// retries.
+struct ServerStatusView: View {
     @Environment(AppStore.self) private var store
 
     var body: some View {
-        Button {
-            if store.isBackend && store.server == .signedOut {
-                store.beginSignIn()
-            } else {
-                store.syncNow()
+        if let url = store.backendURL {
+            Button {
+                if store.server == .signedOut {
+                    store.beginSignIn()
+                } else {
+                    Task { await store.refresh(announce: true) }
+                }
+            } label: {
+                TimelineView(.periodic(from: .now, by: 1)) { context in
+                    Label(title(at: context.date), systemImage: symbol)
+                        .labelStyle(.titleAndIcon)
+                        .font(.system(size: 12))
+                        .foregroundStyle([.unreachable, .signedOut].contains(store.server) ? Theme.warn : Theme.text3)
+                        .monospacedDigit()
+                }
             }
-        } label: {
-            TimelineView(.periodic(from: .now, by: 1)) { context in
-                Label(title(at: context.date), systemImage: symbol)
-                    .labelStyle(.titleAndIcon)
-                    .font(.system(size: 12))
-                    .foregroundStyle(warns ? Theme.warn : Theme.text3)
-                    .monospacedDigit()
-            }
+            .buttonStyle(.borderless)
+            .help(help(url))
         }
-        .buttonStyle(.borderless)
-        .help(help)
     }
 
-    private var warns: Bool {
-        store.isBackend ? [.unreachable, .signedOut].contains(store.server) : store.sync.phase == .retrying
-    }
-
-    private var help: String {
-        guard let url = store.backendURL else {
-            return store.syncError ?? (store.isLocalOnly ? "Taskwarrior sync is not configured" : "Sync now (⌘R)")
-        }
+    private func help(_ url: String) -> String {
         switch store.server {
         case .signedOut: return "Sign in to \(url)"
         case .unreachable: return "Momentum can’t reach \(url). Click to try again."
@@ -123,46 +120,22 @@ struct SyncStatusView: View {
     }
 
     private var symbol: String {
-        if store.isBackend {
-            switch store.server {
-            case .signedOut: return "person.crop.circle.badge.exclamationmark"
-            case .unreachable: return "exclamationmark.triangle"
-            case .unknown where store.snapshot == nil: return "arrow.triangle.2.circlepath"
-            default: return store.undoClosesAt == nil ? "checkmark.icloud" : "clock.arrow.circlepath"
-            }
-        }
-        if store.isLocalOnly { return "internaldrive" }
-        switch store.sync.phase {
-        case .inFlight: return "arrow.triangle.2.circlepath"
-        case .retrying: return "exclamationmark.triangle"
-        case .grace: return "clock.arrow.circlepath"
-        default: return "checkmark.icloud"
+        switch store.server {
+        case .signedOut: return "person.crop.circle.badge.exclamationmark"
+        case .unreachable: return "exclamationmark.triangle"
+        case .unknown where store.snapshot == nil: return "arrow.triangle.2.circlepath"
+        default: return store.undoClosesAt == nil ? "checkmark.icloud" : "clock.arrow.circlepath"
         }
     }
 
     private func title(at date: Date) -> String {
-        if store.isBackend {
-            switch store.server {
-            case .signedOut: return "Signed out"
-            case .unreachable: return "Server unreachable"
-            case .unknown where store.snapshot == nil: return "Connecting…"
-            default:
-                guard let until = store.undoClosesAt, until > date else { return "Online" }
-                return "Saved · undo \(max(0, Int(until.timeIntervalSince(date).rounded(.up))))s"
-            }
-        }
-        if store.isLocalOnly { return "Local only" }
-        switch store.sync.phase {
-        case .grace:
-            guard let until = store.sync.undoUntil else { return "Changes pending sync" }
-            return "Syncing in \(max(0, Int(until.timeIntervalSince(date).rounded(.up))))s"
-        case .inFlight:
-            return "Syncing…"
-        case .retrying:
-            return "Sync failed · retrying"
+        switch store.server {
+        case .signedOut: return "Signed out"
+        case .unreachable: return "Server unreachable"
+        case .unknown where store.snapshot == nil: return "Connecting…"
         default:
-            guard let last = store.lastSyncAt else { return "Sync ready" }
-            return "Synced \(last.formatted(.relative(presentation: .named)))"
+            guard let until = store.undoClosesAt, until > date else { return "Online" }
+            return "Saved · undo \(max(0, Int(until.timeIntervalSince(date).rounded(.up))))s"
         }
     }
 }
