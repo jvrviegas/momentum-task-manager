@@ -13,22 +13,12 @@ import (
 // start/end) count Unicode scalar values, matching Go rune offsets.
 
 type statusResult struct {
-	TaskwarriorVersion     string       `json:"taskwarriorVersion"`
-	SyncConfigured         bool         `json:"syncConfigured"`
-	EstimateUDA            string       `json:"estimateUDA"`
-	ConfigPath             string       `json:"configPath"`
-	Sync                   syncSettings `json:"sync"`
-	RefreshIntervalSeconds int          `json:"refreshIntervalSeconds"`
-	// BackendURL is the [backend] server in backend mode, and empty otherwise.
+	ConfigPath string `json:"configPath"`
+	// MutationDelaySeconds is how long the latest change can be undone.
+	MutationDelaySeconds   int `json:"mutationDelaySeconds"`
+	RefreshIntervalSeconds int `json:"refreshIntervalSeconds"`
+	// BackendURL is the [backend] server, empty until config.toml names one.
 	BackendURL string `json:"backendUrl,omitempty"`
-}
-
-type syncSettings struct {
-	Enabled              bool `json:"enabled"`
-	Startup              bool `json:"startup"`
-	Shutdown             bool `json:"shutdown"`
-	IntervalSeconds      int  `json:"intervalSeconds"`
-	MutationDelaySeconds int  `json:"mutationDelaySeconds"`
 }
 
 type loadResult struct {
@@ -37,7 +27,6 @@ type loadResult struct {
 	Inbox          []section     `json:"inbox"`
 	Completed      []section     `json:"completed"`
 	CompletedError string        `json:"completedError,omitempty"`
-	Context        string        `json:"context,omitempty"`
 	Projects       []projectWire `json:"projects"`
 }
 
@@ -162,10 +151,6 @@ type modifyParams struct {
 
 type uuidParams struct {
 	UUID string `json:"uuid"`
-}
-
-type syncResult struct {
-	Changed bool `json:"changed"`
 }
 
 type modifyResult struct {
