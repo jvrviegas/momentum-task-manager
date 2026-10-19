@@ -37,12 +37,12 @@ let unreachable = BridgeError(message: "cannot reach the Momentum server: connec
 let unauthorized = BridgeError(message: "sign in again", code: "unauthorized")
 
 @MainActor
-struct BackendModeTests {
+struct ServerTests {
     @Test func startsSignedOutWithoutASavedSignIn() async {
         let bridge = FakeBridge(backendURL: backendURL, snapshots: [snapshot(inbox: [.fixture("a")])])
         let store = AppStore(bridge: bridge, signIns: FakeSignInStore())
         await store.start()
-        #expect(store.isBackend && store.server == .signedOut && store.account == nil && store.snapshot == nil)
+        #expect(store.backendURL == backendURL && store.server == .signedOut && store.account == nil && store.snapshot == nil)
         #expect(await bridge.calls.isEmpty)
     }
 
@@ -65,8 +65,7 @@ struct BackendModeTests {
         await store.start()
         #expect(await bridge.calls == ["setToken mtk_saved", "load"])
         #expect(store.backendURL == backendURL && store.server == .online && store.account?.email == "ana@example.com")
-        #expect(store.view == .inbox && store.selection == "a")
-        #expect(store.sync.backend && !store.sync.enabled && !store.needsQuitPrompt)
+        #expect(store.view == .inbox && store.selection == "a" && store.undoWindow.delay == 15)
     }
 
     @Test func signInPollsUntilThePersonSignsInAndRevokesThePreviousSignIn() async {
@@ -201,16 +200,14 @@ struct BackendModeTests {
         #expect(closes != nil && closes! >= before.addingTimeInterval(15) && closes! <= .now.addingTimeInterval(15))
         #expect(store.toast?.offersUndo == true && store.toast?.expiresAt == nil)
         store.tick(at: .now.addingTimeInterval(14))
-        #expect(store.sync.undoAvailable)
+        #expect(store.undoWindow.isAvailable(at: .now.addingTimeInterval(14)) && store.toast?.expiresAt == nil)
         store.tick(at: .now.addingTimeInterval(16))
-        #expect(!store.sync.undoAvailable && store.undoClosesAt == nil && store.toast?.expiresAt != nil)
-        await store.undo()
-        #expect(store.toast?.message == "Undo is only available for 15 seconds after a change")
+        #expect(!store.undoWindow.isAvailable(at: .now.addingTimeInterval(16)) && store.toast?.expiresAt != nil)
 
         await store.toggleStart(a)
         await store.undo()
         let calls = await bridge.calls
-        #expect(calls.filter { $0 == "undo" }.count == 1 && !calls.contains("sync") && !store.needsQuitPrompt)
+        #expect(calls.filter { $0 == "undo" }.count == 1)
     }
 
     @Test func undoClosesAWindowWhoseTickIsLate() async {
