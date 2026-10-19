@@ -24,17 +24,17 @@ const (
 	IconsASCII   = "ascii"
 )
 
-// SyncConfig controls when Momentum invokes Taskwarrior's native sync.
+// SyncConfig holds how long the latest change can be undone (backend plan
+// D7). Its other keys drove Taskwarrior sync, which Momentum no longer has.
 type SyncConfig struct {
-	Enabled       bool          `toml:"enabled"`
-	Interval      time.Duration `toml:"interval"`
 	MutationDelay time.Duration `toml:"mutation_delay"`
-	Startup       bool          `toml:"startup"`
-	Shutdown      bool          `toml:"shutdown"`
 }
 
-// Config contains settings owned by Momentum. Taskwarrior sync credentials are
-// deliberately not represented here; they remain in Taskwarrior configuration.
+// removedKeys drove Taskwarrior sync. A config that still sets one is
+// refused with a message that says so.
+var removedKeys = map[string]bool{"sync.enabled": true, "sync.interval": true, "sync.startup": true, "sync.shutdown": true}
+
+// Config contains settings owned by Momentum.
 type Config struct {
 	RefreshInterval time.Duration         `toml:"refresh_interval"`
 	Theme           string                `toml:"theme"`
@@ -62,11 +62,7 @@ func Defaults() Config {
 		Theme:           ThemeAuto,
 		Icons:           IconsUnicode,
 		Sync: SyncConfig{
-			Enabled:       true,
-			Interval:      5 * time.Minute,
 			MutationDelay: 15 * time.Second,
-			Startup:       true,
-			Shutdown:      true,
 		},
 		Planning: defaultPlanningConfig(),
 		Calendar: defaultCalendarConfig(),
@@ -162,6 +158,9 @@ func decode(data []byte, config *Config) error {
 	if len(unknown) > 0 {
 		keys := make([]string, 0, len(unknown))
 		for _, key := range unknown {
+			if removedKeys[key.String()] {
+				return fmt.Errorf("config key %q was removed with Taskwarrior sync; delete it", key.String())
+			}
 			keys = append(keys, key.String())
 		}
 		return fmt.Errorf("config key %q is not recognized; remove it or check the spelling", strings.Join(keys, ", "))
@@ -186,9 +185,6 @@ func (c Config) Validate() error {
 	case IconsUnicode, IconsNerd, IconsASCII:
 	default:
 		return fmt.Errorf("config key %q must be one of unicode, nerd, or ascii", "icons")
-	}
-	if c.Sync.Interval <= 0 {
-		return fmt.Errorf("config key %q must be a positive duration", "sync.interval")
 	}
 	if c.Sync.MutationDelay < 0 {
 		return fmt.Errorf("config key %q must be zero or a positive duration", "sync.mutation_delay")
