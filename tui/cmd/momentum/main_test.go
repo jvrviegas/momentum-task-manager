@@ -2,8 +2,6 @@ package main
 
 import (
 	"bytes"
-	"context"
-	"errors"
 	"os"
 	"path/filepath"
 	"strings"
@@ -11,7 +9,6 @@ import (
 
 	"github.com/jvrviegas/momentum-task-manager/tui/internal/app"
 	"github.com/jvrviegas/momentum-task-manager/tui/internal/config"
-	"github.com/jvrviegas/momentum-task-manager/tui/internal/taskwarrior"
 )
 
 func TestNewAppModelUsesTheResolvedConfigPathForEveryPathMode(t *testing.T) {
@@ -43,7 +40,7 @@ func TestNewAppModelUsesTheResolvedConfigPathForEveryPathMode(t *testing.T) {
 	}
 }
 
-func TestVersionCommandDoesNotLoadConfigOrTaskwarrior(t *testing.T) {
+func TestVersionCommandDoesNotLoadConfig(t *testing.T) {
 	var out, errOut bytes.Buffer
 	if code := run([]string{"--version"}, &out, &errOut); code != 0 || strings.TrimSpace(out.String()) != Version || errOut.Len() != 0 {
 		t.Fatalf("code=%d out=%q err=%q", code, out.String(), errOut.String())
@@ -89,7 +86,7 @@ func TestExtractCommandRejectsMultipleCommands(t *testing.T) {
 	}
 }
 
-func TestUnknownArgumentExitsBeforeTaskwarrior(t *testing.T) {
+func TestUnknownArgumentExitsBeforeReachingTheServer(t *testing.T) {
 	var out, errOut bytes.Buffer
 	if code := run([]string{"custom-filter"}, &out, &errOut); code != 2 || !strings.Contains(errOut.String(), "unsupported argument") {
 		t.Fatalf("code=%d out=%q err=%q", code, out.String(), errOut.String())
@@ -106,49 +103,19 @@ func TestMissingConfigAndBadConfigAreReported(t *testing.T) {
 	}
 }
 
-func TestValidateTaskwarriorAcceptsVersionThree(t *testing.T) {
-	client := taskwarrior.NewClientWithRunner("task", taskwarrior.RunnerFunc(func(context.Context, string, ...string) (taskwarrior.CommandResult, error) {
-		return taskwarrior.CommandResult{ExitCode: 0, Stdout: "Taskwarrior 3.5.0"}, nil
-	}))
-	if err := validateTaskwarriorWithLookPath(context.Background(), client, func(string) (string, error) { return "/usr/bin/task", nil }); err != nil {
+func TestAConfigWithoutAServerPrintsTheSetupSteps(t *testing.T) {
+	path := filepath.Join(t.TempDir(), "config.toml")
+	if err := os.WriteFile(path, []byte(`theme = "dark"`), 0o600); err != nil {
 		t.Fatal(err)
 	}
-}
-
-func TestValidateTaskwarriorRejectsVersionTwo(t *testing.T) {
-	client := taskwarrior.NewClientWithRunner("task", taskwarrior.RunnerFunc(func(context.Context, string, ...string) (taskwarrior.CommandResult, error) {
-		return taskwarrior.CommandResult{ExitCode: 0, Stdout: "Taskwarrior 2.6.2"}, nil
-	}))
-	if err := validateTaskwarriorWithLookPath(context.Background(), client, func(string) (string, error) { return "/usr/bin/task", nil }); err == nil || !strings.Contains(err.Error(), "3.x") {
-		t.Fatalf("err=%v", err)
+	var out, errOut bytes.Buffer
+	if code := run([]string{"--config", path, "today"}, &out, &errOut); code != 1 || out.Len() != 0 {
+		t.Fatalf("code=%d out=%q", code, out.String())
 	}
-}
-
-func TestValidateTaskwarriorRejectsMissingExecutable(t *testing.T) {
-	client := taskwarrior.NewClientWithRunner("momentum-no-task-binary", taskwarrior.RunnerFunc(func(context.Context, string, ...string) (taskwarrior.CommandResult, error) {
-		t.Fatal("runner should not be called when executable is missing")
-		return taskwarrior.CommandResult{}, nil
-	}))
-	if err := validateTaskwarrior(context.Background(), client); err == nil || !strings.Contains(err.Error(), "not found") {
-		t.Fatalf("err=%v", err)
-	}
-}
-
-func TestValidateTaskwarriorRejectsVersionCommandFailure(t *testing.T) {
-	client := taskwarrior.NewClientWithRunner("task", taskwarrior.RunnerFunc(func(context.Context, string, ...string) (taskwarrior.CommandResult, error) {
-		return taskwarrior.CommandResult{ExitCode: 1, Stderr: "failed"}, errors.New("failed")
-	}))
-	if err := validateTaskwarriorWithLookPath(context.Background(), client, func(string) (string, error) { return "/usr/bin/task", nil }); err == nil || !strings.Contains(err.Error(), "cannot run") {
-		t.Fatalf("err=%v", err)
-	}
-}
-
-func TestValidateTaskwarriorRejectsUnparseableVersion(t *testing.T) {
-	client := taskwarrior.NewClientWithRunner("task", taskwarrior.RunnerFunc(func(context.Context, string, ...string) (taskwarrior.CommandResult, error) {
-		return taskwarrior.CommandResult{ExitCode: 0, Stdout: "Taskwarrior development"}, nil
-	}))
-	if err := validateTaskwarriorWithLookPath(context.Background(), client, func(string) (string, error) { return "/usr/bin/task", nil }); err == nil || !strings.Contains(err.Error(), "determine") {
-		t.Fatalf("err=%v", err)
+	for _, want := range []string{"Add its address to " + path, "[backend]", `url = "https://momentum.example.com"`, "then run momentum login", "momentum import"} {
+		if !strings.Contains(errOut.String(), want) {
+			t.Errorf("setup steps lack %q:\n%s", want, errOut.String())
+		}
 	}
 }
 
