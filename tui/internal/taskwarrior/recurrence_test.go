@@ -3,12 +3,13 @@ package taskwarrior
 import (
 	"reflect"
 	"testing"
+	"time"
 
 	"github.com/jvrviegas/momentum-task-manager/core/domain"
 )
 
 func TestAddArgsIncludesValidatedRecurrenceAndAnchor(t *testing.T) {
-	args, err := AddArgs(domain.NewTask{Description: "weekly review", Due: "friday", Recurrence: "weekly"})
+	args, err := AddArgs(domain.NewTask{Description: "weekly review", Due: "friday", Recurrence: "weekly"}, time.Now())
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -26,11 +27,11 @@ func TestStopRecurrenceArgsExpiresTemplateWithoutClearingHistory(t *testing.T) {
 }
 
 func TestModifyArgsCanSetAndClearRecurrence(t *testing.T) {
-	args, err := ModifyArgs("uuid", domain.TaskDiff{Recurrence: domain.FieldChange{Kind: domain.Set, Value: "2 weeks"}})
+	args, err := ModifyArgs("uuid", domain.TaskDiff{Recurrence: domain.FieldChange{Kind: domain.Set, Value: "2 weeks"}}, time.Now())
 	if err != nil || !reflect.DeepEqual(args, []string{"uuid", "modify", "recur:2wks"}) {
 		t.Fatalf("set args=%#v err=%v", args, err)
 	}
-	args, err = ModifyArgs("uuid", domain.TaskDiff{Recurrence: domain.FieldChange{Kind: domain.Clear}})
+	args, err = ModifyArgs("uuid", domain.TaskDiff{Recurrence: domain.FieldChange{Kind: domain.Clear}}, time.Now())
 	if err != nil || !reflect.DeepEqual(args, []string{"uuid", "modify", "recur:"}) {
 		t.Fatalf("clear args=%#v err=%v", args, err)
 	}
