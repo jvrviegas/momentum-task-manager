@@ -20,10 +20,13 @@ targets:
     sources: [Momentum]
     settings:
       base:
-        PRODUCT_NAME: Momentum
+        # The name sets the app apart from an unrelated app called Momentum.
+        PRODUCT_NAME: Momentum Task Manager
+        # Keeps `@testable import Momentum` working under the longer name.
+        PRODUCT_MODULE_NAME: Momentum
         PRODUCT_BUNDLE_IDENTIFIER: dev.jvrviegas.momentum
         GENERATE_INFOPLIST_FILE: YES
-        INFOPLIST_KEY_CFBundleDisplayName: Momentum
+        INFOPLIST_KEY_CFBundleDisplayName: Momentum Task Manager
         INFOPLIST_KEY_LSApplicationCategoryType: public.app-category.productivity
         # The app runs `task` and lets Taskwarrior read ~/.taskrc and its data,
         # so it is not sandboxed.
@@ -43,7 +46,7 @@ targets:
     settings:
       base:
         GENERATE_INFOPLIST_FILE: YES
-        TEST_HOST: "$(BUILT_PRODUCTS_DIR)/Momentum.app/Contents/MacOS/Momentum"
+        TEST_HOST: "$(BUILT_PRODUCTS_DIR)/Momentum Task Manager.app/Contents/MacOS/Momentum Task Manager"
         BUNDLE_LOADER: "$(TEST_HOST)"
 schemes:
   Momentum:
