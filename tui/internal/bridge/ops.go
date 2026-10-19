@@ -3,75 +3,24 @@ package bridge
 import (
 	"context"
 	"errors"
-	"fmt"
-	"os/exec"
-	"regexp"
 	"sort"
-	"strconv"
 	"strings"
 	"time"
 
 	"github.com/jvrviegas/momentum-task-manager/core/domain"
 	"github.com/jvrviegas/momentum-task-manager/tui/internal/quickadd"
-	"github.com/jvrviegas/momentum-task-manager/tui/internal/taskwarrior"
 )
 
-var versionRE = regexp.MustCompile(`(?i)\b([0-9]+)(?:\.[0-9]+)+\b`)
-
-func (s *Server) status(ctx context.Context) (*statusResult, error) {
-	// In backend mode, status does not reach the server: the app learns the
-	// server from it, then sends the token it saved for that server. The
-	// first load reports an unreachable server or a refused token.
-	var version string
-	if !s.config.Backend.Enabled() {
-		var err error
-		if version, err = s.taskwarriorVersion(ctx); err != nil {
-			return nil, err
-		}
-	}
-	configured, err := s.client.SyncConfigured(ctx)
-	if err != nil {
-		configured = false
-	}
-	uda, _ := s.client.EstimateUDAReadiness(ctx)
+// status answers without reaching the server: the app learns the server from
+// it, then sends the token it saved for that server. The first load reports
+// an unreachable server or a refused token.
+func (s *Server) status(context.Context) (*statusResult, error) {
 	return &statusResult{
-		TaskwarriorVersion: version,
-		SyncConfigured:     configured,
-		EstimateUDA:        string(uda),
-		ConfigPath:         s.configPath,
-		Sync: syncSettings{
-			Enabled:              s.config.Sync.Enabled,
-			Startup:              s.config.Sync.Startup,
-			Shutdown:             s.config.Sync.Shutdown,
-			IntervalSeconds:      int(s.config.Sync.Interval / time.Second),
-			MutationDelaySeconds: int(s.config.Sync.MutationDelay / time.Second),
-		},
+		ConfigPath:             s.configPath,
+		MutationDelaySeconds:   int(s.config.Sync.MutationDelay / time.Second),
 		RefreshIntervalSeconds: int(s.config.RefreshInterval / time.Second),
 		BackendURL:             s.config.Backend.URL,
 	}, nil
-}
-
-// taskwarriorVersion returns the version of Taskwarrior, which must be 3.x.
-func (s *Server) taskwarriorVersion(ctx context.Context) (string, error) {
-	version, err := s.client.Version(ctx)
-	if err != nil {
-		if errors.Is(err, exec.ErrNotFound) {
-			return "", errors.New("Taskwarrior executable not found; install Taskwarrior 3.x")
-		}
-		return "", fmt.Errorf("cannot run Taskwarrior: %w", err)
-	}
-	match := versionRE.FindStringSubmatch(version)
-	if major, convErr := strconv.Atoi(safeIndex(match, 1)); convErr != nil || major < 3 {
-		return "", fmt.Errorf("Taskwarrior 3.x is required; found %s", taskwarrior.Redact(version))
-	}
-	return version, nil
-}
-
-func safeIndex(values []string, index int) string {
-	if index < len(values) {
-		return values[index]
-	}
-	return ""
 }
 
 // load exports pending and recent completed tasks and derives every view with
@@ -114,9 +63,6 @@ func (s *Server) load(ctx context.Context) (*loadResult, error) {
 		}
 	}
 
-	if name, err := s.client.Context(ctx); err == nil {
-		result.Context = name
-	}
 	for _, project := range catalog {
 		result.Projects = append(result.Projects, projectWire{Value: project.Value, Label: labels[project.Value]})
 	}
