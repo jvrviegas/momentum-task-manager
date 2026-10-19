@@ -6,9 +6,21 @@ import (
 	"reflect"
 	"strings"
 	"testing"
+	"time"
 
 	"github.com/jvrviegas/momentum-task-manager/core/domain"
 )
+
+// mondayBeforeDSTEnds is 2026-10-19 in Lisbon, whose summer time ends on
+// Sunday 2026-10-25, so the Friday of next week is across the change.
+func mondayBeforeDSTEnds(t *testing.T) time.Time {
+	t.Helper()
+	lisbon, err := time.LoadLocation("Europe/Lisbon")
+	if err != nil {
+		t.Fatal(err)
+	}
+	return time.Date(2026, 10, 19, 10, 0, 0, 0, lisbon)
+}
 
 func TestAddArgsTranslatesEveryQuickAddField(t *testing.T) {
 	got, err := AddArgs(domain.NewTask{
@@ -18,7 +30,7 @@ func TestAddArgsTranslatesEveryQuickAddField(t *testing.T) {
 		Due:         "tomorrow",
 		Scheduled:   "monday",
 		Tags:        []string{"planning", "client"},
-	})
+	}, time.Now())
 	want := []string{"add", "Prepare proposal", "project:work.client", "due:tomorrow", "scheduled:monday", "+client", "+planning", "priority:H"}
 	if err != nil || !reflect.DeepEqual(got, want) {
 		t.Fatalf("got %#v err=%v, want %#v", got, err, want)
@@ -26,15 +38,15 @@ func TestAddArgsTranslatesEveryQuickAddField(t *testing.T) {
 }
 
 func TestAddArgsTranslatesNextWeekToFridayOfNextCalendarWeek(t *testing.T) {
-	got, err := AddArgs(domain.NewTask{Description: "Plan", Due: "next-week", Scheduled: "next-week"})
-	want := []string{"add", "Plan", "due:sow+1w+4d", "scheduled:sow+1w+4d"}
+	got, err := AddArgs(domain.NewTask{Description: "Plan", Due: "next-week", Scheduled: "next-week"}, mondayBeforeDSTEnds(t))
+	want := []string{"add", "Plan", "due:2026-10-30", "scheduled:2026-10-30"}
 	if err != nil || !reflect.DeepEqual(got, want) {
 		t.Fatalf("got %#v err=%v, want %#v", got, err, want)
 	}
 }
 
 func TestAddArgsWritesEditorDateTimesAsISO(t *testing.T) {
-	got, err := AddArgs(domain.NewTask{Description: "Call", Due: "2026-10-15 09:30", Scheduled: " 2026-10-14 17:00 "})
+	got, err := AddArgs(domain.NewTask{Description: "Call", Due: "2026-10-15 09:30", Scheduled: " 2026-10-14 17:00 "}, time.Now())
 	want := []string{"add", "Call", "due:2026-10-15T09:30", "scheduled:2026-10-14T17:00"}
 	if err != nil || !reflect.DeepEqual(got, want) {
 		t.Fatalf("got %#v err=%v, want %#v", got, err, want)
@@ -42,14 +54,14 @@ func TestAddArgsWritesEditorDateTimesAsISO(t *testing.T) {
 }
 
 func TestAddArgsKeepsDescriptionAsOneArgument(t *testing.T) {
-	got, err := AddArgs(domain.NewTask{Description: "email bob@example.com"})
+	got, err := AddArgs(domain.NewTask{Description: "email bob@example.com"}, time.Now())
 	if err != nil || !reflect.DeepEqual(got, []string{"add", "email bob@example.com"}) {
 		t.Fatalf("got %#v err=%v", got, err)
 	}
 }
 
 func TestAddArgsOmitsNonePriorityAndEmptyOptionalFields(t *testing.T) {
-	got, err := AddArgs(domain.NewTask{Description: "task", Priority: ""})
+	got, err := AddArgs(domain.NewTask{Description: "task", Priority: ""}, time.Now())
 	if err != nil || !reflect.DeepEqual(got, []string{"add", "task"}) {
 		t.Fatalf("got %#v err=%v", got, err)
 	}
@@ -57,18 +69,18 @@ func TestAddArgsOmitsNonePriorityAndEmptyOptionalFields(t *testing.T) {
 
 func TestAddArgsSerializesEstimateAsWholeMinutes(t *testing.T) {
 	estimate := domain.Estimate{Minutes: 90}
-	got, err := AddArgs(domain.NewTask{Description: "task", Estimate: &estimate})
+	got, err := AddArgs(domain.NewTask{Description: "task", Estimate: &estimate}, time.Now())
 	want := []string{"add", "task", "estimate:90min"}
 	if err != nil || !reflect.DeepEqual(got, want) {
 		t.Fatalf("got %#v err=%v want %#v", got, err, want)
 	}
-	if _, err := AddArgs(domain.NewTask{Description: "task", Estimate: &domain.Estimate{Minutes: 0}}); err == nil {
+	if _, err := AddArgs(domain.NewTask{Description: "task", Estimate: &domain.Estimate{Minutes: 0}}, time.Now()); err == nil {
 		t.Fatal("invalid estimate was accepted")
 	}
 }
 
 func TestAddArgsRejectsEmptyDescription(t *testing.T) {
-	if _, err := AddArgs(domain.NewTask{Description: "  "}); err == nil {
+	if _, err := AddArgs(domain.NewTask{Description: "  "}, time.Now()); err == nil {
 		t.Fatal("expected empty description error")
 	}
 }
@@ -79,7 +91,7 @@ func TestModifyArgsUsesUUIDAndMinimalChanges(t *testing.T) {
 		Due:     domain.FieldChange{Kind: domain.Clear},
 		Tags:    domain.TagChange{Changed: true, Add: []string{"new"}, Remove: []string{"old"}},
 	}
-	got, err := ModifyArgs("uuid-1", diff)
+	got, err := ModifyArgs("uuid-1", diff, time.Now())
 	want := []string{"uuid-1", "modify", "project:work.client", "due:", "-old", "+new"}
 	if err != nil || !reflect.DeepEqual(got, want) {
 		t.Fatalf("got %#v err=%v want %#v", got, err, want)
@@ -88,8 +100,8 @@ func TestModifyArgsUsesUUIDAndMinimalChanges(t *testing.T) {
 
 func TestModifyArgsTranslatesNextWeekToFridayOfNextCalendarWeek(t *testing.T) {
 	setNextWeek := domain.FieldChange{Kind: domain.Set, Value: "next-week"}
-	got, err := ModifyArgs("uuid", domain.TaskDiff{Due: setNextWeek, Scheduled: setNextWeek})
-	want := []string{"uuid", "modify", "due:sow+1w+4d", "scheduled:sow+1w+4d"}
+	got, err := ModifyArgs("uuid", domain.TaskDiff{Due: setNextWeek, Scheduled: setNextWeek}, mondayBeforeDSTEnds(t))
+	want := []string{"uuid", "modify", "due:2026-10-30", "scheduled:2026-10-30"}
 	if err != nil || !reflect.DeepEqual(got, want) {
 		t.Fatalf("got %#v err=%v want %#v", got, err, want)
 	}
@@ -99,7 +111,7 @@ func TestModifyArgsWritesEditorDateTimesAsISO(t *testing.T) {
 	got, err := ModifyArgs("uuid", domain.TaskDiff{
 		Due:       domain.FieldChange{Kind: domain.Set, Value: "2026-10-15 09:30"},
 		Scheduled: domain.FieldChange{Kind: domain.Set, Value: "2026-10-15"},
-	})
+	}, time.Now())
 	want := []string{"uuid", "modify", "due:2026-10-15T09:30", "scheduled:2026-10-15"}
 	if err != nil || !reflect.DeepEqual(got, want) {
 		t.Fatalf("got %#v err=%v want %#v", got, err, want)
@@ -108,7 +120,7 @@ func TestModifyArgsWritesEditorDateTimesAsISO(t *testing.T) {
 
 func TestModifyArgsIncludesAllScalarClearForms(t *testing.T) {
 	clear := domain.FieldChange{Kind: domain.Clear}
-	got, err := ModifyArgs("uuid", domain.TaskDiff{Description: clear, Project: clear, Priority: clear, Due: clear, Scheduled: clear})
+	got, err := ModifyArgs("uuid", domain.TaskDiff{Description: clear, Project: clear, Priority: clear, Due: clear, Scheduled: clear}, time.Now())
 	want := []string{"uuid", "modify", "description:", "project:", "priority:", "due:", "scheduled:"}
 	if err != nil || !reflect.DeepEqual(got, want) {
 		t.Fatalf("got %#v err=%v want %#v", got, err, want)
@@ -117,11 +129,11 @@ func TestModifyArgsIncludesAllScalarClearForms(t *testing.T) {
 
 func TestModifyArgsSerializesEstimateSetAndClear(t *testing.T) {
 	estimate := &domain.Estimate{Minutes: 45}
-	set, err := ModifyArgs("uuid", domain.TaskDiff{Estimate: domain.EstimateChange{Kind: domain.Set, Value: estimate}})
+	set, err := ModifyArgs("uuid", domain.TaskDiff{Estimate: domain.EstimateChange{Kind: domain.Set, Value: estimate}}, time.Now())
 	if err != nil || !reflect.DeepEqual(set, []string{"uuid", "modify", "estimate:45min"}) {
 		t.Fatalf("set=%#v err=%v", set, err)
 	}
-	clear, err := ModifyArgs("uuid", domain.TaskDiff{Estimate: domain.EstimateChange{Kind: domain.Clear}})
+	clear, err := ModifyArgs("uuid", domain.TaskDiff{Estimate: domain.EstimateChange{Kind: domain.Clear}}, time.Now())
 	if err != nil || !reflect.DeepEqual(clear, []string{"uuid", "modify", "estimate:"}) {
 		t.Fatalf("clear=%#v err=%v", clear, err)
 	}
@@ -133,7 +145,7 @@ func TestModifyArgsSerializesEstimateSetAndClear(t *testing.T) {
 }
 
 func TestModifyArgsRejectsEmptyDiff(t *testing.T) {
-	_, err := ModifyArgs("uuid", domain.TaskDiff{})
+	_, err := ModifyArgs("uuid", domain.TaskDiff{}, time.Now())
 	if !errors.Is(err, ErrEmptyDiff) {
 		t.Fatalf("got %v", err)
 	}
@@ -141,7 +153,7 @@ func TestModifyArgsRejectsEmptyDiff(t *testing.T) {
 
 func TestModifyArgsRejectsUnsafeUUID(t *testing.T) {
 	for _, uuid := range []string{"", " uuid", "uuid\n", "-uuid"} {
-		if _, err := ModifyArgs(uuid, domain.TaskDiff{Project: domain.FieldChange{Kind: domain.Set, Value: "p"}}); !errors.Is(err, ErrInvalidUUID) {
+		if _, err := ModifyArgs(uuid, domain.TaskDiff{Project: domain.FieldChange{Kind: domain.Set, Value: "p"}}, time.Now()); !errors.Is(err, ErrInvalidUUID) {
 			t.Errorf("%q: got %v", uuid, err)
 		}
 	}
