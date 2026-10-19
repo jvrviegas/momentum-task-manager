@@ -72,7 +72,7 @@ func fixtureAppView(width, height int, state string) string {
 		model.Tasks = nil
 		model.Views = domain.Views{}
 		model.ActiveView = ViewToday
-		model.Err = errors.New("fixture Taskwarrior unavailable")
+		model.Err = errors.New("fixture server unavailable")
 		model.Mode = ModeError
 	case "search":
 		model.ActiveView = ViewToday
