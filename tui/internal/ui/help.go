@@ -36,7 +36,6 @@ var keyBindings = []KeyBinding{
 	{Category: "Tasks", Keys: "d", Description: "delete"},
 	{Category: "Tasks", Keys: "u", Description: "undo"},
 	{Category: "App", Keys: "r", Description: "refresh"},
-	{Category: "App", Keys: "ctrl+r", Description: "sync now"},
 	{Category: "App", Keys: "4", Description: "settings"},
 	{Category: "App", Keys: "?", Description: "this help"},
 	{Category: "App", Keys: "q", Description: "quit"},
