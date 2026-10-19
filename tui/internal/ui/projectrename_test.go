@@ -36,8 +36,6 @@ func renamePreviewPlans(t *testing.T) (ProjectRenamePreview, domain.ProjectTaskM
 		SubprojectsPlan:     subprojects,
 		ExactTasks:          []domain.ProjectTaskMapping{{UUID: "root", OldValue: "work", NewValue: "delivery"}},
 		SubprojectTasks:     []domain.ProjectTaskMapping{{UUID: "root", OldValue: "work", NewValue: "delivery"}, child},
-		ContextName:         "work-context",
-		HasActiveContext:    true,
 		DestinationTaskOnly: true,
 	}, child
 }
@@ -51,7 +49,7 @@ func TestProjectRenameCatalogOnlyIsDefaultAndShowsPreviewContext(t *testing.T) {
 		t.Fatalf("initial model=%#v", model)
 	}
 	view := sanitizeComponentRender(model.View())
-	for _, want := range []string{"Rename project", "work → delivery", "Catalog only", "Active context: work-context", "Catalog descendants: 0", "Task descendants: 0", "Historical tasks retain their values", "native u cannot reverse"} {
+	for _, want := range []string{"Rename project", "work → delivery", "Catalog only", "Catalog descendants: 0", "Task descendants: 0", "Historical tasks retain their values", "u cannot reverse"} {
 		if !strings.Contains(view, want) {
 			t.Errorf("view missing %q: %s", want, view)
 		}
@@ -149,7 +147,7 @@ func TestProjectRenameNameOnlyAndZeroMatchPreviewsRemainCatalogOnly(t *testing.T
 	}
 	model := NewProjectRename(Styles{})
 	model.SetSize(70, 20)
-	model.OpenPreview(ProjectRenamePreview{ExactPlan: labelPlan, SubprojectsPlan: labelPlan, HasActiveContext: false})
+	model.OpenPreview(ProjectRenamePreview{ExactPlan: labelPlan, SubprojectsPlan: labelPlan})
 	if model.CanMigrateTasks() || strings.Contains(sanitizeComponentRender(model.View()), "Catalog + pending tasks") || !strings.Contains(sanitizeComponentRender(model.View()), "no task migration") {
 		t.Fatalf("label-only preview=%s", sanitizeComponentRender(model.View()))
 	}
@@ -158,10 +156,10 @@ func TestProjectRenameNameOnlyAndZeroMatchPreviewsRemainCatalogOnly(t *testing.T
 	if err != nil {
 		t.Fatal(err)
 	}
-	model.OpenPreview(ProjectRenamePreview{ExactPlan: exact, SubprojectsPlan: exact, HasActiveContext: false})
+	model.OpenPreview(ProjectRenamePreview{ExactPlan: exact, SubprojectsPlan: exact})
 	model.Mode = ProjectRenameCatalogAndPending
-	model.UpdatePreview(ProjectRenamePreview{ExactPlan: exact, SubprojectsPlan: exact, HasActiveContext: false})
-	if !strings.Contains(sanitizeComponentRender(model.View()), "No active context") || !strings.Contains(sanitizeComponentRender(model.View()), "Pending tasks: 0") {
+	model.UpdatePreview(ProjectRenamePreview{ExactPlan: exact, SubprojectsPlan: exact})
+	if !strings.Contains(sanitizeComponentRender(model.View()), "Pending tasks: 0") {
 		t.Fatalf("zero-match preview=%s", sanitizeComponentRender(model.View()))
 	}
 }
