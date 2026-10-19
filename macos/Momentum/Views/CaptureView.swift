@@ -82,10 +82,6 @@ struct CaptureView: View {
                     .lineLimit(1)
                     .truncationMode(.tail)
                     .help("Triggers: \(triggers)")
-                if let context = model.store.snapshot?.context {
-                    Chip(text: "Context \(context)")
-                        .help("Taskwarrior applies the active context to new tasks")
-                }
                 if model.submitting {
                     ProgressView().controlSize(.small)
                 }
@@ -329,7 +325,7 @@ struct CaptureTextView: NSViewRepresentable {
 }
 
 /// Correction review: shown when Momentum can't add a capture unambiguously.
-/// Values are exactly what Taskwarrior receives.
+/// Values are exactly what the server receives.
 struct CaptureReviewView: View {
     @Bindable var model: CaptureModel
     @Environment(\.dismiss) private var dismiss
