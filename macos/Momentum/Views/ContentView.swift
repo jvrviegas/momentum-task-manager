@@ -13,13 +13,13 @@ struct ContentView: View {
             TaskListView(focusSearch: { searchFocused = true })
                 .inspector(isPresented: $store.showInspector) {
                     InspectorView()
-                        .inspectorColumnWidth(min: 260, ideal: 320, max: 440)
+                        .inspectorColumnWidth(min: 260, ideal: 340, max: 440)
                 }
         }
         .searchable(text: $store.query, placement: .toolbar, prompt: "Search \(store.view.title)")
         .searchFocused($searchFocused)
         .toolbar {
-            ToolbarItem(placement: .navigation) {
+            ToolbarItem(placement: .primaryAction) {
                 SyncStatusView()
             }
             ToolbarItem(placement: .primaryAction) {
@@ -27,9 +27,20 @@ struct ContentView: View {
                     store.showCapture = true
                 } label: {
                     Label("New Task", systemImage: "plus")
+                        .labelStyle(.titleAndIcon)
                 }
+                .buttonStyle(.borderedProminent)
+                .tint(Theme.tint)
                 .help("New Task (⌘N)")
                 .disabled(store.status == nil || (store.isBackend && store.account == nil))
+            }
+            ToolbarItem(placement: .primaryAction) {
+                Button {
+                    store.showInspector.toggle()
+                } label: {
+                    Label(store.showInspector ? "Hide Inspector" : "Show Inspector", systemImage: "sidebar.right")
+                }
+                .help("Toggle inspector (⌃⌘I)")
             }
         }
         .sheet(isPresented: $store.showCapture) {
@@ -87,7 +98,8 @@ struct SyncStatusView: View {
             TimelineView(.periodic(from: .now, by: 1)) { context in
                 Label(title(at: context.date), systemImage: symbol)
                     .labelStyle(.titleAndIcon)
-                    .foregroundStyle(warns ? AnyShapeStyle(.orange) : AnyShapeStyle(.secondary))
+                    .font(.system(size: 12))
+                    .foregroundStyle(warns ? Theme.warn : Theme.text3)
                     .monospacedDigit()
             }
         }
