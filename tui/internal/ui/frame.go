@@ -17,7 +17,6 @@ const (
 	EditWidth     = 80
 	HelpWidth     = 86
 	ConfirmWidth  = 64
-	QuitWidth     = 60
 	SettingsWidth = 72
 	RenameWidth   = 86
 	PlannerWidth  = 86
