@@ -1,5 +1,5 @@
-// Command momentum-bridge serves Momentum's Taskwarrior operations to the
-// native macOS app as newline-delimited JSON over stdin and stdout.
+// Command momentum-bridge serves Momentum's task operations to the native
+// macOS app as newline-delimited JSON over stdin and stdout.
 package main
 
 import (
@@ -12,7 +12,6 @@ import (
 	"github.com/jvrviegas/momentum-task-manager/tui/internal/backend"
 	"github.com/jvrviegas/momentum-task-manager/tui/internal/bridge"
 	"github.com/jvrviegas/momentum-task-manager/tui/internal/config"
-	"github.com/jvrviegas/momentum-task-manager/tui/internal/taskwarrior"
 )
 
 var Version = "dev"
@@ -25,7 +24,6 @@ func run(args []string, stdin io.Reader, stdout, stderr io.Writer) int {
 	flags := flag.NewFlagSet("momentum-bridge", flag.ContinueOnError)
 	flags.SetOutput(stderr)
 	configPath := flags.String("config", "", "path to Momentum config.toml")
-	taskBinary := flags.String("task", "task", "Taskwarrior executable")
 	showVersion := flags.Bool("version", false, "print version")
 	if err := flags.Parse(args); err != nil {
 		return 2
@@ -39,15 +37,12 @@ func run(args []string, stdin io.Reader, stdout, stderr io.Writer) int {
 		fmt.Fprintln(stderr, "momentum-bridge:", err)
 		return 1
 	}
-	server := bridge.NewServer(taskwarrior.NewClient(*taskBinary), settings, resolvedPath)
-	if settings.Backend.Enabled() {
-		// The app keeps the sign-in in the Keychain and sends its token with
-		// setToken; the TUI's credentials file is not read.
-		zone := backend.DeviceZone()
-		server = bridge.NewBackendServer(func(token string) bridge.Client {
-			return backend.New(settings.Backend.URL, token, zone)
-		}, settings, resolvedPath)
-	}
+	// The app keeps the sign-in in the Keychain and sends its token with
+	// setToken; the TUI's credentials file is not read.
+	zone := backend.DeviceZone()
+	server := bridge.NewServer(func(token string) bridge.Client {
+		return backend.New(settings.Backend.URL, token, zone)
+	}, settings, resolvedPath)
 	if err := server.Serve(context.Background(), stdin, stdout); err != nil {
 		fmt.Fprintln(stderr, "momentum-bridge:", err)
 		return 1
