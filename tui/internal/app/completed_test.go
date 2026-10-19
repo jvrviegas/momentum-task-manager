@@ -91,7 +91,7 @@ func TestCompletedTaskActionsAreReadOnlyButUndoRemainsGlobal(t *testing.T) {
 		t.Fatalf("overlay=%s status=%q", model.Overlay, model.Status)
 	}
 
-	model.Sync.UndoAvailable = true
+	model.Undo = model.Undo.Open(model.now())
 	if cmd := model.UndoLast(); cmd == nil {
 		t.Fatal("global undo should remain available")
 	}
