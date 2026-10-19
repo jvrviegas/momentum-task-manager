@@ -76,15 +76,15 @@
 
 
 
- ↻ Loading tasks from Taskwarrior…             ↻
+ ↻ Loading tasks from the server…              ↻
 
 === error ===
  ▱  ◷ Today  ✓  ⚙
  ───━━━━━━━─────────────────────────────────────
 
  ! Could not load tasks
- fixture Taskwarrior unavailable. Your data has
- not been changed.
+ fixture server unavailable. Your data has not
+ been changed.
 
  Fix the cause, then press r to retry.
 
@@ -96,7 +96,7 @@
 
 
 
- ! fixture Taskwarrior unavailable             ✓
+ ! fixture server unavailable                  ✓
 
 === search ===
  ▱ 1  ◷ Today 3  ✓  ⚙
