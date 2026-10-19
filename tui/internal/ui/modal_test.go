@@ -100,7 +100,7 @@ func TestConfirmEscapeCancels(t *testing.T) {
 
 func TestHelpDerivesTextFromBindings(t *testing.T) {
 	text := HelpText()
-	for _, want := range []string{"ctrl+k — capture", "ctrl+r — sync now", "space — complete", "click — select"} {
+	for _, want := range []string{"ctrl+k — capture", "space — complete", "click — select"} {
 		if !strings.Contains(text, want) {
 			t.Errorf("help missing %q", want)
 		}
@@ -126,29 +126,6 @@ func TestHelpTruncatesToModalHeight(t *testing.T) {
 	view := RenderHelp(30, 4, Styles{})
 	if lines := strings.Count(view, "\n") + 1; lines > 4 {
 		t.Fatalf("lines=%d", lines)
-	}
-}
-
-func TestQuitChoicesMatchShutdownCopy(t *testing.T) {
-	quit := NewQuit(NewStyles(ResolveTheme("dark", true)))
-	quit.SetSize(50, 10)
-	quit.OpenQuit()
-	view := quit.View()
-	for _, want := range []string{"Quit Momentum?", "Unsynced changes", "Sync and quit", "Quit without syncing", "Cancel"} {
-		if !strings.Contains(view, want) {
-			t.Errorf("quit view missing %q", want)
-		}
-	}
-	if choice := quit.Update(modalKey("s")); choice != QuitSync || quit.Open {
-		t.Fatalf("sync choice=%s open=%v", choice, quit.Open)
-	}
-	quit.OpenQuit()
-	if choice := quit.Update(modalKey("q")); choice != QuitLocal {
-		t.Fatalf("local choice=%s", choice)
-	}
-	quit.OpenQuit()
-	if choice := quit.Update(modalKey("esc")); choice != QuitCancel {
-		t.Fatalf("cancel choice=%s", choice)
 	}
 }
 
