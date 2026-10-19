@@ -38,23 +38,10 @@ struct SidebarView: View {
         .safeAreaInset(edge: .bottom) {
             VStack(alignment: .leading, spacing: 2) {
                 if let url = store.backendURL {
-                    // Backend mode has no contexts (D6).
                     footerRow(store.account?.email ?? "Signed out", systemImage: "person.crop.circle")
                         .help(store.account.map { "Signed in until \($0.expiresAt.formatted(date: .abbreviated, time: .omitted))" } ?? "")
                     footerRow(URL(string: url)?.host() ?? url, systemImage: "server.rack")
                         .help(url)
-                } else {
-                    HStack(spacing: 8) {
-                        Image(systemName: "square.3.layers.3d").foregroundStyle(Theme.text3)
-                        Text("Context").foregroundStyle(Theme.text2)
-                        Text(store.snapshot?.context ?? "none")
-                            .font(.system(size: 11.5, weight: .semibold, design: .monospaced))
-                            .foregroundStyle(Theme.text)
-                    }
-                    .font(.system(size: 12))
-                    .padding(.horizontal, 9)
-                    .padding(.vertical, 6)
-                    .help("\(store.status.map { "Taskwarrior \($0.taskwarriorVersion) context" } ?? "Taskwarrior context") — views and new tasks respect it. Change it with `task context` in a terminal.")
                 }
                 Button {
                     store.showShortcuts = true
