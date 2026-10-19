@@ -6,8 +6,6 @@ import (
 	"os"
 	"path/filepath"
 	"time"
-
-	"github.com/jvrviegas/momentum-task-manager/tui/internal/taskwarrior"
 )
 
 // LogOptions makes debug-log paths testable and keeps process environment out
@@ -36,20 +34,6 @@ func NewLogger(debug bool, options LogOptions) (*slog.Logger, io.Closer, string,
 		return nil, nil, path, err
 	}
 	return slog.New(slog.NewTextHandler(file, &slog.HandlerOptions{Level: slog.LevelDebug})), file, path, nil
-}
-
-// LogCommand records safe operation metadata without argv/task descriptions.
-func LogCommand(logger *slog.Logger, kind string, result taskwarrior.CommandResult, err error) {
-	if logger == nil {
-		return
-	}
-	attrs := []any{"kind", kind, "duration", result.Duration, "exit_code", result.ExitCode}
-	if err != nil {
-		attrs = append(attrs, "error", taskwarrior.Redact(err.Error()))
-		logger.Error("taskwarrior command", attrs...)
-		return
-	}
-	logger.Debug("taskwarrior command", attrs...)
 }
 
 func LogTransition(logger *slog.Logger, from, to, reason string) {
