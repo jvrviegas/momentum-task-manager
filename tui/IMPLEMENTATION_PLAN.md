@@ -613,39 +613,15 @@ go build ./cmd/momentum
 | T23 | Complete product | UAT | UAT evidence in task | Match |
 | T24 | Docs/CI | Build/CI validation | Cross-platform/full gates in task | Match |
 
-## Manual Cloud Run/Neon Checklist
-
-This checklist is operational guidance, not an implementation dependency.
-
-- [ ] Create a Neon PostgreSQL project/database.
-- [ ] Pin a TaskChampion PostgreSQL server image release.
-- [ ] Apply that release's `postgres/schema.sql` in Neon.
-- [ ] Generate one client UUID with `uuidgen`.
-- [ ] Generate a separate random 256-bit encryption secret.
-- [ ] Pre-create the allowed client row or bootstrap once before setting `CREATE_CLIENTS=false`.
-- [ ] Store Neon's direct TLS connection string in Google Secret Manager.
-- [ ] Deploy the official PostgreSQL image to Cloud Run.
-- [ ] Configure `CONNECTION`, `CLIENT_ID`, `CREATE_CLIENTS=false`, and appropriate logging.
-- [ ] Set minimum instances to 0 and maximum instances to 1.
-- [ ] Permit unauthenticated ingress and retain the generated HTTPS URL.
-- [ ] Create Linux `secrets.rc` with mode `0600` and configure the shared values.
-- [ ] Run the first `task sync` from Linux.
-- [ ] Configure macOS as an empty second replica and run `task sync`.
-- [ ] Set recurrence on for Linux and off for macOS.
-- [ ] Verify a task created and synced from each machine reaches the other after two sync calls.
-- [ ] Store client UUID and encryption secret in a password manager.
-
 ## Deferred Backlog
 
-- [ ] Custom smart views and arbitrary Taskwarrior filters.
+- [ ] Custom smart views and filters.
 - [ ] Configurable keybindings with conflict validation.
-- [ ] Context switching inside Momentum.
-- [ ] Annotation, dependency, recurrence, and UDA editing.
+- [ ] Annotation and dependency editing.
 - [ ] Bulk selection and operations.
 - [ ] Task duplication.
 - [ ] Desktop notifications/background agent.
 - [ ] Homebrew tap.
-- [ ] Dedicated conflict-resolution UI if real-world use requires it.
 - [ ] Native Windows support.
 
 ## Deviations and Decisions
