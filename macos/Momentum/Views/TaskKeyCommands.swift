@@ -33,8 +33,8 @@ struct TaskKeyCommands: ViewModifier {
         case "k": move(by: -1)
         case "g": select(store.visibleTasks.first)
         case "G": select(store.visibleTasks.last)
-        case "1": store.view = .today
-        case "2": store.view = .inbox
+        case "1": store.view = .inbox
+        case "2": store.view = .today
         case "3": store.view = .completed
         case "c": store.showCapture = true
         case "/": focusSearch()
