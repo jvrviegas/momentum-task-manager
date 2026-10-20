@@ -2,7 +2,7 @@ import Foundation
 import Observation
 
 enum ViewName: String, CaseIterable, Identifiable, Hashable {
-    case today, inbox, completed
+    case inbox, today, completed
 
     var id: Self { self }
     var title: String {
