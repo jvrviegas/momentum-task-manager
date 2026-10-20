@@ -2,7 +2,7 @@ import SwiftUI
 
 struct SidebarView: View {
     @Environment(AppStore.self) private var store
-    let focusSearch: () -> Void
+    let focus: FocusState<FocusedPane?>.Binding
 
     var body: some View {
         List(selection: Binding<ViewName?>(get: { store.view }, set: { if let view = $0 { store.view = view } })) {
@@ -34,7 +34,8 @@ struct SidebarView: View {
         }
         .scrollContentBackground(.hidden)
         .background(Theme.sidebar)
-        .taskKeyCommands(focusSearch: focusSearch)
+        .focused(focus, equals: .sidebar)
+        .taskKeyCommands(focusSearch: { focus.wrappedValue = .search })
         .safeAreaInset(edge: .bottom) {
             VStack(alignment: .leading, spacing: 2) {
                 if let url = store.backendURL {
