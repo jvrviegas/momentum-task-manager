@@ -1,23 +1,35 @@
 import SwiftUI
 
+/// The pane with keyboard focus. The single-key shortcuts live on the sidebar
+/// and the task list, so leaving search hands focus back to the list.
+enum FocusedPane: Hashable {
+    case sidebar, list, search
+}
+
 struct ContentView: View {
     @Environment(AppStore.self) private var store
-    @FocusState private var searchFocused: Bool
+    @FocusState private var focus: FocusedPane?
 
     var body: some View {
         @Bindable var store = store
         NavigationSplitView {
-            SidebarView(focusSearch: { searchFocused = true })
+            SidebarView(focus: $focus)
                 .navigationSplitViewColumnWidth(min: 190, ideal: 220, max: 280)
         } detail: {
-            TaskListView(focusSearch: { searchFocused = true })
+            TaskListView(focus: $focus)
                 .inspector(isPresented: $store.showInspector) {
                     InspectorView()
                         .inspectorColumnWidth(min: 260, ideal: 340, max: 440)
                 }
         }
         .searchable(text: $store.query, placement: .toolbar, prompt: "Search \(store.view.title)")
-        .searchFocused($searchFocused)
+        .searchFocused($focus, equals: .search)
+        // Return keeps the filter and Esc clears it, as in the TUI; either way
+        // the list takes focus. Esc alone would leave nothing focused.
+        .onSubmit(of: .search) { focus = .list }
+        .onChange(of: focus) { old, new in
+            if old == .search, new == nil { focus = .list }
+        }
         .toolbar {
             ToolbarItem(placement: .primaryAction) {
                 ServerStatusView()
@@ -73,7 +85,9 @@ struct ContentView: View {
             presenting: store.pendingStopRecurrence
         ) { task in
             Button("Stop Repeating") { Task { await store.stopRecurrence(task) } }
+                .keyboardShortcut("y", modifiers: [])
             Button("Cancel", role: .cancel) {}
+                .keyboardShortcut("n", modifiers: [])
         } message: { _ in
             Text("Momentum ends the series, so no new instances are created. Existing instances and completed history stay.")
         }
