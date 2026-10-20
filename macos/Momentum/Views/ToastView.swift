@@ -86,7 +86,7 @@ struct ShortcutsView: View {
 
     private static let groups: [(String, [(String, String)])] = [
         ("Navigate", [("j / ↓", "Next task"), ("k / ↑", "Previous task"), ("g / G", "First / last task"),
-                      ("1 2 3", "Today / Inbox / Completed"), ("↩", "Show details"), ("/", "Search"), ("esc", "Clear search")]),
+                      ("1 2 3", "Inbox / Today / Completed"), ("↩", "Show details"), ("/", "Search"), ("esc", "Clear search")]),
         ("Act on selection", [("Space", "Complete"), ("s", "Start / stop"), ("d", "Delete…"), ("x", "Stop repeating…"),
                               ("u", "Undo"), ("r", "Refresh"), ("c", "Quick capture")]),
         ("Edit a field", [("e", "Description"), ("E", "Estimate"), ("p", "Project"), ("!", "Priority"),
