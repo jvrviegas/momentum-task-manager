@@ -110,3 +110,10 @@ struct FormatTests {
         #expect(Format.reviewDate("20261015T150000") != nil)
     }
 }
+
+struct ViewNameTests {
+    /// The sidebar, 1–3 and ⌘1–3 follow this order, as the TUI's do.
+    @Test func viewsAreInTheTUIOrder() {
+        #expect(ViewName.allCases == [.inbox, .today, .completed])
+    }
+}
