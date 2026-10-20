@@ -70,4 +70,27 @@ Without it, the window says how to add it; quit and reopen the app after editing
 
 ## Not yet built
 
-Plan Today and its capacity meter, the Settings window (projects catalog, appearance, planning, calendar, diagnostics), project migration, calendar awareness, and a signed release build.
+Where each one already exists; — means it does not apply.
+
+| Item | Description | TUI | macOS |
+|---|---|---|---|
+| Plan Today | Pick the day's tasks against a capacity meter built from their estimates | Yes | No |
+| Settings window | Projects catalog, appearance, planning, calendar, and diagnostics | Partly: Projects and Appearance | No |
+| Project migration | Rename a project in the catalog and move its pending tasks to the new value | Yes | No |
+| Calendar awareness | Count busy time from local `.ics` files against the day's capacity | Yes | No |
+| Signed release build | A build signed for distribution, not ad hoc like the Debug build | — | No |
+
+## Nice to have
+
+From the deferred backlog in [`tui/IMPLEMENTATION_PLAN.md`](../tui/IMPLEMENTATION_PLAN.md#deferred-backlog).
+
+| Item | Description | TUI | macOS |
+|---|---|---|---|
+| Custom smart views and filters | Saved views beyond Inbox, Today, and Completed | No | No |
+| Configurable keybindings | Change the shortcuts, with checks for clashing keys | No | No |
+| Annotation and dependency editing | Change a task's annotations and dependencies | No | No |
+| Bulk selection and operations | Select several tasks and act on them at once | No | No |
+| Task duplication | Copy a task into a new one | No | No |
+| Desktop notifications/background agent | Notifications, and a helper that runs while Momentum is closed | No | No |
+| Homebrew tap | Install with `brew` | No | No |
+| Native Windows support | Run on Windows | No | — |
