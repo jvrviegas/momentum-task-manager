@@ -1,4 +1,5 @@
 import Foundation
+import SwiftUI
 import Testing
 @testable import Momentum
 
@@ -173,5 +174,111 @@ struct AppStoreTests {
             try await store.save(a, edits: edits)
         }
         #expect(!store.undoWindow.isAvailable(at: .now))
+    }
+}
+
+@MainActor
+struct TaskKeyCommandTests {
+    /// Inbox holds a, b and a weekly task; Completed holds one task.
+    private func startedStore() async -> AppStore {
+        var tasks = snapshot(inbox: [.fixture("a"), .fixture("b"), .fixture("plants", recur: "weekly")])
+        tasks.tasks.append(.fixture("done", status: "completed"))
+        tasks.completed = [TaskSection(title: "Today", project: nil, uuids: ["done"])]
+        let store = signedInStore(FakeBridge(snapshots: [tasks]))
+        await store.start()
+        return store
+    }
+
+    @discardableResult
+    private func press(
+        _ characters: String, _ key: KeyEquivalent? = nil, modifiers: EventModifiers = [], in store: AppStore,
+        focusSearch: () -> Void = {}
+    ) -> Bool {
+        let result = TaskKeyCommands.handle(
+            key: key ?? KeyEquivalent(Character(characters)), characters: characters, modifiers: modifiers, store: store,
+            focusSearch: focusSearch)
+        if case .handled = result { return true }
+        return false
+    }
+
+    @Test func numberKeysOpenTheViewsInTheTUIOrder() async {
+        let store = await startedStore()
+        press("3", in: store)
+        #expect(store.view == .completed)
+        press("2", in: store)
+        #expect(store.view == .today)
+        press("1", in: store)
+        #expect(store.view == .inbox)
+    }
+
+    @Test func movementKeysStayInsideTheList() async {
+        let store = await startedStore()
+        #expect(store.selection == "a")
+        press("j", in: store)
+        #expect(store.selection == "b")
+        press("j", in: store)
+        press("j", in: store)
+        #expect(store.selection == "plants")
+        press("k", in: store)
+        #expect(store.selection == "b")
+        press("g", in: store)
+        #expect(store.selection == "a")
+        press("G", modifiers: .shift, in: store)
+        #expect(store.selection == "plants")
+    }
+
+    @Test func returnShowsAndHidesTheInspector() async {
+        let store = await startedStore()
+        #expect(store.showInspector)
+        press("\r", .return, in: store)
+        #expect(!store.showInspector)
+        press("\r", .return, in: store)
+        #expect(store.showInspector)
+    }
+
+    @Test func actionKeysSayCompletedTasksAreReadOnly() async {
+        let store = await startedStore()
+        press("3", in: store)
+        #expect(store.selection == "done")
+        for (characters, key) in [(" ", KeyEquivalent.space), ("s", nil), ("d", nil), ("x", nil), ("e", nil), ("E", nil)] {
+            store.dismissToast()
+            #expect(press(characters, key, in: store))
+            #expect(store.toast?.message == "Completed tasks are read-only")
+        }
+        #expect(store.pendingDelete == nil && store.pendingStopRecurrence == nil && store.editing == nil)
+    }
+
+    @Test func actionKeysOpenTheirDialogsAndEditors() async {
+        let store = await startedStore()
+        press("d", in: store)
+        #expect(store.pendingDelete?.uuid == "a")
+        store.pendingDelete = nil
+        press("x", in: store)
+        #expect(store.pendingStopRecurrence == nil && store.toast?.message == "This task doesn’t repeat")
+        press("G", modifiers: .shift, in: store)
+        press("x", in: store)
+        #expect(store.pendingStopRecurrence?.uuid == "plants")
+        store.pendingStopRecurrence = nil
+        press("E", modifiers: .shift, in: store)
+        #expect(store.editing?.task.uuid == "plants" && store.editing?.focus == .estimate)
+    }
+
+    @Test func keysWaitForOverlaysAndLeaveCommandShortcutsToTheMenus() async {
+        let store = await startedStore()
+        #expect(!press("1", modifiers: .command, in: store))
+        store.showCapture = true
+        #expect(!press("3", in: store))
+        #expect(store.view == .inbox)
+    }
+
+    @Test func slashFocusesSearchAndEscClearsIt() async {
+        let store = await startedStore()
+        var searching = false
+        press("/", in: store, focusSearch: { searching = true })
+        #expect(searching)
+        store.query = "b"
+        #expect(press("\u{1b}", .escape, in: store))
+        #expect(store.query.isEmpty)
+        #expect(!press("\u{1b}", .escape, in: store))
     }
 }
