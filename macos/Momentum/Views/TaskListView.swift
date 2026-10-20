@@ -3,9 +3,8 @@ import SwiftUI
 struct TaskListView: View {
     @Environment(AppStore.self) private var store
     @Environment(\.appearsActive) private var appearsActive
-    @FocusState private var listFocused: Bool
     @State private var compact = false
-    let focusSearch: () -> Void
+    let focus: FocusState<FocusedPane?>.Binding
 
     var body: some View {
         content
@@ -63,7 +62,7 @@ struct TaskListView: View {
                 ForEach(store.visibleSections) { section in
                     Section {
                         ForEach(section.tasks) { task in
-                            TaskRow(task: task, compact: compact, emphasized: listFocused && appearsActive && store.selection == task.uuid)
+                            TaskRow(task: task, compact: compact, emphasized: focus.wrappedValue == .list && appearsActive && store.selection == task.uuid)
                                 .tag(task.uuid)
                         }
                     } header: {
@@ -86,9 +85,9 @@ struct TaskListView: View {
             } primaryAction: { _ in
                 store.showInspector = true
             }
-            .focused($listFocused)
-            .onAppear { listFocused = true }
-            .taskKeyCommands(focusSearch: focusSearch)
+            .focused(focus, equals: .list)
+            .onAppear { focus.wrappedValue = .list }
+            .taskKeyCommands(focusSearch: { focus.wrappedValue = .search })
         }
     }
 
