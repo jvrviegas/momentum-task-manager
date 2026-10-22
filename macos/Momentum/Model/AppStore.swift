@@ -90,6 +90,8 @@ final class AppStore {
     var editing: EditRequest?
     var pendingDelete: TaskItem?
     var pendingStopRecurrence: TaskItem?
+    /// The Plan Today sheet; nil while it is closed.
+    var planSheet: PlanSheet?
     private(set) var toast: Toast?
     /// How long the latest change can be undone (backend plan D7).
     private(set) var undoWindow = UndoWindow(delay: 0)
@@ -123,8 +125,12 @@ final class AppStore {
     var projects: [ProjectEntry] { snapshot?.projects ?? [] }
     var hasOverlay: Bool {
         showCapture || showShortcuts || editing != nil || pendingDelete != nil || pendingStopRecurrence != nil || signIn != nil
+            || planSheet != nil
     }
     var overdueCount: Int { snapshot?.today.first { $0.title == "Overdue" }?.uuids.count ?? 0 }
+    /// Whether Plan Today is offered: [planning] enabled, as the TUI's
+    /// default is, until a load says otherwise.
+    var planningEnabled: Bool { snapshot?.plan?.enabled ?? true }
     /// The [backend] server; nil until config.toml names one.
     var backendURL: String? {
         status?.backendUrl.map { $0.hasSuffix("/") ? String($0.dropLast()) : $0 }
@@ -349,6 +355,61 @@ final class AppStore {
         undoWindow.close()
         await refresh()
         show("Last change undone", .success)
+    }
+
+    // MARK: Plan Today
+
+    /// Opens Plan Today with the plan the bridge builds now.
+    func openPlan() async {
+        guard planningEnabled, account != nil, !hasOverlay else { return }
+        do {
+            let plan = try await bridge.plan()
+            noteServer(nil)
+            planSheet = PlanSheet(plan: plan)
+        } catch {
+            noteServer(error)
+            show(error.localizedDescription, .error)
+        }
+    }
+
+    /// Saves the plan's tags. A saved plan offers no undo and closes the
+    /// undo window, which would revert only one task's tag (D2). When a change
+    /// fails, the sheet stays open with its ticks and confirming again
+    /// finishes, since the bridge applies only what is left (D4).
+    func confirmPlan() async {
+        guard let sheet = planSheet, !sheet.saving else { return }
+        planSheet?.saving = true
+        planSheet?.notice = nil
+        let result: PlanSaveResult
+        do {
+            result = try await exclusive { try await bridge.applyPlan(date: sheet.plan.date, uuids: sheet.selectedUUIDs) }
+        } catch {
+            planSheet?.saving = false
+            planSheet?.notice = PlanSheet.Notice(message: error.localizedDescription)
+            return
+        }
+        guard result.total > 0 else {
+            planSheet = nil
+            show("Daily plan unchanged")
+            return
+        }
+        undoWindow.close()
+        if let error = result.error {
+            await refresh()
+            planSheet?.saving = false
+            planSheet?.notice = PlanSheet.Notice(
+                message: "Saved \(result.applied) of \(result.total) changes. Confirm again to finish — nothing is applied twice.",
+                reason: error)
+            return
+        }
+        planSheet = nil
+        await refresh()
+        let count = sheet.chosen.count
+        show("Daily plan saved · \(count) \(count == 1 ? "task" : "tasks")", .success)
+    }
+
+    func cancelPlan() {
+        planSheet = nil
     }
 
     // MARK: Messages
