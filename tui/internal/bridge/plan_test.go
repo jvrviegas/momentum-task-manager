@@ -182,3 +182,31 @@ func TestApplyPlanWritesTheGivenDate(t *testing.T) {
 		t.Errorf("invalid date: %+v", got)
 	}
 }
+
+func TestLoadSumsOnlyTheTasksPlannedForToday(t *testing.T) {
+	client := &planClient{fakeClient: fakeClient{pending: []domain.Task{
+		{UUID: "overdue", Description: "Renew cert", Status: "pending", Due: at(2026, 10, 12, 9), Estimate: estimate(30)},
+		{UUID: "due", Description: "Send invoice", Status: "pending", Due: at(2026, 10, 14, 17)},
+		{UUID: "tagged", Description: "Review PRs", Status: "pending", Scheduled: at(2026, 10, 14, 9), Estimate: estimate(20), Tags: []string{"momentum-plan-2026-10-14"}},
+		{UUID: "rolled", Description: "Write ADR", Status: "pending", Estimate: estimate(45), Tags: []string{"momentum-plan-2026-10-13"}},
+		{UUID: "planned", Description: "Refactor ranking", Status: "pending", Estimate: estimate(60), Tags: []string{"momentum-plan-2026-10-14"}},
+		{UUID: "unestimated", Description: "Call Ana", Status: "pending", Tags: []string{"momentum-plan-2026-10-14"}},
+		{UUID: "idle", Description: "Weekly review", Status: "pending", Estimate: estimate(30)},
+	}}}
+	settings := config.Defaults()
+	settings.Planning.WeekdayCapacity = map[string]string{"wednesday": "6h"}
+	load := result[loadResult](t, serve(t, newPlanServer(client, settings), request(t, 1, "load", nil))[1])
+	want := planSummary{
+		Enabled: true, ChosenCount: 2, ChosenMinutes: 60, UnestimatedChosen: 1,
+		FixedMinutes: 50, UnestimatedFixed: 1, CapacityMinutes: 360, BufferMinutes: 60,
+	}
+	if load.Plan != want {
+		t.Fatalf("plan = %+v, want %+v", load.Plan, want)
+	}
+
+	settings.Planning.Enabled = false
+	load = result[loadResult](t, serve(t, newPlanServer(client, settings), request(t, 1, "load", nil))[1])
+	if load.Plan != (planSummary{}) {
+		t.Fatalf("plan with planning off = %+v", load.Plan)
+	}
+}
