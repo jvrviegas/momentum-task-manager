@@ -364,8 +364,8 @@ private struct NoticeBanner: View {
     }
 }
 
-/// The capacity column: what is left or over, the bar, the arithmetic, and
-/// notes about unknown time and going over.
+/// The capacity column: what is left or over, the bar, the arithmetic, notes
+/// about unknown time and going over, and the calendar.
 private struct CapacityPanel: View {
     let sheet: PlanSheet
 
@@ -402,6 +402,9 @@ private struct CapacityPanel: View {
                         Text("\(Text("Over capacity by \(Format.minutes(sheet.remainingMinutes)).").fontWeight(.semibold)) You can still confirm — consider deferring a candidate or rollover item.")
                     }
                 }
+                if let calendar = sheet.plan.calendar, calendar.enabled {
+                    CalendarCommitments(calendar: calendar, day: Format.planDay(sheet.plan.date) ?? .now)
+                }
             }
             .padding(.horizontal, 20)
             .padding(.vertical, 18)
@@ -415,6 +418,12 @@ private struct CapacityPanel: View {
                 RoundedRectangle(cornerRadius: 3).strokeBorder(Theme.separatorStrong, lineWidth: 1)
             }
             tableRow("Obligations", "− \(Format.minutes(sheet.fixedMinutes))") { RoundedRectangle(cornerRadius: 3).fill(Theme.barFixed) }
+            if let calendar = sheet.plan.calendar, calendar.enabled {
+                let events = "\(calendar.eventCount) \(calendar.eventCount == 1 ? "event" : "events")"
+                tableRow("Calendar · \(calendar.available ? events : "unavailable")", "− \(Format.minutes(sheet.calendarMinutes))") {
+                    RoundedRectangle(cornerRadius: 3).fill(Theme.barCalendar)
+                }
+            }
             tableRow("Buffer", "− \(Format.minutes(sheet.plan.bufferMinutes))") { BufferStripes().clipShape(RoundedRectangle(cornerRadius: 3)) }
             Rectangle().fill(Theme.separator).frame(height: 0.5).gridCellUnsizedAxes(.horizontal)
             GridRow {
@@ -481,19 +490,22 @@ private struct CapacityPanel: View {
     }
 }
 
-/// Obligations, buffer and chosen work against the day's capacity. Chosen
-/// work past what is available shows in red, and the bar grows to fit it.
+/// Obligations, calendar, buffer and chosen work against the day's capacity.
+/// Chosen work past what is available shows in red, and the bar grows to fit
+/// it.
 private struct CapacityBar: View {
     let sheet: PlanSheet
 
     var body: some View {
-        let fixed = sheet.fixedMinutes, buffer = sheet.plan.bufferMinutes, chosen = sheet.chosenMinutes
+        let fixed = sheet.fixedMinutes, calendar = sheet.calendarMinutes, buffer = sheet.plan.bufferMinutes
+        let chosen = sheet.chosenMinutes
         let within = max(0, min(chosen, sheet.availableMinutes))
-        let total = max(sheet.plan.capacityMinutes, fixed + buffer + chosen, 1)
+        let total = max(sheet.plan.capacityMinutes, fixed + calendar + buffer + chosen, 1)
         GeometryReader { geometry in
             let width = { (minutes: Int) in geometry.size.width * CGFloat(minutes) / CGFloat(total) }
             HStack(spacing: 0) {
                 Theme.barFixed.frame(width: width(fixed))
+                Theme.barCalendar.frame(width: width(calendar))
                 BufferStripes().frame(width: width(buffer))
                 Theme.accent.frame(width: width(within))
                 Theme.danger.frame(width: width(chosen - within))
@@ -507,7 +519,108 @@ private struct CapacityBar: View {
         .animation(.snappy, value: chosen)
         .accessibilityElement()
         .accessibilityLabel(
-            "Obligations \(Format.minutes(fixed)), buffer \(Format.minutes(buffer)), selected \(Format.minutes(chosen)) of \(Format.minutes(sheet.plan.capacityMinutes))")
+            "Obligations \(Format.minutes(fixed)), calendar \(Format.minutes(calendar)), buffer \(Format.minutes(buffer)), selected \(Format.minutes(chosen)) of \(Format.minutes(sheet.plan.capacityMinutes))")
+    }
+}
+
+/// The calendar's merged busy blocks over working hours, with their events on
+/// hover and a marker for now. An unreadable file makes the whole calendar
+/// unavailable, and planning goes on with tasks (D6).
+private struct CalendarCommitments: View {
+    let calendar: PlanCalendar
+    /// The start of the plan's day.
+    let day: Date
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 0) {
+            HStack(spacing: 8) {
+                Text("Calendar commitments")
+                    .font(.system(size: 12, weight: .semibold))
+                    .foregroundStyle(Theme.text2)
+                Spacer()
+                status
+            }
+            .padding(.bottom, 6)
+            if let error = calendar.error {
+                Text("Calendar unavailable: \(error)")
+                    .foregroundStyle(Theme.danger)
+                    .textSelection(.enabled)
+                Text("Calendar time counts as zero; planning goes on with tasks.")
+                    .foregroundStyle(Theme.text3)
+                    .padding(.top, 4)
+            } else if let window {
+                strip(window)
+                HStack {
+                    Text(calendar.workingStart)
+                    Spacer()
+                    Text(calendar.workingEnd)
+                }
+                .font(.system(size: 10.5))
+                .foregroundStyle(Theme.text3)
+                .monospacedDigit()
+                .padding(.top, 3)
+                Text(caption)
+                    .foregroundStyle(Theme.text3)
+                    .padding(.top, 6)
+            }
+        }
+        .font(.system(size: 11.5))
+        .fixedSize(horizontal: false, vertical: true)
+    }
+
+    private var status: some View {
+        let (title, color): (String, Color) =
+            calendar.error != nil ? ("Unavailable", Theme.danger) : calendar.stale ? ("Stale", Theme.statusStale) : ("Up to date", Theme.statusOK)
+        return HStack(spacing: 6) {
+            Circle().fill(color).frame(width: 7, height: 7)
+            Text(title)
+        }
+        .font(.system(size: 12))
+        .foregroundStyle(Theme.text2)
+    }
+
+    private var caption: String {
+        let busy = "\(Format.minutes(calendar.busyMinutes)) busy in working hours; overlaps count once."
+        return calendar.stale ? busy + " Some calendar files are older than the freshness limit." : busy
+    }
+
+    /// Working hours on the plan's day.
+    private var window: ClosedRange<Date>? {
+        guard let start = Format.minutesOfDay(calendar.workingStart), let end = Format.minutesOfDay(calendar.workingEnd), end > start
+        else { return nil }
+        return day.addingTimeInterval(TimeInterval(start * 60))...day.addingTimeInterval(TimeInterval(end * 60))
+    }
+
+    private func strip(_ window: ClosedRange<Date>) -> some View {
+        let length = window.upperBound.timeIntervalSince(window.lowerBound)
+        let share = { (date: Date) in min(1, max(0, date.timeIntervalSince(window.lowerBound) / length)) }
+        return TimelineView(.periodic(from: .now, by: 60)) { context in
+            GeometryReader { geometry in
+                let width = geometry.size.width
+                ZStack(alignment: .leading) {
+                    ForEach(calendar.blocks, id: \.self) { block in
+                        RoundedRectangle(cornerRadius: 3)
+                            .fill(Theme.barCalendar)
+                            .frame(width: max(2, width * (share(block.end) - share(block.start))), height: 16)
+                            .help("\(Format.time(block.start))–\(Format.time(block.end))\(block.titles.isEmpty ? "" : ": " + block.titles.joined(separator: ", "))")
+                            .padding(.leading, width * share(block.start))
+                    }
+                    if window.contains(context.date) {
+                        Rectangle()
+                            .fill(Theme.accent)
+                            .frame(width: 1.5, height: 26)
+                            .padding(.leading, width * share(context.date))
+                            .accessibilityHidden(true)
+                    }
+                }
+                .frame(width: width, height: 22, alignment: .leading)
+            }
+        }
+        .frame(height: 22)
+        .background(Theme.sunken, in: RoundedRectangle(cornerRadius: 5))
+        .overlay(RoundedRectangle(cornerRadius: 5).strokeBorder(Theme.separator, lineWidth: 0.5))
+        .accessibilityElement()
+        .accessibilityLabel("\(calendar.blocks.count) merged busy \(calendar.blocks.count == 1 ? "block" : "blocks") totalling \(Format.minutes(calendar.busyMinutes))")
     }
 }
 
