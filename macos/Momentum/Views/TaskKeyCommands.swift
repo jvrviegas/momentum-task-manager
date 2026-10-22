@@ -51,6 +51,9 @@ struct TaskKeyCommands: ViewModifier {
         case "2": store.view = .today
         case "3": store.view = .completed
         case "c": store.showCapture = true
+        case "P":
+            guard store.planningEnabled else { return .ignored }
+            Task { await store.openPlan() }
         case "/": focusSearch()
         case "?": store.showShortcuts = true
         case "r": Task { await store.refresh(announce: true) }
