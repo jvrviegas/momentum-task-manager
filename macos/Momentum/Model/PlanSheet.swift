@@ -98,9 +98,13 @@ struct PlanSheet: Identifiable, Equatable {
     var fixedMinutes: Int { minutes(plan.obligations) }
     var unestimatedFixed: Int { plan.obligations.count { $0.task.estimateMinutes == nil } }
 
-    /// What is left for chosen work after obligations and the buffer.
+    /// The calendar's busy time; zero while it is off or unavailable.
+    var calendarMinutes: Int { plan.calendar?.busyMinutes ?? 0 }
+
+    /// What is left for chosen work after obligations, the calendar and the
+    /// buffer.
     var availableMinutes: Int {
-        plan.capacityMinutes - fixedMinutes - plan.bufferMinutes
+        plan.capacityMinutes - fixedMinutes - calendarMinutes - plan.bufferMinutes
     }
 
     /// Below zero when the chosen work is over capacity, which warns but
