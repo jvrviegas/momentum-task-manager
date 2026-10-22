@@ -94,7 +94,7 @@ private struct TodayPlanBox: View {
     let plan: PlanSummary
 
     private var tasksMinutes: Int { plan.fixedMinutes + plan.chosenMinutes }
-    private var freeMinutes: Int { plan.capacityMinutes - plan.bufferMinutes - tasksMinutes }
+    private var freeMinutes: Int { plan.capacityMinutes - plan.calendarMinutes - plan.bufferMinutes - tasksMinutes }
 
     var body: some View {
         VStack(alignment: .leading, spacing: 0) {
@@ -139,12 +139,14 @@ private struct TodayPlanBox: View {
         .overlay(RoundedRectangle(cornerRadius: 10).strokeBorder(Theme.separatorStrong, lineWidth: 0.5))
     }
 
-    /// Obligations, buffer and chosen work as shares of the day's capacity.
+    /// Obligations, calendar, buffer and chosen work as shares of the day's
+    /// capacity.
     private var meter: some View {
         GeometryReader { geometry in
             let width = { (minutes: Int) in geometry.size.width * CGFloat(minutes) / CGFloat(max(plan.capacityMinutes, 1)) }
             HStack(spacing: 0) {
                 Theme.barFixed.frame(width: width(plan.fixedMinutes))
+                Theme.barCalendar.frame(width: width(plan.calendarMinutes))
                 Theme.barBufferStripe.frame(width: width(plan.bufferMinutes))
                 Theme.accent.frame(width: width(plan.chosenMinutes))
                 Spacer(minLength: 0)
@@ -155,7 +157,7 @@ private struct TodayPlanBox: View {
         .clipShape(RoundedRectangle(cornerRadius: 3))
         .accessibilityElement()
         .accessibilityLabel(
-            "Obligations \(Format.minutes(plan.fixedMinutes)), buffer \(Format.minutes(plan.bufferMinutes)), chosen \(Format.minutes(plan.chosenMinutes)) of \(Format.minutes(plan.capacityMinutes))")
+            "Obligations \(Format.minutes(plan.fixedMinutes)), calendar \(Format.minutes(plan.calendarMinutes)), buffer \(Format.minutes(plan.bufferMinutes)), chosen \(Format.minutes(plan.chosenMinutes)) of \(Format.minutes(plan.capacityMinutes))")
     }
 
     /// Tasks without an estimate, which the minutes leave out.
