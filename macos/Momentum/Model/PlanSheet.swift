@@ -15,12 +15,56 @@ struct PlanSheet: Identifiable, Equatable {
     private(set) var selected: Set<String>
     var saving = false
     var notice: Notice?
+    /// The row the keyboard acts on: a rollover task or a visible candidate.
+    private(set) var cursor: String?
+    /// Narrows the candidates as the main search does. Hidden candidates
+    /// keep their ticks.
+    var filter = "" {
+        didSet {
+            if !choosable.contains(where: { $0.id == cursor }) {
+                cursor = choosable.first?.id
+            }
+        }
+    }
 
     var id: String { plan.date }
 
     init(plan: DailyPlan) {
         self.plan = plan
         selected = Set((plan.obligations + plan.rollover + plan.candidates).filter(\.selected).map(\.id))
+        cursor = (plan.rollover + plan.candidates).first?.id
+    }
+
+    var visibleCandidates: [PlanItem] {
+        let query = filter.trimmingCharacters(in: .whitespaces)
+        return query.isEmpty ? plan.candidates : plan.candidates.filter { TaskSearch.matches($0.task, query: query) }
+    }
+
+    /// The rows the keyboard moves over; obligations are skipped.
+    var choosable: [PlanItem] { plan.rollover + visibleCandidates }
+
+    /// Moves the cursor, stopping at the first and last rows.
+    mutating func move(by delta: Int) {
+        let rows = choosable
+        guard !rows.isEmpty else { return }
+        let index = rows.firstIndex { $0.id == cursor } ?? -1
+        cursor = rows[max(0, min(rows.count - 1, index + delta))].id
+    }
+
+    mutating func moveToFirst() { cursor = choosable.first?.id }
+    mutating func moveToLast() { cursor = choosable.last?.id }
+
+    /// Puts the cursor on a row the person clicked.
+    mutating func point(at item: PlanItem) {
+        if choosable.contains(where: { $0.id == item.id }) {
+            cursor = item.id
+        }
+    }
+
+    mutating func toggleCursor() {
+        if let item = choosable.first(where: { $0.id == cursor }) {
+            toggle(item)
+        }
     }
 
     func isSelected(_ item: PlanItem) -> Bool {
