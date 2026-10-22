@@ -11,6 +11,11 @@ actor FakeBridge: TaskBridge {
     var failNext: BridgeError?
     var failLoad: BridgeError?
     var polls: [Result<SignInPoll, BridgeError>] = []
+    var planValue = DailyPlan(
+        date: "2026-10-14", tag: "momentum-plan-2026-10-14", capacityMinutes: 480, bufferMinutes: 60,
+        obligations: [], rollover: [], candidates: [])
+    /// Answers to successive applyPlan calls.
+    var planResults: [PlanSaveResult] = []
 
     init(backendURL: String? = "https://momentum.example", mutationDelay: Int = 15, snapshots: [Snapshot]) {
         statusValue = BridgeStatus(
@@ -21,6 +26,10 @@ actor FakeBridge: TaskBridge {
     func setFailure(_ error: BridgeError?) { failNext = error }
     func setLoadFailure(_ error: BridgeError?) { failLoad = error }
     func setPolls(_ polls: [Result<SignInPoll, BridgeError>]) { self.polls = polls }
+    func setPlan(_ plan: DailyPlan, results: [PlanSaveResult]) {
+        planValue = plan
+        planResults = results
+    }
 
     private func record(_ call: String) throws {
         calls.append(call)
@@ -55,6 +64,14 @@ actor FakeBridge: TaskBridge {
     }
     func perform(_ action: TaskAction, uuid: String) async throws { try record("\(action.rawValue) \(uuid)") }
     func undo() async throws { try record("undo") }
+    func plan() async throws -> DailyPlan {
+        try record("plan")
+        return planValue
+    }
+    func applyPlan(date: String, uuids: [String]) async throws -> PlanSaveResult {
+        try record("applyPlan \(date) \(uuids.joined(separator: ","))")
+        return planResults.removeFirst()
+    }
     func setToken(_ token: String) async throws { try record("setToken \(token)") }
     func startSignIn() async throws -> DeviceSignIn {
         try record("signInStart")
