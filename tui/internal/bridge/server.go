@@ -236,6 +236,14 @@ func (s *Server) dispatch(ctx context.Context, op string, raw json.RawMessage) (
 			return nil, err
 		}
 		return nil, s.taskAction(ctx, op, p.UUID)
+	case "plan":
+		return s.plan(ctx)
+	case "applyPlan":
+		var p applyPlanParams
+		if err := decode(raw, &p); err != nil {
+			return nil, err
+		}
+		return s.applyPlan(ctx, p)
 	case "undo":
 		return nil, s.client.Undo(ctx)
 	case "setToken":
