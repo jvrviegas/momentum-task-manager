@@ -39,6 +39,11 @@ struct MomentumCommands: Commands {
             }
             Button("Refresh") { Task { await store.refresh(announce: true) } }
                 .keyboardShortcut("r", modifiers: [.command, .option])
+            if store.planningEnabled {
+                Button("Plan Today…") { Task { await store.openPlan() } }
+                    .keyboardShortcut("p", modifiers: [.command, .shift])
+                    .disabled(store.account == nil || store.hasOverlay)
+            }
             Divider()
         }
         SidebarCommands()
