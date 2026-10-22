@@ -222,7 +222,7 @@ struct PlanKeyCommandTests {
 }
 
 struct PlanFormatTests {
-    private let now = Date(timeIntervalSince1970: 1_792_000_000) // Wed, Oct 14 2026, 13:46 in Lisbon
+    private let now = Date(timeIntervalSince1970: 1_792_000_000) // Wed 14 Oct 2026, 17:46 UTC
 
     private func item(todayGroup: String? = nil, due: Date? = nil, plannedDate: String? = nil) -> PlanItem {
         var task = TaskItem.fixture("t", due: due)
@@ -286,5 +286,38 @@ struct PlanEntryTests {
         await store.start()
         #expect(!pressP(in: store))
         #expect(await !bridge.calls.contains("plan"))
+    }
+}
+
+struct PlanCalendarTests {
+    @Test func calendarTimeComesOffWhatIsAvailable() {
+        var plan = dailyPlan()
+        plan.calendar = PlanCalendar(
+            enabled: true, available: true, stale: false, error: nil, busyMinutes: 120, eventCount: 3,
+            workingStart: "09:00", workingEnd: "17:00", blocks: [])
+        let sheet = PlanSheet(plan: plan)
+        #expect(sheet.calendarMinutes == 120 && sheet.availableMinutes == 270 && sheet.remainingMinutes == 225)
+    }
+
+    @Test func decodesThePlanItsCalendarAndTheSummary() throws {
+        let decoder = JSONDecoder()
+        decoder.dateDecodingStrategy = .iso8601
+        let plan = try decoder.decode(DailyPlan.self, from: Data("""
+        {"date":"2026-10-14","tag":"momentum-plan-2026-10-14","capacityMinutes":480,"bufferMinutes":60,"obligations":[],
+        "rollover":[{"task":{"uuid":"r","id":0,"description":"Write ADR","status":"pending","estimateMinutes":45,"tags":["momentum-plan-2026-10-13"],
+        "annotations":[],"depends":[],"urgency":6,"edit":{"description":"Write ADR","project":"","priority":"","due":"","scheduled":"",
+        "tags":"momentum-plan-2026-10-13","estimate":"45m","recurrence":""}},"selected":true,"plannedDate":"2026-10-13"}],"candidates":[],
+        "calendar":{"enabled":true,"available":true,"stale":true,"busyMinutes":120,"eventCount":5,"workingStart":"09:00","workingEnd":"17:00",
+        "blocks":[{"start":"2026-10-14T08:30:00Z","end":"2026-10-14T08:45:00Z","titles":["Team stand-up"]}]}}
+        """.utf8))
+        #expect(plan.rollover.first?.plannedDate == "2026-10-13" && plan.rollover.first?.task.estimateMinutes == 45)
+        #expect(plan.calendar?.stale == true && plan.calendar?.blocks.first?.titles == ["Team stand-up"])
+        #expect(plan.calendar?.blocks.first?.start == Date(timeIntervalSince1970: 1_791_966_600))
+
+        let summary = try decoder.decode(PlanSummary.self, from: Data("""
+        {"enabled":true,"chosenCount":2,"chosenMinutes":60,"unestimatedChosen":1,"fixedMinutes":50,"unestimatedFixed":1,
+        "capacityMinutes":360,"bufferMinutes":60,"calendarMinutes":0,"calendarAvailable":false,"calendarError":"read calendar gone.ics: no such file"}
+        """.utf8))
+        #expect(summary.calendarError == "read calendar gone.ics: no such file" && !summary.calendarAvailable)
     }
 }
