@@ -38,6 +38,9 @@ enum Theme {
     static let barCalendar = Color(light: 0xB8AEA2, dark: 0x5D5750)
     static let barBuffer = Color(light: 0xE6E1DA, dark: 0x2E2B27)
     static let barBufferStripe = Color(light: 0xD6CFC6, dark: 0x3A3631)
+    /// Status dots, as for the calendar's freshness.
+    static let statusOK = Color(light: 0x3F9A61, dark: 0x3F9A61)
+    static let statusStale = Color(light: 0xD29A28, dark: 0xD29A28)
 
     /// Capture highlights behind recognized phrases.
     static let markProject = Color(light: 0x2B6A5E, 0.16, dark: 0x6CBFAB, 0.2)
