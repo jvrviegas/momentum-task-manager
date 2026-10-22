@@ -28,6 +28,21 @@ type loadResult struct {
 	Completed      []section     `json:"completed"`
 	CompletedError string        `json:"completedError,omitempty"`
 	Projects       []projectWire `json:"projects"`
+	Plan           planSummary   `json:"plan"`
+}
+
+// planSummary is the sidebar's "Today's plan" box. Chosen tasks are the ones
+// tagged for today outside the obligations, the Planned Today section;
+// Fixed sums the obligations. Everything is zero when planning is off.
+type planSummary struct {
+	Enabled           bool `json:"enabled"`
+	ChosenCount       int  `json:"chosenCount"`
+	ChosenMinutes     int  `json:"chosenMinutes"`
+	UnestimatedChosen int  `json:"unestimatedChosen"`
+	FixedMinutes      int  `json:"fixedMinutes"`
+	UnestimatedFixed  int  `json:"unestimatedFixed"`
+	CapacityMinutes   int  `json:"capacityMinutes"`
+	BufferMinutes     int  `json:"bufferMinutes"`
 }
 
 type section struct {
