@@ -48,7 +48,7 @@ func (s *Server) load(ctx context.Context) (*loadResult, error) {
 		result.Today = append(result.Today, section{Title: string(group.Group), UUIDs: uuids(group.Tasks)})
 	}
 	result.Inbox = inboxSections(views.Inbox, labels)
-	result.Plan = s.summarizePlan(pending, now)
+	result.Plan = s.summarizePlan(ctx, pending, now)
 
 	day := time.Date(now.Year(), now.Month(), now.Day(), 0, 0, 0, 0, now.Location())
 	completed, err := s.client.ExportCompleted(ctx, day.AddDate(0, 0, -30))
