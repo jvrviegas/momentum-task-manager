@@ -29,6 +29,15 @@ enum Theme {
     static let dangerSoft = Color(light: 0xB3361D, 0.09, dark: 0xF08A72, 0.12)
     static let warn = Color(light: 0x8A5300, dark: 0xE2B45E)
     static let warnSoft = Color(light: 0xB07000, 0.11, dark: 0xE2B45E, 0.13)
+    /// Ticked rows in Plan Today.
+    static let accentSofter = Color(light: 0x2B6A5E, 0.06, dark: 0x6CBFAB, 0.07)
+
+    /// Plan Today's capacity bar: obligations, calendar, a striped buffer,
+    /// then chosen work in the accent.
+    static let barFixed = Color(light: 0x8C8277, dark: 0x8A8177)
+    static let barCalendar = Color(light: 0xB8AEA2, dark: 0x5D5750)
+    static let barBuffer = Color(light: 0xE6E1DA, dark: 0x2E2B27)
+    static let barBufferStripe = Color(light: 0xD6CFC6, dark: 0x3A3631)
 
     /// Capture highlights behind recognized phrases.
     static let markProject = Color(light: 0x2B6A5E, 0.16, dark: 0x6CBFAB, 0.2)
