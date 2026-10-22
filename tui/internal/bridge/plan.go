@@ -43,6 +43,34 @@ func planItems(items []domain.PlanItem, now time.Time) []planItemWire {
 	return wires
 }
 
+// summarizePlan sums today's plan for the sidebar. Rollover counts only once
+// a saved plan tags it for today.
+func (s *Server) summarizePlan(pending []domain.Task, now time.Time) planSummary {
+	if !s.config.Planning.Enabled {
+		return planSummary{}
+	}
+	plan := domain.BuildDailyPlan(pending, now, s.planningConstraints(now))
+	summary := planSummary{
+		Enabled:          true,
+		FixedMinutes:     plan.Capacity.FixedMinutes,
+		UnestimatedFixed: plan.Capacity.UnestimatedFixed,
+		CapacityMinutes:  plan.Capacity.ConfiguredMinutes,
+		BufferMinutes:    plan.Capacity.BufferMinutes,
+	}
+	for _, item := range plan.Candidates {
+		if !item.Selected {
+			continue
+		}
+		summary.ChosenCount++
+		if item.Task.Estimate == nil {
+			summary.UnestimatedChosen++
+		} else {
+			summary.ChosenMinutes += item.Task.Estimate.Minutes
+		}
+	}
+	return summary
+}
+
 func (s *Server) planningConstraints(now time.Time) domain.PlanningConstraints {
 	return domain.PlanningConstraints{
 		CapacityMinutes: int(s.config.Planning.CapacityFor(now.Weekday()) / time.Minute),
