@@ -81,6 +81,12 @@ enum Format {
         return rest == 0 ? "\(hours)h" : "\(hours)h \(rest)m"
     }
 
+    /// Minutes since midnight of an "HH:MM" time.
+    static func minutesOfDay(_ value: String) -> Int? {
+        let parts = value.split(separator: ":").compactMap { Int($0) }
+        return parts.count == 2 ? parts[0] * 60 + parts[1] : nil
+    }
+
     /// A plan's YYYY-MM-DD day, at its start in the local time zone.
     static func planDay(_ value: String) -> Date? {
         let formatter = DateFormatter()
