@@ -35,11 +35,11 @@ XDG_CONFIG_HOME=/tmp/demo/config \
 ## Tests
 
 ```sh
-xcodebuild -scheme Momentum test                                  # Swift: store, undo window, search, wire format, sign-in
-(cd ../tui && go test ./internal/bridge/ ./internal/quickadd/)    # Go: protocol, views, edits, capture review
+xcodebuild -scheme Momentum test                                  # Swift: store, undo window, search, wire format, sign-in, Plan Today
+(cd ../tui && go test ./internal/bridge/ ./internal/quickadd/)    # Go: protocol, views, edits, capture review, plans, calendar
 ```
 
-The bridge's tests reach a fake server over HTTP.
+The bridge's tests reach a fake server over HTTP, and its calendar tests read `.ics` files from a temporary directory.
 
 ## What it does
 
@@ -48,6 +48,11 @@ The bridge's tests reach a fake server over HTTP.
 - **Edit (`e E p ! D S t R` or ⌘E):** only changed fields are sent, validated by the bridge with the TUI editor's rules.
 - **Actions:** complete (Space, ⌘↩), start/stop (`s`, ⌘T), delete (`d`), stop repeating (`x`), refresh (`r`), search (`/`, ⌘F, `project:name`, `project:none`).
 - **Undo:** a change can be undone for `[sync].mutation_delay` (15 seconds by default) after it, unless the task changed since. The toast counts it down.
+- **Plan Today (`P`, ⇧⌘P, the toolbar's Plan, or the sidebar's Today's plan box):** tick the day's tasks against a capacity column, with the TUI's rules. Obligations (overdue, due or scheduled today) are fixed; tasks planned on an earlier day and still open roll over ticked; everything else is a candidate. The column takes obligations, calendar time and the buffer off the day's capacity, counts tasks without an estimate apart, and warns, but never blocks, when the choice goes over. Confirming writes only `momentum-plan-YYYY-MM-DD` tags, never dates, and offers no undo: reopen Plan Today to change the plan. When a change fails partway, the sheet stays open with its ticks, and confirming again finishes without applying anything twice. The sidebar box counts the tasks planned for today outside the obligations. `[planning] enabled = false` hides Plan Today.
+  - In the sheet: ↑ ↓ or `j` `k` move over the rows you can tick, Space ticks, `g` `G` go to the first or last, `/` or ⌘F filter the candidates, ↩ confirms (in the filter, it returns to the list), and Esc cancels (in the filter, it clears the filter first).
+- **Calendar:** with `[calendar]` on, each load reads its local `.ics` files (see [Daily planning and calendar awareness](../tui/README.md#daily-planning-and-calendar-awareness)). Busy time in working hours counts against the day's capacity, overlapping events once, and Plan Today shows the merged blocks with their titles on hover. When a file can't be read, the whole calendar is unavailable and planning goes on with tasks. Event titles are never stored or logged.
+
+The bridge reads `config.toml` at start, so `[planning]` and `[calendar]` changes apply after the app restarts.
 
 Press `?` in the app for every shortcut.
 
@@ -74,10 +79,8 @@ Where each one already exists; — means it does not apply.
 
 | Item | Description | TUI | macOS |
 |---|---|---|---|
-| Plan Today | Pick the day's tasks against a capacity meter built from their estimates | Yes | No |
 | Settings window | Projects catalog, appearance, planning, calendar, and diagnostics | Partly: Projects and Appearance | No |
 | Project migration | Rename a project in the catalog and move its pending tasks to the new value | Yes | No |
-| Calendar awareness | Count busy time from local `.ics` files against the day's capacity | Yes | No |
 | Signed release build | A build signed for distribution, not ad hoc like the Debug build | — | No |
 
 ## Nice to have
