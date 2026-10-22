@@ -73,6 +73,52 @@ enum Format {
         }
     }
 
+    /// Minutes as the TUI shows them: "45m", "2h", "2h 40m". The sign is
+    /// left to the caller.
+    static func minutes(_ value: Int) -> String {
+        let (hours, rest) = (abs(value) / 60, abs(value) % 60)
+        if hours == 0 { return "\(rest)m" }
+        return rest == 0 ? "\(hours)h" : "\(hours)h \(rest)m"
+    }
+
+    /// A plan's YYYY-MM-DD day, at its start in the local time zone.
+    static func planDay(_ value: String) -> Date? {
+        let formatter = DateFormatter()
+        formatter.locale = Locale(identifier: "en_US_POSIX")
+        formatter.dateFormat = "yyyy-MM-dd"
+        return formatter.date(from: value)
+    }
+
+    /// Why a task is in its Plan Today group: "Overdue 2d", "Due today
+    /// 3:00 PM", "Scheduled today", "Planned yesterday", or a candidate's date.
+    static func planReason(_ item: PlanItem, now: Date) -> DateLabel? {
+        let task = item.task
+        if let planned = item.plannedDate.flatMap(planDay) {
+            let ago = -days(from: now, to: planned)
+            return DateLabel(text: ago == 1 ? "Planned yesterday" : "Planned \(ago) days ago", tone: .normal, scheduled: false, help: "Planned for \(full(planned))")
+        }
+        switch (task.todayGroup, task.due, task.scheduled) {
+        case ("Overdue", let due?, _):
+            return DateLabel(text: "Overdue \(-days(from: now, to: due))d", tone: .overdue, scheduled: false, help: "Due \(full(due))")
+        case ("Due Today", let due?, _):
+            return DateLabel(text: hasTime(due) ? "Due today \(time(due))" : "Due today", tone: .today, scheduled: false, help: "Due \(full(due))")
+        case ("Scheduled Today", _, let scheduled?):
+            return DateLabel(text: "Scheduled today", tone: .today, scheduled: true, help: "Scheduled \(full(scheduled))")
+        case (_, let due?, _):
+            return DateLabel(text: "Due \(weekdayDay(due))", tone: .normal, scheduled: false, help: "Due \(full(due))")
+        case (_, nil, let scheduled?):
+            let text = days(from: now, to: scheduled) < 0 ? "Started \(short(scheduled))" : "Starts \(weekdayDay(scheduled))"
+            return DateLabel(text: text, tone: .normal, scheduled: true, help: "Scheduled \(full(scheduled))")
+        default:
+            return nil
+        }
+    }
+
+    /// "Fri, Oct 30".
+    static func weekdayDay(_ date: Date) -> String {
+        date.formatted(.dateTime.weekday(.abbreviated).month(.abbreviated).day())
+    }
+
     /// Review due values arrive as Taskwarrior basic ISO ("20261015T150000").
     static func reviewDate(_ value: String) -> String? {
         // DateFormatter reads an empty string as 1 Jan 2000.
