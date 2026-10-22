@@ -23,6 +23,9 @@ protocol TaskBridge: Sendable {
     func modify(uuid: String, before: EditFields, after: EditFields) async throws -> Bool
     func perform(_ action: TaskAction, uuid: String) async throws
     func undo() async throws
+    // Plan Today.
+    func plan() async throws -> DailyPlan
+    func applyPlan(date: String, uuids: [String]) async throws -> PlanSaveResult
     // Sign-in.
     func setToken(_ token: String) async throws
     func startSignIn() async throws -> DeviceSignIn
@@ -94,6 +97,12 @@ actor ProcessBridge: TaskBridge {
 
     func undo() async throws {
         let _: Empty = try await call("undo")
+    }
+
+    func plan() async throws -> DailyPlan { try await call("plan") }
+
+    func applyPlan(date: String, uuids: [String]) async throws -> PlanSaveResult {
+        try await call("applyPlan", ApplyPlanParams(date: date, uuids: uuids))
     }
 
     func setToken(_ token: String) async throws {
@@ -222,6 +231,7 @@ private struct TokenParams: Encodable, Sendable { var token: String }
 private struct PollParams: Encodable, Sendable { var deviceCode: String }
 private struct SuggestParams: Encodable, Sendable { var input: String; var cursor: Int }
 private struct CaptureParams: Encodable, Sendable { var input: String; var literals: [TextSpan] }
+private struct ApplyPlanParams: Encodable, Sendable { var date: String; var uuids: [String] }
 
 private struct ModifyParams: Encodable, Sendable {
     var uuid: String
