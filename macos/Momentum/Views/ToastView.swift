@@ -89,13 +89,16 @@ struct ShortcutsView: View {
                       ("1 2 3", "Inbox / Today / Completed"), ("↩", "Show / hide details"), ("/", "Search; ↩ keeps the filter"),
                       ("esc", "Clear search")]),
         ("Act on selection", [("Space", "Complete"), ("s", "Start / stop"), ("d", "Delete…"), ("x", "Stop repeating…"),
-                              ("u", "Undo"), ("r", "Refresh"), ("c", "Quick capture")]),
+                              ("u", "Undo"), ("r", "Refresh"), ("c", "Quick capture"), ("P", "Plan Today…")]),
         ("Edit a field", [("e", "Description"), ("E", "Estimate"), ("p", "Project"), ("!", "Priority"),
                           ("D", "Due"), ("S", "Scheduled"), ("t", "Tags"), ("R", "Repeats")]),
         ("Quick capture", [("↩", "Add (or review)"), ("↑ ↓", "Choose suggestion"), ("⇥", "Accept suggestion"),
                            ("esc", "Keep phrase as text / close"), ("\\#", "Literal trigger")]),
+        ("Plan Today", [("j k ↑ ↓", "Move over choosable rows"), ("Space", "Tick / untick"), ("g / G", "First / last row"),
+                        ("/ ⌘F", "Filter candidates"), ("↩", "Confirm plan"), ("esc", "Clear filter / cancel")]),
         ("App", [("⌘N", "New task"), ("⌘F", "Search"), ("⌘1 ⌘2 ⌘3", "Inbox / Today / Completed"),
                  ("⌘Z", "Undo last change"), ("⇧⌘Z", "Redo"), ("⌘E", "Edit"), ("⌘↩", "Complete"), ("⌘T", "Start / stop"),
+                 ("⇧⌘P", "Plan Today…"),
                  ("⌥⌘R", "Refresh"), ("⌃⌘I", "Inspector"), ("⇧⌘/", "Keyboard shortcuts")]),
     ]
 
