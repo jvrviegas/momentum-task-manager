@@ -43,6 +43,10 @@ type planSummary struct {
 	UnestimatedFixed  int  `json:"unestimatedFixed"`
 	CapacityMinutes   int  `json:"capacityMinutes"`
 	BufferMinutes     int  `json:"bufferMinutes"`
+	// Calendar time is zero while the calendar is off or unavailable.
+	CalendarMinutes   int    `json:"calendarMinutes"`
+	CalendarAvailable bool   `json:"calendarAvailable"`
+	CalendarError     string `json:"calendarError,omitempty"`
 }
 
 type section struct {
@@ -66,6 +70,31 @@ type planResult struct {
 	Obligations     []planItemWire `json:"obligations"`
 	Rollover        []planItemWire `json:"rollover"`
 	Candidates      []planItemWire `json:"candidates"`
+	Calendar        calendarWire   `json:"calendar"`
+}
+
+// calendarWire is today's busy time from the [calendar] files. Error says
+// why the calendar is unavailable, which makes its time count as zero.
+// Working hours are "HH:MM".
+type calendarWire struct {
+	Enabled      bool        `json:"enabled"`
+	Available    bool        `json:"available"`
+	Stale        bool        `json:"stale"`
+	Error        string      `json:"error,omitempty"`
+	BusyMinutes  int         `json:"busyMinutes"`
+	EventCount   int         `json:"eventCount"`
+	WorkingStart string      `json:"workingStart"`
+	WorkingEnd   string      `json:"workingEnd"`
+	Blocks       []busyBlock `json:"blocks"`
+}
+
+// busyBlock is one merged stretch of busy time inside working hours, with
+// the titles of the events in it. Titles are sent only with plan and never
+// stored or logged.
+type busyBlock struct {
+	Start  string   `json:"start"`
+	End    string   `json:"end"`
+	Titles []string `json:"titles"`
 }
 
 type planItemWire struct {
