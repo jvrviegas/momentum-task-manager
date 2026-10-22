@@ -41,6 +41,41 @@ type projectWire struct {
 	Label string `json:"label,omitempty"`
 }
 
+// planResult is today's plan for the Plan Today sheet. Date is the local day
+// as YYYY-MM-DD, and Tag the task tag that marks it.
+type planResult struct {
+	Date            string         `json:"date"`
+	Tag             string         `json:"tag"`
+	CapacityMinutes int            `json:"capacityMinutes"`
+	BufferMinutes   int            `json:"bufferMinutes"`
+	Obligations     []planItemWire `json:"obligations"`
+	Rollover        []planItemWire `json:"rollover"`
+	Candidates      []planItemWire `json:"candidates"`
+}
+
+type planItemWire struct {
+	Task     taskWire `json:"task"`
+	Selected bool     `json:"selected"`
+	// PlannedDate is the earlier day, as YYYY-MM-DD, a rollover task was
+	// planned for.
+	PlannedDate string `json:"plannedDate,omitempty"`
+}
+
+// applyPlanParams name every selected task, obligations included; the plan
+// is saved for Date, the day the sheet showed.
+type applyPlanParams struct {
+	Date  string   `json:"date"`
+	UUIDs []string `json:"uuids"`
+}
+
+// applyPlanResult counts the tag changes. A Total of 0 means the plan was
+// unchanged; Error says why it stopped after Applied of them.
+type applyPlanResult struct {
+	Applied int    `json:"applied"`
+	Total   int    `json:"total"`
+	Error   string `json:"error,omitempty"`
+}
+
 type taskWire struct {
 	UUID             string            `json:"uuid"`
 	ID               int               `json:"id"`
