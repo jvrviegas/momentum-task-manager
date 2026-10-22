@@ -54,6 +54,10 @@ struct PlanSummary: Decodable, Sendable, Equatable {
     var unestimatedFixed: Int
     var capacityMinutes: Int
     var bufferMinutes: Int
+    /// Zero while the calendar is off or unavailable.
+    var calendarMinutes = 0
+    var calendarAvailable = false
+    var calendarError: String?
 }
 
 /// Today's plan for the Plan Today sheet. date is the local day as
@@ -66,6 +70,30 @@ struct DailyPlan: Decodable, Sendable, Equatable {
     var obligations: [PlanItem]
     var rollover: [PlanItem]
     var candidates: [PlanItem]
+    var calendar: PlanCalendar?
+}
+
+/// Today's busy time from the [calendar] files. error says why the calendar
+/// is unavailable, which makes its time count as zero.
+struct PlanCalendar: Decodable, Sendable, Equatable {
+    var enabled: Bool
+    var available: Bool
+    var stale: Bool
+    var error: String?
+    var busyMinutes: Int
+    var eventCount: Int
+    /// Working hours as "HH:MM".
+    var workingStart: String
+    var workingEnd: String
+    var blocks: [BusyBlock]
+}
+
+/// A merged stretch of busy time inside working hours, with the titles of
+/// its events.
+struct BusyBlock: Decodable, Sendable, Hashable {
+    var start: Date
+    var end: Date
+    var titles: [String]
 }
 
 struct PlanItem: Decodable, Sendable, Hashable, Identifiable {
