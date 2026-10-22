@@ -4,6 +4,9 @@ import (
 	"context"
 	"encoding/json"
 	"errors"
+	"os"
+	"path/filepath"
+	"reflect"
 	"slices"
 	"strings"
 	"testing"
@@ -208,5 +211,131 @@ func TestLoadSumsOnlyTheTasksPlannedForToday(t *testing.T) {
 	load = result[loadResult](t, serve(t, newPlanServer(client, settings), request(t, 1, "load", nil))[1])
 	if load.Plan != (planSummary{}) {
 		t.Fatalf("plan with planning off = %+v", load.Plan)
+	}
+}
+
+// calendarFixture is Wednesday 14 October 2026 in local time: a stand-up, a
+// review overlapping lunch, a retro running past 17:00, and an early call
+// outside working hours.
+const calendarFixture = `BEGIN:VCALENDAR
+VERSION:2.0
+BEGIN:VEVENT
+UID:standup
+DTSTART:20261014T093000
+DTEND:20261014T094500
+SUMMARY:Team stand-up
+END:VEVENT
+BEGIN:VEVENT
+UID:review
+DTSTART:20261014T110000
+DTEND:20261014T120000
+SUMMARY:Design review
+END:VEVENT
+BEGIN:VEVENT
+UID:lunch
+DTSTART:20261014T113000
+DTEND:20261014T121500
+SUMMARY:Lunch with Rui
+END:VEVENT
+BEGIN:VEVENT
+UID:retro
+DTSTART:20261014T163000
+DTEND:20261014T173000
+SUMMARY:Retro
+END:VEVENT
+BEGIN:VEVENT
+UID:early
+DTSTART:20261014T070000
+DTEND:20261014T080000
+SUMMARY:Early call
+END:VEVENT
+END:VCALENDAR
+`
+
+// calendarSettings reads the fixture, last written at modified, from a
+// temporary directory, along with any extra paths.
+func calendarSettings(t *testing.T, modified time.Time, extra ...string) config.Config {
+	t.Helper()
+	path := filepath.Join(t.TempDir(), "work.ics")
+	if err := os.WriteFile(path, []byte(calendarFixture), 0o600); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.Chtimes(path, modified, modified); err != nil {
+		t.Fatal(err)
+	}
+	settings := config.Defaults()
+	settings.Calendar.Enabled = true
+	settings.Calendar.Paths = append([]string{path}, extra...)
+	return settings
+}
+
+func TestPlanCountsMergedCalendarTimeInWorkingHours(t *testing.T) {
+	client := &planClient{fakeClient: fakeClient{pending: []domain.Task{
+		{UUID: "a", Description: "A", Status: "pending", Estimate: estimate(30)},
+	}}}
+	server := newPlanServer(client, calendarSettings(t, testNow.Add(-time.Hour)))
+	responses := serve(t, server, request(t, 1, "plan", nil), request(t, 2, "load", nil))
+	busy := result[planResult](t, responses[1]).Calendar
+
+	block := func(from, to int, titles ...string) busyBlock {
+		at := func(hhmm int) string {
+			return time.Date(2026, 10, 14, hhmm/100, hhmm%100, 0, 0, time.Local).UTC().Format(time.RFC3339)
+		}
+		return busyBlock{Start: at(from), End: at(to), Titles: titles}
+	}
+	want := calendarWire{
+		Enabled: true, Available: true, BusyMinutes: 120, EventCount: 5, WorkingStart: "09:00", WorkingEnd: "17:00",
+		Blocks: []busyBlock{
+			block(930, 945, "Team stand-up"),
+			block(1100, 1215, "Design review", "Lunch with Rui"),
+			block(1630, 1700, "Retro"),
+		},
+	}
+	if !reflect.DeepEqual(busy, want) {
+		t.Fatalf("calendar:\n got %+v\nwant %+v", busy, want)
+	}
+	summary := result[loadResult](t, responses[2]).Plan
+	if summary.CalendarMinutes != 120 || !summary.CalendarAvailable || summary.CalendarError != "" {
+		t.Fatalf("summary = %+v", summary)
+	}
+}
+
+func TestAMissingCalendarFileMakesTheCalendarUnavailable(t *testing.T) {
+	missing := filepath.Join(t.TempDir(), "gone.ics")
+	server := newPlanServer(&planClient{}, calendarSettings(t, testNow, missing))
+	responses := serve(t, server, request(t, 1, "plan", nil), request(t, 2, "load", nil))
+
+	plan := result[planResult](t, responses[1])
+	busy := plan.Calendar
+	if busy.Available || busy.BusyMinutes != 0 || len(busy.Blocks) != 0 || !strings.Contains(busy.Error, "gone.ics") {
+		t.Fatalf("calendar = %+v", busy)
+	}
+	if plan.CapacityMinutes != 480 {
+		t.Fatalf("planning should go on with tasks: %+v", plan)
+	}
+	summary := result[loadResult](t, responses[2]).Plan
+	if summary.CalendarMinutes != 0 || summary.CalendarAvailable || summary.CalendarError != busy.Error {
+		t.Fatalf("summary = %+v", summary)
+	}
+}
+
+func TestAnOldCalendarFileIsStaleButCounts(t *testing.T) {
+	server := newPlanServer(&planClient{}, calendarSettings(t, testNow.Add(-48*time.Hour)))
+	busy := result[planResult](t, serve(t, server, request(t, 1, "plan", nil))[1]).Calendar
+	if !busy.Stale || !busy.Available || busy.BusyMinutes != 120 {
+		t.Fatalf("calendar = %+v", busy)
+	}
+}
+
+func TestTheCalendarOffCountsNoTime(t *testing.T) {
+	settings := calendarSettings(t, testNow)
+	settings.Calendar.Enabled = false
+	responses := serve(t, newPlanServer(&planClient{}, settings), request(t, 1, "plan", nil), request(t, 2, "load", nil))
+	busy := result[planResult](t, responses[1]).Calendar
+	if busy.Enabled || busy.Available || busy.BusyMinutes != 0 || busy.Error != "" || busy.Blocks == nil {
+		t.Fatalf("calendar = %+v", busy)
+	}
+	if summary := result[loadResult](t, responses[2]).Plan; summary.CalendarMinutes != 0 || summary.CalendarAvailable {
+		t.Fatalf("summary = %+v", summary)
 	}
 }
