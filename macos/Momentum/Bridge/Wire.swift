@@ -39,6 +39,50 @@ struct Snapshot: Decodable, Sendable, Equatable {
     var completed: [TaskSection]
     var completedError: String?
     var projects: [ProjectEntry]
+    var plan: PlanSummary?
+}
+
+/// The sidebar's "Today's plan" box. Chosen tasks are the ones tagged for
+/// today outside the obligations, the Planned Today section; fixed sums the
+/// obligations. Everything is zero when planning is off.
+struct PlanSummary: Decodable, Sendable, Equatable {
+    var enabled: Bool
+    var chosenCount: Int
+    var chosenMinutes: Int
+    var unestimatedChosen: Int
+    var fixedMinutes: Int
+    var unestimatedFixed: Int
+    var capacityMinutes: Int
+    var bufferMinutes: Int
+}
+
+/// Today's plan for the Plan Today sheet. date is the local day as
+/// YYYY-MM-DD, and tag the task tag that marks it.
+struct DailyPlan: Decodable, Sendable, Equatable {
+    var date: String
+    var tag: String
+    var capacityMinutes: Int
+    var bufferMinutes: Int
+    var obligations: [PlanItem]
+    var rollover: [PlanItem]
+    var candidates: [PlanItem]
+}
+
+struct PlanItem: Decodable, Sendable, Hashable, Identifiable {
+    var task: TaskItem
+    var selected: Bool
+    /// The earlier day, as YYYY-MM-DD, a rollover task was planned for.
+    var plannedDate: String?
+
+    var id: String { task.uuid }
+}
+
+/// How many of a saved plan's tag changes were applied. A total of 0 means
+/// the plan was unchanged; error says why it stopped after applied of them.
+struct PlanSaveResult: Decodable, Sendable, Equatable {
+    var applied: Int
+    var total: Int
+    var error: String?
 }
 
 struct TaskSection: Decodable, Sendable, Hashable {
