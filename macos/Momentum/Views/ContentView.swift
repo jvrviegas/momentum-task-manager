@@ -9,6 +9,7 @@ enum FocusedPane: Hashable {
 struct ContentView: View {
     @Environment(AppStore.self) private var store
     @FocusState private var focus: FocusedPane?
+    @State private var windowSize = CGSize(width: 1120, height: 720)
 
     var body: some View {
         @Bindable var store = store
@@ -22,6 +23,7 @@ struct ContentView: View {
                         .inspectorColumnWidth(min: 260, ideal: 340, max: 440)
                 }
         }
+        .onGeometryChange(for: CGSize.self) { $0.size } action: { windowSize = $0 }
         .searchable(text: $store.query, placement: .toolbar, prompt: "Search \(store.view.title)")
         .searchFocused($focus, equals: .search)
         // Return keeps the filter and Esc clears it, as in the TUI; either way
@@ -33,6 +35,18 @@ struct ContentView: View {
         .toolbar {
             ToolbarItem(placement: .primaryAction) {
                 ServerStatusView()
+            }
+            if store.planningEnabled {
+                ToolbarItem(placement: .primaryAction) {
+                    Button {
+                        Task { await store.openPlan() }
+                    } label: {
+                        Label("Plan", systemImage: "text.badge.plus")
+                            .labelStyle(.titleAndIcon)
+                    }
+                    .help("Plan Today (⇧P)")
+                    .disabled(store.account == nil)
+                }
             }
             ToolbarItem(placement: .primaryAction) {
                 Button {
@@ -66,6 +80,11 @@ struct ContentView: View {
         }
         .sheet(item: Binding(get: { store.signIn }, set: { if $0 == nil { store.cancelSignIn() } })) { _ in
             SignInView()
+        }
+        .sheet(item: Binding(get: { store.planSheet }, set: { if $0 == nil { store.cancelPlan() } })) { _ in
+            // The design's 1040×720, kept inside the window.
+            PlanTodayView()
+                .frame(width: min(1040, windowSize.width - 24), height: min(720, windowSize.height - 64))
         }
         .confirmationDialog(
             "Delete “\(store.pendingDelete?.description ?? "")”?",
