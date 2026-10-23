@@ -544,7 +544,9 @@ private struct CalendarCommitments: View {
             if let error = calendar.error {
                 Text("Calendar unavailable: \(error)")
                     .foregroundStyle(Theme.danger)
-                    .textSelection(.enabled)
+                    .lineLimit(4)
+                    .truncationMode(.middle)
+                    .help(error)
                 Text("Calendar time counts as zero; planning goes on with tasks.")
                     .foregroundStyle(Theme.text3)
                     .padding(.top, 4)
