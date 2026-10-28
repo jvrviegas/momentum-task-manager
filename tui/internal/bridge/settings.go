@@ -41,6 +41,13 @@ type planningSettingsWire struct {
 type calendarSettingsWire struct {
 	Enabled bool               `json:"enabled"`
 	Files   []calendarFileWire `json:"files"`
+	// WorkingStart and WorkingEnd are HH:MM; StaleAfter is a length as a
+	// person types it, and 0m means a file is never stale.
+	WorkingStart       string `json:"workingStart"`
+	WorkingEnd         string `json:"workingEnd"`
+	IncludeAllDay      bool   `json:"includeAllDay"`
+	IncludeTransparent bool   `json:"includeTransparent"`
+	StaleAfter         string `json:"staleAfter"`
 }
 
 // calendarFileWire is one calendar file as stored, with what loading it on
@@ -61,9 +68,14 @@ type savePlanningParams struct {
 }
 
 type saveCalendarParams struct {
-	Revision string    `json:"revision"`
-	Enabled  *bool     `json:"enabled"`
-	Paths    *[]string `json:"paths"`
+	Revision           string    `json:"revision"`
+	Enabled            *bool     `json:"enabled"`
+	Paths              *[]string `json:"paths"`
+	WorkingStart       *string   `json:"workingStart"`
+	WorkingEnd         *string   `json:"workingEnd"`
+	IncludeAllDay      *bool     `json:"includeAllDay"`
+	IncludeTransparent *bool     `json:"includeTransparent"`
+	StaleAfter         *string   `json:"staleAfter"`
 }
 
 // settings answers with what the Settings tabs show. The file has been read
@@ -80,7 +92,15 @@ func (s *Server) settings(ctx context.Context) (*settingsResult, error) {
 			Buffer:          config.FormatLength(planning.Buffer),
 			WeekdayCapacity: map[string]string{},
 		},
-		Calendar: calendarSettingsWire{Enabled: s.config.Calendar.Enabled, Files: []calendarFileWire{}},
+		Calendar: calendarSettingsWire{
+			Enabled:            s.config.Calendar.Enabled,
+			Files:              []calendarFileWire{},
+			WorkingStart:       s.config.Calendar.WorkingStart,
+			WorkingEnd:         s.config.Calendar.WorkingEnd,
+			IncludeAllDay:      s.config.Calendar.IncludeAllDay,
+			IncludeTransparent: s.config.Calendar.IncludeTransparent,
+			StaleAfter:         config.FormatLength(s.config.Calendar.StaleAfter),
+		},
 	}
 	for day, value := range planning.WeekdayCapacity {
 		result.Planning.WeekdayCapacity[strings.ToLower(day)] = value
@@ -116,11 +136,15 @@ func (s *Server) savePlanning(ctx context.Context, p savePlanningParams) (*setti
 }
 
 // saveCalendar writes the changed [calendar] keys. A file under the home
-// folder is kept as ~/..., and a switch that the config would refuse (on, with
-// no files) is refused with a message.
+// folder is kept as ~/..., and a value the config would refuse (the switch on
+// with no files, hours that end before they start, a length that is not one)
+// is refused with a message.
 func (s *Server) saveCalendar(ctx context.Context, p saveCalendarParams) (*settingsResult, error) {
 	home, _ := os.UserHomeDir()
-	patch := config.CalendarPatch{Enabled: p.Enabled, Paths: p.Paths}.Normalized(home)
+	patch := config.CalendarPatch{
+		Enabled: p.Enabled, Paths: p.Paths, WorkingStart: p.WorkingStart, WorkingEnd: p.WorkingEnd,
+		IncludeAllDay: p.IncludeAllDay, IncludeTransparent: p.IncludeTransparent, StaleAfter: p.StaleAfter,
+	}.Normalized(home)
 	return s.saveConfig(ctx, p.Revision, func(store *config.FileProjectCatalogStore, snapshot config.ProjectCatalogSnapshot) error {
 		if fieldErr := patch.Check(s.config.Calendar); fieldErr != nil {
 			return fieldErr
