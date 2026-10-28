@@ -15,13 +15,13 @@ const planDateLayout = "2006-01-02"
 
 // plan derives today's plan with the TUI's rules: obligations are fixed,
 // rollover starts selected, and everything else is a candidate.
-func (s *Server) plan(ctx context.Context) (*planResult, error) {
+func (s *Server) plan(ctx context.Context, input *calendarInput) (*planResult, error) {
 	now := s.now()
 	pending, err := s.client.ExportPending(ctx)
 	if err != nil {
 		return nil, err
 	}
-	busy := s.readCalendar(ctx, now)
+	busy := s.readCalendar(ctx, now, input)
 	plan := domain.BuildDailyPlan(pending, now, s.planningConstraints(now, busy))
 	return &planResult{
 		Date:            plan.Date.Format(planDateLayout),
@@ -51,11 +51,11 @@ func planItems(items []domain.PlanItem, now time.Time) []planItemWire {
 // summarizePlan sums today's plan for the sidebar, which shows only the
 // calendar's busy minutes. Rollover counts only once a saved plan tags it for
 // today.
-func (s *Server) summarizePlan(ctx context.Context, pending []domain.Task, now time.Time) planSummary {
+func (s *Server) summarizePlan(ctx context.Context, pending []domain.Task, now time.Time, input *calendarInput) planSummary {
 	if !s.config.Planning.Enabled {
 		return planSummary{}
 	}
-	busy := s.readCalendar(ctx, now)
+	busy := s.readCalendar(ctx, now, input)
 	plan := domain.BuildDailyPlan(pending, now, s.planningConstraints(now, busy))
 	summary := planSummary{
 		Enabled:           true,
@@ -93,24 +93,36 @@ func (s *Server) planningConstraints(now time.Time, busy calendarWire) domain.Pl
 }
 
 // readCalendar reads today's busy time from the [calendar] files as the
-// TUI's planner does. A file that cannot be read or parsed makes the whole
-// calendar unavailable, and planning goes on with tasks only.
-func (s *Server) readCalendar(ctx context.Context, now time.Time) calendarWire {
+// TUI's planner does, or from the events the app handed over when its source
+// is the Mac's Calendar. A file that cannot be read or parsed, or calendars
+// the app could not read, make the whole calendar unavailable, and planning
+// goes on with tasks only.
+func (s *Server) readCalendar(ctx context.Context, now time.Time, input *calendarInput) calendarWire {
 	settings := s.config.Calendar
-	busy := calendarWire{Enabled: settings.Enabled, WorkingStart: settings.WorkingStart, WorkingEnd: settings.WorkingEnd, Blocks: []busyBlock{}}
-	if !settings.Enabled {
+	busy := calendarWire{Enabled: settings.Enabled || input != nil, WorkingStart: settings.WorkingStart, WorkingEnd: settings.WorkingEnd, Blocks: []busyBlock{}}
+	if !busy.Enabled {
 		return busy
 	}
-	home, _ := os.UserHomeDir()
-	loaded := calendar.Load(ctx, calendar.Options{
-		Paths:              settings.PathsFor(home),
+	options := calendar.Options{
 		IncludeAllDay:      settings.IncludeAllDay,
 		IncludeTransparent: settings.IncludeTransparent,
 		WorkingStart:       settings.WorkingStart,
 		WorkingEnd:         settings.WorkingEnd,
 		StaleAfter:         settings.StaleAfter,
 		Now:                now,
-	})
+	}
+	var loaded calendar.LoadResult
+	if input != nil {
+		if input.Error != "" {
+			busy.Error = input.Error
+			return busy
+		}
+		loaded = calendar.FromEvents(input.events(), options)
+	} else {
+		home, _ := os.UserHomeDir()
+		options.Paths = settings.PathsFor(home)
+		loaded = calendar.Load(ctx, options)
+	}
 	busy.Stale = loaded.Stale
 	if loaded.Err != nil {
 		busy.Error = loaded.Err.Error()
