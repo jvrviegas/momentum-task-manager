@@ -278,3 +278,56 @@ func TestSaveCalendarWritesTheSwitchAndTheFiles(t *testing.T) {
 		t.Fatal("comments should be kept")
 	}
 }
+
+func TestCalendarPatchChecksHoursAgainstWhatIsThere(t *testing.T) {
+	current := CalendarConfig{WorkingStart: "09:00", WorkingEnd: "17:00"}
+	for name, test := range map[string]CalendarPatch{
+		"an end before the stored start": {WorkingEnd: ptr("08:30")},
+		"a start after the stored end":   {WorkingStart: ptr("17:30")},
+		"a start equal to the end":       {WorkingStart: ptr("17:00")},
+		"a pair that ends first":         {WorkingStart: ptr("12:00"), WorkingEnd: ptr("11:00")},
+	} {
+		if got := test.Check(current); got == nil || got.Field != "workingHours" {
+			t.Errorf("%s: got %+v, want workingHours", name, got)
+		}
+	}
+	for name, test := range map[string]CalendarPatch{
+		"an end after the stored start": {WorkingEnd: ptr("18:00")},
+		"a pair moved together":         {WorkingStart: ptr("18:00"), WorkingEnd: ptr("19:30")},
+		"a length of zero":              {StaleAfter: ptr("0m")},
+		"a day":                         {StaleAfter: ptr("24h")},
+	} {
+		if got := test.Check(current); got != nil {
+			t.Errorf("%s: got %+v, want nothing", name, got)
+		}
+	}
+}
+
+func TestSaveCalendarWritesHoursEventsAndTheStaleLimit(t *testing.T) {
+	path := filepath.Join(t.TempDir(), "config.toml")
+	writeFile(t, path, notesConfig)
+	store := NewProjectCatalogStore(path)
+	snapshot, err := store.Read(context.Background())
+	if err != nil {
+		t.Fatal(err)
+	}
+	if _, err := store.SaveCalendar(context.Background(), snapshot, CalendarPatch{
+		WorkingStart: ptr("08:30"), WorkingEnd: ptr("16:00"), IncludeAllDay: ptr(true), IncludeTransparent: ptr(false), StaleAfter: ptr("90m"),
+	}); err != nil {
+		t.Fatal(err)
+	}
+	settings, err := LoadFile(path)
+	if err != nil {
+		t.Fatal(err)
+	}
+	calendar := settings.Calendar
+	if calendar.WorkingStart != "08:30" || calendar.WorkingEnd != "16:00" || !calendar.IncludeAllDay || calendar.IncludeTransparent || calendar.StaleAfter != 90*time.Minute {
+		t.Fatalf("calendar=%+v", calendar)
+	}
+	text := readFile(t, path)
+	for _, kept := range []string{"# my notes", "# a full day", `refresh_interval = "2m"`} {
+		if !strings.Contains(text, kept) {
+			t.Errorf("%q should be kept:\n%s", kept, text)
+		}
+	}
+}
