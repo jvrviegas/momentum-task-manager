@@ -73,6 +73,47 @@ actor FakeBridge: TaskBridge {
         try record("applyPlan \(date) \(uuids.joined(separator: ","))")
         return planResults.removeFirst()
     }
+    var settingsValue = SettingsSnapshot(
+        configPath: "/tmp/config.toml", revision: "r1",
+        planning: PlanningSettings(enabled: true, dailyCapacity: "8h", buffer: "1h", weekdayCapacity: [:]),
+        calendar: CalendarSettings(enabled: false, files: []))
+    /// Answered to the next save instead of applying it.
+    var saveFailure: BridgeError?
+    private(set) var saves: [String] = []
+
+    func setSettings(_ value: SettingsSnapshot) { settingsValue = value }
+    func setSaveFailure(_ error: BridgeError?) { saveFailure = error }
+
+    func settings() async throws -> SettingsSnapshot {
+        calls.append("settings")
+        return settingsValue
+    }
+    func savePlanning(_ change: PlanningChange) async throws -> SettingsSnapshot {
+        saves.append("planning r\(change.revision.dropFirst())")
+        if let error = saveFailure {
+            saveFailure = nil
+            throw error
+        }
+        if let enabled = change.enabled { settingsValue.planning.enabled = enabled }
+        if let text = change.dailyCapacity { settingsValue.planning.dailyCapacity = text }
+        if let text = change.buffer { settingsValue.planning.buffer = text }
+        for (day, text) in change.weekdayCapacity ?? [:] { settingsValue.planning.weekdayCapacity[day] = text.isEmpty ? nil : text }
+        settingsValue.revision += "+"
+        return settingsValue
+    }
+    func saveCalendar(_ change: CalendarChange) async throws -> SettingsSnapshot {
+        saves.append("calendar r\(change.revision.dropFirst())")
+        if let error = saveFailure {
+            saveFailure = nil
+            throw error
+        }
+        if let enabled = change.enabled { settingsValue.calendar.enabled = enabled }
+        if let paths = change.paths {
+            settingsValue.calendar.files = paths.map { CalendarFile(path: $0, status: "available", detail: nil, modified: nil) }
+        }
+        settingsValue.revision += "+"
+        return settingsValue
+    }
     func setToken(_ token: String) async throws { try record("setToken \(token)") }
     func startSignIn() async throws -> DeviceSignIn {
         try record("signInStart")
