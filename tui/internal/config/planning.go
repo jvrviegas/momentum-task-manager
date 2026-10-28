@@ -115,14 +115,20 @@ func (c CalendarConfig) PathsFor(home string) []string {
 		if value == "" {
 			continue
 		}
-		if value == "~" {
-			value = home
-		} else if strings.HasPrefix(value, "~/") {
-			value = filepath.Join(home, strings.TrimPrefix(value, "~/"))
-		}
-		paths = append(paths, value)
+		paths = append(paths, ExpandHome(value, home))
 	}
 	return paths
+}
+
+// ExpandHome turns a leading ~ into the home folder.
+func ExpandHome(value, home string) string {
+	if value == "~" {
+		return home
+	}
+	if strings.HasPrefix(value, "~/") {
+		return filepath.Join(home, strings.TrimPrefix(value, "~/"))
+	}
+	return value
 }
 
 func weekdayName(value string) (time.Weekday, bool) {
