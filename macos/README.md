@@ -56,7 +56,7 @@ To see the app, `tools/snap.sh` builds the Debug app and saves a window image of
 
 - **Settings (⌘, or the sidebar's Settings row):** a window of five tabs, Projects, Planning, Calendar, Appearance and Diagnostics. Each change is applied at once and written to `config.toml`, keeping its comments and other keys; a save is refused, and the tab reloaded, when the file changed since the tab read it.
   - **Planning:** **Use Plan Today** turns the Plan button, the sidebar's Today’s plan box, the menu item and `P` on or off. Daily capacity, buffer and each weekday's own capacity are typed as `8h` or `7h30m`; a value the config would refuse stays in its field with a message and is not saved.
-  - **Calendar:** **Use calendar files** and the list of `.ics` files, added with **Add…** and taken out with **Remove**. Each file shows whether it is available, stale, missing or unreadable. Working hours and the macOS Calendar source are not in the tab yet.
+  - **Calendar:** **Use calendar files** and the list of `.ics` files, added with **Add…** and taken out with **Remove**. Each file shows whether it is available, stale, missing or unreadable, and **Stale after** sets how long a file may go unchanged before it shows as stale. **Working hours** (Start and End), **Count all-day events** and **Count events shown as free** choose which meetings take time off the day. The macOS Calendar source is not in the tab yet.
   - **Appearance:** System, Light or Dark, for this Mac only.
   - **Projects** and **Diagnostics** say how to do the same in `config.toml` or the terminal until they are built.
 
