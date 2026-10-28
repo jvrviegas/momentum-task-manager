@@ -514,56 +514,61 @@ Status: done
 
 ### S-043 Turn planning on or off
 As the user, I flip a switch and Plan Today appears or goes away.
-Screens: settings-planning.png
+Screens: settings-planning.png, settings-planning-off.png, today-planning-off.png
 Depends: S-041, S-054
 Acceptance:
-- [unit] With a fake bridge: the switch saves at once to `[planning] enabled`.
-- [self] Off, the sidebar box, the toolbar button, the menu item and `P` are all gone; on, they are back without restarting.
+- [unit] Go `TestASavedPlanningChangeAppliesAtOnce`, Swift `turningPlanningOffHidesPlanTodayAndOnBringsItBack`: the switch saves to `[planning] enabled` at once, on the version of the file the tab read, and the main window follows without a restart.
+- [snap] `settings-planning-off` shows the capacity fields dimmed; `today-planning-off` shows the main window with no Plan button and no Today’s plan box.
+- [unit] The menu item and `P` follow the same flag: `planTodayWaitsForASignInAndRespectsPlanningOff`, `shiftPIsNoShortcutWithPlanningOff`.
+- [unit] Swift `aWriteThatFailedSaysWhy`: a failed write leaves the switch where it was and says why.
 UX:
 - Flow: Settings ▸ Planning -> switch **Use Plan Today** on or off -> it saves to `[planning] enabled` at once -> in the main window the Plan button, the sidebar's Today’s plan box, the Plan Today… menu item and the P key appear or go within a second, with no restart. Way back: flip the switch again.
 - Surface: inline (a switch changes one value on something already on screen), the first row of the Planning tab.
-- States: on by default. Off: the capacity fields below dim and cannot be edited, and nothing else changes. A save that fails shows inline under the switch with the switch back where it was: "Unable to save config.toml. <reason>". A save refused because the file changed elsewhere reloads the tab and says "config.toml changed outside Momentum. The tab now shows what it says; make the change again." (S-055).
+- States: on by default. Off: the capacity fields below dim and cannot be edited, and nothing else changes. A save that fails shows a notice at the top of the tab, with the switch back where it was: "Unable to save config.toml. <reason>". A save refused because the file changed elsewhere reloads the tab and says "config.toml changed outside Momentum. The tab now shows what it says; make the change again." (S-055).
 - Words: switch "Use Plan Today", caption "Adds the Plan button, the Today’s plan box in the sidebar, the Plan Today… menu item and the P key."
 - Access: the switch is labeled with its text and VoiceOver reads "Use Plan Today, on"; Space toggles it; the error is text with a warning symbol.
-Status: todo
+Status: done
 
 ### S-044 Set how much a day holds
 As the user, I type `8h` for the day and `7h30m` for Fridays, and the plan uses them.
-Screens: settings-planning.png
+Screens: settings-planning.png, settings-planning-error.png
 Depends: S-043
 Acceptance:
-- [unit] A valid duration saves on Return or when the field loses focus; an invalid one stays inline and unsaved, checked with the config's own validation.
-- [unit] An empty weekday field means the daily capacity.
-- [snap] The Planning tab shows daily capacity, buffer and a grid with one field per weekday.
-- [self] The sidebar meter uses the new capacity on the next load.
+- [unit] Go `TestPlanningPatchRefusesWhatTheConfigRefuses`, `TestAnInvalidLengthIsRefusedOnItsFieldAndNothingIsWritten`, `TestAnInvalidPlanningPatchWritesNothing`: a value the config would refuse is refused on its own field, with a message that says what to type, and nothing is written, not even the valid keys.
+- [unit] Swift `aRefusedLengthStaysOnItsFieldAndChangesNothing`; [snap] `settings-planning-error`: the typed value stays in its field with the message under it (a weekday's message sits under the grid and names the day), and the harness's Return shows that Return saves.
+- [unit] Go `TestAnEmptyWeekdayGoesBackToTheDailyCapacity`: an empty weekday field means the daily capacity.
+- [snap] `settings-planning`: Daily capacity, Buffer, and a grid of seven weekday fields, Monday first, with the daily capacity as their placeholder.
+- [unit] Go `TestASavedPlanningChangeAppliesAtOnce`: the next load, and so the sidebar's meter, uses the new capacity.
+- [manual] Leaving a field with Tab or a click saves it too; not tried by hand yet.
 UX:
 - Flow: Settings ▸ Planning -> click Daily capacity, Buffer or a weekday, type a length of time such as 8h or 7h30m -> Return, or Tab or a click elsewhere, saves it -> the sidebar's meter uses it on the next load, which the app asks for right after the save. A value that isn't valid stays in the field with its message and is not saved. Way back: type the earlier value; emptying a weekday field makes that day use the daily capacity.
 - Surface: inline text fields in grouped rows (each changes one value), with the weekdays as a grid of seven labeled fields, Monday first.
-- States: a weekday field's placeholder shows the daily capacity ("8h"); errors under the field: "Enter a length of time, such as 8h or 7h30m.", "Daily capacity must be longer than zero.", "Buffer can’t be negative.", "A day must be longer than zero. Leave it empty to use the daily capacity."; a saved value just stays, with no toast, since the field is the feedback; the fields dim while Plan Today is off.
+- States: a weekday field's placeholder shows the daily capacity ("8h"); errors under the field for Daily capacity and Buffer, and under the grid for a weekday (naming the day, so the grid never changes height), with the refused field outlined: "Enter a length of time, such as 8h or 7h30m.", "Daily capacity must be longer than zero.", "Buffer can’t be negative.", "A day must be longer than zero. Leave it empty to use the daily capacity."; a saved value just stays, with no toast, since the field is the feedback; the fields dim while Plan Today is off.
 - Words: group "Capacity", labels "Daily capacity", "Buffer" and "Capacity by weekday", the weekday names, hint "Type a length of time, such as 8h or 7h30m. Leave a day empty to use the daily capacity."
 - Access: every field has a visible label; Return saves and Tab moves on and saves; VoiceOver reads the label, the value and any message under it; a message is text, never color alone.
-Status: todo
+Status: done
 
 ### S-045 Choose calendar files
 As the user, I add and remove `.ics` files and see whether each can be read.
-Screens: settings-calendar-files.png
+Screens: settings-calendar.png, settings-calendar-empty.png, settings-calendar-refused.png
 Depends: S-041, S-054
 Acceptance:
-- [manual] **Add…** opens a file panel; a file under the home folder is stored with `~/`; **Remove** takes one out.
-- [unit] Per-file status (available, stale, missing, error) comes from loading each file on its own, using fixtures.
-- [unit] Switching files on with no files is refused with a message, as the config's validation does.
-- [snap] The Calendar tab lists the files with their status.
+- [unit] Go `TestCalendarFilesAreKeptWithATildeAndOnce`, `TestCalendarFilesAreKeptWithATildeAndTheSwitchNeedsOne`; Swift `calendarFilesAreAddedAndRemovedAsAWholeList`: a file under the home folder is stored with `~/`, a repeat once, and **Remove** takes one out of the list.
+- [manual] **Add…** opens the system file panel for `.ics` files; not tried by hand yet.
+- [unit] Go `TestInspectSaysWhatEachFileIs`, `TestSettingsShowTheValuesInUseAndEachCalendarFile`: each file's status (available, stale, missing, error) comes from loading it on its own, from fixtures, and holds no path and no event title.
+- [unit] Go `TestCalendarPatchRefusesWhatTheConfigRefuses`, Swift `switchingCalendarFilesOnWithNoneIsRefusedOnTheSwitch`: switching on with no files, or removing the last one while on, is refused with a message; [snap] `settings-calendar-refused`.
+- [snap] `settings-calendar` lists the four states, each a symbol and a word; `settings-calendar-empty` shows the empty list.
 UX:
 - Flow: Settings ▸ Calendar -> **Add…** opens a file panel for `.ics` files -> choose one or more -> each appears in the list with its status -> switch **Use calendar files** on -> Plan Today counts their meetings against the day's capacity. **Remove** takes a file out of the list; the file itself stays. Way back: Remove, switch off, or Esc to leave the panel.
 - Surface: an inline list in the Calendar tab; **Add…** opens the system open panel as a sheet on the Settings window (one short task that must finish or cancel).
-- States: empty list "No calendar files yet" with "Export a calendar to an .ics file, then add it here. Momentum reads the file; it never fetches a calendar for you." and **Add…**; each row shows the path (`~/` for a file under the home folder, in monospace) and a status as a symbol and a word: "Available", "Stale · last changed 3 days ago", "Missing", "Unreadable: <reason>"; the switch turned on with no files stays off with "Add a calendar file first." beneath it; removing the last file while the switch is on is refused with "Turn off Use calendar files before removing the last one."; a failed save shows "Unable to save config.toml. <reason>" inline.
+- States: empty list "No calendar files yet" with "Export a calendar to an .ics file, then add it here. Momentum reads the file; it never fetches a calendar for you." and **Add…**; each row shows the path (`~/` for a file under the home folder, in monospace) and a status as a symbol and a word: "Available", "Stale · last changed 3 days ago", "Missing", "Unreadable: <reason>"; the switch turned on with no files stays off with "Add a calendar file first." beneath it; removing the last file while the switch is on is refused with "Turn off Use calendar files before removing the last one."; a failed save shows "Unable to save config.toml. <reason>" in the notice at the top of the tab.
 - Words: switch "Use calendar files", caption "Meetings in these files take time off each day’s capacity in Plan Today.", group "Calendar files", buttons "Add…" and "Remove", Remove's hover text "Remove this file from the list. The file itself stays."
 - Access: each row reads as one element, "<path>, <status>"; **Remove** is labeled "Remove <path>"; status is a word and a symbol, never color alone; the panel is the system's own and keyboard-complete.
-Status: todo
+Status: done
 
 ### S-046 Say which hours and events count
 As the user, I set my working hours and whether all-day and "free" events count as busy.
-Screens: settings-calendar-files.png
+Screens: settings-calendar.png
 Depends: S-045
 Acceptance:
 - [unit] Working start and end, "all-day events count" and "events shown as available count" save to `[calendar]` and apply to every source.
@@ -665,6 +670,7 @@ Depends: S-054
 Acceptance:
 - [unit] A save is refused when the file changed since it was read; comments and unrelated keys stay; a symlinked config stays a symlink.
 - [snap] After a refusal the tab reloads from disk, says the file changed outside Momentum, and asks me to make the change again.
+Built with S-043 to S-045, so only its snapshot page is left: Go `TestAFileThatChangedSinceItWasReadIsNeverOverwritten`, `TestSavePlanningChangesOnlyItsKeys` (comments and other keys stay), `TestSavePlanningKeepsASymlinkASymlink`, `TestASaveOnAFileThatChangedElsewhereIsRefused`, and Swift `aFileThatChangedElsewhereReloadsTheTabAndSaysSo`. Left: the `settings-conflict` page.
 Status: todo
 
 ## M7 Release
