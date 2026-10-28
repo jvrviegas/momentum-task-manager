@@ -29,6 +29,10 @@ actor SnapshotBridge: TaskBridge {
         var weekdayCapacity = ["friday": "4h"]
         var calendarEnabled = true
         var calendarFiles = SnapshotBridge.defaultCalendarFiles
+        var calendarHours = (start: "09:00", end: "17:00")
+        var includeAllDay = false
+        var includeTransparent = false
+        var staleAfter = "24h"
     }
 
     /// The four states a calendar file can be in.
@@ -226,7 +230,10 @@ actor SnapshotBridge: TaskBridge {
             planning: PlanningSettings(
                 enabled: config.planningEnabled, dailyCapacity: config.dailyCapacity, buffer: config.buffer,
                 weekdayCapacity: config.weekdayCapacity),
-            calendar: CalendarSettings(enabled: config.calendarEnabled, files: config.calendarFiles))
+            calendar: CalendarSettings(
+                enabled: config.calendarEnabled, files: config.calendarFiles, workingStart: config.calendarHours.start,
+                workingEnd: config.calendarHours.end, includeAllDay: config.includeAllDay, includeTransparent: config.includeTransparent,
+                staleAfter: config.staleAfter))
     }
 
     func settings() async throws -> SettingsSnapshot { settingsSnapshot() }
@@ -260,6 +267,17 @@ actor SnapshotBridge: TaskBridge {
                 message: change.enabled == nil ? "Turn off Use calendar files before removing the last one." : "Add a calendar file first.",
                 field: change.enabled == nil ? "paths" : "enabled")
         }
+        let start = change.workingStart ?? config.calendarHours.start, end = change.workingEnd ?? config.calendarHours.end
+        if (change.workingStart != nil || change.workingEnd != nil) && start >= end {
+            throw BridgeError(message: "Working hours must end after they start.", field: "workingHours")
+        }
+        if let text = change.staleAfter, Self.minutes(text) == nil, text != "0m" {
+            throw BridgeError(message: "Enter a length of time, such as 8h or 7h30m.", field: "staleAfter")
+        }
+        config.calendarHours = (start, end)
+        if let include = change.includeAllDay { config.includeAllDay = include }
+        if let include = change.includeTransparent { config.includeTransparent = include }
+        if let text = change.staleAfter { config.staleAfter = text }
         if let enabled = change.enabled { config.calendarEnabled = enabled }
         if change.paths != nil {
             config.calendarFiles = paths.map { path in
