@@ -20,6 +20,8 @@ func (s *Server) status(context.Context) (*statusResult, error) {
 		MutationDelaySeconds:   int(s.config.Sync.MutationDelay / time.Second),
 		RefreshIntervalSeconds: int(s.config.RefreshInterval / time.Second),
 		BackendURL:             s.config.Backend.URL,
+		ConfigError:            s.configError,
+		RestartRequired:        s.restartRequired,
 	}, nil
 }
 
