@@ -10,6 +10,11 @@ struct BridgeStatus: Decodable, Sendable, Equatable {
     var refreshIntervalSeconds: Int
     /// The [backend] server; nil until config.toml names one.
     var backendUrl: String?
+    /// Why a newer config.toml was not applied; the app keeps the last good
+    /// settings meanwhile.
+    var configError: String?
+    /// A changed [backend] url waits for the app to restart.
+    var restartRequired: Bool?
 }
 
 /// A started device sign-in: show userCode, open verificationUrlComplete, and
