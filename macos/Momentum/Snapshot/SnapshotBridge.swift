@@ -23,9 +23,25 @@ actor SnapshotBridge: TaskBridge {
         /// Why the newest config.toml was not applied.
         var configError: String?
         var restartRequired = false
+        var planningEnabled = true
+        var dailyCapacity = "8h"
+        var buffer = "1h"
+        var weekdayCapacity = ["friday": "4h"]
+        var calendarEnabled = true
+        var calendarFiles = SnapshotBridge.defaultCalendarFiles
     }
 
+    /// The four states a calendar file can be in.
+    static let defaultCalendarFiles = [
+        CalendarFile(path: "~/Calendars/work.ics", status: "available", detail: nil, modified: .now.addingTimeInterval(-3600)),
+        CalendarFile(path: "~/Calendars/team.ics", status: "stale", detail: nil, modified: .now.addingTimeInterval(-3 * 86400)),
+        CalendarFile(path: "~/Downloads/old-export.ics", status: "missing", detail: nil, modified: nil),
+        CalendarFile(path: "~/Calendars/shared", status: "error", detail: "is a directory", modified: .now.addingTimeInterval(-86400)),
+    ]
+
     private var config: Config
+    /// Bumped by each save, as a new version of config.toml is.
+    private var revision = 1
     private var loads = 0
     private var completed: [String: Date] = [:]
     private var deleted: Set<String> = []
@@ -82,7 +98,38 @@ actor SnapshotBridge: TaskBridge {
         }
         return Snapshot(
             tasks: tasks, today: keep(seed.today), inbox: keep(seed.inbox), completed: done, completedError: nil,
-            projects: seed.projects, plan: seed.plan)
+            projects: seed.projects, plan: planSummary(seed.plan))
+    }
+
+    /// The sidebar's meter, with the capacity and buffer the settings give,
+    /// or nothing while Plan Today is off.
+    private func planSummary(_ seeded: PlanSummary) -> PlanSummary {
+        guard config.planningEnabled else {
+            return PlanSummary(
+                enabled: false, chosenCount: 0, chosenMinutes: 0, unestimatedChosen: 0, fixedMinutes: 0, unestimatedFixed: 0,
+                capacityMinutes: 0, bufferMinutes: 0)
+        }
+        var summary = seeded
+        let today = Calendar.current.weekdaySymbols[Calendar.current.component(.weekday, from: .now) - 1].lowercased()
+        summary.capacityMinutes = Self.minutes(config.weekdayCapacity[today] ?? config.dailyCapacity) ?? seeded.capacityMinutes
+        summary.bufferMinutes = Self.minutes(config.buffer) ?? seeded.bufferMinutes
+        return summary
+    }
+
+    /// 8h, 7h30m and 45m as minutes; nil for anything else.
+    static func minutes(_ text: String) -> Int? {
+        var total = 0, number = ""
+        for character in text.trimmingCharacters(in: .whitespaces) {
+            if character.isNumber {
+                number.append(character)
+            } else if let value = Int(number), character == "h" || character == "m" {
+                total += character == "h" ? value * 60 : value
+                number = ""
+            } else {
+                return nil
+            }
+        }
+        return number.isEmpty && total > 0 ? total : nil
     }
 
     // MARK: Capture
@@ -169,6 +216,63 @@ actor SnapshotBridge: TaskBridge {
     func plan() async throws -> DailyPlan { config.plan ?? config.seed.dailyPlan }
 
     func applyPlan(date: String, uuids: [String]) async throws -> PlanSaveResult { config.applyPlanResult }
+
+    // MARK: Settings
+
+    private func settingsSnapshot() -> SettingsSnapshot {
+        SettingsSnapshot(
+            configPath: "~/.config/momentum/config.toml", revision: "r\(revision)", configError: config.configError,
+            restartRequired: config.restartRequired,
+            planning: PlanningSettings(
+                enabled: config.planningEnabled, dailyCapacity: config.dailyCapacity, buffer: config.buffer,
+                weekdayCapacity: config.weekdayCapacity),
+            calendar: CalendarSettings(enabled: config.calendarEnabled, files: config.calendarFiles))
+    }
+
+    func settings() async throws -> SettingsSnapshot { settingsSnapshot() }
+
+    /// Refuses what the real bridge refuses, with its words.
+    func savePlanning(_ change: PlanningChange) async throws -> SettingsSnapshot {
+        guard change.revision == "r\(revision)" else { throw Self.conflict }
+        let lengthHint = "Enter a length of time, such as 8h or 7h30m."
+        if let text = change.dailyCapacity, Self.minutes(text) == nil {
+            throw BridgeError(message: lengthHint, field: "dailyCapacity")
+        }
+        if let text = change.buffer, Self.minutes(text) == nil, text != "0m" {
+            throw BridgeError(message: lengthHint, field: "buffer")
+        }
+        for (day, text) in change.weekdayCapacity ?? [:] where !text.isEmpty && Self.minutes(text) == nil {
+            throw BridgeError(message: lengthHint, field: "weekdayCapacity.\(day)")
+        }
+        if let enabled = change.enabled { config.planningEnabled = enabled }
+        if let text = change.dailyCapacity { config.dailyCapacity = text }
+        if let text = change.buffer { config.buffer = text }
+        for (day, text) in change.weekdayCapacity ?? [:] { config.weekdayCapacity[day] = text.isEmpty ? nil : text }
+        revision += 1
+        return settingsSnapshot()
+    }
+
+    func saveCalendar(_ change: CalendarChange) async throws -> SettingsSnapshot {
+        guard change.revision == "r\(revision)" else { throw Self.conflict }
+        let paths = change.paths ?? config.calendarFiles.map(\.path)
+        if (change.enabled ?? config.calendarEnabled) && paths.isEmpty {
+            throw BridgeError(
+                message: change.enabled == nil ? "Turn off Use calendar files before removing the last one." : "Add a calendar file first.",
+                field: change.enabled == nil ? "paths" : "enabled")
+        }
+        if let enabled = change.enabled { config.calendarEnabled = enabled }
+        if change.paths != nil {
+            config.calendarFiles = paths.map { path in
+                config.calendarFiles.first { $0.path == path }
+                    ?? CalendarFile(path: path, status: "available", detail: nil, modified: .now)
+            }
+        }
+        revision += 1
+        return settingsSnapshot()
+    }
+
+    private static let conflict = BridgeError(
+        message: "config.toml changed outside Momentum. The tab now shows what it says; make the change again.", code: "configConflict")
 
     // MARK: Sign-in
 
