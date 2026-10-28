@@ -32,6 +32,11 @@ Plain, direct, brief. Say "you" to the person, never "the user". Say "click", ne
 | Projects, Planning, Calendar, Appearance, Diagnostics | The five tabs of Settings, in that order | General, Advanced, Account |
 | Appearance | Whether this Mac's window is light or dark: System (follows the Mac), Light, Dark | Theme, Mode |
 | Show config.toml in Finder | The button that reveals the file, for the first step of any edit | Open Config, Edit Config |
+| Plan Today | The sheet where you choose today's tasks against the hours the day has: P, ⇧⌘P, the toolbar's Plan button or the sidebar's Plan Today button; **Use Plan Today** in Settings turns all of it on or off | daily plan, planner, planning ritual |
+| Capacity | The length of time a day can hold: the daily capacity, or a weekday's own | workload, budget, hours |
+| Buffer | Time kept free each day for what you can't plan | slack, padding, margin |
+| Calendar file | An `.ics` file whose meetings take time off a day's capacity; added in Settings ▸ Calendar | calendar feed, subscription, source |
+| Available, Stale, Missing, Unreadable | The four states of a calendar file, always a word with a symbol | OK, Old, Not found, Error, Broken |
 
 ## Open naming questions
 
@@ -41,3 +46,4 @@ Found while reading the built views. Each is one idea with two names, so each is
 2. **New Task or Quick capture.** The menu, toolbar and toast say "New Task" and "Added"; the Keyboard Shortcuts sheet's group and its `c` row say "Quick capture". The glossary picks New Task.
 3. **Refresh or reload.** The menu and toast say "Refresh"; the toolbar's hover text says "Click to reload."
 4. **Couldn’t or Unable to.** The app writes "Couldn’t load tasks", "Couldn’t start Momentum" and "Couldn’t read the sign-in…"; Apple's pattern is "Unable to load tasks". The app is consistent with itself, so this is a style choice, not a bug.
+5. **Plan Today or daily plan.** The sheet, the button and the menu say "Plan Today"; the toasts after confirming say "Daily plan saved · N tasks" and "Daily plan unchanged". The glossary picks Plan Today for the sheet and the feature; the toasts could say "Plan saved" and "Plan unchanged".
