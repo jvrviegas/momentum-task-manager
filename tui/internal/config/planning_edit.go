@@ -153,6 +153,13 @@ type CalendarPatch struct {
 	Enabled *bool
 	// Paths is the whole list of calendar files.
 	Paths *[]string
+	// WorkingStart and WorkingEnd are times of day as HH:MM.
+	WorkingStart       *string
+	WorkingEnd         *string
+	IncludeAllDay      *bool
+	IncludeTransparent *bool
+	// StaleAfter is a length as a person types it; 0m means a file is never stale.
+	StaleAfter *string
 }
 
 // Normalized tidies the file list: a path under home is kept as ~/..., an
@@ -197,6 +204,32 @@ func (p CalendarPatch) Check(current CalendarConfig) *FieldError {
 			return &FieldError{Field: "paths", Message: "Choose a file on this Mac. Download a subscribed calendar first, then add the file."}
 		}
 	}
+	start, end := current.WorkingStart, current.WorkingEnd
+	if p.WorkingStart != nil {
+		start = strings.TrimSpace(*p.WorkingStart)
+	}
+	if p.WorkingEnd != nil {
+		end = strings.TrimSpace(*p.WorkingEnd)
+	}
+	if p.WorkingStart != nil || p.WorkingEnd != nil {
+		first, startErr := time.Parse("15:04", start)
+		last, endErr := time.Parse("15:04", end)
+		switch {
+		case startErr != nil || endErr != nil:
+			return &FieldError{Field: "workingHours", Message: "Enter a time of day, such as 09:00."}
+		case !last.After(first):
+			return &FieldError{Field: "workingHours", Message: "Working hours must end after they start."}
+		}
+	}
+	if p.StaleAfter != nil {
+		length, err := ParseLength(*p.StaleAfter)
+		switch {
+		case err != nil:
+			return &FieldError{Field: "staleAfter", Message: lengthHint}
+		case length < 0:
+			return &FieldError{Field: "staleAfter", Message: "Stale after can’t be negative."}
+		}
+	}
 	if enabled && len(paths) == 0 {
 		if p.Enabled == nil {
 			return &FieldError{Field: "paths", Message: "Turn off Use calendar files before removing the last one."}
@@ -224,6 +257,33 @@ func (s *FileProjectCatalogStore) SaveCalendar(ctx context.Context, snapshot Pro
 			}
 			if err := doc.SetCreate("calendar.paths", values); err != nil {
 				return err
+			}
+		}
+		for _, set := range []struct {
+			key   string
+			value *string
+		}{
+			{"calendar.working_start", patch.WorkingStart},
+			{"calendar.working_end", patch.WorkingEnd},
+			{"calendar.stale_after", patch.StaleAfter},
+		} {
+			if set.value != nil {
+				if err := doc.SetCreate(set.key, strings.TrimSpace(*set.value)); err != nil {
+					return err
+				}
+			}
+		}
+		for _, set := range []struct {
+			key   string
+			value *bool
+		}{
+			{"calendar.include_all_day", patch.IncludeAllDay},
+			{"calendar.include_transparent", patch.IncludeTransparent},
+		} {
+			if set.value != nil {
+				if err := doc.SetCreate(set.key, *set.value); err != nil {
+					return err
+				}
 			}
 		}
 		return nil
