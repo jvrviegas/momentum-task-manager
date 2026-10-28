@@ -13,6 +13,7 @@ struct MomentumApp: App {
     var body: some Scene {
         Window("Momentum Task Manager", id: "main") {
             content
+                .modifier(AppearancePreference())
                 .frame(minWidth: 760, minHeight: 460)
                 .task {
                     // Unit tests run inside the app; they must not start the bridge.
@@ -28,6 +29,20 @@ struct MomentumApp: App {
         }
         .defaultSize(width: 1120, height: 720)
         .commands { MomentumCommands(store: store) }
+        Settings { settingsContent }
+    }
+
+    @ViewBuilder
+    private var settingsContent: some View {
+        #if DEBUG
+        if let snapshots {
+            SnapshotSettingsRoot(host: snapshots)
+        } else {
+            SettingsView().environment(store)
+        }
+        #else
+        SettingsView().environment(store)
+        #endif
     }
 
     @ViewBuilder
