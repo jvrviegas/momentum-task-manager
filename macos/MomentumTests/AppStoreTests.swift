@@ -23,6 +23,7 @@ actor FakeBridge: TaskBridge {
         self.snapshots = snapshots
     }
 
+    func setStatus(_ status: BridgeStatus) { statusValue = status }
     func setFailure(_ error: BridgeError?) { failNext = error }
     func setLoadFailure(_ error: BridgeError?) { failLoad = error }
     func setPolls(_ polls: [Result<SignInPoll, BridgeError>]) { self.polls = polls }
