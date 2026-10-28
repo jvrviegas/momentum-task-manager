@@ -27,7 +27,7 @@ func (s *Server) status(context.Context) (*statusResult, error) {
 
 // load exports pending and recent completed tasks and derives every view with
 // the same domain functions the TUI uses.
-func (s *Server) load(ctx context.Context) (*loadResult, error) {
+func (s *Server) load(ctx context.Context, input *calendarInput) (*loadResult, error) {
 	now := s.now()
 	pending, err := s.client.ExportPending(ctx)
 	if err != nil {
@@ -50,7 +50,7 @@ func (s *Server) load(ctx context.Context) (*loadResult, error) {
 		result.Today = append(result.Today, section{Title: string(group.Group), UUIDs: uuids(group.Tasks)})
 	}
 	result.Inbox = inboxSections(views.Inbox, labels)
-	result.Plan = s.summarizePlan(ctx, pending, now)
+	result.Plan = s.summarizePlan(ctx, pending, now, input)
 
 	day := time.Date(now.Year(), now.Month(), now.Day(), 0, 0, 0, 0, now.Location())
 	completed, err := s.client.ExportCompleted(ctx, day.AddDate(0, 0, -30))
