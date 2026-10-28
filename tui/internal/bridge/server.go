@@ -86,6 +86,14 @@ type Server struct {
 	configPath string
 	now        func() time.Time
 
+	// What reloadConfig keeps: the version of config.toml the settings came
+	// from, why a newer one was not applied, the [backend] settings the
+	// client was made with, and whether the file now asks for others.
+	configState     fileState
+	configError     string
+	startBackend    config.BackendConfig
+	restartRequired bool
+
 	mu         sync.Mutex
 	projects   domain.ProjectCatalog
 	tags       []string
@@ -105,6 +113,9 @@ func NewServer(connect func(token string) Client, settings config.Config, config
 		now:        time.Now,
 		projects:   settings.Projects,
 		reviews:    map[int64]quickadd.Interpretation{},
+
+		configState:  statFile(configPath),
+		startBackend: settings.Backend,
 	}
 	if settings.Backend.Enabled() {
 		server.client = connect("")
@@ -184,6 +195,10 @@ func (s *Server) handle(ctx context.Context, request Request) Response {
 }
 
 func (s *Server) dispatch(ctx context.Context, op string, raw json.RawMessage) (any, error) {
+	switch op {
+	case "status", "load", "plan":
+		s.reloadConfig()
+	}
 	if op != "status" && !pureOps[op] {
 		if _, err := s.backendURL(); err != nil {
 			return nil, err
