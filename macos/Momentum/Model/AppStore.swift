@@ -71,6 +71,8 @@ struct SignInFlow: Identifiable, Equatable {
 final class AppStore {
     let bridge: any TaskBridge
     let signIns: any SignInStore
+    /// The Planning and Calendar tabs of Settings.
+    let settings = SettingsModel()
 
     private(set) var status: BridgeStatus?
     private(set) var startupError: String?
@@ -115,6 +117,7 @@ final class AppStore {
         self.bridge = bridge
         self.signIns = signIns
         self.sleep = sleep
+        settings.store = self
     }
 
     // MARK: Derived state
