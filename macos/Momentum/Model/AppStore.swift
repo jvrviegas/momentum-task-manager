@@ -135,6 +135,10 @@ final class AppStore {
     var backendURL: String? {
         status?.backendUrl.map { $0.hasSuffix("/") ? String($0.dropLast()) : $0 }
     }
+    /// Why config.toml's newest version was not applied; nil while it was.
+    var configProblem: String? { status?.configError }
+    /// Whether a changed [backend] url waits for a restart.
+    var restartRequired: Bool { status?.restartRequired ?? false }
     /// When the latest change's undo window closes; nil while it is closed.
     var undoClosesAt: Date? {
         undoWindow.isAvailable(at: .now) ? undoWindow.until : nil
@@ -214,6 +218,7 @@ final class AppStore {
             tasksByUUID = Dictionary(snapshot.tasks.map { ($0.uuid, $0) }, uniquingKeysWith: { first, _ in first })
             loadError = nil
             repairSelection(previousOrder: previousOrder)
+            await refreshStatus()
             if announce {
                 show("Refreshed from the server", .success)
             }
@@ -225,6 +230,16 @@ final class AppStore {
                 show(error.localizedDescription, .error)
             }
         }
+    }
+
+    /// Asks the bridge for its settings. It re-reads config.toml when the file
+    /// changed, so an edit made elsewhere applies without a restart: the
+    /// refresh interval and the undo delay follow it here, and the planning
+    /// and calendar settings apply to the next load.
+    func refreshStatus() async {
+        guard let status = try? await bridge.status() else { return }
+        self.status = status
+        undoWindow.delay = max(0, TimeInterval(status.mutationDelaySeconds))
     }
 
     /// Keeps the selected task when it is still visible (VIEW-10); otherwise
