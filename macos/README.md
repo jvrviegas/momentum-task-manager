@@ -41,6 +41,8 @@ xcodebuild -scheme Momentum test                                  # Swift: store
 
 The bridge's tests reach a fake server over HTTP, and its calendar tests read `.ics` files from a temporary directory.
 
+To see the app, `tools/snap.sh` builds the Debug app and saves a window image of each page in light and dark to `/tmp/Momentum-shots`, one `<page>-light.png` and `<page>-dark.png` per page. It runs on a fake server and an in-memory sign-in, under its own bundle identifier, so it never touches your server, Keychain, `config.toml` or the real app's preferences. `MOMENTUM_SNAPSHOT_PAGES=today,inbox` limits it to some pages. Run it from a terminal that has Screen Recording permission, and leave the screen alone while it runs, since the app's window comes to the front for each image.
+
 ## What it does
 
 - **Views:** Today (Overdue, Due Today, Scheduled Today, Planned Today), Inbox grouped by project, and Completed for the last 30 days. Startup opens Today when it has work, otherwise Inbox.
