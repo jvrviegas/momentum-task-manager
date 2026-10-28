@@ -1,0 +1,656 @@
+# Momentum Task Manager (macOS) — user stories
+
+Scope: the native macOS app in `macos/`. The terminal app and the server appear only where a story needs them. This backlog was written after M1–M5 were built, so those stories say what the app does today; `Status: done` means the behavior exists and the check named on the line passes or was tried by hand.
+
+Sources, since the project has no `docs/BRIEF.md`, `docs/research/` or `docs/screens/INDEX.md`: [`macos/README.md`](../macos/README.md), [`tui/DESIGN.md`](../tui/DESIGN.md), and the plans in [`docs/plans/`](./plans/).
+
+How a line is checked:
+
+- `[unit]` a Swift test in `macos/MomentumTests` or a Go test in `tui/internal/bridge` or `tui/internal/quickadd`. The line names the Swift test when there is one.
+- `[manual]` a person tried it in the running app. The project has no snapshot or self-test harness yet, so lines that would be `[snap]` or `[self]` on `done` stories are `[manual]`. S-040 adds the harness; the `Screens:` names are the pages it will show.
+- `[snap]` and `[self]` appear only on stories that are not built yet.
+
+## M1 Core loop
+
+Set up, sign in, see tasks, add one, complete one. Tasks live on the server, so they survive a restart.
+
+### S-001 Add the server address
+As the user, I open the app before a server is set up and it tells me what to add and where.
+Screens: setup.png
+Acceptance:
+- [unit] `withoutAServerNothingLoads`: no server in `config.toml` means nothing loads and no sign-in is offered.
+- [manual] The window says "Add a Momentum server", shows the config file's path and a `[backend] url = "…"` example, and says to quit and reopen after editing.
+- [manual] **Sign In…** and **Sign Out** are missing from the app menu until a server is set.
+UX:
+- Flow: open the app with no `[backend] url` -> the list area says "Add a Momentum server" with the config file's path and the two lines to add -> edit `config.toml` elsewhere -> quit and reopen -> the signed-out page (S-002). Nothing has changed, so there is no way back to give.
+- Surface: the task list's empty state, inline (information that needs no action in the app goes inline, never in an alert).
+- States: this is the first-run state; there is no loading or error. The path and the snippet are selectable text.
+- Words: title "Add a Momentum server"; "Momentum keeps your tasks on a Momentum server. Add its address to <path>:"; `[backend]` / `url = "https://momentum.example.com"`; "Then quit and reopen Momentum Task Manager, and sign in."
+- Access: VoiceOver reads the title and description (system empty-state view); the snippet can be selected and copied.
+- Review: the empty state has no button for its first action, so you must find the file yourself. A **Show Config in Finder** button would fix it. Settings (S-054) keeps `[backend] url` needing a restart, so the last line stays true.
+Status: done
+
+### S-002 Sign in with a code
+As the user, I choose Sign In…, finish in the browser with Google or GitHub, and the app signs in.
+Screens: sign-in.png, today.png
+Acceptance:
+- [manual] Signed out, the window says "Sign in to see your tasks" with a **Sign In…** button; the toolbar reads "Signed out".
+- [manual] The sheet shows a short code, **Open Browser**, **Copy Code**, and the address to visit; the browser opens once per code.
+- [unit] `signInPollsUntilThePersonSignsInAndRevokesThePreviousSignIn`: the app polls until the browser finishes and revokes the sign-in it replaces.
+- [unit] `aRefusedSignInOffersToTryAgain`, `cancellingStopsPolling`: a refusal shows its message and **Try Again**; Cancel stops polling.
+- [unit] `restoresTheKeychainSignInForTheServer`, `anExpiredSignInCountsAsSignedOut`, `aSignInTheKeychainRefusesIsRevoked`: the sign-in is kept in the login Keychain, restored on the next start, and an expired or refused one counts as signed out.
+- [manual] A toast says "Signed in as" and the account's email, and the sidebar footer shows the email and the server.
+UX:
+- Flow: the empty-state **Sign In…** button, the toolbar's "Signed out", or Momentum Task Manager ▸ Sign In… -> sheet "Sign in to Momentum" shows the server, then the code -> the browser opens by itself once per code (**Open Browser** opens it again) -> enter the code and choose Google or GitHub -> the sheet closes, a toast says "Signed in as <email>", tasks load. Way back: Esc or **Cancel** closes the sheet and stops waiting; after a failure **Try Again** starts over.
+- Surface: sheet (one short task that must finish or cancel before going on).
+- States: starting ("Starting sign-in…" with a spinner); waiting (the code, "Waiting for you to finish signing in…"); failed (the server's message with a warning symbol, **Try Again**); signed out with no tasks shown ("Sign in to see your tasks", **Sign In…**).
+- Words: "Sign In…" (ellipsis, since it opens a sheet); "Enter this code in your browser, then sign in with Google or GitHub."; "Open Browser", "Copy Code", "Or go to <address>"; "Try Again", "Cancel".
+- Access: Return opens the browser, Esc cancels; VoiceOver reads the code one character at a time; the code and the address are selectable; the failure is a symbol, a color and a sentence.
+- Review: the sheet's title says "Sign in to Momentum" while the app is "Momentum Task Manager" (glossary question 1).
+Status: done
+
+### S-003 Sign out
+As the user, I choose Sign Out and the app forgets me.
+Screens: setup.png, today.png
+Depends: S-002
+Acceptance:
+- [unit] `signOutRevokesAndForgetsTheSignIn`: the server revokes the sign-in and the Keychain entry is removed.
+- [unit] `signOutForgetsTheSignInWhenTheServerCannotRevokeIt`: the app still signs out and the toast says the token works until it expires.
+- [manual] Sign Out is off while signed out; New Task, Plan and the other task actions are off too.
+UX:
+- Flow: Momentum Task Manager ▸ Sign Out -> the sign-in is revoked on the server and removed from the Keychain -> a toast says "Signed out" and the toolbar reads "Signed out". Way back: Sign In… (nothing is lost, since the tasks live on the server).
+- Surface: menu command that acts at once, with no confirmation, because signing back in restores everything.
+- States: done is the toast and the toolbar; error is the second toast below. The menu item is off while signed out or while a sheet is open.
+- Words: "Sign Out" (no ellipsis, acts at once); "Signed out"; when the server can't revoke it: "Signed out. The server couldn’t revoke the sign-in, so its token works until <date>: <reason>".
+- Access: reachable from the menu bar; the toast is announced as a changing element.
+- Review: the failure toast uses "token", a word the glossary doesn't have, and runs long for a three-line toast. "Signed out. The sign-in stays valid on the server until <date>." says it with a glossary word.
+Status: done
+
+### S-004 See my tasks when I open the app
+As the user, I open the app and see Today when it has work, otherwise Inbox.
+Screens: today.png, inbox.png
+Depends: S-002
+Acceptance:
+- [unit] `startupOpensTodayWhenItHasWork`, `startupOpensInboxWhenTodayIsEmpty`.
+- [manual] The sidebar lists Inbox, Today and Completed; Inbox and Today show how many tasks they hold, and Completed shows no count.
+- [manual] While tasks load the window says "Loading tasks from the server…"; a failed load says "Couldn’t load tasks" and "No data changed", with **Try Again**.
+- [manual] Quit and reopen: the same tasks are there.
+UX:
+- Flow: launch -> the toolbar reads "Connecting…" and the list says "Loading tasks from the server…" -> Today opens if it has work, otherwise Inbox -> the sidebar counts appear. Way back: none needed; on failure **Try Again** loads again.
+- Surface: sidebar pages (a place people come back to), with the window title naming the view and its subtitle the date (Today) or the rule (Inbox, Completed).
+- States: empty per view ("Nothing due today" with **New Task** and **Open Inbox**; "No pending tasks" with **New Task**; "No recently completed tasks"); loading as above; error "Couldn’t load tasks" with "No data changed." and **Try Again**; a startup error "Couldn’t start Momentum" with **Try Again**; too much is a scrolling list of sections, with long descriptions cut to one line.
+- Words: the sidebar names "Inbox", "Today", "Completed"; counts beside Inbox and Today only.
+- Access: ↑ ↓ in the sidebar, `1` `2` `3` and ⌘1 to ⌘3 switch views; each row reads as one element.
+- Review: a long description is cut to one line with no hover text for the full text (it shows in the inspector, S-010); "Couldn’t start Momentum" uses the product name (glossary question 1).
+Status: done
+
+### S-005 Add a task by typing
+As the user, I press ⌘N, type a description and press Return, and the task appears in the list.
+Screens: capture.png, inbox.png
+Depends: S-004
+Acceptance:
+- [manual] ⌘N, `c` and the **New Task** toolbar button open the sheet; all three are off while signed out.
+- [manual] Return adds the task, a toast says "Added “…”", and the new task is selected in the list.
+- [manual] Esc closes the sheet and adds nothing.
+UX:
+- Flow: ⌘N, `c`, the toolbar's **New Task**, or File ▸ New Task -> sheet, text field in focus -> type -> Return adds it, the sheet closes, a toast says "Added “…”", the new task is selected -> `u` or ⌘Z takes it back while the countdown runs. Way back: Esc closes the sheet without adding.
+- Surface: sheet (one short task that must finish or cancel before going on). The Panel row fits repeat entry better; that belongs to the quick-add work, not here.
+- States: empty field shows an example sentence as its placeholder; adding shows a spinner in the footer; an error shows inline in the sheet, under the field, in red with a warning symbol; input the app can't read one way goes to the review sheet (S-025).
+- Words: toolbar "New Task"; footer hints "↩ Add" (or "↩ Review" when the input needs it) and "esc Close"; toast "Added “<description>”".
+- Access: the field is labeled "New task" for VoiceOver; the whole flow works from the keyboard.
+- Review (most serious first): (1) the sheet has no **Add Task** and no **Cancel** button, only the keyboard hints, so a pointer or VoiceOver user can't finish; the review sheet already has both. (2) The toolbar's hover text "New Task (⌘N)" repeats the name instead of saying what the button does, for example "Add a task to your list (⌘N)". (3) The sheet has no title, and the shortcuts sheet calls it "Quick capture" (glossary question 2).
+Status: done
+
+### S-006 Complete a task
+As the user, I select a task and press Space, and it is done.
+Screens: today.png, completed.png
+Depends: S-004
+Acceptance:
+- [unit] `completionMovesSelectionToTheNextTaskThenThePrevious`.
+- [unit] `mutationOpensUndo`: a toast says "Completed “…”" and offers Undo.
+- [unit] `failedMutationShowsErrorAndKeepsUndoClosed`: a failed completion shows the server's error and offers no Undo.
+- [manual] Clicking the circle, ⌘↩ and **Complete** in the Task menu do the same.
+UX:
+- Flow: select a task and press Space, or ⌘↩, or Task ▸ Complete, or right-click ▸ Complete, or click the circle in its row -> the row leaves its view, the selection moves to the next task (else the previous), a toast says "Completed “…”" with Undo and a countdown -> Undo, `u` or ⌘Z brings it back. Way back: Undo, for the length of the countdown.
+- Surface: inline (changes one value on something already on screen), with no confirmation, because Undo covers it.
+- States: done is the toast, the countdown and the toolbar's "Saved · undo 12s"; error is a red toast with the server's message and no Undo. In Completed, Space says "Completed tasks are read-only".
+- Words: "Complete"; toast "Completed “<description>”"; "Undo" with its ⌘Z key.
+- Access: the circle is a button labeled "Complete <description>"; hovering fills it with a check so the circle is not color alone; Space works from the list and the sidebar.
+- Review: the circle has no hover text ("Complete this task (Space)"); the Edit menu item reads "Undo" where "Undo Complete Task" would name the action.
+Status: done
+
+### S-007 Know whether the server is reachable
+As the user, I read the toolbar to learn whether my changes are reaching the server.
+Screens: today.png
+Depends: S-004
+Acceptance:
+- [unit] `serverStateFollowsWhatTheServerAnswers`.
+- [manual] The toolbar reads "Connecting…", "Online", "Server unreachable" (click to try again) or "Signed out" (click to sign in), with its own symbol, and the hover text names the server.
+- [manual] With the server down, a change fails with an error toast and the list keeps what it had; nothing is queued, and quitting never waits.
+UX:
+- Flow: the toolbar's status button always shows the state; click it to act: "Signed out" opens the sign-in sheet (S-002), any other state refreshes (S-008). Way back: none needed.
+- Surface: inline, a toolbar item (changes nothing modal).
+- States: "Connecting…" while the first load runs; "Online"; "Saved · undo 12s" counting down after a change; "Server unreachable" in the warning color with a triangle; "Signed out" in the warning color with a person symbol. It is hidden when no server is set.
+- Words: hover texts "Sign in to <server>", "Momentum can’t reach <server>. Click to try again.", "Tasks are kept on <server>. Click to reload."
+- Access: the state is a word, a symbol and a color, never color alone; VoiceOver reads the word.
+- Review: the hover text says "reload" where the menu says "Refresh" (glossary question 3); VoiceOver hears only the state, with no hint that pressing it refreshes or signs in.
+Status: done
+
+### S-008 Refresh from the server
+As the user, I press `r` and see what changed on the server.
+Screens: today.png
+Depends: S-004
+Acceptance:
+- [manual] `r`, ⌥⌘R and a click on "Online" reload, and a toast says "Refreshed from the server".
+- [manual] The list reloads by itself every `refresh_interval` (60 seconds by default; `0s` turns it off) and keeps showing its rows while it does.
+- [manual] Auto-refresh waits while a sheet is open.
+UX:
+- Flow: `r`, ⌥⌘R, View ▸ Refresh, or a click on the toolbar's status -> the list reloads in place -> a toast says "Refreshed from the server". The same reload runs by itself every `refresh_interval` without a toast. Way back: none needed; a refresh changes nothing on the server.
+- Surface: inline, with a toast for the result.
+- States: during a reload the rows stay; a failed manual reload is a red toast with the error and the rows stay; the first load failing is the full-window error in S-004.
+- Words: "Refresh"; "Refreshed from the server".
+- Access: a menu item with its shortcut; the toast is announced.
+- Review: the error text comes from the bridge or the server; read each one aloud and make sure it says what to do (for example "Momentum can’t reach <server>. Check your connection.").
+Status: done
+
+## M2 Organize and edit
+
+Group tasks, read them, change them, and remove them.
+
+### S-009 Browse Inbox by project
+As the user, I open Inbox and see my tasks under their projects.
+Screens: inbox.png
+Depends: S-004
+Acceptance:
+- [manual] Each project is a section with a folder symbol and its task count, and its full value when the section's title is shorter; tasks without a project have a section of their own.
+- [manual] A task due or scheduled today, or overdue, is not in Inbox; the empty state says "No pending tasks" and offers **New Task**.
+Status: done
+
+### S-010 Read a task's details
+As the user, I press Return on a task and read everything about it in the inspector.
+Screens: inspector.png
+Depends: S-004
+Acceptance:
+- [unit] `returnShowsAndHidesTheInspector`.
+- [manual] The inspector shows project, priority, due, scheduled, estimate, tags, the repeat rule, what the task depends on, and its notes; technical fields sit in a folded section.
+- [manual] With nothing selected it says "No Selection"; ⌃⌘I and the toolbar button show and hide it; double-clicking a row opens it.
+Status: done
+
+### S-011 Edit a task in the sheet
+As the user, I press `e`, change fields, and save; only what I changed is sent.
+Screens: edit.png, inspector.png
+Depends: S-010
+Acceptance:
+- [unit] `editFieldErrorsReachTheEditor`: a value the bridge refuses shows under its own field, the other edits stay, and the sheet stays open.
+- [manual] The sheet has description, project (with suggestions from the catalog), priority (None, Low, Medium, High), due, scheduled, estimate (1 minute to 24 hours), repeats and tags.
+- [manual] **Save** is off until a field changes; Return or ⌘S saves and Esc cancels; a toast says "Updated “…”" and offers Undo.
+- [manual] Clearing a field removes the value on the server.
+Status: done
+
+### S-012 Edit one field with its key
+As the user, I press a letter and land in the edit sheet on that field.
+Screens: edit.png
+Depends: S-011
+Acceptance:
+- [unit] `actionKeysOpenTheirDialogsAndEditors`: `e` description, `E` estimate, `R` repeats, `p` project, `!` priority, `D` due, `S` scheduled, `t` tags.
+- [manual] The same keys work from the sidebar; ⌘E opens the sheet on the description.
+Status: done
+
+### S-013 Start and stop a task
+As the user, I press `s` on the task I am working on.
+Screens: today.png, inspector.png
+Depends: S-004
+Acceptance:
+- [manual] `s`, ⌘T and the inspector's **Start** and **Stop** toggle it, and a toast says "Started “…”" or "Stopped “…”" with Undo.
+- [manual] An active task shows an "Active" badge in its row and "Active since" with the time in the inspector.
+Status: done
+
+### S-014 Delete a task
+As the user, I press `d`, confirm, and the task is gone.
+Screens: delete.png
+Depends: S-004
+Acceptance:
+- [manual] The dialog asks "Delete “…”?", says how long the delete can be undone, and takes `y` to delete and `n` to cancel.
+- [manual] For a task in a repeating series it says the other instances are not affected.
+- [manual] A toast says "Deleted “…”" and offers Undo; the selection moves to the next task.
+Status: done
+
+### S-015 Stop a task repeating
+As the user, I press `x` on a repeating task to end its series.
+Screens: stop-repeating.png
+Depends: S-004
+Acceptance:
+- [unit] `actionKeysOpenTheirDialogsAndEditors`.
+- [manual] The dialog says the series ends, no new instances are made, and existing instances and history stay.
+- [manual] On a task that does not repeat, `x` shows "This task doesn’t repeat".
+Status: done
+
+### S-016 Act on a task with the pointer
+As the user, I right-click a task, or hover over it, and use its actions.
+Screens: context-menu.png, today.png
+Depends: S-004
+Acceptance:
+- [manual] The context menu on a pending task offers Complete, Start or Stop, Edit…, Stop Repeating… (only on a repeating task) and Delete….
+- [manual] The hovered or selected row shows start, edit and delete buttons.
+- [manual] On a completed task the context menu offers only **Show Details**.
+Status: done
+
+### S-017 Look back at Completed tasks
+As the user, I open Completed to see what I finished in the last 30 days.
+Screens: completed.png
+Depends: S-006
+Acceptance:
+- [unit] `actionKeysSayCompletedTasksAreReadOnly`: Space, `s`, `d`, `x` and the edit keys say "Completed tasks are read-only".
+- [manual] The subtitle reads "Last 30 days · read-only"; each row shows when the task was completed; the inspector says to undo the completion, while undo lasts, to change it.
+- [manual] The empty state says "No recently completed tasks", and the app never opens on Completed by itself.
+Status: done
+
+## M3 Time
+
+Dates, what is overdue, how long things take, and taking a change back.
+
+### S-018 See Today in groups
+As the user, I open Today and see Overdue, Due Today, Scheduled Today and Planned Today.
+Screens: today.png
+Depends: S-004
+Acceptance:
+- [manual] Each group is a section with its count; a task that fits several groups shows once, in the first of them, in that order.
+- [manual] The subtitle shows today's weekday and date; the empty state says "Nothing due today" and offers **New Task** and **Open Inbox**.
+- [manual] A task scheduled before today is not overdue; only its due date makes it so.
+Status: done
+
+### S-019 See how many tasks are overdue
+As the user, I glance at the sidebar to see how many tasks are overdue.
+Screens: today.png
+Depends: S-018
+Acceptance:
+- [manual] A red count sits beside Today when tasks are overdue, its hover text says "N overdue", and it goes away at zero.
+Status: done
+
+### S-020 Read a row at a glance
+As the user, I read a task's row to know when it is due, how long it takes and how important it is.
+Screens: today.png, inbox.png
+Depends: S-004
+Acceptance:
+- [manual] A row shows its due or scheduled date ("Yesterday", "N days overdue", a scheduled date with a calendar symbol), its estimate with a clock, and a priority mark; the date's color says whether it is overdue.
+- [manual] A task with an estimate the app can't read shows "Estimate" with a warning instead of a value.
+- [manual] A repeating task shows a repeat symbol and a task with notes a note symbol; `momentum-plan-` tags are not shown.
+- [manual] In a window narrower than 600 points the project moves from the right into a line below the title.
+Status: done
+
+### S-021 Undo the last change
+As the user, I press `u` or ⌘Z right after a change and it comes back.
+Screens: today.png
+Depends: S-006
+Acceptance:
+- [unit] `undoLastsForTheMutationDelay`, `undoClosesAWindowWhoseTickIsLate`, `aZeroMutationDelayOffersNoUndo`.
+- [manual] After a change the toolbar reads "Saved · undo 12s" and counts down, the toast has an Undo button with a countdown ring, and `[sync].mutation_delay` (15 seconds by default) sets how long.
+- [manual] After the window closes, `u` says "Undo is only available for 15 seconds after a change"; a successful undo says "Last change undone".
+- [manual] ⌘Z undoes typing while a text field has focus, and the last change otherwise.
+Status: done
+
+## M4 Speed
+
+Add and find tasks without leaving the keyboard.
+
+### S-022 Add a task in plain language
+As the user, I type "Prepare proposal tomorrow at 3pm, every Friday, about 1h" and the app finds the date, repeat and estimate.
+Screens: capture.png
+Depends: S-005
+Acceptance:
+- [unit] The Go interpreter in `tui/internal/quickadd` reads dates, repeats and estimates from plain language.
+- [manual] Recognized phrases are underlined in their field's color as I type, and a "Saves as" line shows the description that will be kept.
+- [manual] The sheet's placeholder shows an example sentence.
+Status: done
+
+### S-023 Add a task with triggers
+As the user, I type `#work.client !high @tomorrow +planning ~1h30m ^weekly` and each part lands in its field.
+Screens: capture.png
+Depends: S-005
+Acceptance:
+- [unit] `tui/internal/quickadd`: a trigger counts only at the start of a word; `bob@example.com` stays text; a repeated project, priority, due, scheduled or estimate trigger is refused.
+- [manual] `\#launch` keeps the `#` as text.
+- [manual] The footer lists the triggers: `#` project, `!` priority, `@` due, `>` scheduled, `+` tag, `~` estimate, `^` repeat.
+Status: done
+
+### S-024 Accept a suggestion
+As the user, I type `#wo`, press ⇥, and the project is completed.
+Screens: capture-suggestions.png
+Depends: S-023
+Acceptance:
+- [manual] Suggestions list projects, tags, priorities and dates; ↑ ↓ choose, ⇥ accepts and Return adds the whole task.
+- [manual] Esc closes suggestions first; on a highlighted phrase it keeps the phrase as text; otherwise it closes the sheet.
+Status: done
+
+### S-025 Review unclear input before adding
+As the user, when the app can't read my input one way, I fix it before the task is added.
+Screens: capture-review.png
+Depends: S-022
+Acceptance:
+- [unit] `reviewDatesIgnoreEmptyValues`, and the capture review tests in `tui/internal/bridge`.
+- [manual] The sheet says "Review before adding" with each field, **Keep as Is** per field, **Edit Text**, **Add Using Triggers Only**, **Add Task** and **Cancel**.
+- [manual] Nothing is added until I choose one of the add buttons.
+Status: done
+
+### S-026 Move and switch views with the keyboard
+As the user, I use `j` `k` and the number keys instead of the mouse.
+Screens: today.png
+Depends: S-004
+Acceptance:
+- [unit] `movementKeysStayInsideTheList`: `j` `k` ↓ ↑ `g` `G` stop at the first and last task.
+- [unit] `numberKeysOpenTheViewsInTheTUIOrder`: `1` Inbox, `2` Today, `3` Completed, and ⌘1 to ⌘3 from the View menu.
+- [unit] `keysWaitForOverlaysAndLeaveCommandShortcutsToTheMenus`: single keys do nothing while a sheet is open or a text field has focus.
+Status: done
+
+### S-027 Search the current view
+As the user, I press `/` and narrow the list by typing.
+Screens: search.png
+Depends: S-004
+Acceptance:
+- [unit] `fuzzyTextCoversDescriptionProjectAndTags`, `projectTermIsExactAndCaseInsensitive` (`project:work`, `project:none`), `scoresMatchTheTUI`, `searchFiltersSectionsAndRepairsSelection`.
+- [unit] `slashFocusesSearchAndEscClearsIt`: `/` and ⌘F focus the field; Return keeps the filter and hands focus to the list; Esc clears it.
+- [manual] The subtitle reads "N of M match"; nothing found shows the search empty state.
+Status: done
+
+### S-028 See every shortcut
+As the user, I press `?` and see every shortcut in groups.
+Screens: shortcuts.png
+Depends: S-004
+Acceptance:
+- [manual] `?`, ⇧⌘/ and the sidebar's **Keyboard Shortcuts** row open the sheet; Navigate, Act on selection, Edit a field, Quick capture, Plan Today and App are listed, plus the capture triggers.
+- [manual] Return or **Done** closes it.
+Status: done
+
+### S-029 Run task commands from the menu bar
+As the user, I use the Task menu and ⌘ shortcuts instead of single keys.
+Screens: menu.png
+Depends: S-004
+Acceptance:
+- [manual] The Task menu has Complete (⌘↩), Start or Stop (⌘T), Edit… (⌘E), Stop Repeating… and Delete…; New Task is ⌘N and Refresh is ⌥⌘R.
+- [manual] Items are off when no pending task is selected, while a sheet is open, or while signed out.
+Status: done
+
+## M5 Plan the day
+
+Choose today's work against the hours the day really has.
+
+### S-030 Open Plan Today
+As the user, I press `P` and the planning sheet opens.
+Screens: plan-today.png, today.png
+Depends: S-018
+Acceptance:
+- [unit] `shiftPOpensPlanTodayFromTheList`, `planTodayWaitsForASignInAndRespectsPlanningOff`.
+- [manual] `P`, ⇧⌘P, the **Plan** toolbar button and the sidebar's **Plan Today** button open it; all four are off while signed out.
+- [unit] `shiftPIsNoShortcutWithPlanningOff`: `[planning] enabled = false` hides the button, the box, the menu item and the key.
+Status: done
+
+### S-031 Tick the tasks I will do today
+As the user, I tick tasks in the sheet and see what is left of the day.
+Screens: plan-today.png
+Depends: S-030
+Acceptance:
+- [unit] `tickingSumsTheChosenEstimatesAndWarnsOverCapacity`: the column adds up the estimates of ticked tasks and warns, never blocks, when the day goes over.
+- [unit] `movementSkipsObligationsAndStopsAtTheEnds`, `spaceTicksTheRowUnderTheCursor`: ↑ ↓ or `j` `k` move over the rows I can tick, Space ticks, `g` `G` go to the first or last row.
+- [manual] Rows say why a task is in its group; tasks planned on an earlier day and still open start ticked; tasks without an estimate are counted apart, never as zero.
+- [unit] `minutesReadAsTheTUIShowsThem`.
+Status: done
+
+### S-032 Keep today's obligations in the plan
+As the user, I can't untick what is overdue or due or scheduled today.
+Screens: plan-today.png
+Depends: S-031
+Acceptance:
+- [unit] `obligationsCannotBeUnticked`.
+- [manual] Obligations show as fixed rows that the cursor skips, and their minutes come off the capacity before anything else.
+Status: done
+
+### S-033 Filter the candidates
+As the user, I press `/` in the sheet and narrow the candidates.
+Screens: plan-today-filter.png
+Depends: S-031
+Acceptance:
+- [unit] `slashAndCommandFFocusTheFilter`, `theFilterNarrowsTheCandidatesAndKeepsTheirTicks`.
+- [unit] `escapeCancelsAndReturnConfirms`: in the filter, Return goes back to the list and Esc clears the filter; in the list, Return confirms and Esc cancels.
+Status: done
+
+### S-034 Confirm the plan
+As the user, I press Return and the plan is saved.
+Screens: plan-today.png, today.png
+Depends: S-031
+Acceptance:
+- [unit] `confirmingClosesTheSheetAndOffersNoUndo`: a toast says "Daily plan saved · N tasks" with no Undo, and ⌘Z can't revert one task's tag.
+- [unit] `anUnchangedPlanSaysSo`: an unchanged plan closes the sheet with "Daily plan unchanged".
+- [manual] The plan writes only `momentum-plan-YYYY-MM-DD` tags, never dates; reopening Plan Today is how a plan changes.
+- [unit] `listKeysWaitWhileThePlanIsOpen`: the list's single keys wait while the sheet is open.
+- [manual] Auto-refresh waits too, so the rows don't move under my ticks.
+Status: done
+
+### S-035 Finish a plan that stopped partway
+As the user, when a save fails halfway, I confirm again and the rest is saved.
+Screens: plan-today-partial.png
+Depends: S-034
+Acceptance:
+- [unit] `aPartialSaveKeepsTheSheetAndItsTicks`: the sheet stays open with my ticks and says "Saved k of n changes. Confirm again to finish — nothing is applied twice."
+- [unit] `aFailedSaveKeepsTheSheetOpen`.
+- [manual] A task completed on another device while the sheet was open is skipped, not an error.
+Status: done
+
+### S-036 See today's plan in the sidebar
+As the user, I glance at the sidebar and see how full the day is.
+Screens: today.png
+Depends: S-031
+Acceptance:
+- [manual] The **Today’s plan** box shows how many tasks are chosen, a meter of obligations, calendar time, buffer and chosen work against the day's capacity, the hours the tasks take ("2h of tasks"), and what is left ("1h free", or "30m over" in red).
+- [manual] The hover text says how many tasks have no estimate and aren't counted.
+- [manual] The count includes only tasks tagged for today outside the obligations.
+Status: done
+
+### S-037 See my calendar in the plan
+As the user, I see how much of the day my meetings take.
+Screens: plan-today.png
+Depends: S-031
+Acceptance:
+- [unit] `calendarTimeComesOffWhatIsAvailable`, `decodesThePlanItsCalendarAndTheSummary`, and the calendar tests in `tui/internal/bridge`: busy time inside working hours counts against capacity, and overlapping events count once.
+- [manual] The sheet shows the merged blocks, with their titles on hover; with `[calendar]` off there is no strip.
+- [manual] Event titles are never stored or logged.
+Status: done
+
+### S-038 Keep planning when the calendar can't be read
+As the user, when a calendar file is missing or broken, I plan with tasks alone and know why.
+Screens: plan-today-calendar-unavailable.png
+Depends: S-037
+Acceptance:
+- [unit] The bridge tests for missing and stale files: one unreadable file makes the whole calendar unavailable and its time counts as zero.
+- [manual] The sheet says "Calendar unavailable:" with the reason, and ticking, saving and the sidebar meter work.
+Status: done
+
+## M6 Settings and checks
+
+Change how the app works without editing `config.toml`. Plan: [`docs/plans/macos-settings.md`](./plans/macos-settings.md). Story to task: S-040 harness; S-041 and S-042 C02; S-043 and S-044 C01 and C03; S-045 and S-046 C04; S-047 C05; S-048 to S-052 C06 and C07; S-053 C08; S-054 and S-055 C01. Task C09 (README) goes with the last story.
+
+### S-040 See every page in light and dark
+As the developer, I run one command and get a window snapshot of every page, in both looks.
+Screens: every page named in this file
+Acceptance:
+- [self] A snapshot exists for each name under `Screens:` in light and dark, taken from a fake server, never the real one.
+- [self] A story's `[snap]` lines can be checked by looking at its snapshot.
+- [unit] The command fails when the app doesn't build, and leaves the user's `config.toml` and Keychain alone.
+Status: todo
+
+### S-041 Open Settings
+As the user, I press ⌘, and a Settings window opens with Projects, Planning, Calendar, Appearance and Diagnostics.
+Screens: settings-projects.png
+Depends: S-040
+Acceptance:
+- [snap] A 760×600 window with toolbar tabs in that order and grouped rows.
+- [self] ⌘, and a **Settings** row in the sidebar footer, beside **Keyboard Shortcuts**, both open it; the footer row shows ⌘,.
+- [manual] A change in any tab applies at once, and an invalid value shows inline and is not saved.
+Status: todo
+
+### S-042 Choose the Mac's appearance
+As the user, I pick System, Light or Dark and the whole app follows at once.
+Screens: settings-appearance.png, today.png
+Depends: S-041
+Acceptance:
+- [unit] The saved preference maps to the color scheme.
+- [snap] Appearance shows the three choices; Today in each.
+- [unit] The preference is kept on this Mac only: the TUI's `theme` key is neither read nor written.
+Status: todo
+
+### S-043 Turn planning on or off
+As the user, I flip a switch and Plan Today appears or goes away.
+Screens: settings-planning.png
+Depends: S-041, S-054
+Acceptance:
+- [unit] With a fake bridge: the switch saves at once to `[planning] enabled`.
+- [self] Off, the sidebar box, the toolbar button, the menu item and `P` are all gone; on, they are back without restarting.
+Status: todo
+
+### S-044 Set how much a day holds
+As the user, I type `8h` for the day and `7h30m` for Fridays, and the plan uses them.
+Screens: settings-planning.png
+Depends: S-043
+Acceptance:
+- [unit] A valid duration saves on Return or when the field loses focus; an invalid one stays inline and unsaved, checked with the config's own validation.
+- [unit] An empty weekday field means the daily capacity.
+- [snap] The Planning tab shows daily capacity, buffer and a grid with one field per weekday.
+- [self] The sidebar meter uses the new capacity on the next load.
+Status: todo
+
+### S-045 Choose calendar files
+As the user, I add and remove `.ics` files and see whether each can be read.
+Screens: settings-calendar-files.png
+Depends: S-041, S-054
+Acceptance:
+- [manual] **Add…** opens a file panel; a file under the home folder is stored with `~/`; **Remove** takes one out.
+- [unit] Per-file status (available, stale, missing, error) comes from loading each file on its own, using fixtures.
+- [unit] Switching files on with no files is refused with a message, as the config's validation does.
+- [snap] The Calendar tab lists the files with their status.
+Status: todo
+
+### S-046 Say which hours and events count
+As the user, I set my working hours and whether all-day and "free" events count as busy.
+Screens: settings-calendar-files.png
+Depends: S-045
+Acceptance:
+- [unit] Working start and end, "all-day events count" and "events shown as available count" save to `[calendar]` and apply to every source.
+- [unit] The staleness limit applies to files only.
+- [manual] After a change, the next load's busy minutes follow it.
+Status: todo
+
+### S-047 Use the Mac's Calendar instead of files
+As the user, I choose macOS Calendar as my source and pick which calendars count.
+Screens: settings-calendar-mac.png, settings-calendar-denied.png
+Depends: S-046
+Acceptance:
+- [self] The Calendar tab has a source picker with calendar files and macOS Calendar; choosing macOS Calendar asks for access.
+- [snap] Denied, the tab says so and offers to open System Settings › Privacy & Security › Calendars; Plan Today says "Calendar unavailable: no access".
+- [snap] Granted, calendars are listed by account with a switch each.
+- [unit] Events handed to the bridge give the same busy minutes as the same events read from a file; titles go only with `plan`.
+- [unit] Choosing macOS Calendar never changes `[calendar] enabled` or `paths`; the source and the chosen calendars stay on this Mac.
+- [manual] Run once with access granted and once denied.
+Status: todo
+
+### S-048 Browse my projects
+As the user, I open Projects and see my project tree.
+Screens: settings-projects.png
+Depends: S-041
+Acceptance:
+- [snap] One tree lists catalog projects and values found only on tasks, each tagged "Catalog" or "From tasks", with its name, tag and task count.
+- [unit] With a fake bridge, the tree mirrors what `settings` returns.
+Status: todo
+
+### S-049 Add or edit a catalog project
+As the user, I add `work.client` under `work`, or change its name.
+Screens: settings-project-sheet.png
+Depends: S-048
+Acceptance:
+- [snap] The sheet has a name, a parent picker and the full value.
+- [unit] An invalid draft writes nothing and says why; a catalog-only edit never changes a task.
+- [unit] The catalog saves from its own sheet, not from a draft on the tab.
+Status: todo
+
+### S-050 Remove a project
+As the user, I remove a project and say what happens to its children.
+Screens: settings-project-remove.png
+Depends: S-048
+Acceptance:
+- [snap] The prompt names the project and how many children it has.
+- [unit] Removing with and without children each leave the catalog as the choice says; removing never changes a task.
+Status: todo
+
+### S-051 Rename a project and move its tasks
+As the user, I rename `work` to `job` and choose whether my pending tasks follow.
+Screens: settings-project-rename.png
+Depends: S-049
+Acceptance:
+- [snap] The sheet offers "Catalog only" (the default) and "Catalog + pending tasks", with "Include subprojects", the counts, a merge warning, and a note that history keeps its values.
+- [unit] The catalog saves before the migration; a refused migration keeps the saved catalog; a stale preview is refused and needs a fresh one; `workshop` is not matched by `work`.
+- [unit] The server moves all tasks or none; the migration has no undo, and the undo window closes.
+Status: todo
+
+### S-052 Add a project my tasks already use
+As the user, I see a project that only exists on tasks and add it to the catalog.
+Screens: settings-project-sheet.png
+Depends: S-049
+Acceptance:
+- [snap] A "From tasks" row offers **Add to Catalog…**, which opens the add sheet filled in.
+- [unit] Nothing is added until that sheet is saved.
+Status: todo
+
+### S-053 Check that everything is working
+As the user, I open Diagnostics and copy a report for a bug report.
+Screens: settings-diagnostics.png
+Depends: S-041
+Acceptance:
+- [snap] The tab lists the checks for the server, the sign-in, the time zone, the config and the calendar, with the app and bridge versions and the config path.
+- [manual] **Show in Finder** reveals the config file; **Copy Report** puts the report on the clipboard.
+- [unit] The `doctor` operation against the fake server; the copied report holds no token and no event title.
+Status: todo
+
+### S-054 Edit `config.toml` in an editor and see it applied
+As the user, I change `config.toml` in my editor, or the TUI, and the app picks it up without a restart.
+Screens: today.png, settings-planning.png
+Acceptance:
+- [unit] The bridge reloads when the file's modification time changes, on each load and before Settings reads it.
+- [unit] A file that no longer validates keeps the last good settings; the error shows in Settings and Diagnostics.
+- [unit] A changed `[backend] url` is ignored until the app restarts, and says so.
+Status: todo
+
+### S-055 Never overwrite a config changed elsewhere
+As the user, if the file changed while Settings was open, my save is refused and nothing is lost.
+Screens: settings-conflict.png
+Depends: S-054
+Acceptance:
+- [unit] A save is refused when the file changed since it was read; comments and unrelated keys stay; a symlinked config stays a symlink.
+- [snap] After a refusal the tab reloads from disk, says the file changed outside Momentum, and asks me to make the change again.
+Status: todo
+
+## M7 Release
+
+### S-056 Open a signed build
+As the user, I install a build that macOS opens without a warning about an unknown developer.
+Screens: —
+Acceptance:
+- [manual] `spctl --assess` accepts the app and the bundled `momentum-bridge`.
+- [manual] The build is hardened and signed with a Developer ID, not ad hoc; the Keychain prompt on rebuild no longer appears.
+Status: todo
+
+## Later
+
+- Google Calendar as a calendar source ([`docs/plans/google-calendar.md`](./plans/google-calendar.md)): connect and disconnect Google in Settings, see "needs reconnecting", and count Google meetings in Plan Today, declined ones left out. D1–D8 await approval and most of the work is in the server and the TUI, so it waits.
+- Custom smart views and filters.
+- Configurable keybindings.
+- Editing a task's notes and dependencies.
+- Selecting several tasks and acting on them together.
+- Duplicating a task.
+- Notifications, and a helper that runs while the app is closed.
+
+## Dropped
+
+- Offline use and a local task store: the server is the source of truth ([ADR 0002](./adr/0002-go-postgres-backend.md), P1).
+- Contexts and hooks ([ADR 0002](./adr/0002-go-postgres-backend.md), D6), and the design's "Context" row and Taskwarrior log panel.
+- Taskwarrior inside the app: `momentum import` in the TUI copies the tasks over.
+- A Kanban board.
+- Telemetry, crash reporting and automatic update checks.
+- Windows, and the Homebrew tap (TUI only).
