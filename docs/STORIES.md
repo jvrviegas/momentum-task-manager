@@ -487,6 +487,12 @@ Acceptance:
 - [snap] A 760×600 window with toolbar tabs in that order and grouped rows.
 - [self] ⌘, and a **Settings** row in the sidebar footer, beside **Keyboard Shortcuts**, both open it; the footer row shows ⌘,.
 - [manual] A change in any tab applies at once, and an invalid value shows inline and is not saved.
+UX:
+- Flow: ⌘,, Momentum Task Manager ▸ Settings…, or the **Settings** row in the sidebar footer -> the Settings window opens on the tab used last (Projects the first time), or comes forward if it is already open -> click a tab to switch -> ⌘W closes it. Every change in a tab applies at once, so there is nothing to save and nothing lost by closing.
+- Surface: new window (a self-contained place people keep open beside the main window), a `Settings` scene with toolbar tabs in the order Projects, Planning, Calendar, Appearance, Diagnostics, 760×600 and not resizable. The sidebar row is a shortcut to it.
+- States: Appearance is built (S-042). The other four tabs show a placeholder until their stories land: a symbol, "<Tab> isn’t in Settings yet", "For now, edit [<section>] in config.toml. Changes apply without restarting." (Diagnostics: "For now, run momentum doctor in a terminal."), and a **Show config.toml in Finder** button. A config problem or a changed `[backend] url` adds the banner from S-054 above every tab.
+- Words: "Settings" (Apple's word, in the menu and the sidebar row, with ⌘, beside it as a key cap), tab names "Projects", "Planning", "Calendar", "Appearance", "Diagnostics", button "Show config.toml in Finder".
+- Access: the system gives the Settings window its ⌘, shortcut and ⌘W; tabs are reachable with the keyboard (Tab to the tab bar, ← → to move); the window title is the selected tab's name; the sidebar row is a button with the visible label "Settings".
 Status: todo
 
 ### S-042 Choose the Mac's appearance
@@ -497,6 +503,12 @@ Acceptance:
 - [unit] The saved preference maps to the color scheme.
 - [snap] Appearance shows the three choices; Today in each.
 - [unit] The preference is kept on this Mac only: the TUI's `theme` key is neither read nor written.
+UX:
+- Flow: Settings ▸ Appearance -> choose System, Light or Dark -> the main window, its sheets and the Settings window change at once -> the choice is kept on this Mac and is there at the next launch. Way back: choose the earlier one; there is no Save, and no Undo is needed.
+- Surface: inline (a segmented control that changes one value on something already on screen), in a grouped row of the Appearance tab.
+- States: System is the default and follows the Mac's own light or dark setting, including when it changes while the app is open. There is no empty, loading or error state.
+- Words: label "Appearance", choices "System", "Light", "Dark", note "System follows your Mac’s setting. This applies to this Mac only; the terminal app keeps its own theme."
+- Access: the control is labeled "Appearance" and VoiceOver reads the chosen value; Tab reaches it and ← → change it; each choice is a word, never a swatch or color alone.
 Status: todo
 
 ### S-043 Turn planning on or off
@@ -617,6 +629,12 @@ Acceptance:
 - [unit] The bridge reloads when the file's modification time changes, on each load and before Settings reads it.
 - [unit] A file that no longer validates keeps the last good settings; the error shows in Settings and Diagnostics.
 - [unit] A changed `[backend] url` is ignored until the app restarts, and says so.
+UX:
+- Flow: edit `config.toml` in an editor or the terminal app -> the app notices on its next load (every `refresh_interval`, ⌥⌘R, `r`) or when Settings opens, and applies the new values without restarting: Plan Today and its sidebar box appear or go, the capacity and calendar time in the meter change -> a file that no longer parses or validates changes nothing and Settings says so -> fix the file and the next load clears the message. A changed `[backend] url` still needs a restart, and Settings says so.
+- Surface: inline banner at the top of the Settings window, above the tabs' content (a status people can act on in their own time, never an alert).
+- States: file fine (no banner); file invalid ("Unable to read config.toml. The app is still using the last settings that worked." with the file's own message beneath, a warning symbol, **Show config.toml in Finder**); `[backend] url` changed ("[backend] url changed. Quit and reopen Momentum Task Manager to use it."). Both can show at once, the invalid file first. Nothing changes in the main window.
+- Words: "Unable to read config.toml", "The app is still using the last settings that worked.", "Show config.toml in Finder", "[backend] url changed. Quit and reopen Momentum Task Manager to use it."
+- Access: the banner is a symbol, a bold first sentence and a detail line, so meaning never rests on color; VoiceOver reads it first in the window; the button is reachable with Tab.
 Status: todo
 
 ### S-055 Never overwrite a config changed elsewhere
