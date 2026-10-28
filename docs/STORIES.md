@@ -519,6 +519,12 @@ Depends: S-041, S-054
 Acceptance:
 - [unit] With a fake bridge: the switch saves at once to `[planning] enabled`.
 - [self] Off, the sidebar box, the toolbar button, the menu item and `P` are all gone; on, they are back without restarting.
+UX:
+- Flow: Settings ▸ Planning -> switch **Use Plan Today** on or off -> it saves to `[planning] enabled` at once -> in the main window the Plan button, the sidebar's Today’s plan box, the Plan Today… menu item and the P key appear or go within a second, with no restart. Way back: flip the switch again.
+- Surface: inline (a switch changes one value on something already on screen), the first row of the Planning tab.
+- States: on by default. Off: the capacity fields below dim and cannot be edited, and nothing else changes. A save that fails shows inline under the switch with the switch back where it was: "Unable to save config.toml. <reason>". A save refused because the file changed elsewhere reloads the tab and says "config.toml changed outside Momentum. The tab now shows what it says; make the change again." (S-055).
+- Words: switch "Use Plan Today", caption "Adds the Plan button, the Today’s plan box in the sidebar, the Plan Today… menu item and the P key."
+- Access: the switch is labeled with its text and VoiceOver reads "Use Plan Today, on"; Space toggles it; the error is text with a warning symbol.
 Status: todo
 
 ### S-044 Set how much a day holds
@@ -530,6 +536,12 @@ Acceptance:
 - [unit] An empty weekday field means the daily capacity.
 - [snap] The Planning tab shows daily capacity, buffer and a grid with one field per weekday.
 - [self] The sidebar meter uses the new capacity on the next load.
+UX:
+- Flow: Settings ▸ Planning -> click Daily capacity, Buffer or a weekday, type a length of time such as 8h or 7h30m -> Return, or Tab or a click elsewhere, saves it -> the sidebar's meter uses it on the next load, which the app asks for right after the save. A value that isn't valid stays in the field with its message and is not saved. Way back: type the earlier value; emptying a weekday field makes that day use the daily capacity.
+- Surface: inline text fields in grouped rows (each changes one value), with the weekdays as a grid of seven labeled fields, Monday first.
+- States: a weekday field's placeholder shows the daily capacity ("8h"); errors under the field: "Enter a length of time, such as 8h or 7h30m.", "Daily capacity must be longer than zero.", "Buffer can’t be negative.", "A day must be longer than zero. Leave it empty to use the daily capacity."; a saved value just stays, with no toast, since the field is the feedback; the fields dim while Plan Today is off.
+- Words: group "Capacity", labels "Daily capacity", "Buffer" and "Capacity by weekday", the weekday names, hint "Type a length of time, such as 8h or 7h30m. Leave a day empty to use the daily capacity."
+- Access: every field has a visible label; Return saves and Tab moves on and saves; VoiceOver reads the label, the value and any message under it; a message is text, never color alone.
 Status: todo
 
 ### S-045 Choose calendar files
@@ -541,6 +553,12 @@ Acceptance:
 - [unit] Per-file status (available, stale, missing, error) comes from loading each file on its own, using fixtures.
 - [unit] Switching files on with no files is refused with a message, as the config's validation does.
 - [snap] The Calendar tab lists the files with their status.
+UX:
+- Flow: Settings ▸ Calendar -> **Add…** opens a file panel for `.ics` files -> choose one or more -> each appears in the list with its status -> switch **Use calendar files** on -> Plan Today counts their meetings against the day's capacity. **Remove** takes a file out of the list; the file itself stays. Way back: Remove, switch off, or Esc to leave the panel.
+- Surface: an inline list in the Calendar tab; **Add…** opens the system open panel as a sheet on the Settings window (one short task that must finish or cancel).
+- States: empty list "No calendar files yet" with "Export a calendar to an .ics file, then add it here. Momentum reads the file; it never fetches a calendar for you." and **Add…**; each row shows the path (`~/` for a file under the home folder, in monospace) and a status as a symbol and a word: "Available", "Stale · last changed 3 days ago", "Missing", "Unreadable: <reason>"; the switch turned on with no files stays off with "Add a calendar file first." beneath it; removing the last file while the switch is on is refused with "Turn off Use calendar files before removing the last one."; a failed save shows "Unable to save config.toml. <reason>" inline.
+- Words: switch "Use calendar files", caption "Meetings in these files take time off each day’s capacity in Plan Today.", group "Calendar files", buttons "Add…" and "Remove", Remove's hover text "Remove this file from the list. The file itself stays."
+- Access: each row reads as one element, "<path>, <status>"; **Remove** is labeled "Remove <path>"; status is a word and a symbol, never color alone; the panel is the system's own and keyboard-complete.
 Status: todo
 
 ### S-046 Say which hours and events count
