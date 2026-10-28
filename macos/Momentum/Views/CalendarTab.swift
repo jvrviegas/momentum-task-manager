@@ -2,7 +2,8 @@ import SwiftUI
 import UniformTypeIdentifiers
 
 /// Settings ▸ Calendar, for the calendar files source: whether the files count,
-/// and which files there are, each with what loading it on its own found.
+/// which files there are, each with what loading it on its own found, and the
+/// hours and events that count against a day's capacity.
 struct CalendarTab: View {
     @Environment(AppStore.self) private var store
     @State private var choosing = false
@@ -27,7 +28,7 @@ struct CalendarTab: View {
                         ErrorLine(text: message)
                     }
                 }
-                Section("Calendar files") {
+                Section {
                     if calendar.files.isEmpty {
                         VStack(alignment: .leading, spacing: 4) {
                             Text("No calendar files yet").fontWeight(.semibold)
@@ -42,6 +43,46 @@ struct CalendarTab: View {
                         ErrorLine(text: message)
                     }
                     Button("Add…") { choosing = true }
+                    LabeledContent("Stale after") {
+                        LengthField(
+                            tab: "calendar", field: "staleAfter", title: "Stale after", placeholder: "24h", value: calendar.staleAfter
+                        ) { await model.setStaleAfter($0) }
+                    }
+                } header: {
+                    Text("Calendar files")
+                } footer: {
+                    Text("A calendar file that hasn’t changed for this long shows as Stale. Calendar files only; 0m means never.")
+                }
+                Section {
+                    DatePicker("Start", selection: timeBinding(calendar.workingStart) { await model.setWorkingStart($0) }, displayedComponents: .hourAndMinute)
+                    DatePicker("End", selection: timeBinding(calendar.workingEnd) { await model.setWorkingEnd($0) }, displayedComponents: .hourAndMinute)
+                } header: {
+                    Text("Working hours")
+                } footer: {
+                    VStack(alignment: .leading, spacing: 6) {
+                        if let message = model.error("calendar", "workingHours") {
+                            ErrorLine(text: message)
+                        }
+                        Text("Only meetings between these hours take time off a day’s capacity. This applies to every calendar source.")
+                    }
+                }
+                Section("Events that count") {
+                    Toggle(isOn: Binding(get: { calendar.includeAllDay }, set: { value in Task { await model.setIncludeAllDay(value) } })) {
+                        VStack(alignment: .leading, spacing: 2) {
+                            Text("Count all-day events")
+                            Text("An all-day event takes the whole working day off the capacity.")
+                                .font(.callout)
+                                .foregroundStyle(Theme.text2)
+                        }
+                    }
+                    Toggle(isOn: Binding(get: { calendar.includeTransparent }, set: { value in Task { await model.setIncludeTransparent(value) } })) {
+                        VStack(alignment: .leading, spacing: 2) {
+                            Text("Count events shown as free")
+                            Text("Events your calendar marks as free, such as a reminder, count as busy too.")
+                                .font(.callout)
+                                .foregroundStyle(Theme.text2)
+                        }
+                    }
                 }
             }
             .formStyle(.grouped)
@@ -59,6 +100,13 @@ struct CalendarTab: View {
             ProgressView().frame(maxWidth: .infinity, maxHeight: .infinity)
         }
     }
+}
+
+/// A time of day kept as HH:MM, shown as a time field. A value the file
+/// refuses leaves the field on what the file has.
+private func timeBinding(_ text: String, save: @escaping @Sendable (String) async -> Void) -> Binding<Date> {
+    let date = SettingsModel.date(fromTime: text)
+    return Binding(get: { date }, set: { value in Task { await save(SettingsModel.time(from: value)) } })
 }
 
 private struct CalendarFileRow: View {
