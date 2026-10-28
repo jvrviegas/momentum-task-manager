@@ -50,6 +50,11 @@ struct SnapshotScene {
         noCalendar.seed.plan.calendarAvailable = false
         noCalendar.seed.plan.calendarError = "~/Calendars/work.ics can’t be read."
 
+        var badConfig = SnapshotBridge.Config()
+        badConfig.configError = "config key \"calendar.paths\" requires at least one local ICS path"
+        var movedServer = SnapshotBridge.Config()
+        movedServer.restartRequired = true
+
         return [
             // First run, signing in, and the states of the first load.
             SnapshotScene(name: "setup", config: { var c = SnapshotBridge.Config(); c.backendURL = nil; return c }(), signedIn: false),
@@ -93,6 +98,18 @@ struct SnapshotScene {
             SnapshotScene(
                 name: "capture-review", config: review,
                 run: { $0.store.showCapture = true; await $0.settle(); await $0.type(source); await $0.pressReturn() }),
+
+            // Settings, and the appearance a person chooses.
+            SnapshotScene(name: "settings-projects", run: { await $0.openSettings(.projects) }),
+            SnapshotScene(name: "settings-appearance", run: { await $0.openSettings(.appearance) }),
+            SnapshotScene(name: "settings-reopened", run: { await $0.reopenSettings(.planning) }),
+            SnapshotScene(name: "settings-config-error", config: badConfig, run: { await $0.openSettings(.planning) }),
+            SnapshotScene(name: "settings-restart", config: movedServer, run: { await $0.openSettings(.planning) }),
+            SnapshotScene(name: "appearance-light", run: { await $0.chooseAppearance(.light) }),
+            SnapshotScene(name: "appearance-dark", run: { await $0.chooseAppearance(.dark) }),
+            SnapshotScene(
+                name: "appearance-dark-delete",
+                run: { await $0.chooseAppearance(.dark); $0.store.pendingDelete = $0.task("Review pull request") }),
 
             // Plan Today.
             SnapshotScene(name: "plan-today", run: { await $0.store.openPlan() }),
