@@ -130,13 +130,58 @@ struct SettingsModelTests {
         #expect(store.settings.snapshot?.calendar.enabled == false, "the switch stays off")
     }
 
+    @Test func workingHoursEventChoicesAndTheStaleLimitSaveAtOnce() async {
+        let (store, bridge) = await storeWithAPlan()
+        await store.settings.setWorkingStart("08:30")
+        await store.settings.setWorkingEnd("16:00")
+        await store.settings.setIncludeAllDay(true)
+        await store.settings.setIncludeTransparent(true)
+        await store.settings.setStaleAfter("90m")
+
+        let calendar = store.settings.snapshot?.calendar
+        #expect(calendar?.workingStart == "08:30" && calendar?.workingEnd == "16:00")
+        #expect(calendar?.includeAllDay == true && calendar?.includeTransparent == true)
+        #expect(calendar?.staleAfter == "90m")
+        #expect(await bridge.saves.count == 5, "each change is its own save, on the revision it read")
+        #expect(await bridge.calls.filter { $0 == "load" }.count >= 6, "the main window loads again after each save")
+    }
+
+    @Test func hoursThatEndBeforeTheyStartAreRefusedAndTheFieldsKeepTheFilesValues() async {
+        let (store, bridge) = await storeWithAPlan()
+        let message = "Working hours must end after they start."
+        await bridge.setSaveFailure(BridgeError(message: message, field: "workingHours"))
+
+        await store.settings.setWorkingEnd("08:00")
+        #expect(store.settings.error("calendar", "workingHours") == message)
+        #expect(store.settings.snapshot?.calendar.workingEnd == "17:00")
+        #expect(store.settings.notice == nil)
+
+        await store.settings.setWorkingEnd("18:00")
+        #expect(store.settings.error("calendar", "workingHours") == nil)
+        #expect(store.settings.snapshot?.calendar.workingEnd == "18:00")
+    }
+
+    @Test func aTimeFieldAndTheConfigTradeInHHMM() {
+        var calendar = Calendar(identifier: .gregorian)
+        calendar.timeZone = TimeZone(identifier: "Europe/Lisbon")!
+        let day = calendar.date(from: DateComponents(year: 2026, month: 10, day: 14, hour: 12))!
+        for text in ["09:00", "00:05", "13:30", "23:59"] {
+            let date = SettingsModel.date(fromTime: text, calendar: calendar, on: day)
+            #expect(SettingsModel.time(from: date, calendar: calendar) == text)
+        }
+        let nine = SettingsModel.date(fromTime: "09:00", calendar: calendar, on: day)
+        #expect(calendar.component(.day, from: nine) == 14, "a time of day sits on the given day")
+        #expect(SettingsModel.time(from: SettingsModel.date(fromTime: "nonsense", calendar: calendar, on: day), calendar: calendar) == "00:00")
+    }
+
     @Test func fileStatusesDecodeWithTheirDates() throws {
         let decoder = JSONDecoder()
         decoder.dateDecodingStrategy = .iso8601
         let settings = try decoder.decode(SettingsSnapshot.self, from: Data("""
         {"configPath":"/tmp/config.toml","revision":"abc",
          "planning":{"enabled":true,"dailyCapacity":"8h","buffer":"1h","weekdayCapacity":{}},
-         "calendar":{"enabled":true,"files":[
+         "calendar":{"enabled":true,"workingStart":"09:00","workingEnd":"17:00","includeAllDay":false,
+           "includeTransparent":false,"staleAfter":"24h","files":[
            {"path":"~/a.ics","status":"available","modified":"2026-10-14T09:00:00+01:00"},
            {"path":"~/b.ics","status":"missing"},
            {"path":"~/c","status":"error","detail":"is a directory"}]}}
@@ -144,5 +189,17 @@ struct SettingsModelTests {
         #expect(settings.calendar.files.map(\.status) == ["available", "missing", "error"])
         #expect(settings.calendar.files[0].modified != nil && settings.calendar.files[1].modified == nil)
         #expect(settings.calendar.files[2].detail == "is a directory")
+    }
+
+    @Test func theCalendarHoursAndEventChoicesDecode() throws {
+        let settings = try JSONDecoder().decode(SettingsSnapshot.self, from: Data("""
+        {"configPath":"/tmp/config.toml","revision":"abc",
+         "planning":{"enabled":true,"dailyCapacity":"8h","buffer":"1h","weekdayCapacity":{}},
+         "calendar":{"enabled":false,"files":[],"workingStart":"08:30","workingEnd":"16:00",
+                     "includeAllDay":true,"includeTransparent":false,"staleAfter":"0m"}}
+        """.utf8))
+        #expect(settings.calendar.workingStart == "08:30" && settings.calendar.workingEnd == "16:00")
+        #expect(settings.calendar.includeAllDay && !settings.calendar.includeTransparent)
+        #expect(settings.calendar.staleAfter == "0m")
     }
 }
