@@ -2,6 +2,7 @@ import SwiftUI
 
 struct SidebarView: View {
     @Environment(AppStore.self) private var store
+    @Environment(\.openSettings) private var openSettings
     let focus: FocusState<FocusedPane?>.Binding
 
     var body: some View {
@@ -49,21 +50,8 @@ struct SidebarView: View {
                     footerRow(URL(string: url)?.host() ?? url, systemImage: "server.rack")
                         .help(url)
                 }
-                Button {
-                    store.showShortcuts = true
-                } label: {
-                    HStack(spacing: 9) {
-                        Image(systemName: "keyboard").foregroundStyle(Theme.text3).frame(width: 16)
-                        Text("Keyboard Shortcuts")
-                        Spacer()
-                        KeyCap("?")
-                    }
-                    .foregroundStyle(Theme.text2)
-                    .padding(.horizontal, 9)
-                    .frame(height: 28)
-                    .contentShape(Rectangle())
-                }
-                .buttonStyle(.plain)
+                footerButton("Settings", systemImage: "gearshape", key: "⌘,") { openSettings() }
+                footerButton("Keyboard Shortcuts", systemImage: "keyboard", key: "?") { store.showShortcuts = true }
             }
             .frame(maxWidth: .infinity, alignment: .leading)
             .padding(.horizontal, 10)
@@ -74,6 +62,22 @@ struct SidebarView: View {
             }
             .background(Theme.sidebar)
         }
+    }
+
+    private func footerButton(_ title: String, systemImage: String, key: String, action: @escaping () -> Void) -> some View {
+        Button(action: action) {
+            HStack(spacing: 9) {
+                Image(systemName: systemImage).foregroundStyle(Theme.text3).frame(width: 16)
+                Text(title)
+                Spacer()
+                KeyCap(key)
+            }
+            .foregroundStyle(Theme.text2)
+            .padding(.horizontal, 9)
+            .frame(height: 28)
+            .contentShape(Rectangle())
+        }
+        .buttonStyle(.plain)
     }
 
     private func footerRow(_ title: String, systemImage: String) -> some View {
