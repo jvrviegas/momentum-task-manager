@@ -470,12 +470,14 @@ Change how the app works without editing `config.toml`. Plan: [`docs/plans/macos
 
 ### S-040 See every page in light and dark
 As the developer, I run one command and get a window snapshot of every page, in both looks.
-Screens: every page named in this file
+Screens: every page named in this file that the app already has
 Acceptance:
-- [self] A snapshot exists for each name under `Screens:` in light and dark, taken from a fake server, never the real one.
-- [self] A story's `[snap]` lines can be checked by looking at its snapshot.
-- [unit] The command fails when the app doesn't build, and leaves the user's `config.toml` and Keychain alone.
-Status: todo
+- [self] `macos/tools/snap.sh` builds the Debug app and saves a 1120×720 window image per page and look, `<page>-light.png` and `<page>-dark.png`, in `/tmp/Momentum-shots`. It takes every page named under `Screens:` in M1 to M5, and the states the `UX:` blocks name: `loading`, `load-error`, `startup-error`, `signed-out`, `sign-in-failed`, `today-empty`, `inbox-empty`, `completed-empty`, `undo` and `unreachable`.
+- [self] A story's `[snap]` lines can be checked by looking at its page. Each Settings story adds its own page to `SnapshotScenes.swift` when it is built.
+- [unit] `everyPageRunsOnTheFakeBridgeAndAnInMemorySignInStore`: every page runs on a fake bridge and an in-memory sign-in store, so a run reaches no server and reads no `config.toml` or Keychain item. The run has its own bundle identifier, so the real app's preferences and saved window state stay as they are.
+- [unit] `aFailedBuildStopsTheScript`: the script ends with the build's exit status and takes no snapshot when the build fails.
+- [manual] The menus (`context-menu.png` in S-016, `menu.png` in S-029) are not app windows, so the harness skips them; try them by hand.
+Status: done
 
 ### S-041 Open Settings
 As the user, I press ⌘, and a Settings window opens with Projects, Planning, Calendar, Appearance and Diagnostics.
