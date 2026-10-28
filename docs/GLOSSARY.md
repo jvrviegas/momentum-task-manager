@@ -27,6 +27,11 @@ Plain, direct, brief. Say "you" to the person, never "the user". Say "click", ne
 | Undo | Take back the last change, for as long as the toolbar shows "Saved · undo" and a countdown | revert, restore |
 | Online | The toolbar's word when the server answered and nothing is waiting | Connected, Synced |
 | Server unreachable | The toolbar's words when the server did not answer; click to try again | Offline, Disconnected |
+| Settings | The window where you change how the app works: Apple's word, opened with ⌘, or the sidebar's **Settings** row | Preferences, Options, Configuration |
+| config.toml | The file that holds the server's address and every setting; named exactly so, in monospace | config, settings file, preferences file |
+| Projects, Planning, Calendar, Appearance, Diagnostics | The five tabs of Settings, in that order | General, Advanced, Account |
+| Appearance | Whether this Mac's window is light or dark: System (follows the Mac), Light, Dark | Theme, Mode |
+| Show config.toml in Finder | The button that reveals the file, for the first step of any edit | Open Config, Edit Config |
 
 ## Open naming questions
 
