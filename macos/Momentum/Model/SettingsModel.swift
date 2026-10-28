@@ -31,6 +31,19 @@ final class SettingsModel {
         }
     }
 
+    /// A time of day as HH:MM, on today, in this Mac's time zone, for a time field.
+    nonisolated static func date(fromTime text: String, calendar: Calendar = .current, on day: Date = .now) -> Date {
+        let parts = text.split(separator: ":").compactMap { Int($0) }
+        guard parts.count == 2 else { return calendar.startOfDay(for: day) }
+        return calendar.date(bySettingHour: parts[0], minute: parts[1], second: 0, of: day) ?? calendar.startOfDay(for: day)
+    }
+
+    /// The HH:MM the config keeps for a time field's value.
+    nonisolated static func time(from date: Date, calendar: Calendar = .current) -> String {
+        let at = calendar.dateComponents([.hour, .minute], from: date)
+        return String(format: "%02d:%02d", at.hour ?? 0, at.minute ?? 0)
+    }
+
     func error(_ tab: String, _ field: String) -> String? { errors["\(tab).\(field)"] }
 
     func clearError(_ tab: String, _ field: String) {
@@ -78,6 +91,28 @@ final class SettingsModel {
         guard let snapshot else { return }
         let rest = snapshot.calendar.files.map(\.path).filter { $0 != path }
         await saveCalendar { CalendarChange(revision: $0, paths: rest) }
+    }
+
+    /// Sets when the working day starts or ends, as HH:MM.
+    func setWorkingStart(_ time: String) async {
+        await saveCalendar { CalendarChange(revision: $0, workingStart: time) }
+    }
+
+    func setWorkingEnd(_ time: String) async {
+        await saveCalendar { CalendarChange(revision: $0, workingEnd: time) }
+    }
+
+    func setIncludeAllDay(_ include: Bool) async {
+        await saveCalendar { CalendarChange(revision: $0, includeAllDay: include) }
+    }
+
+    func setIncludeTransparent(_ include: Bool) async {
+        await saveCalendar { CalendarChange(revision: $0, includeTransparent: include) }
+    }
+
+    /// Sets how long a calendar file may go unchanged before it is stale.
+    func setStaleAfter(_ text: String) async {
+        await saveCalendar { CalendarChange(revision: $0, staleAfter: text) }
     }
 
     private func saveCalendar(_ change: @escaping (String) -> CalendarChange) async {
