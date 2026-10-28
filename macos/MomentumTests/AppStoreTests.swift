@@ -108,6 +108,11 @@ actor FakeBridge: TaskBridge {
             throw error
         }
         if let enabled = change.enabled { settingsValue.calendar.enabled = enabled }
+        if let time = change.workingStart { settingsValue.calendar.workingStart = time }
+        if let time = change.workingEnd { settingsValue.calendar.workingEnd = time }
+        if let include = change.includeAllDay { settingsValue.calendar.includeAllDay = include }
+        if let include = change.includeTransparent { settingsValue.calendar.includeTransparent = include }
+        if let text = change.staleAfter { settingsValue.calendar.staleAfter = text }
         if let paths = change.paths {
             settingsValue.calendar.files = paths.map { CalendarFile(path: $0, status: "available", detail: nil, modified: nil) }
         }
