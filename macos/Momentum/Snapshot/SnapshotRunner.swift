@@ -247,6 +247,27 @@ final class SnapshotSession {
         await settle()
     }
 
+    /// Types into a text field of the window the image shows and presses
+    /// Return, as a person would. Fields are counted in the order the window
+    /// lists them: on the Planning tab Daily capacity is 0, Buffer 1, then
+    /// Monday to Sunday.
+    func typeInField(at index: Int, _ text: String) async {
+        func fields(_ view: NSView?) -> [NSTextField] {
+            guard let view else { return [] }
+            return (view as? NSTextField).map { [$0] } ?? view.subviews.flatMap(fields)
+        }
+        guard let window, case let all = fields(window.contentView), all.indices.contains(index) else { return }
+        let field = all[index]
+        window.makeKeyAndOrderFront(nil)
+        window.makeFirstResponder(field)
+        await settle(300)
+        guard let editor = field.currentEditor() as? NSTextView else { return }
+        editor.insertText(text, replacementRange: NSRange(location: 0, length: editor.string.utf16.count))
+        await settle(300)
+        editor.doCommand(by: #selector(NSResponder.insertNewline(_:)))
+        await settle()
+    }
+
     func pressReturn() async {
         textView(in: window?.attachedSheet?.contentView)?.doCommand(by: #selector(NSResponder.insertNewline(_:)))
         await settle()
