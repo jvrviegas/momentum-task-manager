@@ -68,28 +68,39 @@ func Load(ctx context.Context, options Options) LoadResult {
 			return result
 		default:
 		}
-		info, err := os.Stat(path)
-		if err != nil {
-			result.Err = fmt.Errorf("read calendar %s: %w", path, err)
-			return result
-		}
-		if options.StaleAfter > 0 && now.Sub(info.ModTime()) > options.StaleAfter {
+		events, _, stale, err := readFile(path, now, options.StaleAfter)
+		if stale {
 			result.Stale = true
 		}
-		data, err := os.ReadFile(path)
 		if err != nil {
-			result.Err = fmt.Errorf("read calendar %s: %w", path, err)
-			return result
-		}
-		events, err := parseICS(data, now.Location(), path)
-		if err != nil {
-			result.Err = fmt.Errorf("parse calendar %s: %w", path, err)
+			result.Err = err
 			return result
 		}
 		all = append(all, events...)
 	}
 	result.Events = relevantEvents(all, now, options.IncludeTransparent, options.IncludeAllDay)
 	return result
+}
+
+// readFile reads and parses one local file. It also says when the file last
+// changed and whether that is longer ago than staleAfter, even when reading
+// or parsing then fails.
+func readFile(path string, now time.Time, staleAfter time.Duration) (events []Event, modified time.Time, stale bool, err error) {
+	info, err := os.Stat(path)
+	if err != nil {
+		return nil, time.Time{}, false, fmt.Errorf("read calendar %s: %w", path, err)
+	}
+	modified = info.ModTime()
+	stale = staleAfter > 0 && now.Sub(modified) > staleAfter
+	data, err := os.ReadFile(path)
+	if err != nil {
+		return nil, modified, stale, fmt.Errorf("read calendar %s: %w", path, err)
+	}
+	events, err = parseICS(data, now.Location(), path)
+	if err != nil {
+		return nil, modified, stale, fmt.Errorf("parse calendar %s: %w", path, err)
+	}
+	return events, modified, stale, nil
 }
 
 // BusyIntervals clips events to configured working hours, ignoring transparent
