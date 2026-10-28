@@ -88,8 +88,10 @@ struct PlanningTab: View {
 /// A length of time typed as 8h or 7h30m. It saves on Return and when it
 /// loses focus, and a value the file would refuse stays in the field with the
 /// message under it.
-private struct LengthField: View {
+struct LengthField: View {
     @Environment(AppStore.self) private var store
+    /// The tab whose messages the field shows.
+    var tab = "planning"
     let field: String
     let title: String
     let placeholder: String
@@ -108,7 +110,7 @@ private struct LengthField: View {
                 .textFieldStyle(.roundedBorder)
                 .frame(width: 96)
                 .overlay {
-                    if store.settings.error("planning", field) != nil {
+                    if store.settings.error(tab, field) != nil {
                         RoundedRectangle(cornerRadius: 6).strokeBorder(Theme.danger, lineWidth: 1.5)
                     }
                 }
@@ -117,9 +119,9 @@ private struct LengthField: View {
                 .onChange(of: focused) { _, isFocused in
                     if !isFocused { commit() }
                 }
-                .onChange(of: draft) { store.settings.clearError("planning", field) }
+                .onChange(of: draft) { store.settings.clearError(tab, field) }
                 .accessibilityLabel(title)
-            if showsMessage, let message = store.settings.error("planning", field) {
+            if showsMessage, let message = store.settings.error(tab, field) {
                 ErrorLine(text: message)
             }
         }
