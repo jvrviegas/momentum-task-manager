@@ -17,6 +17,60 @@ struct BridgeStatus: Decodable, Sendable, Equatable {
     var restartRequired: Bool?
 }
 
+/// What the Settings tabs show: the values in use, the version of config.toml
+/// they came from, and each calendar file's state.
+struct SettingsSnapshot: Decodable, Sendable, Equatable {
+    var configPath: String
+    /// Sent back with a save, which is refused when the file has changed since.
+    var revision: String
+    var configError: String?
+    var restartRequired: Bool?
+    var planning: PlanningSettings
+    var calendar: CalendarSettings
+}
+
+/// Lengths are as a person types them: 8h, 7h30m.
+struct PlanningSettings: Decodable, Sendable, Equatable {
+    var enabled: Bool
+    var dailyCapacity: String
+    var buffer: String
+    /// Only the weekdays with a capacity of their own, by lowercase name.
+    var weekdayCapacity: [String: String]
+}
+
+struct CalendarSettings: Decodable, Sendable, Equatable {
+    var enabled: Bool
+    var files: [CalendarFile]
+}
+
+/// One calendar file as stored, with what loading it on its own found:
+/// available, stale, missing or error.
+struct CalendarFile: Decodable, Sendable, Hashable, Identifiable {
+    var path: String
+    var status: String
+    var detail: String?
+    var modified: Date?
+
+    var id: String { path }
+}
+
+/// The [planning] keys a save changes; a nil field stays as it is. An empty
+/// weekday length gives that day the daily capacity again.
+struct PlanningChange: Encodable, Sendable, Equatable {
+    var revision: String
+    var enabled: Bool?
+    var dailyCapacity: String?
+    var buffer: String?
+    var weekdayCapacity: [String: String]?
+}
+
+/// The [calendar] keys a save changes; paths is the whole list of files.
+struct CalendarChange: Encodable, Sendable, Equatable {
+    var revision: String
+    var enabled: Bool?
+    var paths: [String]?
+}
+
 /// A started device sign-in: show userCode, open verificationUrlComplete, and
 /// poll with deviceCode every intervalSeconds until expiresAt.
 struct DeviceSignIn: Decodable, Sendable, Equatable {
