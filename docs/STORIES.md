@@ -568,13 +568,22 @@ Status: done
 
 ### S-046 Say which hours and events count
 As the user, I set my working hours and whether all-day and "free" events count as busy.
-Screens: settings-calendar.png
+Screens: settings-calendar.png, settings-calendar-empty.png
 Depends: S-045
 Acceptance:
-- [unit] Working start and end, "all-day events count" and "events shown as available count" save to `[calendar]` and apply to every source.
-- [unit] The staleness limit applies to files only.
-- [manual] After a change, the next load's busy minutes follow it.
-Status: todo
+- [unit] Go `TestSavedWorkingHoursAndEventChoicesApplyAtOnce`, `TestMovingBothWorkingHoursInOneSaveIsCheckedAsAPair`, `TestSaveCalendarWritesHoursEventsAndTheStaleLimit`; Swift `workingHoursEventChoicesAndTheStaleLimitSaveAtOnce`: working start and end, **Count all-day events** and **Count events shown as free** save to `[calendar]` at once, keeping comments and other keys, and the next load's busy minutes follow them.
+- [unit] Go `TestAnInvalidCalendarValueIsRefusedOnItsFieldAndNothingIsWritten`, `TestCalendarPatchChecksHoursAgainstWhatIsThere`; Swift `hoursThatEndBeforeTheyStartAreRefusedAndTheFieldsKeepTheFilesValues`: an end that is not after the start, a time that is not one, and a length that is not one or is negative are refused on their own field, with a message that says what to do, and nothing is written, not even a valid switch in the same save.
+- [unit] Go `TestTheStaleLimitChangesWhatEachFileSays`, `TestSettingsShowTheCalendarDefaultsForKeysTheFileLeavesOut`: Stale after changes each file's state, `0m` means never, and a key the file leaves out shows its default (09:00, 17:00, both switches off, 24h). It touches nothing but a file's state, so it applies to files only; S-047's events carry no file age.
+- [unit] Swift `aTimeFieldAndTheConfigTradeInHHMM`, `theCalendarHoursAndEventChoicesDecode`: a time field and `config.toml` trade in HH:MM, and the bridge's answer decodes.
+- [snap] `settings-calendar`, `settings-calendar-empty`: the **Stale after** row under the files, then the Working hours and Events that count groups; with four files listed the last group is below the fold, and the tab scrolls.
+- [manual] Changing **Start** or **End** by hand, and that a refused End puts the field back on the file's value; not tried by hand yet, since the snapshot harness cannot drive a time field.
+UX:
+- Flow: Settings ▸ Calendar -> change **Start** or **End** under Working hours, flip **Count all-day events** or **Count events shown as free**, or type a length in **Stale after** -> each saves to `[calendar]` at once -> the app loads again right after the save, so the sidebar's meter and the next Plan Today use it. A value the config would refuse is not saved and says why. Way back: set the earlier value.
+- Surface: inline (each control changes one value on something already on screen), in the Calendar tab. Working hours and the two switches sit in their own groups, because they apply to every source; Stale after sits in the Calendar files group, because it applies to files only.
+- States: defaults are 09:00 to 17:00, both switches off, Stale after 24h; a missing key shows its default. The hours are time fields that cannot hold a bad format. An End that is not after the Start is refused under the group, "Working hours must end after they start.", and the fields show what the file has. Stale after takes a length ("Enter a length of time, such as 8h or 7h30m.", "Stale after can’t be negative."); `0m` means a file is never Stale. A saved value just stays, with no toast. A failed write or a changed file shows the notice at the top of the tab, as in S-043. The controls stay usable while Use calendar files is off, because the values apply to every source.
+- Words: groups "Working hours" and "Events that count"; labels "Start", "End", "Count all-day events", "Count events shown as free", "Stale after"; captions "Only meetings between these hours take time off a day’s capacity. This applies to every calendar source.", "An all-day event takes the whole working day off the capacity.", "Events your calendar marks as free, such as a reminder, count as busy too.", "A calendar file that hasn’t changed for this long shows as Stale. Calendar files only; 0m means never."
+- Access: each control has its visible label, and VoiceOver reads the label and the value ("Start, 9:00 AM"); Return saves a typed length and Tab moves on and saves; a message is text with a warning symbol, never color alone.
+Status: done
 
 ### S-047 Use the Mac's Calendar instead of files
 As the user, I choose macOS Calendar as my source and pick which calendars count.
