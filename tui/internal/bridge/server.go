@@ -195,11 +195,10 @@ func (s *Server) handle(ctx context.Context, request Request) Response {
 }
 
 func (s *Server) dispatch(ctx context.Context, op string, raw json.RawMessage) (any, error) {
-	switch op {
-	case "status", "load", "plan":
+	if localOps[op] || op == "load" || op == "plan" {
 		s.reloadConfig()
 	}
-	if op != "status" && !pureOps[op] {
+	if !localOps[op] && !pureOps[op] {
 		if _, err := s.backendURL(); err != nil {
 			return nil, err
 		}
@@ -207,6 +206,20 @@ func (s *Server) dispatch(ctx context.Context, op string, raw json.RawMessage) (
 	switch op {
 	case "status":
 		return s.status(ctx)
+	case "settings":
+		return s.settings(ctx)
+	case "savePlanning":
+		var p savePlanningParams
+		if err := decode(raw, &p); err != nil {
+			return nil, err
+		}
+		return s.savePlanning(ctx, p)
+	case "saveCalendar":
+		var p saveCalendarParams
+		if err := decode(raw, &p); err != nil {
+			return nil, err
+		}
+		return s.saveCalendar(ctx, p)
 	case "load":
 		return s.load(ctx)
 	case "interpret":
