@@ -26,6 +26,10 @@ protocol TaskBridge: Sendable {
     // Plan Today.
     func plan() async throws -> DailyPlan
     func applyPlan(date: String, uuids: [String]) async throws -> PlanSaveResult
+    // Settings.
+    func settings() async throws -> SettingsSnapshot
+    func savePlanning(_ change: PlanningChange) async throws -> SettingsSnapshot
+    func saveCalendar(_ change: CalendarChange) async throws -> SettingsSnapshot
     // Sign-in.
     func setToken(_ token: String) async throws
     func startSignIn() async throws -> DeviceSignIn
@@ -100,6 +104,10 @@ actor ProcessBridge: TaskBridge {
     }
 
     func plan() async throws -> DailyPlan { try await call("plan") }
+
+    func settings() async throws -> SettingsSnapshot { try await call("settings") }
+    func savePlanning(_ change: PlanningChange) async throws -> SettingsSnapshot { try await call("savePlanning", change) }
+    func saveCalendar(_ change: CalendarChange) async throws -> SettingsSnapshot { try await call("saveCalendar", change) }
 
     func applyPlan(date: String, uuids: [String]) async throws -> PlanSaveResult {
         try await call("applyPlan", ApplyPlanParams(date: date, uuids: uuids))
