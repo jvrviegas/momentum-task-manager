@@ -221,7 +221,11 @@ func (s *Server) dispatch(ctx context.Context, op string, raw json.RawMessage) (
 		}
 		return s.saveCalendar(ctx, p)
 	case "load":
-		return s.load(ctx)
+		var p loadParams
+		if err := decode(raw, &p); err != nil {
+			return nil, err
+		}
+		return s.load(ctx, p.Calendar)
 	case "interpret":
 		var p interpretParams
 		if err := decode(raw, &p); err != nil {
@@ -265,7 +269,11 @@ func (s *Server) dispatch(ctx context.Context, op string, raw json.RawMessage) (
 		}
 		return nil, s.taskAction(ctx, op, p.UUID)
 	case "plan":
-		return s.plan(ctx)
+		var p loadParams
+		if err := decode(raw, &p); err != nil {
+			return nil, err
+		}
+		return s.plan(ctx, p.Calendar)
 	case "applyPlan":
 		var p applyPlanParams
 		if err := decode(raw, &p); err != nil {
