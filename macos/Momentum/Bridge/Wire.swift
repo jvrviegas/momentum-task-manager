@@ -41,6 +41,13 @@ struct PlanningSettings: Decodable, Sendable, Equatable {
 struct CalendarSettings: Decodable, Sendable, Equatable {
     var enabled: Bool
     var files: [CalendarFile]
+    /// Times of day as HH:MM.
+    var workingStart = "09:00"
+    var workingEnd = "17:00"
+    var includeAllDay = false
+    var includeTransparent = false
+    /// A length as a person types it; 0m means a file is never stale.
+    var staleAfter = "24h"
 }
 
 /// One calendar file as stored, with what loading it on its own found:
@@ -69,6 +76,11 @@ struct CalendarChange: Encodable, Sendable, Equatable {
     var revision: String
     var enabled: Bool?
     var paths: [String]?
+    var workingStart: String?
+    var workingEnd: String?
+    var includeAllDay: Bool?
+    var includeTransparent: Bool?
+    var staleAfter: String?
 }
 
 /// A started device sign-in: show userCode, open verificationUrlComplete, and
