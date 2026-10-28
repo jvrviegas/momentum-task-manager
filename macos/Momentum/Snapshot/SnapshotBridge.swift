@@ -20,6 +20,9 @@ actor SnapshotBridge: TaskBridge {
         var applyPlanResult = PlanSaveResult(applied: 3, total: 3)
         var captureReview: Interpretation?
         var plan: DailyPlan?
+        /// Why the newest config.toml was not applied.
+        var configError: String?
+        var restartRequired = false
     }
 
     private var config: Config
@@ -36,7 +39,8 @@ actor SnapshotBridge: TaskBridge {
     func status() async throws -> BridgeStatus {
         if let failure = config.statusFailure { throw failure }
         return BridgeStatus(
-            configPath: "~/.config/momentum/config.toml", mutationDelaySeconds: 15, refreshIntervalSeconds: 0, backendUrl: config.backendURL)
+            configPath: "~/.config/momentum/config.toml", mutationDelaySeconds: 15, refreshIntervalSeconds: 0, backendUrl: config.backendURL,
+            configError: config.configError, restartRequired: config.restartRequired)
     }
 
     func load() async throws -> Snapshot {
