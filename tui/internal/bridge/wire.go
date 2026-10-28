@@ -19,6 +19,10 @@ type statusResult struct {
 	RefreshIntervalSeconds int `json:"refreshIntervalSeconds"`
 	// BackendURL is the [backend] server, empty until config.toml names one.
 	BackendURL string `json:"backendUrl,omitempty"`
+	// ConfigError says why a newer config.toml was not applied, and
+	// RestartRequired that a changed [backend] url waits for a restart.
+	ConfigError     string `json:"configError,omitempty"`
+	RestartRequired bool   `json:"restartRequired,omitempty"`
 }
 
 type loadResult struct {
