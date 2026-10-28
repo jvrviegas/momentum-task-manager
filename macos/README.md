@@ -54,7 +54,9 @@ To see the app, `tools/snap.sh` builds the Debug app and saves a window image of
   - In the sheet: ↑ ↓ or `j` `k` move over the rows you can tick, Space ticks, `g` `G` go to the first or last, `/` or ⌘F filter the candidates, ↩ confirms (in the filter, it returns to the list), and Esc cancels (in the filter, it clears the filter first).
 - **Calendar:** with `[calendar]` on, each load reads its local `.ics` files (see [Daily planning and calendar awareness](../tui/README.md#daily-planning-and-calendar-awareness)). Busy time in working hours counts against the day's capacity, overlapping events once, and Plan Today shows the merged blocks with their titles on hover. When a file can't be read, the whole calendar is unavailable and planning goes on with tasks. Event titles are never stored or logged.
 
-The bridge reads `config.toml` at start, so `[planning]` and `[calendar]` changes apply after the app restarts.
+- **Settings (⌘, or the sidebar's Settings row):** a window of five tabs, Projects, Planning, Calendar, Appearance and Diagnostics. Appearance is built: System, Light or Dark, for this Mac only, applied at once. The other tabs say how to change the same thing in `config.toml` until they are built.
+
+The bridge reads `config.toml` again whenever the file changes, on each load and when Settings opens, so `[planning]`, `[calendar]`, `[projects]`, `refresh_interval` and `[sync]` edits apply without a restart. A file that no longer loads leaves the last good settings in use, and Settings says why. A changed `[backend] url` still needs the app to be quit and reopened, and Settings says so.
 
 Press `?` in the app for every shortcut.
 
@@ -81,7 +83,7 @@ Where each one already exists; — means it does not apply.
 
 | Item | Description | TUI | macOS |
 |---|---|---|---|
-| Settings window | Projects catalog, appearance, planning, calendar, and diagnostics | Partly: Projects and Appearance | No |
+| Settings window | Projects catalog, appearance, planning, calendar, and diagnostics | Partly: Projects and Appearance | Partly: Appearance |
 | Project migration | Rename a project in the catalog and move its pending tasks to the new value | Yes | No |
 | Signed release build | A build signed for distribution, not ad hoc like the Debug build | — | No |
 
