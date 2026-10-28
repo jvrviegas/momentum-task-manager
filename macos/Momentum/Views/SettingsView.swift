@@ -10,6 +10,7 @@ enum SettingsTab: String {
 /// config.toml until their own tabs are.
 struct SettingsView: View {
     @Environment(AppStore.self) private var store
+    @Environment(\.scenePhase) private var scenePhase
     @AppStorage("settings.tab") private var tab = SettingsTab.projects
 
     var body: some View {
@@ -20,14 +21,10 @@ struct SettingsView: View {
                 }
             }
             Tab("Planning", systemImage: "text.badge.checkmark", value: SettingsTab.planning) {
-                SettingsPage {
-                    SettingsPlaceholder(title: "Planning", symbol: "text.badge.checkmark", hint: "For now, edit `[planning]` in `config.toml`. Changes apply without restarting.")
-                }
+                SettingsPage { PlanningTab() }
             }
             Tab("Calendar", systemImage: "calendar", value: SettingsTab.calendar) {
-                SettingsPage {
-                    SettingsPlaceholder(title: "Calendar", symbol: "calendar", hint: "For now, edit `[calendar]` in `config.toml`. Changes apply without restarting.")
-                }
+                SettingsPage { CalendarTab() }
             }
             Tab("Appearance", systemImage: "circle.lefthalf.filled", value: SettingsTab.appearance) {
                 SettingsPage { AppearanceSettings() }
@@ -40,9 +37,34 @@ struct SettingsView: View {
         }
         .frame(width: 760, height: 600)
         .modifier(AppearancePreference())
-        // The bridge re-reads config.toml when it changed, so the tabs open
-        // on what the file says now.
-        .task { await store.refreshStatus() }
+        // The bridge re-reads config.toml when it changed, so the tabs open, and
+        // show again, on what the file says now.
+        .task { await refresh() }
+        .onChange(of: scenePhase) { _, phase in
+            if phase == .active { Task { await refresh() } }
+        }
+    }
+
+    private func refresh() async {
+        await store.refreshStatus()
+        await store.settings.reload()
+    }
+}
+
+/// A problem that belongs to no one field: a write that failed, or a file
+/// that changed under the tab.
+struct SettingsNotice: View {
+    let text: String
+
+    var body: some View {
+        Label {
+            Text(text).textSelection(.enabled)
+        } icon: {
+            Image(systemName: "exclamationmark.triangle.fill").foregroundStyle(Theme.warn)
+        }
+        .font(.system(size: 12.5))
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .padding(.vertical, 4)
     }
 }
 
