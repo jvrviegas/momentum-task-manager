@@ -54,7 +54,11 @@ To see the app, `tools/snap.sh` builds the Debug app and saves a window image of
   - In the sheet: ↑ ↓ or `j` `k` move over the rows you can tick, Space ticks, `g` `G` go to the first or last, `/` or ⌘F filter the candidates, ↩ confirms (in the filter, it returns to the list), and Esc cancels (in the filter, it clears the filter first).
 - **Calendar:** with `[calendar]` on, each load reads its local `.ics` files (see [Daily planning and calendar awareness](../tui/README.md#daily-planning-and-calendar-awareness)). Busy time in working hours counts against the day's capacity, overlapping events once, and Plan Today shows the merged blocks with their titles on hover. When a file can't be read, the whole calendar is unavailable and planning goes on with tasks. Event titles are never stored or logged.
 
-- **Settings (⌘, or the sidebar's Settings row):** a window of five tabs, Projects, Planning, Calendar, Appearance and Diagnostics. Appearance is built: System, Light or Dark, for this Mac only, applied at once. The other tabs say how to change the same thing in `config.toml` until they are built.
+- **Settings (⌘, or the sidebar's Settings row):** a window of five tabs, Projects, Planning, Calendar, Appearance and Diagnostics. Each change is applied at once and written to `config.toml`, keeping its comments and other keys; a save is refused, and the tab reloaded, when the file changed since the tab read it.
+  - **Planning:** **Use Plan Today** turns the Plan button, the sidebar's Today’s plan box, the menu item and `P` on or off. Daily capacity, buffer and each weekday's own capacity are typed as `8h` or `7h30m`; a value the config would refuse stays in its field with a message and is not saved.
+  - **Calendar:** **Use calendar files** and the list of `.ics` files, added with **Add…** and taken out with **Remove**. Each file shows whether it is available, stale, missing or unreadable. Working hours and the macOS Calendar source are not in the tab yet.
+  - **Appearance:** System, Light or Dark, for this Mac only.
+  - **Projects** and **Diagnostics** say how to do the same in `config.toml` or the terminal until they are built.
 
 The bridge reads `config.toml` again whenever the file changes, on each load and when Settings opens, so `[planning]`, `[calendar]`, `[projects]`, `refresh_interval` and `[sync]` edits apply without a restart. A file that no longer loads leaves the last good settings in use, and Settings says why. A changed `[backend] url` still needs the app to be quit and reopened, and Settings says so.
 
@@ -83,7 +87,7 @@ Where each one already exists; — means it does not apply.
 
 | Item | Description | TUI | macOS |
 |---|---|---|---|
-| Settings window | Projects catalog, appearance, planning, calendar, and diagnostics | Partly: Projects and Appearance | Partly: Appearance |
+| Settings window | Projects catalog, appearance, planning, calendar, and diagnostics | Partly: Projects and Appearance | Partly: Appearance, Planning and Calendar files |
 | Project migration | Rename a project in the catalog and move its pending tasks to the new value | Yes | No |
 | Signed release build | A build signed for distribution, not ad hoc like the Debug build | — | No |
 
