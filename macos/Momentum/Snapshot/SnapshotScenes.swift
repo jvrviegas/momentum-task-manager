@@ -50,6 +50,10 @@ struct SnapshotScene {
         noCalendar.seed.plan.calendarAvailable = false
         noCalendar.seed.plan.calendarError = "~/Calendars/work.ics can’t be read."
 
+        var noFiles = SnapshotBridge.Config()
+        noFiles.calendarEnabled = false
+        noFiles.calendarFiles = []
+
         var badConfig = SnapshotBridge.Config()
         badConfig.configError = "config key \"calendar.paths\" requires at least one local ICS path"
         var movedServer = SnapshotBridge.Config()
@@ -103,6 +107,23 @@ struct SnapshotScene {
             SnapshotScene(name: "settings-projects", run: { await $0.openSettings(.projects) }),
             SnapshotScene(name: "settings-appearance", run: { await $0.openSettings(.appearance) }),
             SnapshotScene(name: "settings-reopened", run: { await $0.reopenSettings(.planning) }),
+            SnapshotScene(name: "settings-planning", run: { await $0.openSettings(.planning) }),
+            SnapshotScene(
+                name: "settings-planning-error",
+                run: {
+                    await $0.openSettings(.planning)
+                    await $0.typeInField(at: 0, "a day")
+                    await $0.typeInField(at: 2, "half")
+                }),
+            SnapshotScene(
+                name: "settings-planning-off",
+                run: { await $0.openSettings(.planning); await $0.store.settings.setPlanningEnabled(false); await $0.settle() }),
+            SnapshotScene(name: "today-planning-off", run: { await $0.store.settings.reload(); await $0.store.settings.setPlanningEnabled(false) }),
+            SnapshotScene(name: "settings-calendar", run: { await $0.openSettings(.calendar) }),
+            SnapshotScene(name: "settings-calendar-empty", config: noFiles, run: { await $0.openSettings(.calendar) }),
+            SnapshotScene(
+                name: "settings-calendar-refused", config: noFiles,
+                run: { await $0.openSettings(.calendar); await $0.store.settings.setCalendarEnabled(true); await $0.settle() }),
             SnapshotScene(name: "settings-config-error", config: badConfig, run: { await $0.openSettings(.planning) }),
             SnapshotScene(name: "settings-restart", config: movedServer, run: { await $0.openSettings(.planning) }),
             SnapshotScene(name: "appearance-light", run: { await $0.chooseAppearance(.light) }),
