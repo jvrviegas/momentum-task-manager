@@ -66,7 +66,7 @@ actor ProcessBridge: TaskBridge {
         encoder.dateEncodingStrategy = .iso8601
         return encoder
     }()
-    private static let decoder: JSONDecoder = {
+    static let decoder: JSONDecoder = {
         let decoder = JSONDecoder()
         decoder.dateDecodingStrategy = .iso8601
         return decoder
@@ -258,7 +258,7 @@ private struct Reply<Result: Decodable>: Decodable {
 }
 
 private struct Empty: Codable, Sendable {}
-private struct Changed: Decodable, Sendable { var changed: Bool }
+struct Changed: Decodable, Sendable { var changed: Bool }
 private struct UUIDParams: Encodable, Sendable { var uuid: String }
 private struct TokenParams: Encodable, Sendable { var token: String }
 private struct CalendarParams: Encodable, Sendable { var calendar: CalendarInput? }
