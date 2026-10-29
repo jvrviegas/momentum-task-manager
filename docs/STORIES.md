@@ -606,50 +606,79 @@ Status: done
 
 ### S-048 Browse my projects
 As the user, I open Projects and see my project tree.
-Screens: settings-projects.png
+Screens: settings-projects.png, settings-projects-empty.png
 Depends: S-041
 Acceptance:
-- [snap] One tree lists catalog projects and values found only on tasks, each tagged "Catalog" or "From tasks", with its name, tag and task count.
-- [unit] With a fake bridge, the tree mirrors what `settings` returns.
-Status: todo
+- [snap] `settings-projects`: one list shows the catalog projects and the values found only on tasks, parents before their children and indented by depth, each with its name, its full value in monospace, a "Catalog" or "From tasks" tag and its task count. The tag is a word, filled for the catalog and outlined for a project from tasks.
+- [unit] Go `TestProjectsListTheCatalogAndTheValuesFoundOnlyOnTasks`, `TestProjectsKeepTheCatalogWhenTheTasksCannotBeRead`; Swift `theListMirrorsWhatTheBridgeReturns`, `theBridgesAnswersDecodeAndAnEditEncodesWhatItReads`: the list mirrors what the `projects` operation returns, with a fake bridge; a task count is the pending tasks with exactly that value, and `workshop` is not a child of `work`; when the tasks cannot be read the catalog still shows, without counts, and the tab says why.
+- [snap] `settings-projects-empty`: no projects yet, with **Add Project…**.
+- [manual] The list in the real app, with the real server; not tried by hand yet.
+UX:
+- Flow: Settings ▸ Projects -> the list of every project -> a catalog row has an actions menu (**Edit…**, **Remove…**, also in its context menu) and a "From tasks" row has **Add to Catalog…** -> **Add Project…** under the list adds one. The tab reads the catalog again each time Settings is shown.
+- Surface: inline list in the Projects tab (a place people come back to). Every change opens its own sheet or prompt (S-049 to S-052); nothing on the tab is a draft.
+- States: empty "No projects yet" with "Add a project to the catalog so New Task suggests it. Projects your tasks already use show here too." and **Add Project…**; loading is a spinner; a task count reads "No tasks", "1 task" or "N tasks"; when the tasks cannot be read, "Task counts unavailable: <reason>" in the notice at the top and the counts are left out; a file that changed elsewhere or a failed save shows its notice there too; a long value truncates in the middle with the full value on hover.
+- Words: group "Projects", tags "Catalog" and "From tasks", counts "No tasks", "1 task", "N tasks", footer "The catalog is what New Task suggests. A project from tasks is one your tasks use that the catalog doesn’t have.", buttons "Add Project…", "Add to Catalog…" and the menu items "Edit…" and "Remove…".
+- Access: each row reads as its name, value, tag and count; the actions menu is labeled "Actions for <name>" and has the hover text "Edit or remove this project"; the tag is a word, never color alone; every action is also in the row's context menu.
+Status: done
 
 ### S-049 Add or edit a catalog project
 As the user, I add `work.client` under `work`, or change its name.
 Screens: settings-project-sheet.png
 Depends: S-048
 Acceptance:
-- [snap] The sheet has a name, a parent picker and the full value.
-- [unit] An invalid draft writes nothing and says why; a catalog-only edit never changes a task.
-- [unit] The catalog saves from its own sheet, not from a draft on the tab.
-Status: todo
+- [snap] `settings-project-sheet`: the sheet has a name, a parent picker, the value and the full resulting value, which is the parent and the value joined by a dot.
+- [unit] Go `TestAnInvalidProjectDraftIsRefusedOnItsFieldAndNothingIsWritten`, `TestAddingAnEntryComposesItsValueAndKeepsTheFilesComments`, `TestChangingOnlyTheNameNeverOffersOrMovesATask`; Swift `aRefusedDraftStaysInTheSheetOnItsField`, `changingOnlyTheNameSavesWithoutAPreview`, `anEntryCannotMoveUnderItselfOrWhatIsBelowIt`: an invalid draft writes nothing and says why on its own field; a catalog-only edit never changes a task and offers none.
+- [unit] Swift `addingSendsTheDraftOnTheRevisionItReadAndLoadsAgain`: the catalog saves from its own sheet, on the version of the file the tab read, and the tab and the main window, whose suggestions come from the catalog, read it again.
+- [manual] Add a project and use it at once in New Task; not tried by hand yet.
+UX:
+- Flow: **Add Project…**, or **Edit…** on a row -> the sheet -> type a name, choose a parent (or None) and type the value; the full value shows as you type -> Return saves and the sheet closes; Escape cancels. An edit that changes the full value goes on, in the same sheet, to the rename step (S-051). Way back: Escape, or edit the project again.
+- Surface: sheet (one short task that must finish or cancel), 460 points wide. It never opens another sheet: the rename step replaces its content.
+- States: add starts empty with the primary button **Add Project**; edit starts with the entry's values and the primary button **Save**, which reads **Review Rename…** once the full value differs; a refused field is outlined by its message, "Enter a name.", "Use lowercase letters, numbers and hyphens, such as client-name.", "Choose a parent from the list.", "“work.client” is already in the catalog.", "A project can’t move under itself."; the parent list holds every project, except, when editing, the entry itself and what is below it; a failed write shows its reason in the sheet; a file that changed elsewhere closes the sheet and says so on the tab (S-055).
+- Words: titles "Add Project" and "Edit Project", fields "Name", "Parent" (with "None"), "Value" and "Full value", buttons "Cancel", "Add Project", "Save", "Review Rename…".
+- Access: each field has its visible label, and Return confirms and Escape cancels; a message is text with a warning symbol; the full value can be selected and copied.
+Status: done
 
 ### S-050 Remove a project
 As the user, I remove a project and say what happens to its children.
 Screens: settings-project-remove.png
 Depends: S-048
 Acceptance:
-- [snap] The prompt names the project and how many children it has.
-- [unit] Removing with and without children each leave the catalog as the choice says; removing never changes a task.
-Status: todo
+- [snap] `settings-project-remove`: the prompt names the project and how many projects of the catalog are under it.
+- [unit] Go `TestRemovingWithAndWithoutChildrenLeavesTheCatalogAsChosen`; Swift `removingAsksAboutTheChildrenAndSendsTheAnswer`: removing with and without children each leave the catalog as the choice says, comments and other entries stay, and removing never changes a task.
+UX:
+- Flow: **Remove…** on a row -> the prompt -> **Remove Only “Work”** or **Remove “Work” and 2 Projects Under It** (with no children, one **Remove**) -> the entry goes. Cancel, or Escape, changes nothing. Way back: add the project again.
+- Surface: confirmation dialog (it removes a catalog entry, which a person asks about before it goes).
+- States: with children, "It has 2 projects under it in the catalog. Tasks keep their project; removing never changes a task."; without, only the second sentence. Only catalog entries count as children, not values found only on tasks. A project tasks still use stays in the list as "From tasks". A failed write or a changed file shows its notice on the tab.
+- Words: title "Remove “Work”?", buttons "Remove Only “Work”", "Remove “Work” and 2 Projects Under It", "Remove", "Cancel".
+- Access: the system's own dialog, keyboard-complete; the destructive buttons are marked as such to VoiceOver.
+Status: done
 
 ### S-051 Rename a project and move its tasks
 As the user, I rename `work` to `job` and choose whether my pending tasks follow.
-Screens: settings-project-rename.png
+Screens: settings-project-rename.png, settings-project-rename-merge.png
 Depends: S-049
 Acceptance:
-- [snap] The sheet offers "Catalog only" (the default) and "Catalog + pending tasks", with "Include subprojects", the counts, a merge warning, and a note that history keeps its values.
-- [unit] The catalog saves before the migration; a refused migration keeps the saved catalog; a stale preview is refused and needs a fresh one; `workshop` is not matched by `work`.
-- [unit] The server moves all tasks or none; the migration has no undo, and the undo window closes.
-Status: todo
+- [snap] `settings-project-rename`: the second step offers "Catalog only" (the default) and "Catalog + pending tasks", with "Include subprojects", the counts and the note that completed and deleted tasks keep their values; `settings-project-rename-merge`: the warning that tasks already use the new value, and the agreement that must be ticked first.
+- [unit] Go `TestAPreviewSaysWhichPendingTasksARenameMoves`, `TestIncludingSubprojectsRenamesTheCatalogDescendantsAndMovesTheirTasks`, `TestAValueTasksAlreadyUseIsAMergeWarning`, `TestARenameWithNoMatchingTasksIsAValidCatalogSave`: `workshop` is not matched by `work`, a repeating task and a task under another status are left alone, the catalog and task counts are separate, and zero matches is a valid save.
+- [unit] Go `TestTheCatalogIsSavedBeforeTheTasksMove`, `TestARefusedMigrationKeepsTheSavedCatalog`, `TestAStalePreviewIsRefusedAndNothingIsWritten`; Swift `aStalePreviewGoesBackToTheFormAndMovesNothing`, `aRefusedMigrationKeepsTheSheetOpenWithTheReason`: the catalog saves before the migration; a refused migration keeps the saved catalog; a stale preview is refused and needs a fresh one.
+- [unit] Swift `aValueChangeAsksForAPreviewAndStartsOnCatalogOnly`, `catalogAndTasksSendsTheTasksTheChosenScopeShows`, `movingTasksOntoAValueTasksUseNeedsTheMergeAgreement`, `movedTasksCloseTheUndoWindowAndACatalogEditDoesNot`: nothing is moved without confirming, the choice starts on Catalog only each time, the tasks sent are the ones the preview lists for the Include subprojects choice, and the undo window closes after tasks move.
+- [unit] Backend `TestApplyMovesThePreviewedTasksInOneChange`, `TestApplyChangesNothingIfAWriteFails`, `TestApplyRefusesAStalePreview`, `TestUndoRefusesAProjectMigration`: the server moves all tasks or none, and the migration has no undo.
+UX:
+- Flow: **Edit…** -> change the name, parent or value so the full value differs -> **Review Rename…** -> the second step of the same sheet, which says what “work” becomes -> choose **Catalog only** or **Catalog + pending tasks**, tick **Include subprojects** if its entries and tasks should follow -> **Save**, or **Rename and Move N Tasks** -> the catalog is saved, then the tasks move, and a toast says "Moved N tasks to “job”". **Back** returns to the form; Escape cancels and nothing changes.
+- Surface: the same sheet (one short task), second step, because a sheet never opens another.
+- States: counts read "One catalog entry changes, and 2 below it move with it." and "10 pending tasks move to “job”.", or "No pending tasks have this project, so only the catalog changes."; when tasks already use the new value and the catalog lacks it, "Tasks already use “job”. The tasks that move will join them." and "I understand that these tasks merge" must be ticked first; a value the catalog already has is refused in the form (S-049). If the tasks changed since the preview, nothing is written and the sheet goes back to the form with "Your tasks changed since the preview. Preview the rename again."; if the server refuses after the catalog is saved, the sheet says "The catalog is saved, but no task moved." with the reason, and that the old value now shows under From tasks, to rename again to move them; **Done** closes it.
+- Words: title "Rename Project", "“work” becomes “job”", choices "Catalog only" and "Catalog + pending tasks", "Include subprojects", "Tasks you completed or deleted keep their old project. Undo can’t reverse a rename that moves tasks.", buttons "Back", "Cancel", "Save", "Rename and Move 10 Tasks", "Done".
+- Access: the choices are a radio group and switches with their words; the merge agreement is a labeled switch and the primary button stays disabled until it is ticked; messages are text with symbols.
+Status: done
 
 ### S-052 Add a project my tasks already use
 As the user, I see a project that only exists on tasks and add it to the catalog.
-Screens: settings-project-sheet.png
+Screens: settings-projects.png, settings-project-add-from-tasks.png
 Depends: S-049
 Acceptance:
-- [snap] A "From tasks" row offers **Add to Catalog…**, which opens the add sheet filled in.
-- [unit] Nothing is added until that sheet is saved.
-Status: todo
+- [snap] `settings-projects`: a "From tasks" row offers **Add to Catalog…**; `settings-project-add-from-tasks`: it opens the add sheet filled in, with the parent, the value and a name made from it.
+- [unit] Swift `addToCatalogFillsTheSheetAndAddsNothingUntilItIsSaved`, `valuesSplitAtTheirLastDot`: nothing is added until that sheet is saved.
+Status: done
 
 ### S-053 Check that everything is working
 As the user, I open Diagnostics and copy a report for a bug report.
