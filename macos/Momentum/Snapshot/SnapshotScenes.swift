@@ -82,6 +82,12 @@ struct SnapshotScene {
         googleReconnect.seed.plan.calendarAvailable = false
         googleReconnect.seed.plan.calendarError = reconnectReason
 
+        // Everything works but Google Calendar, which Google no longer accepts.
+        var googleProblem = SnapshotBridge.Config()
+        googleProblem.doctor.checks[4] = DoctorCheck(
+            name: "Calendar source", status: "fail", detail: "Google Calendar needs reconnecting. Reconnect it in Settings ▸ Calendar.")
+        googleProblem.doctor.ready = false
+
         var problems = SnapshotBridge.Config()
         problems.doctor = DoctorReport(
             configPath: "~/.config/momentum/config.toml", bridgeVersion: "v0.1.0-12-g4bafc30",
@@ -261,6 +267,7 @@ struct SnapshotScene {
                 }),
             SnapshotScene(name: "settings-diagnostics", run: { await $0.openSettings(.diagnostics) }),
             SnapshotScene(name: "settings-diagnostics-problems", config: problems, run: { await $0.openSettings(.diagnostics) }),
+            SnapshotScene(name: "settings-diagnostics-google", config: googleProblem, run: { await $0.openSettings(.diagnostics) }),
             SnapshotScene(name: "settings-diagnostics-config-error", config: badConfig, run: { await $0.openSettings(.diagnostics) }),
             SnapshotScene(
                 name: "settings-conflict",
