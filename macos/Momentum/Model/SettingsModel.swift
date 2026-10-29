@@ -73,6 +73,31 @@ final class SettingsModel {
         await save(tab: "planning") { bridge, revision in try await bridge.savePlanning(change(revision)) }
     }
 
+    // MARK: Calendar source
+
+    /// What the Source picker shows: this Mac's own macOS Calendar choice,
+    /// which counts over everything else, and otherwise what config.toml names.
+    var calendarChoice: CalendarChoice {
+        if store?.macCalendar.source == .mac { return .mac }
+        return snapshot?.calendar.source == "google" ? .google : .files
+    }
+
+    /// Chooses where this Mac reads its meetings from. macOS Calendar is this
+    /// Mac's alone. Google Calendar and calendar files are config.toml's
+    /// `[calendar] source`, and choosing either clears a macOS Calendar choice,
+    /// which would count over it (ADR 0003, D9).
+    func chooseCalendarSource(_ choice: CalendarChoice) async {
+        guard let store, choice != calendarChoice else { return }
+        if choice == .mac {
+            await store.macCalendar.choose(.mac)
+            return
+        }
+        if store.macCalendar.source == .mac { await store.macCalendar.choose(.files) }
+        let named = choice == .google ? "google" : "files"
+        guard snapshot?.calendar.source != named else { return }
+        await saveCalendar { CalendarChange(revision: $0, source: named) }
+    }
+
     // MARK: Calendar files
 
     func setCalendarEnabled(_ enabled: Bool) async {
