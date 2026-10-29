@@ -36,7 +36,9 @@ final class SnapshotHost {
             ? [SavedSignIn(server: url, token: "snapshot-token", email: "joao@example.com", expiresAt: .now.addingTimeInterval(86400))] : []
         return AppStore(
             bridge: SnapshotBridge(scene.config), signIns: SnapshotSignInStore(saved),
-            calendarSource: SnapshotCalendarSource(access: scene.macAccess))
+            calendarSource: SnapshotCalendarSource(access: scene.macAccess),
+            // A snapshot never opens the real browser.
+            openURL: { _ in })
     }
 
     /// Takes every page in light and dark, then quits.
