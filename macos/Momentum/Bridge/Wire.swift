@@ -83,6 +83,24 @@ struct CalendarChange: Encodable, Sendable, Equatable {
     var staleAfter: String?
 }
 
+/// One check of Diagnostics. status is "ok", "fail" or "skip", and detail has
+/// had anything that looks like a secret removed.
+struct DoctorCheck: Decodable, Sendable, Equatable, Identifiable {
+    var name: String
+    var status: String
+    var detail: String
+
+    var id: String { name }
+}
+
+struct DoctorReport: Decodable, Sendable, Equatable {
+    var configPath: String
+    var bridgeVersion: String
+    var checks: [DoctorCheck]
+    /// True when no check failed.
+    var ready: Bool
+}
+
 /// One row of Settings ▸ Projects: an entry of the catalog, or a value found
 /// only on tasks. tasks counts the pending tasks with exactly this value.
 struct ProjectRow: Decodable, Sendable, Equatable, Identifiable {
