@@ -37,8 +37,10 @@ Plain, direct, brief. Say "you" to the person, never "the user". Say "click", ne
 | Buffer | Time kept free each day for what you can't plan | slack, padding, margin |
 | Calendar file | An `.ics` file whose meetings take time off a day's capacity; added in Settings ▸ Calendar | calendar feed, subscription, source |
 | Available, Stale, Missing, Unreadable | The four states of a calendar file, always a word with a symbol | OK, Old, Not found, Error, Broken |
-| Source | Where this Mac reads its meetings from, **Calendar files** or **macOS Calendar**; kept on this Mac, not in `config.toml` | provider, account, feed |
+| Source | Where this Mac reads its meetings from: **Calendar files**, **macOS Calendar** or **Google Calendar**. macOS Calendar is kept on this Mac only; the other two are kept in `config.toml`, so the terminal app on this Mac follows them. A macOS Calendar choice counts over what `config.toml` says | provider, account, feed |
 | macOS Calendar | The Calendar app's own calendars, read with the Mac's permission; Settings ▸ Calendar lists them by account with a switch each | iCloud calendar, system calendar, EventKit |
+| Google Calendar | The primary calendar of the Google account you connected, read by the server; one of the three Sources | Google account, gcal, Google sync |
+| Connect | Let the server read your Google Calendar, by approving it in the browser (**Connect…**, with an ellipsis). The connection belongs to your Momentum account, not to a Mac. Never means Sign In | Sign In, link, authorize, add account |
 | Project | A place tasks belong to, written as a dotted value such as `work.client`; its name labels the last segment | folder, category, list |
 | Catalog | The projects kept in `config.toml`, which New Task suggests; managed in Settings ▸ Projects | project list, suggestions file |
 | From tasks | The tag of a project that only tasks use, with **Add to Catalog…** to keep it | discovered, orphan, unknown |
