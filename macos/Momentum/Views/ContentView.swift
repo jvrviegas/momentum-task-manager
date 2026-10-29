@@ -78,7 +78,7 @@ struct ContentView: View {
         .sheet(isPresented: $store.showShortcuts) {
             ShortcutsView()
         }
-        .sheet(item: Binding(get: { store.signIn }, set: { if $0 == nil { store.cancelSignIn() } })) { _ in
+        .sheet(item: Binding(get: { store.signInModel.flow }, set: { if $0 == nil { store.signInModel.cancel() } })) { _ in
             SignInView()
         }
         .sheet(item: Binding(get: { store.planSheet }, set: { if $0 == nil { store.cancelPlan() } })) { _ in
