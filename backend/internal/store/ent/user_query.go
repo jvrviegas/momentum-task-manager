@@ -14,6 +14,8 @@ import (
 	"entgo.io/ent/dialect/sql/sqlgraph"
 	"entgo.io/ent/schema/field"
 	"github.com/google/uuid"
+	"github.com/jvrviegas/momentum-task-manager/backend/internal/store/ent/calendarconnection"
+	"github.com/jvrviegas/momentum-task-manager/backend/internal/store/ent/calendarlink"
 	"github.com/jvrviegas/momentum-task-manager/backend/internal/store/ent/deviceauthorization"
 	"github.com/jvrviegas/momentum-task-manager/backend/internal/store/ent/idempotencykey"
 	"github.com/jvrviegas/momentum-task-manager/backend/internal/store/ent/identity"
@@ -31,6 +33,8 @@ type UserQuery struct {
 	order                    []user.OrderOption
 	inters                   []Interceptor
 	predicates               []predicate.User
+	withCalendarConnection   *CalendarConnectionQuery
+	withCalendarLinks        *CalendarLinkQuery
 	withDeviceAuthorizations *DeviceAuthorizationQuery
 	withIdentities           *IdentityQuery
 	withIdempotencyKeys      *IdempotencyKeyQuery
@@ -72,6 +76,50 @@ func (_q *UserQuery) Unique(unique bool) *UserQuery {
 func (_q *UserQuery) Order(o ...user.OrderOption) *UserQuery {
 	_q.order = append(_q.order, o...)
 	return _q
+}
+
+// QueryCalendarConnection chains the current query on the "calendar_connection" edge.
+func (_q *UserQuery) QueryCalendarConnection() *CalendarConnectionQuery {
+	query := (&CalendarConnectionClient{config: _q.config}).Query()
+	query.path = func(ctx context.Context) (fromU *sql.Selector, err error) {
+		if err := _q.prepareQuery(ctx); err != nil {
+			return nil, err
+		}
+		selector := _q.sqlQuery(ctx)
+		if err := selector.Err(); err != nil {
+			return nil, err
+		}
+		step := sqlgraph.NewStep(
+			sqlgraph.From(user.Table, user.FieldID, selector),
+			sqlgraph.To(calendarconnection.Table, calendarconnection.FieldID),
+			sqlgraph.Edge(sqlgraph.O2O, false, user.CalendarConnectionTable, user.CalendarConnectionColumn),
+		)
+		fromU = sqlgraph.SetNeighbors(_q.driver.Dialect(), step)
+		return fromU, nil
+	}
+	return query
+}
+
+// QueryCalendarLinks chains the current query on the "calendar_links" edge.
+func (_q *UserQuery) QueryCalendarLinks() *CalendarLinkQuery {
+	query := (&CalendarLinkClient{config: _q.config}).Query()
+	query.path = func(ctx context.Context) (fromU *sql.Selector, err error) {
+		if err := _q.prepareQuery(ctx); err != nil {
+			return nil, err
+		}
+		selector := _q.sqlQuery(ctx)
+		if err := selector.Err(); err != nil {
+			return nil, err
+		}
+		step := sqlgraph.NewStep(
+			sqlgraph.From(user.Table, user.FieldID, selector),
+			sqlgraph.To(calendarlink.Table, calendarlink.FieldID),
+			sqlgraph.Edge(sqlgraph.O2M, false, user.CalendarLinksTable, user.CalendarLinksColumn),
+		)
+		fromU = sqlgraph.SetNeighbors(_q.driver.Dialect(), step)
+		return fromU, nil
+	}
+	return query
 }
 
 // QueryDeviceAuthorizations chains the current query on the "device_authorizations" edge.
@@ -398,6 +446,8 @@ func (_q *UserQuery) Clone() *UserQuery {
 		order:                    append([]user.OrderOption{}, _q.order...),
 		inters:                   append([]Interceptor{}, _q.inters...),
 		predicates:               append([]predicate.User{}, _q.predicates...),
+		withCalendarConnection:   _q.withCalendarConnection.Clone(),
+		withCalendarLinks:        _q.withCalendarLinks.Clone(),
 		withDeviceAuthorizations: _q.withDeviceAuthorizations.Clone(),
 		withIdentities:           _q.withIdentities.Clone(),
 		withIdempotencyKeys:      _q.withIdempotencyKeys.Clone(),
@@ -408,6 +458,28 @@ func (_q *UserQuery) Clone() *UserQuery {
 		sql:  _q.sql.Clone(),
 		path: _q.path,
 	}
+}
+
+// WithCalendarConnection tells the query-builder to eager-load the nodes that are connected to
+// the "calendar_connection" edge. The optional arguments are used to configure the query builder of the edge.
+func (_q *UserQuery) WithCalendarConnection(opts ...func(*CalendarConnectionQuery)) *UserQuery {
+	query := (&CalendarConnectionClient{config: _q.config}).Query()
+	for _, opt := range opts {
+		opt(query)
+	}
+	_q.withCalendarConnection = query
+	return _q
+}
+
+// WithCalendarLinks tells the query-builder to eager-load the nodes that are connected to
+// the "calendar_links" edge. The optional arguments are used to configure the query builder of the edge.
+func (_q *UserQuery) WithCalendarLinks(opts ...func(*CalendarLinkQuery)) *UserQuery {
+	query := (&CalendarLinkClient{config: _q.config}).Query()
+	for _, opt := range opts {
+		opt(query)
+	}
+	_q.withCalendarLinks = query
+	return _q
 }
 
 // WithDeviceAuthorizations tells the query-builder to eager-load the nodes that are connected to
@@ -554,7 +626,9 @@ func (_q *UserQuery) sqlAll(ctx context.Context, hooks ...queryHook) ([]*User, e
 	var (
 		nodes       = []*User{}
 		_spec       = _q.querySpec()
-		loadedTypes = [6]bool{
+		loadedTypes = [8]bool{
+			_q.withCalendarConnection != nil,
+			_q.withCalendarLinks != nil,
 			_q.withDeviceAuthorizations != nil,
 			_q.withIdentities != nil,
 			_q.withIdempotencyKeys != nil,
@@ -583,6 +657,19 @@ func (_q *UserQuery) sqlAll(ctx context.Context, hooks ...queryHook) ([]*User, e
 	}
 	if len(nodes) == 0 {
 		return nodes, nil
+	}
+	if query := _q.withCalendarConnection; query != nil {
+		if err := _q.loadCalendarConnection(ctx, query, nodes, nil,
+			func(n *User, e *CalendarConnection) { n.Edges.CalendarConnection = e }); err != nil {
+			return nil, err
+		}
+	}
+	if query := _q.withCalendarLinks; query != nil {
+		if err := _q.loadCalendarLinks(ctx, query, nodes,
+			func(n *User) { n.Edges.CalendarLinks = []*CalendarLink{} },
+			func(n *User, e *CalendarLink) { n.Edges.CalendarLinks = append(n.Edges.CalendarLinks, e) }); err != nil {
+			return nil, err
+		}
 	}
 	if query := _q.withDeviceAuthorizations; query != nil {
 		if err := _q.loadDeviceAuthorizations(ctx, query, nodes,
@@ -631,6 +718,63 @@ func (_q *UserQuery) sqlAll(ctx context.Context, hooks ...queryHook) ([]*User, e
 	return nodes, nil
 }
 
+func (_q *UserQuery) loadCalendarConnection(ctx context.Context, query *CalendarConnectionQuery, nodes []*User, init func(*User), assign func(*User, *CalendarConnection)) error {
+	fks := make([]driver.Value, 0, len(nodes))
+	nodeids := make(map[uuid.UUID]*User)
+	for i := range nodes {
+		fks = append(fks, nodes[i].ID)
+		nodeids[nodes[i].ID] = nodes[i]
+	}
+	if len(query.ctx.Fields) > 0 {
+		query.ctx.AppendFieldOnce(calendarconnection.FieldUserID)
+	}
+	query.Where(predicate.CalendarConnection(func(s *sql.Selector) {
+		s.Where(sql.InValues(s.C(user.CalendarConnectionColumn), fks...))
+	}))
+	neighbors, err := query.All(ctx)
+	if err != nil {
+		return err
+	}
+	for _, n := range neighbors {
+		fk := n.UserID
+		node, ok := nodeids[fk]
+		if !ok {
+			return fmt.Errorf(`unexpected referenced foreign-key "user_id" returned %v for node %v`, fk, n.ID)
+		}
+		assign(node, n)
+	}
+	return nil
+}
+func (_q *UserQuery) loadCalendarLinks(ctx context.Context, query *CalendarLinkQuery, nodes []*User, init func(*User), assign func(*User, *CalendarLink)) error {
+	fks := make([]driver.Value, 0, len(nodes))
+	nodeids := make(map[uuid.UUID]*User)
+	for i := range nodes {
+		fks = append(fks, nodes[i].ID)
+		nodeids[nodes[i].ID] = nodes[i]
+		if init != nil {
+			init(nodes[i])
+		}
+	}
+	if len(query.ctx.Fields) > 0 {
+		query.ctx.AppendFieldOnce(calendarlink.FieldUserID)
+	}
+	query.Where(predicate.CalendarLink(func(s *sql.Selector) {
+		s.Where(sql.InValues(s.C(user.CalendarLinksColumn), fks...))
+	}))
+	neighbors, err := query.All(ctx)
+	if err != nil {
+		return err
+	}
+	for _, n := range neighbors {
+		fk := n.UserID
+		node, ok := nodeids[fk]
+		if !ok {
+			return fmt.Errorf(`unexpected referenced foreign-key "user_id" returned %v for node %v`, fk, n.ID)
+		}
+		assign(node, n)
+	}
+	return nil
+}
 func (_q *UserQuery) loadDeviceAuthorizations(ctx context.Context, query *DeviceAuthorizationQuery, nodes []*User, init func(*User), assign func(*User, *DeviceAuthorization)) error {
 	fks := make([]driver.Value, 0, len(nodes))
 	nodeids := make(map[uuid.UUID]*User)
