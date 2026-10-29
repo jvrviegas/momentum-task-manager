@@ -207,6 +207,98 @@ struct GoogleCalendarTests {
         google.cancel()
     }
 
+    // MARK: Disconnecting
+
+    @Test func disconnectingEndsTheConnectionLoadsAgainAndLeavesTheSourceAlone() async {
+        let (store, bridge, _, _) = await makeStore()
+        await store.settings.chooseCalendarSource(.google)
+        await bridge.setGoogle(status: connectedStatus)
+        let google = store.googleCalendar
+        await google.refresh()
+        let loadsBefore = await bridge.calls.filter { $0 == "load" }.count
+        let savesBefore = await bridge.saves.count
+        #expect(google.email == "joao@gmail.com")
+
+        google.confirmingDisconnect = true
+        await google.disconnect()
+        #expect(google.confirmingDisconnect == false)
+        #expect(google.phase == .notConnected, "the tab offers Connect… again")
+        #expect(google.notRevoked == false && google.disconnectError == nil)
+        #expect(await bridge.calls.filter { $0 == "disconnectCalendar" }.count == 1)
+        // Plan Today and the meter give up the meetings at once.
+        #expect(await bridge.calls.filter { $0 == "load" }.count == loadsBefore + 1)
+        // The Source stays Google until the person chooses another.
+        #expect(store.settings.calendarChoice == .google)
+        #expect(await bridge.saves.count == savesBefore)
+    }
+
+    @Test func aDisconnectGoogleCouldNotRevokeSaysSoUntilTheNextConnect() async {
+        let link = CalendarConnectLink(url: "https://momentum.example/calendar/connect/new", expiresAt: .now.addingTimeInterval(600))
+        let (store, bridge, _, _) = await makeStore(link: link)
+        await bridge.setGoogle(status: connectedStatus, revoked: false)
+        let google = store.googleCalendar
+        await google.refresh()
+
+        await google.disconnect()
+        #expect(google.phase == .notConnected)
+        #expect(google.notRevoked, "the access may still show in the Google account's settings")
+
+        // Looking again changes nothing; connecting again clears it.
+        await google.refresh()
+        #expect(google.notRevoked)
+        google.connect()
+        await until { google.phase == .waiting(link) }
+        #expect(google.notRevoked == false)
+        google.cancel()
+    }
+
+    @Test func aDisconnectThatFailsChangesNothingAndTheButtonTriesAgain() async {
+        let (store, bridge, _, _) = await makeStore()
+        await bridge.setGoogle(status: connectedStatus)
+        let google = store.googleCalendar
+        await google.refresh()
+
+        await bridge.setGoogle(failure: BridgeError(message: "Momentum can’t reach https://momentum.example. Check your connection.", code: "unreachable"))
+        await google.disconnect()
+        #expect(google.phase == .connected(email: "joao@gmail.com"))
+        #expect(google.disconnectError == "Momentum can’t reach https://momentum.example. Check your connection.")
+
+        await bridge.setGoogle(failure: nil)
+        await google.disconnect()
+        #expect(google.phase == .notConnected)
+        #expect(google.disconnectError == nil)
+    }
+
+    @Test func cancellingThePromptAsksTheServerNothing() async {
+        let (store, bridge, _, _) = await makeStore()
+        await bridge.setGoogle(status: connectedStatus)
+        let google = store.googleCalendar
+        await google.refresh()
+        google.confirmingDisconnect = true
+        google.confirmingDisconnect = false
+        #expect(google.phase == .connected(email: "joao@gmail.com"))
+        #expect(await !bridge.calls.contains("disconnectCalendar"))
+    }
+
+    @Test func aConnectionThatNeedsReconnectingCanBeDisconnected() async {
+        let (store, bridge, _, _) = await makeStore()
+        await bridge.setGoogle(status: refusedStatus)
+        let google = store.googleCalendar
+        await google.refresh()
+        #expect(google.email == "joao@gmail.com")
+        await google.disconnect()
+        #expect(google.phase == .notConnected)
+    }
+
+    @Test func thereIsNothingToDisconnectBeforeAConnection() async {
+        let (store, bridge, _, _) = await makeStore()
+        let google = store.googleCalendar
+        await google.refresh()
+        #expect(google.email == nil)
+        await google.disconnect()
+        #expect(await !bridge.calls.contains("disconnectCalendar"))
+    }
+
     // MARK: The wire
 
     /// What the Go bridge answers, byte for byte, read the way ProcessBridge reads it.
@@ -223,6 +315,11 @@ struct GoogleCalendarTests {
             CalendarConnectLink.self, from: Data(#"{"url":"https://m.example/calendar/connect/abc","expiresAt":"2026-10-14T09:30:00Z"}"#.utf8))
         #expect(link.url == "https://m.example/calendar/connect/abc")
         #expect(link.expiresAt == ISO8601DateFormatter().date(from: "2026-10-14T09:30:00Z"))
+    }
+
+    @Test func theBridgesDisconnectAnswerDecodes() throws {
+        let answer = try JSONDecoder().decode(GoogleCalendarDisconnect.self, from: Data(#"{"revoked":false}"#.utf8))
+        #expect(answer == GoogleCalendarDisconnect(revoked: false))
     }
 
     @Test func aSourceChangeSendsOnlyTheRevisionAndTheSource() throws {
