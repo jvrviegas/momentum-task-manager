@@ -27,6 +27,12 @@ actor SnapshotBridge: TaskBridge {
         var dailyCapacity = "8h"
         var buffer = "1h"
         var weekdayCapacity = ["friday": "4h"]
+        /// Which source config.toml names, "files" or "google".
+        var calendarSource = "files"
+        /// What the server says of this account's Google Calendar.
+        var googleStatus = GoogleCalendarStatus(offered: true, connected: false, email: nil, needsReconnect: false)
+        /// How long the link a connect gets works, in seconds.
+        var googleLinkLifetime: TimeInterval = 600
         var calendarEnabled = true
         var calendarFiles = SnapshotBridge.defaultCalendarFiles
         var calendarHours = (start: "09:00", end: "17:00")
@@ -271,7 +277,7 @@ actor SnapshotBridge: TaskBridge {
                 enabled: config.planningEnabled, dailyCapacity: config.dailyCapacity, buffer: config.buffer,
                 weekdayCapacity: config.weekdayCapacity),
             calendar: CalendarSettings(
-                enabled: config.calendarEnabled, files: config.calendarFiles, workingStart: config.calendarHours.start,
+                source: config.calendarSource, enabled: config.calendarEnabled, files: config.calendarFiles, workingStart: config.calendarHours.start,
                 workingEnd: config.calendarHours.end, includeAllDay: config.includeAllDay, includeTransparent: config.includeTransparent,
                 staleAfter: config.staleAfter))
     }
@@ -309,7 +315,15 @@ actor SnapshotBridge: TaskBridge {
     func saveCalendar(_ change: CalendarChange) async throws -> SettingsSnapshot {
         guard change.revision == "r\(revision)" else { throw Self.conflict }
         let paths = change.paths ?? config.calendarFiles.map(\.path)
-        if (change.enabled ?? config.calendarEnabled) && paths.isEmpty {
+        let source = change.source ?? config.calendarSource
+        if source != "files", source != "google" {
+            throw BridgeError(message: "Choose Calendar files or Google Calendar.", field: "source")
+        }
+        // Files are only checked when they are the source.
+        if source == "files", (change.enabled ?? config.calendarEnabled) && paths.isEmpty {
+            if change.source != nil {
+                throw BridgeError(message: "Add a calendar file first, or turn off Use calendar files.", field: "source")
+            }
             throw BridgeError(
                 message: change.enabled == nil ? "Turn off Use calendar files before removing the last one." : "Add a calendar file first.",
                 field: change.enabled == nil ? "paths" : "enabled")
@@ -321,6 +335,7 @@ actor SnapshotBridge: TaskBridge {
         if let text = change.staleAfter, Self.minutes(text) == nil, text != "0m" {
             throw BridgeError(message: "Enter a length of time, such as 8h or 7h30m.", field: "staleAfter")
         }
+        config.calendarSource = source
         config.calendarHours = (start, end)
         if let include = change.includeAllDay { config.includeAllDay = include }
         if let include = change.includeTransparent { config.includeTransparent = include }
@@ -334,6 +349,17 @@ actor SnapshotBridge: TaskBridge {
         }
         revision += 1
         return settingsSnapshot()
+    }
+
+    // MARK: Google Calendar
+
+    func calendarStatus() async throws -> GoogleCalendarStatus { config.googleStatus }
+
+    /// A link that works, and a status that does not change: the page that
+    /// waits for the browser keeps waiting.
+    func connectCalendar() async throws -> CalendarConnectLink {
+        CalendarConnectLink(
+            url: "https://momentum.example.com/calendar/connect/snapshot", expiresAt: .now.addingTimeInterval(config.googleLinkLifetime))
     }
 
     // MARK: Projects
