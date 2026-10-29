@@ -16,10 +16,20 @@ type PlanningConfig struct {
 	WeekdayCapacity map[string]string `toml:"weekday_capacity"`
 }
 
-// CalendarConfig selects the first supported calendar source: local ICS
-// files. Fetching/synchronizing those files is deliberately outside Momentum;
-// the app only reads them when planning is opened.
+// The values of [calendar] source.
+const (
+	CalendarSourceFiles  = "files"
+	CalendarSourceGoogle = "google"
+)
+
+// CalendarConfig says where meetings come from. Source is local ICS files,
+// the default, whose fetching or synchronizing is deliberately outside
+// Momentum, or Google Calendar, which the server reads (ADR 0003). Enabled
+// and Paths are about files only: a Google source counts whatever Enabled
+// says and needs no paths (ADR 0003, D9). The hours and event choices apply
+// to both.
 type CalendarConfig struct {
+	Source             string        `toml:"source"`
 	Enabled            bool          `toml:"enabled"`
 	Paths              []string      `toml:"paths"`
 	IncludeAllDay      bool          `toml:"include_all_day"`
@@ -35,6 +45,7 @@ func defaultPlanningConfig() PlanningConfig {
 
 func defaultCalendarConfig() CalendarConfig {
 	return CalendarConfig{
+		Source:       CalendarSourceFiles,
 		WorkingStart: "09:00",
 		WorkingEnd:   "17:00",
 		StaleAfter:   24 * time.Hour,
@@ -70,18 +81,28 @@ func (c PlanningConfig) CapacityFor(day time.Weekday) time.Duration {
 }
 
 func (c CalendarConfig) Validate() error {
-	if !c.Enabled {
-		return nil
+	google := false
+	switch c.Source {
+	case "", CalendarSourceFiles:
+	case CalendarSourceGoogle:
+		google = true
+	default:
+		return fmt.Errorf("config key %q must be %q or %q, not %q", "calendar.source", CalendarSourceFiles, CalendarSourceGoogle, c.Source)
 	}
-	if len(c.Paths) == 0 {
-		return fmt.Errorf("config key %q requires at least one local ICS path", "calendar.paths")
-	}
-	for _, value := range c.Paths {
-		if strings.TrimSpace(value) == "" {
-			return fmt.Errorf("config key %q cannot contain an empty path", "calendar.paths")
+	if !google {
+		if !c.Enabled {
+			return nil
 		}
-		if strings.Contains(value, "://") {
-			return fmt.Errorf("config key %q accepts local ICS paths only; download subscribed calendars outside Momentum", "calendar.paths")
+		if len(c.Paths) == 0 {
+			return fmt.Errorf("config key %q requires at least one local ICS path", "calendar.paths")
+		}
+		for _, value := range c.Paths {
+			if strings.TrimSpace(value) == "" {
+				return fmt.Errorf("config key %q cannot contain an empty path", "calendar.paths")
+			}
+			if strings.Contains(value, "://") {
+				return fmt.Errorf("config key %q accepts local ICS paths only; download subscribed calendars outside Momentum", "calendar.paths")
+			}
 		}
 	}
 	if _, err := time.Parse("15:04", c.WorkingStart); err != nil {
