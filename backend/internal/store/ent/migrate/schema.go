@@ -8,6 +8,55 @@ import (
 )
 
 var (
+	// CalendarConnectionsColumns holds the columns for the "calendar_connections" table.
+	CalendarConnectionsColumns = []*schema.Column{
+		{Name: "id", Type: field.TypeInt, Increment: true},
+		{Name: "subject", Type: field.TypeString},
+		{Name: "email", Type: field.TypeString},
+		{Name: "sealed_token", Type: field.TypeBytes},
+		{Name: "status", Type: field.TypeEnum, Enums: []string{"connected", "needs_reconnect"}, Default: "connected"},
+		{Name: "created_at", Type: field.TypeTime},
+		{Name: "user_id", Type: field.TypeUUID, Unique: true},
+	}
+	// CalendarConnectionsTable holds the schema information for the "calendar_connections" table.
+	CalendarConnectionsTable = &schema.Table{
+		Name:       "calendar_connections",
+		Columns:    CalendarConnectionsColumns,
+		PrimaryKey: []*schema.Column{CalendarConnectionsColumns[0]},
+		ForeignKeys: []*schema.ForeignKey{
+			{
+				Symbol:     "calendar_connections_users_calendar_connection",
+				Columns:    []*schema.Column{CalendarConnectionsColumns[6]},
+				RefColumns: []*schema.Column{UsersColumns[0]},
+				OnDelete:   schema.NoAction,
+			},
+		},
+	}
+	// CalendarLinksColumns holds the columns for the "calendar_links" table.
+	CalendarLinksColumns = []*schema.Column{
+		{Name: "id", Type: field.TypeInt, Increment: true},
+		{Name: "link_hash", Type: field.TypeBytes, Unique: true},
+		{Name: "state_hash", Type: field.TypeBytes, Unique: true, Nullable: true},
+		{Name: "code_verifier", Type: field.TypeString, Nullable: true},
+		{Name: "nonce", Type: field.TypeString, Nullable: true},
+		{Name: "created_at", Type: field.TypeTime},
+		{Name: "expires_at", Type: field.TypeTime},
+		{Name: "user_id", Type: field.TypeUUID},
+	}
+	// CalendarLinksTable holds the schema information for the "calendar_links" table.
+	CalendarLinksTable = &schema.Table{
+		Name:       "calendar_links",
+		Columns:    CalendarLinksColumns,
+		PrimaryKey: []*schema.Column{CalendarLinksColumns[0]},
+		ForeignKeys: []*schema.ForeignKey{
+			{
+				Symbol:     "calendar_links_users_calendar_links",
+				Columns:    []*schema.Column{CalendarLinksColumns[7]},
+				RefColumns: []*schema.Column{UsersColumns[0]},
+				OnDelete:   schema.NoAction,
+			},
+		},
+	}
 	// DeviceAuthorizationsColumns holds the columns for the "device_authorizations" table.
 	DeviceAuthorizationsColumns = []*schema.Column{
 		{Name: "id", Type: field.TypeInt, Increment: true},
@@ -233,6 +282,8 @@ var (
 	}
 	// Tables holds all the tables in the schema.
 	Tables = []*schema.Table{
+		CalendarConnectionsTable,
+		CalendarLinksTable,
 		DeviceAuthorizationsTable,
 		IdempotencyKeysTable,
 		IdentitiesTable,
@@ -244,6 +295,8 @@ var (
 )
 
 func init() {
+	CalendarConnectionsTable.ForeignKeys[0].RefTable = UsersTable
+	CalendarLinksTable.ForeignKeys[0].RefTable = UsersTable
 	DeviceAuthorizationsTable.ForeignKeys[0].RefTable = UsersTable
 	IdempotencyKeysTable.ForeignKeys[0].RefTable = UsersTable
 	IdentitiesTable.ForeignKeys[0].RefTable = UsersTable
