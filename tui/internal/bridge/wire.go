@@ -236,6 +236,25 @@ type uuidParams struct {
 	UUID string `json:"uuid"`
 }
 
+// noteParams names a note of task UUID by its words and, for removeNote, the
+// time it was added, as load sent it.
+type noteParams struct {
+	UUID  string    `json:"uuid"`
+	Text  string    `json:"text"`
+	Entry time.Time `json:"entry"`
+}
+
+// dependencyParams names the task On that task UUID depends on.
+type dependencyParams struct {
+	UUID string `json:"uuid"`
+	On   string `json:"on"`
+}
+
+// duplicateResult names the copy that duplicate added.
+type duplicateResult struct {
+	UUID string `json:"uuid"`
+}
+
 type modifyResult struct {
 	Changed bool `json:"changed"`
 }
