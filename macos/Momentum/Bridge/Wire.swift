@@ -83,6 +83,74 @@ struct CalendarChange: Encodable, Sendable, Equatable {
     var staleAfter: String?
 }
 
+/// One row of Settings ▸ Projects: an entry of the catalog, or a value found
+/// only on tasks. tasks counts the pending tasks with exactly this value.
+struct ProjectRow: Decodable, Sendable, Equatable, Identifiable {
+    var value: String
+    var name: String
+    /// "catalog" or "tasks".
+    var tag: String
+    var tasks: Int
+
+    var id: String { value }
+    var inCatalog: Bool { tag == "catalog" }
+    /// How deep the value sits: work.client is one below work.
+    var depth: Int { value.split(separator: ".").count - 1 }
+}
+
+struct ProjectsSnapshot: Decodable, Sendable, Equatable {
+    /// Sent back with a save, which is refused when config.toml has changed since.
+    var revision: String
+    var entries: [ProjectRow]
+    /// Why the tasks could not be read, which leaves out the counts and the
+    /// values found only on tasks.
+    var tasksError: String?
+}
+
+/// One task's project before and after a rename. It holds no title.
+struct ProjectTaskMove: Codable, Sendable, Equatable {
+    var uuid: String
+    var oldValue: String
+    var newValue: String
+}
+
+/// One change to the catalog: add an entry, edit the one at source, or remove
+/// it. The value of an added or edited entry is parent and segment joined by a
+/// dot. With migrate, the tasks in tasks, the ones the preview showed, move
+/// to the new value; without it only the catalog changes.
+struct ProjectEdit: Encodable, Sendable, Equatable {
+    var revision: String
+    var action: String
+    var source = ""
+    var name = ""
+    var parent = ""
+    var segment = ""
+    var includeSubprojects = false
+    var removeChildren = false
+    var migrate = false
+    var tasks: [ProjectTaskMove] = []
+}
+
+/// What a rename would do: which pending tasks move with Include subprojects
+/// off and on, and how many catalog entries below it move with it.
+struct ProjectPreview: Decodable, Sendable, Equatable {
+    var value: String
+    var valueChanged: Bool
+    var catalogDescendants: Int
+    var exactTasks: [ProjectTaskMove]
+    var subprojectTasks: [ProjectTaskMove]
+    /// Tasks already use the new value, which the catalog lacks.
+    var destinationTaskOnly: Bool
+}
+
+struct ProjectSaveResult: Decodable, Sendable, Equatable {
+    var revision: String
+    var changed: Int
+    /// Why the server moved no task after the catalog was saved.
+    var taskError: String?
+    var stale: Bool?
+}
+
 /// What stands in for the calendar files when this Mac's source is macOS
 /// Calendar, which only the app can read: today's events, or why there are
 /// none ("no access"). Event titles go only with a plan.
