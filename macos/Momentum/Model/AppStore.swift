@@ -77,6 +77,8 @@ final class AppStore {
     let macCalendar: MacCalendarModel
     /// The Projects tab: the catalog and the values found only on tasks.
     let catalog = ProjectsModel()
+    /// The Diagnostics tab: the checks and the report to copy.
+    let diagnostics = DiagnosticsModel()
 
     private(set) var status: BridgeStatus?
     private(set) var startupError: String?
@@ -126,6 +128,7 @@ final class AppStore {
         settings.store = self
         macCalendar.store = self
         catalog.store = self
+        diagnostics.store = self
     }
 
     // MARK: Derived state
