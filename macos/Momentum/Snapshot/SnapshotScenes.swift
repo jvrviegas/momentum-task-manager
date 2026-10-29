@@ -9,6 +9,8 @@ struct SnapshotScene {
     var name: String
     var config = SnapshotBridge.Config()
     var signedIn = true
+    /// What the Mac answers when macOS Calendar asks for access.
+    var macAccess = CalendarAccess.granted
     /// false takes the page while the first load is still running.
     var waitsForStart = true
     var run: @MainActor (SnapshotSession) async -> Void = { _ in }
@@ -124,6 +126,11 @@ struct SnapshotScene {
             SnapshotScene(
                 name: "settings-calendar-refused", config: noFiles,
                 run: { await $0.openSettings(.calendar); await $0.store.settings.setCalendarEnabled(true); await $0.settle() }),
+            SnapshotScene(
+                name: "settings-calendar-mac", run: { await $0.store.macCalendar.choose(.mac); await $0.openSettings(.calendar) }),
+            SnapshotScene(
+                name: "settings-calendar-denied", macAccess: .denied,
+                run: { await $0.store.macCalendar.choose(.mac); await $0.openSettings(.calendar) }),
             SnapshotScene(name: "settings-config-error", config: badConfig, run: { await $0.openSettings(.planning) }),
             SnapshotScene(name: "settings-restart", config: movedServer, run: { await $0.openSettings(.planning) }),
             SnapshotScene(name: "appearance-light", run: { await $0.chooseAppearance(.light) }),
@@ -151,6 +158,9 @@ struct SnapshotScene {
                     await $0.store.confirmPlan()
                 }),
             SnapshotScene(name: "plan-today-calendar-unavailable", config: noCalendar, run: { await $0.store.openPlan() }),
+            SnapshotScene(
+                name: "plan-today-calendar-denied", macAccess: .denied,
+                run: { await $0.store.macCalendar.choose(.mac); await $0.store.openPlan() }),
         ]
     }
 }
