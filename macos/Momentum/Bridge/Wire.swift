@@ -91,6 +91,12 @@ struct CalendarConnectLink: Decodable, Sendable, Equatable {
     var expiresAt: Date
 }
 
+/// What the server says of a disconnect: whether it could ask Google to revoke
+/// the access too. The connection is deleted either way.
+struct GoogleCalendarDisconnect: Decodable, Sendable, Equatable {
+    var revoked: Bool
+}
+
 /// The [calendar] keys a save changes; paths is the whole list of files.
 struct CalendarChange: Encodable, Sendable, Equatable {
     var revision: String
