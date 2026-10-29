@@ -48,6 +48,7 @@ struct SettingsView: View {
     private func refresh() async {
         await store.refreshStatus()
         await store.settings.reload()
+        await store.macCalendar.refresh()
     }
 }
 
