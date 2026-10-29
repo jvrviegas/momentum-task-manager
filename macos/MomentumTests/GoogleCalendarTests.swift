@@ -18,6 +18,8 @@ private func until(_ condition: () -> Bool) async {
 }
 
 private let connectedStatus = GoogleCalendarStatus(offered: true, connected: true, email: "joao@gmail.com", needsReconnect: false)
+/// The connection is still there, but Google no longer accepts it.
+private let refusedStatus = GoogleCalendarStatus(offered: true, connected: true, email: "joao@gmail.com", needsReconnect: true)
 
 @MainActor
 struct GoogleCalendarTests {
@@ -69,11 +71,60 @@ struct GoogleCalendarTests {
         #expect(await !bridge.calls.contains("connectCalendar"))
     }
 
-    @Test func aConnectionGoogleRefusedCountsAsNoneSoConnectingAgainReplacesIt() async {
+    @Test func aConnectionGoogleRefusedNeedsReconnecting() async {
         let (store, bridge, _, _) = await makeStore()
-        await bridge.setGoogle(status: GoogleCalendarStatus(offered: true, connected: true, email: "joao@gmail.com", needsReconnect: true))
+        await bridge.setGoogle(status: refusedStatus)
         await store.googleCalendar.refresh()
-        #expect(store.googleCalendar.phase == .notConnected)
+        #expect(store.googleCalendar.phase == .needsReconnecting(email: "joao@gmail.com"))
+    }
+
+    // MARK: Reconnecting
+
+    @Test func reconnectingFollowsTheConnectFlowAndMayUseAnotherAccount() async {
+        let link = CalendarConnectLink(url: "https://momentum.example/calendar/connect/new", expiresAt: .now.addingTimeInterval(600))
+        let (store, bridge, opened, _) = await makeStore(link: link)
+        await bridge.setGoogle(status: refusedStatus)
+        let google = store.googleCalendar
+        await google.refresh()
+        let loadsBefore = await bridge.calls.filter { $0 == "load" }.count
+
+        let wait = google.connect()
+        await until { google.phase == .waiting(link) }
+        #expect(opened.urls == [URL(string: link.url)!])
+        // Still refused while the person is in the browser: the tab keeps waiting.
+        try? await Task.sleep(for: .milliseconds(20))
+        #expect(google.phase == .waiting(link))
+
+        await bridge.setGoogle(status: GoogleCalendarStatus(offered: true, connected: true, email: "joao@work.example", needsReconnect: false))
+        await wait.value
+        #expect(google.phase == .connected(email: "joao@work.example"))
+        // The sidebar's meter and the next Plan Today count the meetings again.
+        #expect(await bridge.calls.filter { $0 == "load" }.count == loadsBefore + 1)
+    }
+
+    @Test func cancelWhileReconnectingGoesBackToNeedsReconnecting() async {
+        let link = CalendarConnectLink(url: "https://momentum.example/calendar/connect/new", expiresAt: .now.addingTimeInterval(600))
+        let (store, bridge, _, _) = await makeStore(link: link)
+        await bridge.setGoogle(status: refusedStatus)
+        let google = store.googleCalendar
+        await google.refresh()
+        let wait = google.connect()
+        await until { google.phase == .waiting(link) }
+
+        google.cancel()
+        #expect(google.phase == .needsReconnecting(email: "joao@gmail.com"))
+        await wait.value
+        #expect(google.phase == .needsReconnecting(email: "joao@gmail.com"))
+    }
+
+    @Test func anExpiredReconnectLinkAsksToReconnectNotToConnect() async {
+        let link = CalendarConnectLink(url: "https://momentum.example/calendar/connect/new", expiresAt: .now.addingTimeInterval(0.05))
+        let (store, bridge, _, _) = await makeStore(link: link)
+        await bridge.setGoogle(status: refusedStatus)
+        let google = store.googleCalendar
+        await google.refresh()
+        await google.connect().value
+        #expect(google.phase == .expired(reconnecting: true))
     }
 
     @Test func aFailedCheckSaysWhy() async {
@@ -123,7 +174,7 @@ struct GoogleCalendarTests {
         let (store, _, _, _) = await makeStore(link: link)
         let google = store.googleCalendar
         await google.connect().value
-        #expect(google.phase == .expired)
+        #expect(google.phase == .expired(reconnecting: false))
     }
 
     @Test func openBrowserOpensTheSameLinkAgain() async {
