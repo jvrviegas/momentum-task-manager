@@ -1,0 +1,642 @@
+<!doctype html>
+<html lang="pt-PT">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Detalhes da tarefa · Revisão do Plano</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500&family=IBM+Plex+Sans+Condensed:wght@500;600;700&family=IBM+Plex+Sans:ital,wght@0,400;0,500;0,600;1,400&display=swap">
+<style>
+:root {
+  color-scheme: light;
+  --paper: #f5f7fa;
+  --surface: #ffffff;
+  --surface-2: #eef1f5;
+  --ink: #18212c;
+  --ink-2: #4a5666;
+  --ink-3: #6f7b8b;
+  --rule: #d8dee6;
+  --accent: #2b5d8a;
+  --accent-soft: #e3ecf5;
+  --producing: #2c8a57;
+  --producing-soft: #e1f2e8;
+  --stopped: #c0492f;
+  --stopped-soft: #f8e5e0;
+  --unknown: #7c8695;
+  --unknown-soft: #eceef1;
+  --new: #2c8a57;
+  --mod: #a86a12;
+  --mod-soft: #f6ecda;
+  --warn-bg: #fbf3e2;
+  --warn-rule: #e3c98f;
+  --f-display: "IBM Plex Sans Condensed", "Arial Narrow", system-ui, sans-serif;
+  --f-body: "IBM Plex Sans", system-ui, -apple-system, "Segoe UI", sans-serif;
+  --f-mono: "IBM Plex Mono", ui-monospace, "SFMono-Regular", Menlo, monospace;
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    color-scheme: dark;
+    --paper: #11161d;
+    --surface: #18202a;
+    --surface-2: #1f2934;
+    --ink: #e6ebf1;
+    --ink-2: #b1bcc9;
+    --ink-3: #8894a3;
+    --rule: #2d3947;
+    --accent: #7fb0dc;
+    --accent-soft: #1d2d3e;
+    --producing: #5cc28a;
+    --producing-soft: #16301f;
+    --stopped: #ee7c62;
+    --stopped-soft: #3a1f19;
+    --unknown: #9aa4b2;
+    --unknown-soft: #252d37;
+    --new: #5cc28a;
+    --mod: #e0a94f;
+    --mod-soft: #33271a;
+    --warn-bg: #2c2517;
+    --warn-rule: #6b5628;
+  }
+}
+:root[data-theme="dark"] {
+  color-scheme: dark;
+  --paper: #11161d;
+  --surface: #18202a;
+  --surface-2: #1f2934;
+  --ink: #e6ebf1;
+  --ink-2: #b1bcc9;
+  --ink-3: #8894a3;
+  --rule: #2d3947;
+  --accent: #7fb0dc;
+  --accent-soft: #1d2d3e;
+  --producing: #5cc28a;
+  --producing-soft: #16301f;
+  --stopped: #ee7c62;
+  --stopped-soft: #3a1f19;
+  --unknown: #9aa4b2;
+  --unknown-soft: #252d37;
+  --new: #5cc28a;
+  --mod: #e0a94f;
+  --mod-soft: #33271a;
+  --warn-bg: #2c2517;
+  --warn-rule: #6b5628;
+}
+
+* { box-sizing: border-box; }
+html { -webkit-text-size-adjust: 100%; }
+body {
+  margin: 0;
+  background: var(--paper);
+  color: var(--ink);
+  font: 400 16px/1.6 var(--f-body);
+  padding: 0 16px;
+  padding-block: 40px 80px;
+}
+.wrap { max-width: 860px; margin: 0 auto; display: grid; gap: 56px; }
+h1, h2, h3 { font-family: var(--f-display); text-wrap: balance; line-height: 1.15; margin: 0; }
+h1 { font-size: clamp(30px, 5vw, 42px); font-weight: 700; letter-spacing: -0.01em; }
+h2 { font-size: 26px; font-weight: 600; }
+h3 { font-size: 19px; font-weight: 600; }
+p { margin: 0; max-width: 68ch; }
+code, .mono { font-family: var(--f-mono); font-size: 0.86em; }
+code { background: var(--surface-2); padding: 1px 5px; border-radius: 4px; word-break: break-word; }
+a { color: var(--accent); }
+.eyebrow {
+  font: 500 12px/1 var(--f-mono);
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--ink-3);
+}
+section { display: grid; gap: 18px; }
+.lede { font-size: 18px; color: var(--ink-2); }
+.muted { color: var(--ink-2); }
+
+/* Header */
+header { display: grid; gap: 16px; }
+.meta { display: flex; flex-wrap: wrap; gap: 8px 20px; font-size: 14px; color: var(--ink-2); }
+.meta b { color: var(--ink); font-weight: 600; }
+.facts { display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: 1px; background: var(--rule); border: 1px solid var(--rule); border-radius: 8px; overflow: hidden; }
+.fact { background: var(--surface); padding: 14px 16px; display: grid; gap: 2px; }
+.fact .n { font: 600 24px/1.1 var(--f-display); font-variant-numeric: tabular-nums; }
+.fact .l { font-size: 13px; color: var(--ink-2); }
+
+/* Flow diagram */
+.flow { display: grid; gap: 0; }
+.hop { display: grid; grid-template-columns: 40px 1fr; gap: 14px; align-items: start; }
+.hop .rail { display: flex; flex-direction: column; align-items: center; height: 100%; }
+.hop .dot { width: 28px; height: 28px; border-radius: 50%; border: 2px solid var(--accent); background: var(--surface); color: var(--accent); font: 600 13px/24px var(--f-mono); text-align: center; flex: none; }
+.hop .line { flex: 1; width: 2px; background: var(--rule); min-height: 16px; }
+.hop:last-child .line { display: none; }
+.hop .body { padding-bottom: 22px; display: grid; gap: 6px; }
+.hop .body h3 { font-size: 17px; }
+.where { font: 400 13px/1.4 var(--f-mono); color: var(--ink-3); }
+.hop.external .dot { border-color: var(--ink-3); color: var(--ink-3); }
+
+/* File map */
+.files { display: grid; gap: 10px; }
+.file { display: grid; grid-template-columns: auto 1fr; gap: 4px 14px; align-items: baseline; background: var(--surface); border: 1px solid var(--rule); border-radius: 8px; padding: 14px 16px; }
+.file .path { font: 500 14px/1.4 var(--f-mono); word-break: break-all; }
+.file p { grid-column: 2; font-size: 15px; color: var(--ink-2); }
+.tag { font: 600 11px/1 var(--f-mono); letter-spacing: 0.06em; text-transform: uppercase; padding: 5px 7px; border-radius: 4px; white-space: nowrap; }
+.tag.new { color: var(--new); background: var(--producing-soft); }
+.tag.mod { color: var(--mod); background: var(--mod-soft); }
+.tag.keep { color: var(--ink-3); background: var(--unknown-soft); }
+.group-label { font: 600 13px/1 var(--f-display); letter-spacing: 0.04em; text-transform: uppercase; color: var(--ink-3); margin-top: 8px; }
+
+/* State lamps */
+.lamps { display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 12px; }
+.lamp { border-radius: 8px; padding: 16px; display: grid; gap: 8px; border: 1px solid var(--rule); background: var(--surface); }
+.lamp .head { display: flex; align-items: center; gap: 10px; font: 600 18px/1 var(--f-display); }
+.lamp .bulb { width: 14px; height: 14px; border-radius: 50%; flex: none; }
+.lamp.producing .bulb { background: var(--producing); box-shadow: 0 0 0 4px var(--producing-soft); }
+.lamp.stopped .bulb { background: var(--stopped); box-shadow: 0 0 0 4px var(--stopped-soft); }
+.lamp.unknown .bulb { background: var(--unknown); box-shadow: 0 0 0 4px var(--unknown-soft); }
+.lamp .codes { font: 500 14px/1.4 var(--f-mono); color: var(--ink-2); }
+.lamp p { font-size: 15px; color: var(--ink-2); }
+
+/* Tables */
+.tbl { overflow-x: auto; border: 1px solid var(--rule); border-radius: 8px; background: var(--surface); }
+table { border-collapse: collapse; width: 100%; font-size: 15px; }
+th, td { text-align: left; vertical-align: top; padding: 10px 14px; border-bottom: 1px solid var(--rule); }
+th { font: 600 12px/1.3 var(--f-mono); letter-spacing: 0.05em; text-transform: uppercase; color: var(--ink-3); background: var(--surface-2); }
+tr:last-child td { border-bottom: 0; }
+td.k { font-family: var(--f-mono); font-size: 13.5px; white-space: nowrap; }
+
+/* Decisions */
+.decisions { display: grid; gap: 12px; }
+.dec { background: var(--surface); border: 1px solid var(--rule); border-radius: 8px; padding: 16px 18px; display: grid; gap: 8px; }
+.dec.flag { border-color: var(--warn-rule); background: var(--warn-bg); }
+.dec .top { display: flex; gap: 12px; align-items: baseline; justify-content: space-between; flex-wrap: wrap; }
+.dec .id { font: 600 13px/1 var(--f-mono); color: var(--accent); margin-right: 8px; }
+.dec h3 { font-size: 18px; display: inline; }
+.dec .why { font-size: 15px; color: var(--ink-2); }
+.dec .mean { font-size: 15px; }
+.dec .mean b { font-weight: 600; }
+.check { display: inline-flex; align-items: center; gap: 8px; font-size: 14px; color: var(--ink-2); cursor: pointer; user-select: none; }
+.check input { width: 18px; height: 18px; accent-color: var(--producing); cursor: pointer; }
+.check input:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+.pill { font: 600 11px/1 var(--f-mono); letter-spacing: 0.05em; text-transform: uppercase; padding: 4px 7px; border-radius: 4px; color: var(--mod); background: var(--mod-soft); }
+.progress { font-size: 14px; color: var(--ink-2); font-variant-numeric: tabular-nums; }
+.note-toggle { justify-self: start; font: 500 13px/1 var(--f-body); color: var(--accent); background: none; border: 1px dashed var(--rule); border-radius: 4px; padding: 6px 10px; cursor: pointer; }
+.note-toggle:hover { border-color: var(--accent); }
+.note-toggle.has-note { border-style: solid; border-color: var(--accent); }
+.note-toggle:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+.note-field { width: 100%; min-height: 72px; resize: vertical; font: 400 15px/1.5 var(--f-body); color: var(--ink); background: var(--surface); border: 1px solid var(--rule); border-radius: 6px; padding: 8px 10px; }
+.note-field:focus-visible { outline: 2px solid var(--accent); outline-offset: 1px; }
+.note-field[hidden] { display: none; }
+
+/* Notes */
+.note { border-left: 3px solid var(--warn-rule); background: var(--warn-bg); padding: 14px 16px; border-radius: 0 8px 8px 0; display: grid; gap: 6px; }
+.note h3 { font-size: 17px; }
+ul.plain { margin: 0; padding-left: 20px; display: grid; gap: 6px; max-width: 70ch; }
+.two { display: grid; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); gap: 16px; }
+.box { background: var(--surface); border: 1px solid var(--rule); border-radius: 8px; padding: 16px 18px; display: grid; gap: 10px; }
+
+/* Steps */
+ol.steps { list-style: none; margin: 0; padding: 0; display: grid; gap: 1px; background: var(--rule); border: 1px solid var(--rule); border-radius: 8px; overflow: hidden; counter-reset: s; }
+ol.steps li { background: var(--surface); padding: 12px 16px; display: grid; grid-template-columns: 44px 1fr auto; gap: 12px; align-items: baseline; counter-increment: s; }
+ol.steps li::before { content: "T" counter(s); font: 600 14px/1 var(--f-mono); color: var(--accent); }
+ol.steps .what { display: grid; gap: 2px; }
+ol.steps .what span { font-size: 14px; color: var(--ink-2); }
+ol.steps .c { font: 400 12.5px/1.3 var(--f-mono); color: var(--ink-3); text-align: right; }
+@media (max-width: 560px) {
+  ol.steps li { grid-template-columns: 36px 1fr; }
+  ol.steps .c { grid-column: 2; text-align: left; }
+  .file { grid-template-columns: 1fr; }
+  .file p { grid-column: 1; }
+}
+footer { font-size: 14px; color: var(--ink-3); border-top: 1px solid var(--rule); padding-top: 18px; }
+@media (prefers-reduced-motion: no-preference) {
+  .check input { transition: transform .12s; }
+  .check input:active { transform: scale(.92); }
+}
+</style>
+</head>
+<body>
+<div class="wrap">
+
+<header>
+  <div class="eyebrow">Revisão do plano · Detalhes da tarefa (M9) · servidor, bridge e app macOS</div>
+  <h1>Notas, dependências e duplicar tarefas na app do Mac</h1>
+  <p class="lede">Hoje o servidor já guarda as notas e as dependências de cada tarefa, e a app do Mac mostra-as, mas nenhuma app as consegue mudar. Este plano deixa-te acrescentar e remover notas, dizer de que tarefa outra está à espera, ver quais estão bloqueadas e duplicar uma tarefa para começar outra parecida, tudo na app do Mac e tudo com Undo.</p>
+  <div class="meta">
+    <span><b>Repo</b> jvrviegas/momentum-task-manager</span>
+    <span><b>Branch a partir de</b> <span class="mono">main</span> (c131b3d, local)</span>
+    <span><b>Plano</b> <span class="mono">docs/plans/task-details.md</span></span>
+    <span><b>Histórias</b> S-065 a S-070</span>
+    <span><b>Prazo</b> sem prazo</span>
+  </div>
+  <div class="facts">
+    <div class="fact"><span class="n">5</span><span class="l">decisões para aprovar</span></div>
+    <div class="fact"><span class="n">18</span><span class="l">consequências</span></div>
+    <div class="fact"><span class="n">11</span><span class="l">tarefas</span></div>
+    <div class="fact"><span class="n">6</span><span class="l">histórias</span></div>
+  </div>
+</header>
+
+<section>
+  <div class="eyebrow">A ideia num minuto</div>
+  <h2>O que vai ser construído</h2>
+  <p>Quatro coisas novas na app do Mac, sobre uma alteração pequena no servidor. No inspector (o painel à direita com os detalhes da tarefa) passas a poder escrever e remover notas e escolher de que tarefas esta depende. Nas listas, uma tarefa à espera de outra mostra um símbolo. E o menu de contexto e o menu Task ganham Duplicate, com ⌘D.</p>
+  <ul class="plain">
+    <li><b>O que preciso de saber sobre esta tarefa?</b> As notas, cada uma com a hora em que foi escrita: "Pedi o orçamento à Ana".</li>
+    <li><b>De que está à espera?</b> "Enviar a fatura" depende de "Receber o orçamento"; enquanto essa estiver pendente, a primeira aparece bloqueada.</li>
+    <li><b>Como começo uma parecida?</b> Duplicate cria uma tarefa nova com os mesmos campos e seleciona-a.</li>
+    <li><b>E se me enganar?</b> Cada uma destas mudanças anula-se com Undo, como qualquer edição.</li>
+  </ul>
+  <p class="muted">Não há tabela nova nem migration: as colunas já existem. O terminal continua só a mostrar notas e dependências (D1).</p>
+</section>
+
+<section>
+  <div class="eyebrow">Onde acontece</div>
+  <h2>O percurso de uma nota, do inspector à base de dados</h2>
+  <div class="flow">
+    <div class="hop external">
+      <div class="rail"><span class="dot">·</span><span class="line"></span></div>
+      <div class="body"><h3>Escreves uma nota numa tarefa pendente</h3><p class="muted">No inspector da app do Mac. Uma dependência faz o mesmo percurso, com a tarefa escolhida em vez das palavras.</p></div>
+    </div>
+    <div class="hop">
+      <div class="rail"><span class="dot">1</span><span class="line"></span></div>
+      <div class="body">
+        <h3>A app envia a mudança, uma de cada vez</h3>
+        <p class="muted">Se outra mudança ainda estiver a ser guardada, esta espera a sua vez e diz porquê. Esta parte já existe; ganha as ações novas.</p>
+        <span class="where">macos/Momentum/Model/AppStore.swift · exclusive, addNote (novo)</span>
+      </div>
+    </div>
+    <div class="hop">
+      <div class="rail"><span class="dot">2</span><span class="line"></span></div>
+      <div class="body">
+        <h3>O bridge passa-a ao servidor</h3>
+        <p class="muted">O <span class="mono">momentum-bridge</span>, o processo em Go que a app arranca, ganha cinco operações: duas para notas, duas para dependências e uma para duplicar.</p>
+        <span class="where">Bridge/ProcessBridge.swift; tui/internal/bridge/ops.go; tui/internal/backend/client.go (novos métodos)</span>
+      </div>
+    </div>
+    <div class="hop">
+      <div class="rail"><span class="dot">3</span><span class="line"></span></div>
+      <div class="body">
+        <h3>O servidor valida, aplica e regista</h3>
+        <p class="muted">A mesma route de qualquer edição, <span class="mono">PATCH /v1/tasks/{uuid}</span>, com um campo novo. O servidor dá à nota a sua hora, ao segundo, e escreve uma linha em <span class="mono">task_events</span> com a tarefa antes e depois.</p>
+        <span class="where">core/api/task.go · ModifyTaskRequest; backend/internal/tasks/mutate.go · Modify, save</span>
+      </div>
+    </div>
+    <div class="hop">
+      <div class="rail"><span class="dot">4</span><span class="line"></span></div>
+      <div class="body">
+        <h3>A app volta a carregar e oferece Undo</h3>
+        <p class="muted">Aparece a mensagem breve com Undo, como depois de qualquer edição. Esta parte já existe.</p>
+        <span class="where">macos/Momentum/Model/AppStore.swift · didMutate (sem alterações)</span>
+      </div>
+    </div>
+    <div class="hop">
+      <div class="rail"><span class="dot">5</span><span class="line"></span></div>
+      <div class="body">
+        <h3>Undo devolve a tarefa como estava</h3>
+        <p class="muted">Usa a linha de <span class="mono">task_events</span>. Hoje o <span class="mono">save</span> não escreve notas nem dependências, por isso o Undo não as traria de volta; o plano muda isso (C2).</p>
+        <span class="where">backend/internal/tasks/undo.go · revert (sem alterações), mutate.go · save (editar)</span>
+      </div>
+    </div>
+  </div>
+  <div class="note"><h3>Duplicar segue outro caminho</h3><p>O client do TUI lê a tarefa da lista de pendentes do servidor e cria a cópia por <span class="mono">POST /v1/tasks</span>, a route do New Task. O servidor não muda, e o Undo de uma criação já apaga a tarefa criada (C12, C13).</p></div>
+</section>
+
+<section>
+  <div class="eyebrow">A regra mais importante</div>
+  <h2>Que dependências o servidor aceita, e quando bloqueiam</h2>
+  <p>Uma dependência diz que uma tarefa está à espera de outra. <b>Só bloqueia enquanto a outra estiver pendente</b>; o servidor recusa as que não fazem sentido, cada uma com a razão no campo.</p>
+  <div class="lamps">
+    <div class="lamp stopped"><div class="head"><span class="bulb"></span>Aceite e bloqueia</div><div class="codes">pendente · em espera</div><p>A tarefa mostra o símbolo de bloqueada e perde urgência, como o servidor já calcula.</p></div>
+    <div class="lamp producing"><div class="head"><span class="bulb"></span>Aceite, não bloqueia</div><div class="codes">concluída</div><p>Só se aprovares a D2. O seletor da app não a oferece; vem de dados importados do Taskwarrior.</p></div>
+    <div class="lamp unknown"><div class="head"><span class="bulb"></span>Recusada</div><div class="codes">a própria · desconhecida · apagada · de outra conta · template · ciclo</div><p>Nada muda. Uma tarefa de outra conta recebe a mesma resposta que uma que nunca existiu (C7).</p></div>
+  </div>
+  <div class="two">
+    <div class="box"><h3>Outro dispositivo removeu primeiro</h3><p class="muted">Remover uma nota ou dependência que já não está lá dá <span class="mono">conflict</span>; a app mostra a razão e volta a carregar (C8).</p></div>
+    <div class="box"><h3>Um servidor antigo</h3><p class="muted">Responde "the request changes nothing" e não muda nada. Por isso o servidor sai antes da app (C9).</p></div>
+  </div>
+</section>
+
+<section>
+  <div class="eyebrow">Mapa de ficheiros</div>
+  <h2>O que muda no repo</h2>
+  <div class="files">
+    <div class="group-label">Novos</div>
+    <div class="file"><span class="tag new">novo</span><span class="path">tui/internal/bridge/testdata/wire/duplicate.json</span><p>A resposta do <span class="mono">duplicate</span>, que o teste Swift descodifica.</p></div>
+    <div class="file"><span class="tag new">novo</span><span class="path">macos/Momentum/Views/ (o seletor de dependências)</span><p>A vista onde escolhes a tarefa; o nome e a forma saem do bloco de UX da S-067.</p></div>
+    <div class="group-label">Alterados</div>
+    <div class="file"><span class="tag mod">editar</span><span class="path">core/api/task.go</span><p>Os campos <span class="mono">annotations</span> e <span class="mono">depends</span> no pedido de mudança, como <span class="mono">tags</span>.</p></div>
+    <div class="file"><span class="tag mod">editar</span><span class="path">backend/internal/tasks/mutate.go</span><p>Aplicar e validar notas e dependências; o <span class="mono">save</span> passa a escrevê-las.</p></div>
+    <div class="file"><span class="tag mod">editar</span><span class="path">tui/internal/backend/client.go, convert.go</span><p>Quatro métodos de mudança e o <span class="mono">Duplicate</span>, que devolve a tarefa nova.</p></div>
+    <div class="file"><span class="tag mod">editar</span><span class="path">tui/internal/bridge/server.go, ops.go, wire.go</span><p>As cinco operações e os erros nos campos <span class="mono">note</span> e <span class="mono">depends</span>.</p></div>
+    <div class="file"><span class="tag mod">editar</span><span class="path">macos/Momentum/Bridge/ProcessBridge.swift, Wire.swift, Snapshot/SnapshotBridge.swift</span><p>Os cinco métodos e os seus adaptadores, incluindo o <span class="mono">FakeBridge</span> dos testes.</p></div>
+    <div class="file"><span class="tag mod">editar</span><span class="path">macos/Momentum/Model/AppStore.swift</span><p>As ações novas, as tarefas que se podem escolher como dependência e o cálculo de bloqueada.</p></div>
+    <div class="file"><span class="tag mod">editar</span><span class="path">InspectorView.swift, TaskRow.swift, TaskListView.swift, MomentumCommands.swift, ToastView.swift, SnapshotScenes.swift</span><p>A interface e as suas páginas de snapshot (as capturas que a app tira de si própria).</p></div>
+    <div class="file"><span class="tag mod">editar</span><span class="path">tui/DESIGN.md, macos/README.md, backend/README.md, docs/GLOSSARY.md</span><p>O non-goal passa a valer só para o terminal; o README diz Sim para o Mac; os termos novos.</p></div>
+    <div class="group-label">Intocados de propósito</div>
+    <div class="file"><span class="tag keep">manter</span><span class="path">backend/internal/store/ent/schema/task.go, migrations</span><p>As colunas <span class="mono">annotations</span> e <span class="mono">depends</span> já existem.</p></div>
+    <div class="file"><span class="tag keep">manter</span><span class="path">POST /v1/tasks (mutate.go · Create)</span><p>Duplicar usa-a como está.</p></div>
+    <div class="file"><span class="tag keep">manter</span><span class="path">backend/internal/tasks/recur.go</span><p>As séries continuam a não copiar notas nem dependências para a ocorrência seguinte.</p></div>
+    <div class="file"><span class="tag keep">manter</span><span class="path">tui/internal/ui</span><p>O terminal só mostra (D1).</p></div>
+  </div>
+</section>
+
+<section>
+  <div class="eyebrow">A tua revisão</div>
+  <h2>Decisões a aprovar antes de começar</h2>
+  <p>Cada uma destas é uma escolha tua: nem o código nem as histórias a resolvem, e outra resposta muda o que vês. As quatro primeiras são as regras R1–R4 que o M9 propôs; a D5 surgiu ao planear. O agente que vai implementar tem instruções para não as reabrir, por isso este é o momento de mudar alguma. Marca cada uma com que concordas. As marcações ficam guardadas só neste browser.</p>
+  <div class="progress" id="dec-progress" aria-live="polite"></div>
+  <div class="decisions">
+    <div class="dec flag">
+      <div class="top"><div><span class="id">D1</span><h3>Só a app do Mac muda notas e dependências</h3></div><span class="pill">Decisão tua</span></div>
+      <p class="why">Mantém o M9 numa só interface. O terminal continua a mostrá-las e recebe cada mudança pelo servidor, mas não as edita, e o non-goal do <span class="mono">tui/DESIGN.md</span> continua a valer para ele. A alternativa, as duas apps ao mesmo tempo como no Google Calendar, duplica o trabalho de interface numa coisa que o desenho do terminal exclui.</p>
+      <p class="mean"><b>O que significa:</b> para escrever uma nota, abres o Mac; no terminal vês a nota depois de atualizar.</p>
+      <label class="check"><input type="checkbox" id="d1" data-dec> Concordo</label>
+    </div>
+    <div class="dec flag">
+      <div class="top"><div><span class="id">D2</span><h3>Uma tarefa pode depender de outra pendente ou concluída</h3></div><span class="pill">Decisão tua</span></div>
+      <p class="why">O Taskwarrior aceita depender de uma tarefa concluída, e os dados importados já trazem casos assim. Recusá-las no servidor seria mais estrito, mas recusaria o que a base de dados já tem. O seletor da app oferece só tarefas pendentes, por isso na prática só chegam por importação.</p>
+      <p class="mean"><b>O que significa:</b> uma dependência concluída fica guardada e não bloqueia nada.</p>
+      <label class="check"><input type="checkbox" id="d2" data-dec> Concordo</label>
+    </div>
+    <div class="dec flag">
+      <div class="top"><div><span class="id">D3</span><h3>As notas acrescentam-se e removem-se, não se editam</h3></div><span class="pill">Decisão tua</span></div>
+      <p class="why">É o que o Taskwarrior faz (<span class="mono">annotate</span> e <span class="mono">denotate</span>) e mantém a mudança pequena. Cada nota guarda a hora em que foi escrita. Editar as palavras de uma nota fica em Later.</p>
+      <p class="mean"><b>O que significa:</b> para corrigir uma gralha, removes a nota e escreves outra, que fica com a hora nova.</p>
+      <label class="check"><input type="checkbox" id="d3" data-dec> Concordo</label>
+    </div>
+    <div class="dec flag">
+      <div class="top"><div><span class="id">D4</span><h3>A cópia leva os campos da tarefa, sem a marca do plano do dia</h3></div><span class="pill">Decisão tua</span></div>
+      <p class="why">A cópia leva a descrição, o projeto, a prioridade, as datas (due e scheduled), a estimativa e as tags, menos a tag do plano do dia. Não leva notas, dependências, início, repetição, wait nem until, e a descrição fica igual, sem "cópia". Copiar notas e dependências obrigaria a route de criação a aceitá-las, uma mudança no servidor.</p>
+      <p class="mean"><b>O que significa:</b> a cópia é um começo limpo: fora do plano de hoje até a planeares, sem repetir, sem estar iniciada. Mudas só o que for diferente.</p>
+      <label class="check"><input type="checkbox" id="d4" data-dec> Concordo</label>
+    </div>
+    <div class="dec flag">
+      <div class="top"><div><span class="id">D5</span><h3>Só as tarefas pendentes oferecem Duplicate</h3></div><span class="pill">Decisão tua</span></div>
+      <p class="why">Mantém a regra da S-016: o menu de uma tarefa concluída só tem Show Details. "Fazer isto outra vez" a partir de Completed é um uso real; acrescentá-lo mais tarde é só pôr o item no menu, porque a cópia faz-se da mesma forma.</p>
+      <p class="mean"><b>O que significa:</b> para repetir uma tarefa concluída, crias uma nova com New Task.</p>
+      <label class="check"><input type="checkbox" id="d5" data-dec> Concordo</label>
+    </div>
+  </div>
+</section>
+
+<section>
+  <div class="eyebrow">Para saberes</div>
+  <h2>Consequências do que o código e as histórias já decidem</h2>
+  <p>Estas não são escolhas: seguem do código existente, das histórias do M9, do plano do backend ou de uma decisão acima. Não precisam de aprovação. Estão aqui pelo efeito que têm na prática. Se quiseres acrescentar algo, usa "Adicionar nota"; se discordares de alguma, passa a decisão. As notas ficam guardadas só neste browser: para chegarem ao plano, cola-as no chat.</p>
+  <div class="decisions">
+    <div class="dec">
+      <div class="top"><div><span class="id">C1</span><h3>Notas e dependências mudam pela mesma route de qualquer edição</h3></div></div>
+      <p class="mean"><b>Na prática:</b> o pedido de mudança ganha <span class="mono">annotations</span> (acrescentar pelas palavras, remover pela hora e palavras) e <span class="mono">depends</span> (acrescentar e remover por UUID). Os pedidos que o terminal envia hoje ficam iguais, byte a byte.</p>
+      <p class="why">Segue a forma de <span class="mono">tags</span> (<span class="mono">core/api/task.go:116</span>), com a mesma idempotency key e a mesma linha em <span class="mono">task_events</span>.</p>
+      <button type="button" class="note-toggle" aria-expanded="false" aria-controls="c1-note">Adicionar nota</button>
+      <textarea id="c1-note" class="note-field" data-note rows="3" aria-label="Nota sobre C1" placeholder="Informação a acrescentar, ou porque discordas" hidden></textarea>
+    </div>
+    <div class="dec">
+      <div class="top"><div><span class="id">C2</span><h3>O Undo traz de volta uma nota ou dependência</h3></div></div>
+      <p class="mean"><b>Na prática:</b> desfazer anula uma nota ou dependência acrescentada ou removida, e qualquer outra edição deixa-as como estavam.</p>
+      <p class="why">O <span class="mono">save</span> (<span class="mono">mutate.go:234</span>) passa a escrevê-las; o Undo usa o mesmo <span class="mono">save</span> (<span class="mono">undo.go:116</span>).</p>
+      <button type="button" class="note-toggle" aria-expanded="false" aria-controls="c2-note">Adicionar nota</button>
+      <textarea id="c2-note" class="note-field" data-note rows="3" aria-label="Nota sobre C2" placeholder="Informação a acrescentar, ou porque discordas" hidden></textarea>
+    </div>
+    <div class="dec">
+      <div class="top"><div><span class="id">C3</span><h3>Acrescentar só uma nota conta como mudança</h3></div></div>
+      <p class="mean"><b>Na prática:</b> o servidor deixa de responder "the request changes nothing" a um pedido que só traz uma nota, e um template (a tarefa-modelo de uma série) continua a aceitar só a repetição.</p>
+      <p class="why">A verificação <span class="mono">onlyRecurrence</span> (<span class="mono">mutate.go:435</span>) passa a contar os campos novos.</p>
+      <button type="button" class="note-toggle" aria-expanded="false" aria-controls="c3-note">Adicionar nota</button>
+      <textarea id="c3-note" class="note-field" data-note rows="3" aria-label="Nota sobre C3" placeholder="Informação a acrescentar, ou porque discordas" hidden></textarea>
+    </div>
+    <div class="dec">
+      <div class="top"><div><span class="id">C4</span><h3>A hora de uma nota é a do servidor, ao segundo</h3></div></div>
+      <p class="mean"><b>Na prática:</b> para remover, a app devolve a hora que recebeu e ela bate certo. Duas notas com as mesmas palavras no mesmo segundo contam como uma: remover tira uma.</p>
+      <p class="why">O bridge envia as horas ao segundo (<span class="mono">wire.go:423</span>), como as do Taskwarrior.</p>
+      <button type="button" class="note-toggle" aria-expanded="false" aria-controls="c4-note">Adicionar nota</button>
+      <textarea id="c4-note" class="note-field" data-note rows="3" aria-label="Nota sobre C4" placeholder="Informação a acrescentar, ou porque discordas" hidden></textarea>
+    </div>
+    <div class="dec">
+      <div class="top"><div><span class="id">C5</span><h3>Completed continua só de leitura</h3></div></div>
+      <p class="mean"><b>Na prática:</b> uma tarefa concluída não aceita notas nem dependências; a app não oferece nada ali e o servidor responde com o conflito que já existe.</p>
+      <p class="why">Só tarefas pendentes mudam (<span class="mono">mutate.go:211</span>).</p>
+      <button type="button" class="note-toggle" aria-expanded="false" aria-controls="c5-note">Adicionar nota</button>
+      <textarea id="c5-note" class="note-field" data-note rows="3" aria-label="Nota sobre C5" placeholder="Informação a acrescentar, ou porque discordas" hidden></textarea>
+    </div>
+    <div class="dec">
+      <div class="top"><div><span class="id">C6</span><h3>Numa série, a nota fica na ocorrência onde a escreveste</h3></div></div>
+      <p class="mean"><b>Na prática:</b> uma nota no "Water the plants" desta semana não aparece no da próxima. O mesmo para dependências.</p>
+      <p class="why">As séries do Momentum não copiam notas nem dependências, ao contrário do Taskwarrior (<span class="mono">recur.go:179</span>).</p>
+      <button type="button" class="note-toggle" aria-expanded="false" aria-controls="c6-note">Adicionar nota</button>
+      <textarea id="c6-note" class="note-field" data-note rows="3" aria-label="Nota sobre C6" placeholder="Informação a acrescentar, ou porque discordas" hidden></textarea>
+    </div>
+    <div class="dec">
+      <div class="top"><div><span class="id">C7</span><h3>Dependências sem sentido são recusadas, sem revelar outras contas</h3></div></div>
+      <p class="mean"><b>Na prática:</b> depender da própria tarefa, de um UUID mal escrito ou desconhecido, de uma tarefa apagada, de um template ou fechar um ciclo (A espera por B, B por A) dá um erro no campo, com a razão, e nada muda. A tarefa de outra conta recebe o mesmo "no such task" de uma que nunca existiu.</p>
+      <p class="why">As regras de privacidade do schema já escondem as linhas de outras contas; a verificação do ciclo corre dentro da mesma transação.</p>
+      <button type="button" class="note-toggle" aria-expanded="false" aria-controls="c7-note">Adicionar nota</button>
+      <textarea id="c7-note" class="note-field" data-note rows="3" aria-label="Nota sobre C7" placeholder="Informação a acrescentar, ou porque discordas" hidden></textarea>
+    </div>
+    <div class="dec">
+      <div class="top"><div><span class="id">C8</span><h3>Remover o que já não está lá é um conflito</h3></div></div>
+      <p class="mean"><b>Na prática:</b> se outro dispositivo removeu a nota ou a dependência primeiro, a app mostra a razão e volta a carregar.</p>
+      <p class="why">As histórias S-066 e S-068.</p>
+      <button type="button" class="note-toggle" aria-expanded="false" aria-controls="c8-note">Adicionar nota</button>
+      <textarea id="c8-note" class="note-field" data-note rows="3" aria-label="Nota sobre C8" placeholder="Informação a acrescentar, ou porque discordas" hidden></textarea>
+    </div>
+    <div class="dec">
+      <div class="top"><div><span class="id">C9</span><h3>O servidor tem de ser atualizado antes da app</h3></div></div>
+      <p class="mean"><b>Na prática:</b> um servidor antigo responde "the request changes nothing" e não muda nada; não há perda silenciosa. O deploy do servidor é teu.</p>
+      <p class="why">O servidor ignora campos que não conhece (<span class="mono">httpapi/tasks.go:153</span>) e recusa um pedido vazio (<span class="mono">mutate.go:402</span>).</p>
+      <button type="button" class="note-toggle" aria-expanded="false" aria-controls="c9-note">Adicionar nota</button>
+      <textarea id="c9-note" class="note-field" data-note rows="3" aria-label="Nota sobre C9" placeholder="Informação a acrescentar, ou porque discordas" hidden></textarea>
+    </div>
+    <div class="dec">
+      <div class="top"><div><span class="id">C10</span><h3>Só o Duplicate precisa de um ficheiro de resposta novo</h3></div></div>
+      <p class="mean"><b>Na prática:</b> as quatro mudanças de notas e dependências respondem <span class="mono">{}</span>, como o Complete; o <span class="mono">duplicate</span> responde o UUID da cópia e ganha <span class="mono">duplicate.json</span>. Um erro chega ao seu campo, <span class="mono">note</span> ou <span class="mono">depends</span>.</p>
+      <p class="why">O bridge e o teste do contrato (<span class="mono">bridge/server.go:56</span>, <span class="mono">ops.go:326</span>, <span class="mono">WireContractTests.swift</span>).</p>
+      <button type="button" class="note-toggle" aria-expanded="false" aria-controls="c10-note">Adicionar nota</button>
+      <textarea id="c10-note" class="note-field" data-note rows="3" aria-label="Nota sobre C10" placeholder="Informação a acrescentar, ou porque discordas" hidden></textarea>
+    </div>
+    <div class="dec">
+      <div class="top"><div><span class="id">C11</span><h3>O símbolo de bloqueada concorda com a ordem do servidor</h3></div></div>
+      <p class="mean"><b>Na prática:</b> uma tarefa está bloqueada enquanto uma das suas dependências for uma tarefa pendente carregada, incluindo as que estão em espera. Uma dependência concluída, apagada ou não carregada não bloqueia.</p>
+      <p class="why">Cada carregamento traz todas as pendentes (<span class="mono">ops.go:30</span>), e a urgência do servidor já conta assim (<span class="mono">tasks.go:112</span>).</p>
+      <button type="button" class="note-toggle" aria-expanded="false" aria-controls="c11-note">Adicionar nota</button>
+      <textarea id="c11-note" class="note-field" data-note rows="3" aria-label="Nota sobre C11" placeholder="Informação a acrescentar, ou porque discordas" hidden></textarea>
+    </div>
+    <div class="dec">
+      <div class="top"><div><span class="id">C12</span><h3>A cópia guarda as horas exatas e o servidor não muda</h3></div></div>
+      <p class="mean"><b>Na prática:</b> um due importado às 23:59:59 continua assim na cópia. Se a tarefa deixou de estar pendente desde o último carregamento, Duplicate dá um conflito e não cria nada.</p>
+      <p class="why">O client lê a tarefa da lista de pendentes e cria a cópia por <span class="mono">POST /v1/tasks</span>; hoje o <span class="mono">Add</span> deita fora a resposta (<span class="mono">client.go:129</span>), por isso há um método novo que devolve o UUID.</p>
+      <button type="button" class="note-toggle" aria-expanded="false" aria-controls="c12-note">Adicionar nota</button>
+      <textarea id="c12-note" class="note-field" data-note rows="3" aria-label="Nota sobre C12" placeholder="Informação a acrescentar, ou porque discordas" hidden></textarea>
+    </div>
+    <div class="dec">
+      <div class="top"><div><span class="id">C13</span><h3>Undo depois de Duplicate apaga a cópia</h3></div></div>
+      <p class="mean"><b>Na prática:</b> igual a desfazer um New Task.</p>
+      <p class="why">O Undo de uma criação já apaga a tarefa (<span class="mono">undo.go:106</span>).</p>
+      <button type="button" class="note-toggle" aria-expanded="false" aria-controls="c13-note">Adicionar nota</button>
+      <textarea id="c13-note" class="note-field" data-note rows="3" aria-label="Nota sobre C13" placeholder="Informação a acrescentar, ou porque discordas" hidden></textarea>
+    </div>
+    <div class="dec">
+      <div class="top"><div><span class="id">C14</span><h3>Cada mudança comporta-se como as outras</h3></div></div>
+      <p class="mean"><b>Na prática:</b> uma de cada vez, depois um carregamento e a mensagem com Undo. Depois de Duplicate, a cópia fica selecionada assim que o carregamento a traz.</p>
+      <p class="why"><span class="mono">exclusive</span> e <span class="mono">didMutate</span> no <span class="mono">AppStore.swift</span> (<span class="mono">:301</span>, <span class="mono">:316</span>).</p>
+      <button type="button" class="note-toggle" aria-expanded="false" aria-controls="c14-note">Adicionar nota</button>
+      <textarea id="c14-note" class="note-field" data-note rows="3" aria-label="Nota sobre C14" placeholder="Informação a acrescentar, ou porque discordas" hidden></textarea>
+    </div>
+    <div class="dec">
+      <div class="top"><div><span class="id">C15</span><h3>Duplicate é ⌘D, e a tecla <span class="mono">d</span> continua a apagar</h3></div></div>
+      <p class="mean"><b>Na prática:</b> nenhuma tecla muda de significado; o <span class="mono">d</span> sozinho continua a ser Delete…, como no terminal.</p>
+      <p class="why">⌘D é a tecla do Mac para duplicar e está livre (<span class="mono">TaskKeyCommands.swift:62</span>).</p>
+      <button type="button" class="note-toggle" aria-expanded="false" aria-controls="c15-note">Adicionar nota</button>
+      <textarea id="c15-note" class="note-field" data-note rows="3" aria-label="Nota sobre C15" placeholder="Informação a acrescentar, ou porque discordas" hidden></textarea>
+    </div>
+    <div class="dec">
+      <div class="top"><div><span class="id">C16</span><h3>"No annotations." passa a "No notes."</h3></div></div>
+      <p class="mean"><b>Na prática:</b> a mesma coisa tem um só nome, Note, como já diz o texto ao passar o rato na linha. O glossário ganha o termo.</p>
+      <p class="why"><span class="mono">InspectorView.swift:103</span> e <span class="mono">TaskRow.swift:27</span>.</p>
+      <button type="button" class="note-toggle" aria-expanded="false" aria-controls="c16-note">Adicionar nota</button>
+      <textarea id="c16-note" class="note-field" data-note rows="3" aria-label="Nota sobre C16" placeholder="Informação a acrescentar, ou porque discordas" hidden></textarea>
+    </div>
+    <div class="dec">
+      <div class="top"><div><span class="id">C17</span><h3>Os dados de exemplo já têm uma nota e uma dependência</h3></div></div>
+      <p class="mean"><b>Na prática:</b> o M9 acrescenta páginas de snapshot, não tarefas de exemplo. A linha da S-067 que dizia o contrário foi corrigida.</p>
+      <p class="why"><span class="mono">SnapshotSeed.swift:87</span> e <span class="mono">:102</span>.</p>
+      <button type="button" class="note-toggle" aria-expanded="false" aria-controls="c17-note">Adicionar nota</button>
+      <textarea id="c17-note" class="note-field" data-note rows="3" aria-label="Nota sobre C17" placeholder="Informação a acrescentar, ou porque discordas" hidden></textarea>
+    </div>
+    <div class="dec">
+      <div class="top"><div><span class="id">C18</span><h3>Os documentos passam a dizer o que cada app faz</h3></div></div>
+      <p class="mean"><b>Na prática:</b> o non-goal do <span class="mono">tui/DESIGN.md</span> diz que o Mac edita notas e dependências e o terminal não; a tabela do README do Mac diz Sim nas duas linhas.</p>
+      <p class="why">A D1, <span class="mono">tui/DESIGN.md:35</span> e <span class="mono">macos/README.md:102</span>, <span class="mono">:104</span>.</p>
+      <button type="button" class="note-toggle" aria-expanded="false" aria-controls="c18-note">Adicionar nota</button>
+      <textarea id="c18-note" class="note-field" data-note rows="3" aria-label="Nota sobre C18" placeholder="Informação a acrescentar, ou porque discordas" hidden></textarea>
+    </div>
+  </div>
+</section>
+
+<section>
+  <div class="eyebrow">Atenção</div>
+  <h2>O que mudou nas histórias, e o que ficou de fora</h2>
+  <p>Não há issue no Linear: o plano parte do M9 em <span class="mono">docs/STORIES.md</span>. Ao planear, as histórias mudaram assim:</p>
+  <div class="tbl"><table>
+    <thead><tr><th>Ponto</th><th>As histórias diziam</th><th>O plano constrói</th></tr></thead>
+    <tbody>
+      <tr><td>Regras</td><td>R1–R4, propostas</td><td>D1–D5 para aprovares; a D2 (dependências concluídas) e a D5 (Duplicate só em pendentes) são novas</td></tr>
+      <tr><td>Resposta do bridge (S-065, S-067)</td><td>Cada operação guarda a resposta num ficheiro</td><td>Só o <span class="mono">duplicate</span>; as outras respondem <span class="mono">{}</span> (C10)</td></tr>
+      <tr><td>Dados de exemplo (S-067)</td><td>Ganham uma tarefa que depende de outra</td><td>Já a têm (C17)</td></tr>
+    </tbody>
+  </table></div>
+  <p>Três alternativas foram afastadas para não serem reabertas:</p>
+  <div class="note"><h3>Routes próprias para notas</h3><p>Como <span class="mono">POST /v1/tasks/{uuid}/notes</span>: uma segunda forma de mudar uma tarefa, com idempotência e Undo à parte, sem ganho sobre a C1.</p></div>
+  <div class="note"><h3>Identificar a nota pela posição na lista</h3><p>Uma remoção feita noutro dispositivo muda as posições e remove a nota errada.</p></div>
+  <div class="note"><h3>Dar um ID a cada nota</h3><p>Uma mudança no schema e uma migration para o que a C4 já resolve.</p></div>
+  <div class="note"><h3>Falha encontrada, não corrigida aqui</h3><p>O terminal mostra as dependências como UUIDs em vez das descrições (<span class="mono">tui/internal/ui/details.go:235</span>). Merece uma tarefa própria.</p></div>
+</section>
+
+<section>
+  <div class="eyebrow">Prova</div>
+  <h2>Como vamos saber que funciona</h2>
+  <div class="tbl"><table>
+    <thead><tr><th>Critério de aceitação</th><th>Verificado por</th></tr></thead>
+    <tbody>
+      <tr><td>Uma nota fica depois das outras, com a hora do servidor; uma vazia é recusada; uma tarefa não pendente recusa-a; o Undo tira-a</td><td>N02: casos S1–S4, S14, S16, na PostgreSQL local</td></tr>
+      <tr><td>A app envia a nota, volta a carregar e oferece Undo; uma recusa fica no seu campo</td><td>N06: M1, M2; N04: B3</td></tr>
+      <tr><td>O inspector deixa escrever uma nota numa tarefa pendente e diz "No notes."</td><td>N07: páginas <span class="mono">inspector-add-note</span> e <span class="mono">inspector</span></td></tr>
+      <tr><td>Uma nota escrita no Mac aparece no terminal</td><td>À mão, contra o servidor local do <span class="mono">compose.yaml</span></td></tr>
+      <tr><td>Remover tira só essa nota; uma que já não está lá é um conflito; o Undo devolve-a</td><td>S5–S7, K2, B2, M3</td></tr>
+      <tr><td>A própria tarefa, desconhecidas, apagadas, de outra conta e ciclos são recusados; o Undo tira a dependência</td><td>S8–S11, K6</td></tr>
+      <tr><td>O seletor oferece tarefas pendentes, nunca a própria nem uma que feche um ciclo</td><td>M6; N08: página <span class="mono">depends-picker</span></td></tr>
+      <tr><td>Remover uma dependência que já não existe é um conflito; uma mostrada só pelo UUID também se remove</td><td>S12, S13, M4, M5</td></tr>
+      <tr><td>Bloqueada enquanto uma dependência estiver pendente; o símbolo na linha; a lista no inspector</td><td>M7; N09: páginas <span class="mono">today</span>, <span class="mono">inbox</span>, <span class="mono">inspector-depends</span></td></tr>
+      <tr><td>A cópia leva os campos da D4, sem a tag do plano nem repetição; fica selecionada; o Undo apaga-a</td><td>K4, K5, B4, B5, W1, M8, M9</td></tr>
+      <tr><td>Duplicate depois de Edit…; ⌘D; o <span class="mono">d</span> continua a apagar</td><td>N10: páginas <span class="mono">context-menu</span>, <span class="mono">menu</span>, <span class="mono">shortcuts</span></td></tr>
+      <tr><td>Nada mais muda: edições, Undo e os pedidos do terminal</td><td>A2, S15, S17 e as suites existentes</td></tr>
+    </tbody>
+  </table></div>
+</section>
+
+<section>
+  <div class="eyebrow">Ordem de trabalho</div>
+  <h2>Um commit por ficheiro, por esta ordem</h2>
+  <ol class="steps">
+    <li><div class="what"><b>Contrato em core/api</b><span>Os campos <span class="mono">annotations</span> e <span class="mono">depends</span> no pedido de mudança.</span></div><span class="c">feat(api) / test(api)</span></li>
+    <li><div class="what"><b>Servidor</b><span>Aplicar, validar e guardar notas e dependências; o Undo passa a trazê-las de volta.</span></div><span class="c">feat(backend) / test(backend)</span></li>
+    <li><div class="what"><b>Client do TUI</b><span>Quatro métodos de mudança e o Duplicate, que devolve a tarefa nova.</span></div><span class="c">feat(tui) / test(tui)</span></li>
+    <li><div class="what"><b>Bridge</b><span>As cinco operações, os erros nos campos e o <span class="mono">duplicate.json</span>.</span></div><span class="c">feat(bridge) / test(bridge)</span></li>
+    <li><div class="what"><b>Bridge na app do Mac</b><span>Os cinco métodos nos três adaptadores e o teste do contrato.</span></div><span class="c">feat(macos) / test(macos)</span></li>
+    <li><div class="what"><b>Store da app do Mac</b><span>As ações, as tarefas que se podem escolher e o cálculo de bloqueada.</span></div><span class="c">feat(macos) / test(macos)</span></li>
+    <li><div class="what"><b>Notas no inspector</b><span>Escrever e remover, depois do bloco de UX das S-065 e S-066.</span></div><span class="c">feat(macos)</span></li>
+    <li><div class="what"><b>Dependências</b><span>O seletor e Remove, depois do bloco de UX das S-067 e S-068.</span></div><span class="c">feat(macos)</span></li>
+    <li><div class="what"><b>Bloqueadas</b><span>O símbolo na linha e a lista no inspector (S-069).</span></div><span class="c">feat(macos)</span></li>
+    <li><div class="what"><b>Duplicate</b><span>O menu de contexto, o menu Task com ⌘D e a lista de atalhos, Keyboard Shortcuts (S-070).</span></div><span class="c">feat(macos)</span></li>
+    <li><div class="what"><b>Documentos</b><span><span class="mono">tui/DESIGN.md</span>, os READMEs do Mac e do servidor, o glossário.</span></div><span class="c">docs</span></li>
+  </ol>
+</section>
+
+<section>
+  <div class="eyebrow">Limites</div>
+  <h2>Fora de âmbito</h2>
+  <ul class="plain">
+    <li>Editar as palavras de uma nota (D3).</li>
+    <li>Editar notas ou dependências no terminal (D1).</li>
+    <li>Duplicar uma tarefa concluída (D5).</li>
+    <li>Copiar notas ou dependências para a cópia ou para a ocorrência seguinte de uma série (D4, C6).</li>
+    <li>Mostrar no terminal as dependências pela descrição em vez do UUID.</li>
+    <li>O deploy do servidor (C9), que é teu.</li>
+  </ul>
+</section>
+
+<footer>
+  Resume <span class="mono">docs/plans/task-details.md</span> (v1, 2026-10-29). O plano em markdown é o que o agente segue; se uma decisão mudar, edita-a lá.
+</footer>
+
+</div>
+<script>
+(function () {
+  var KEY = "task-details-review";
+  var boxes = Array.prototype.slice.call(document.querySelectorAll("input[data-dec]"));
+  var out = document.getElementById("dec-progress");
+  var saved = {};
+  try { saved = JSON.parse(localStorage.getItem(KEY) || "{}") || {}; } catch (e) { saved = {}; }
+  function render() {
+    var n = boxes.filter(function (b) { return b.checked; }).length;
+    out.textContent = n + " de " + boxes.length + " aprovadas" + (n === boxes.length ? " · pronto para entregar" : "");
+  }
+  function save() {
+    try { localStorage.setItem(KEY, JSON.stringify(saved)); } catch (e) {}
+  }
+  boxes.forEach(function (b) {
+    b.checked = !!saved[b.id];
+    b.addEventListener("change", function () {
+      saved[b.id] = b.checked;
+      save();
+      render();
+    });
+  });
+  render();
+
+  // Consequence notes: hidden until toggled; saved per textarea id with the ticks.
+  Array.prototype.slice.call(document.querySelectorAll("textarea[data-note]")).forEach(function (field) {
+    var btn = document.querySelector('[aria-controls="' + field.id + '"]');
+    if (!btn) return;
+    function label() {
+      var has = field.value.trim() !== "";
+      btn.textContent = !field.hidden ? "Esconder nota" : has ? "Mostrar nota" : "Adicionar nota";
+      btn.classList.toggle("has-note", has);
+    }
+    field.value = typeof saved[field.id] === "string" ? saved[field.id] : "";
+    label();
+    btn.addEventListener("click", function () {
+      field.hidden = !field.hidden;
+      btn.setAttribute("aria-expanded", String(!field.hidden));
+      label();
+      if (!field.hidden) field.focus();
+    });
+    field.addEventListener("input", function () {
+      saved[field.id] = field.value;
+      save();
+      label();
+    });
+  });
+})();
+</script>
+</body>
+</html>
