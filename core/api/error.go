@@ -29,4 +29,8 @@ const (
 	// CodeRateLimited: the client sent too many requests; the Retry-After
 	// header says how many seconds to wait.
 	CodeRateLimited = "rate_limited"
+	// CodeCalendarUnavailable: the server cannot read the person's Google
+	// Calendar: it is not offered, not connected, or Google refused the
+	// connection. Message says which, and the apps show it.
+	CodeCalendarUnavailable = "calendar_unavailable"
 )
