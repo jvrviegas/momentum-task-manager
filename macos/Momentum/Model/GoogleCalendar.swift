@@ -29,7 +29,11 @@ final class GoogleCalendarModel {
         /// account is connected or the link expires.
         case waiting(CalendarConnectLink)
         case connected(email: String)
-        case expired
+        /// Google no longer accepts the saved connection. Connecting again
+        /// replaces it, so the tab calls that **Reconnect…**.
+        case needsReconnecting(email: String)
+        /// The wait ran out. reconnecting says which button comes back.
+        case expired(reconnecting: Bool)
         case failed(String)
     }
 
@@ -37,6 +41,9 @@ final class GoogleCalendarModel {
     static let pollInterval: TimeInterval = 2
 
     private(set) var phase = Phase.checking
+    /// Where the account stood the last time the server said, which Cancel and
+    /// an expired link go back to.
+    @ObservationIgnored private var resting = Phase.notConnected
     @ObservationIgnored weak var store: AppStore?
     @ObservationIgnored private let open: @MainActor (URL) -> Void
     @ObservationIgnored private let sleep: @Sendable (TimeInterval) async throws -> Void
@@ -64,6 +71,7 @@ final class GoogleCalendarModel {
         }
         do {
             phase = Self.phase(for: try await store.bridge.calendarStatus())
+            resting = phase
         } catch {
             phase = .failed(error.localizedDescription)
         }
@@ -81,11 +89,12 @@ final class GoogleCalendarModel {
         return task
     }
 
-    /// Stops waiting for the browser. Nothing is connected.
+    /// Stops waiting for the browser. Nothing is connected, so the tab goes
+    /// back to where it was: not connected, or needing to reconnect.
     func cancel() {
         polling?.cancel()
         polling = nil
-        if case .waiting = phase { phase = .notConnected }
+        if case .waiting = phase { phase = resting }
     }
 
     /// Opens the link in the browser again, for one that did not open or was
@@ -108,12 +117,17 @@ final class GoogleCalendarModel {
                 try Task.checkCancellation()
                 if case .connected = connected {
                     phase = connected
+                    resting = connected
                     polling = nil
                     await store.refresh()
                     return
                 }
                 if now() >= link.expiresAt {
-                    phase = .expired
+                    if case .needsReconnecting = resting {
+                        phase = .expired(reconnecting: true)
+                    } else {
+                        phase = .expired(reconnecting: false)
+                    }
                     polling = nil
                     return
                 }
@@ -125,11 +139,12 @@ final class GoogleCalendarModel {
         }
     }
 
-    /// A connection Google has stopped accepting counts as none here, since
-    /// connecting again replaces it; the words for it come with its own story.
+    /// Where the server says the account stands. A connection Google has
+    /// stopped accepting is not a connection that works, whoever it was made
+    /// by, so it needs reconnecting.
     static func phase(for status: GoogleCalendarStatus) -> Phase {
         guard status.offered else { return .notOffered }
-        if status.connected, !status.needsReconnect, let email = status.email { return .connected(email: email) }
-        return .notConnected
+        guard status.connected, let email = status.email else { return .notConnected }
+        return status.needsReconnect ? .needsReconnecting(email: email) : .connected(email: email)
     }
 }
