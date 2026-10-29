@@ -2,11 +2,14 @@
 package config
 
 import (
+	"encoding/base64"
 	"errors"
 	"fmt"
 	"net/url"
 	"strconv"
 	"strings"
+
+	"github.com/jvrviegas/momentum-task-manager/backend/internal/seal"
 )
 
 // Config is the server's configuration.
@@ -30,6 +33,10 @@ type Config struct {
 	// limits can tell clients apart. 0, the default, uses the connection's
 	// address and ignores the header, which clients can forge.
 	ProxyHops int
+	// CalendarTokenKey is CALENDAR_TOKEN_KEY: 32 bytes as base64, the key
+	// that seals the Google refresh token at rest (ADR 0003, D5). Without
+	// one the server offers no Google Calendar.
+	CalendarTokenKey []byte
 }
 
 // OAuthClient is an application registered with a sign-in provider.
@@ -71,6 +78,14 @@ func Load(getenv func(string) string) (Config, error) {
 			return Config{}, fmt.Errorf("TRUSTED_PROXY_HOPS must be a number from 0 to 10, not %q", value)
 		}
 		config.ProxyHops = hops
+	}
+	if value := strings.TrimSpace(getenv("CALENDAR_TOKEN_KEY")); value != "" {
+		// The error leaves the value out: it is a secret.
+		key, err := base64.StdEncoding.DecodeString(value)
+		if err != nil || len(key) != seal.KeySize {
+			return Config{}, fmt.Errorf("CALENDAR_TOKEN_KEY must be %d bytes as base64, such as `openssl rand -base64 %d` makes", seal.KeySize, seal.KeySize)
+		}
+		config.CalendarTokenKey = key
 	}
 	var err error
 	if config.Google, err = oauthClient(getenv, "GOOGLE"); err != nil {
