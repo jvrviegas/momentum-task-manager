@@ -10,6 +10,7 @@ import (
 	"entgo.io/ent"
 	"entgo.io/ent/dialect/sql"
 	"github.com/google/uuid"
+	"github.com/jvrviegas/momentum-task-manager/backend/internal/store/ent/calendarconnection"
 	"github.com/jvrviegas/momentum-task-manager/backend/internal/store/ent/user"
 )
 
@@ -32,6 +33,10 @@ type User struct {
 
 // UserEdges holds the relations/edges for other nodes in the graph.
 type UserEdges struct {
+	// CalendarConnection holds the value of the calendar_connection edge.
+	CalendarConnection *CalendarConnection `json:"calendar_connection,omitempty"`
+	// CalendarLinks holds the value of the calendar_links edge.
+	CalendarLinks []*CalendarLink `json:"calendar_links,omitempty"`
 	// DeviceAuthorizations holds the value of the device_authorizations edge.
 	DeviceAuthorizations []*DeviceAuthorization `json:"device_authorizations,omitempty"`
 	// Identities holds the value of the identities edge.
@@ -46,13 +51,33 @@ type UserEdges struct {
 	TaskEvents []*TaskEvent `json:"task_events,omitempty"`
 	// loadedTypes holds the information for reporting if a
 	// type was loaded (or requested) in eager-loading or not.
-	loadedTypes [6]bool
+	loadedTypes [8]bool
+}
+
+// CalendarConnectionOrErr returns the CalendarConnection value or an error if the edge
+// was not loaded in eager-loading, or loaded but was not found.
+func (e UserEdges) CalendarConnectionOrErr() (*CalendarConnection, error) {
+	if e.CalendarConnection != nil {
+		return e.CalendarConnection, nil
+	} else if e.loadedTypes[0] {
+		return nil, &NotFoundError{label: calendarconnection.Label}
+	}
+	return nil, &NotLoadedError{edge: "calendar_connection"}
+}
+
+// CalendarLinksOrErr returns the CalendarLinks value or an error if the edge
+// was not loaded in eager-loading.
+func (e UserEdges) CalendarLinksOrErr() ([]*CalendarLink, error) {
+	if e.loadedTypes[1] {
+		return e.CalendarLinks, nil
+	}
+	return nil, &NotLoadedError{edge: "calendar_links"}
 }
 
 // DeviceAuthorizationsOrErr returns the DeviceAuthorizations value or an error if the edge
 // was not loaded in eager-loading.
 func (e UserEdges) DeviceAuthorizationsOrErr() ([]*DeviceAuthorization, error) {
-	if e.loadedTypes[0] {
+	if e.loadedTypes[2] {
 		return e.DeviceAuthorizations, nil
 	}
 	return nil, &NotLoadedError{edge: "device_authorizations"}
@@ -61,7 +86,7 @@ func (e UserEdges) DeviceAuthorizationsOrErr() ([]*DeviceAuthorization, error) {
 // IdentitiesOrErr returns the Identities value or an error if the edge
 // was not loaded in eager-loading.
 func (e UserEdges) IdentitiesOrErr() ([]*Identity, error) {
-	if e.loadedTypes[1] {
+	if e.loadedTypes[3] {
 		return e.Identities, nil
 	}
 	return nil, &NotLoadedError{edge: "identities"}
@@ -70,7 +95,7 @@ func (e UserEdges) IdentitiesOrErr() ([]*Identity, error) {
 // IdempotencyKeysOrErr returns the IdempotencyKeys value or an error if the edge
 // was not loaded in eager-loading.
 func (e UserEdges) IdempotencyKeysOrErr() ([]*IdempotencyKey, error) {
-	if e.loadedTypes[2] {
+	if e.loadedTypes[4] {
 		return e.IdempotencyKeys, nil
 	}
 	return nil, &NotLoadedError{edge: "idempotency_keys"}
@@ -79,7 +104,7 @@ func (e UserEdges) IdempotencyKeysOrErr() ([]*IdempotencyKey, error) {
 // SessionsOrErr returns the Sessions value or an error if the edge
 // was not loaded in eager-loading.
 func (e UserEdges) SessionsOrErr() ([]*Session, error) {
-	if e.loadedTypes[3] {
+	if e.loadedTypes[5] {
 		return e.Sessions, nil
 	}
 	return nil, &NotLoadedError{edge: "sessions"}
@@ -88,7 +113,7 @@ func (e UserEdges) SessionsOrErr() ([]*Session, error) {
 // TasksOrErr returns the Tasks value or an error if the edge
 // was not loaded in eager-loading.
 func (e UserEdges) TasksOrErr() ([]*Task, error) {
-	if e.loadedTypes[4] {
+	if e.loadedTypes[6] {
 		return e.Tasks, nil
 	}
 	return nil, &NotLoadedError{edge: "tasks"}
@@ -97,7 +122,7 @@ func (e UserEdges) TasksOrErr() ([]*Task, error) {
 // TaskEventsOrErr returns the TaskEvents value or an error if the edge
 // was not loaded in eager-loading.
 func (e UserEdges) TaskEventsOrErr() ([]*TaskEvent, error) {
-	if e.loadedTypes[5] {
+	if e.loadedTypes[7] {
 		return e.TaskEvents, nil
 	}
 	return nil, &NotLoadedError{edge: "task_events"}
@@ -164,6 +189,16 @@ func (_m *User) assignValues(columns []string, values []any) error {
 // This includes values selected through modifiers, order, etc.
 func (_m *User) Value(name string) (ent.Value, error) {
 	return _m.selectValues.Get(name)
+}
+
+// QueryCalendarConnection queries the "calendar_connection" edge of the User entity.
+func (_m *User) QueryCalendarConnection() *CalendarConnectionQuery {
+	return NewUserClient(_m.config).QueryCalendarConnection(_m)
+}
+
+// QueryCalendarLinks queries the "calendar_links" edge of the User entity.
+func (_m *User) QueryCalendarLinks() *CalendarLinkQuery {
+	return NewUserClient(_m.config).QueryCalendarLinks(_m)
 }
 
 // QueryDeviceAuthorizations queries the "device_authorizations" edge of the User entity.
