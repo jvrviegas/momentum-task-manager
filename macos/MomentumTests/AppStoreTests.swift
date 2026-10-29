@@ -124,6 +124,41 @@ actor FakeBridge: TaskBridge {
         settingsValue.revision += "+"
         return settingsValue
     }
+    var projectsValue = ProjectsSnapshot(revision: "p1", entries: [], tasksError: nil)
+    var previewValue = ProjectPreview(
+        value: "", valueChanged: false, catalogDescendants: 0, exactTasks: [], subprojectTasks: [], destinationTaskOnly: false)
+    var projectSaveValue = ProjectSaveResult(revision: "p2", changed: 0)
+    /// Answered to the next preview or save instead of applying it.
+    var projectFailure: BridgeError?
+    /// The previews and saves asked for, in order.
+    private(set) var previews: [ProjectEdit] = []
+    private(set) var projectSaves: [ProjectEdit] = []
+
+    func setProjects(_ value: ProjectsSnapshot) { projectsValue = value }
+    func setPreview(_ value: ProjectPreview) { previewValue = value }
+    func setProjectSave(_ value: ProjectSaveResult) { projectSaveValue = value }
+    func setProjectFailure(_ error: BridgeError?) { projectFailure = error }
+
+    func projects() async throws -> ProjectsSnapshot {
+        calls.append("projects")
+        return projectsValue
+    }
+    func previewMigration(_ edit: ProjectEdit) async throws -> ProjectPreview {
+        previews.append(edit)
+        if let error = projectFailure {
+            projectFailure = nil
+            throw error
+        }
+        return previewValue
+    }
+    func saveProject(_ edit: ProjectEdit) async throws -> ProjectSaveResult {
+        projectSaves.append(edit)
+        if let error = projectFailure {
+            projectFailure = nil
+            throw error
+        }
+        return projectSaveValue
+    }
     func setToken(_ token: String) async throws { try record("setToken \(token)") }
     func startSignIn() async throws -> DeviceSignIn {
         try record("signInStart")
