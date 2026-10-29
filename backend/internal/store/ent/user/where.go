@@ -241,6 +241,52 @@ func CreatedAtLTE(v time.Time) predicate.User {
 	return predicate.User(sql.FieldLTE(FieldCreatedAt, v))
 }
 
+// HasCalendarConnection applies the HasEdge predicate on the "calendar_connection" edge.
+func HasCalendarConnection() predicate.User {
+	return predicate.User(func(s *sql.Selector) {
+		step := sqlgraph.NewStep(
+			sqlgraph.From(Table, FieldID),
+			sqlgraph.Edge(sqlgraph.O2O, false, CalendarConnectionTable, CalendarConnectionColumn),
+		)
+		sqlgraph.HasNeighbors(s, step)
+	})
+}
+
+// HasCalendarConnectionWith applies the HasEdge predicate on the "calendar_connection" edge with a given conditions (other predicates).
+func HasCalendarConnectionWith(preds ...predicate.CalendarConnection) predicate.User {
+	return predicate.User(func(s *sql.Selector) {
+		step := newCalendarConnectionStep()
+		sqlgraph.HasNeighborsWith(s, step, func(s *sql.Selector) {
+			for _, p := range preds {
+				p(s)
+			}
+		})
+	})
+}
+
+// HasCalendarLinks applies the HasEdge predicate on the "calendar_links" edge.
+func HasCalendarLinks() predicate.User {
+	return predicate.User(func(s *sql.Selector) {
+		step := sqlgraph.NewStep(
+			sqlgraph.From(Table, FieldID),
+			sqlgraph.Edge(sqlgraph.O2M, false, CalendarLinksTable, CalendarLinksColumn),
+		)
+		sqlgraph.HasNeighbors(s, step)
+	})
+}
+
+// HasCalendarLinksWith applies the HasEdge predicate on the "calendar_links" edge with a given conditions (other predicates).
+func HasCalendarLinksWith(preds ...predicate.CalendarLink) predicate.User {
+	return predicate.User(func(s *sql.Selector) {
+		step := newCalendarLinksStep()
+		sqlgraph.HasNeighborsWith(s, step, func(s *sql.Selector) {
+			for _, p := range preds {
+				p(s)
+			}
+		})
+	})
+}
+
 // HasDeviceAuthorizations applies the HasEdge predicate on the "device_authorizations" edge.
 func HasDeviceAuthorizations() predicate.User {
 	return predicate.User(func(s *sql.Selector) {
