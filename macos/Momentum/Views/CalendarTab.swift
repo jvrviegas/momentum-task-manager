@@ -68,6 +68,16 @@ struct CalendarTab: View {
                 }
             }
             .formStyle(.grouped)
+            .confirmationDialog(
+                "Disconnect Google Calendar?",
+                isPresented: Binding(get: { store.googleCalendar.confirmingDisconnect }, set: { store.googleCalendar.confirmingDisconnect = $0 }),
+                titleVisibility: .visible
+            ) {
+                Button("Disconnect", role: .destructive) { Task { await store.googleCalendar.disconnect() } }
+                Button("Cancel", role: .cancel) {}
+            } message: {
+                Text("Momentum will stop reading \(store.googleCalendar.email ?? "your Google account") and delete its saved access, for every Mac and the terminal app on your account. Plan Today counts no meetings until you connect again.")
+            }
             .fileImporter(
                 isPresented: $choosing, allowedContentTypes: [.calendarEvent, UTType(filenameExtension: "ics")].compactMap { $0 },
                 allowsMultipleSelection: true
