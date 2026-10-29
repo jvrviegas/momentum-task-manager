@@ -150,7 +150,7 @@ const layout = `{{define "layout"}}<!doctype html>
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>Momentum sign-in</title>
+<title>Momentum</title>
 <style>
 :root{color-scheme:light dark;--bg:#f6f6f4;--card:#fff;--text:#1d1d1b;--muted:#5f5f5a;--accent:#2f5bd3;--on-accent:#fff;--error:#b3261e;--border:#d9d9d4}
 @media (prefers-color-scheme:dark){:root{--bg:#141413;--card:#1f1f1d;--text:#ececea;--muted:#a3a39d;--accent:#8aa6ff;--on-accent:#10131c;--error:#ff8a80;--border:#3a3a37}}
