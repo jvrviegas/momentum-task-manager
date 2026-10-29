@@ -124,6 +124,24 @@ actor FakeBridge: TaskBridge {
         settingsValue.revision += "+"
         return settingsValue
     }
+    var doctorValue = DoctorReport(
+        configPath: "/tmp/config.toml", bridgeVersion: "v0.1.0-test",
+        checks: [
+            DoctorCheck(name: "Backend server", status: "ok", detail: "https://momentum.example answers; version 1.4.0"),
+            DoctorCheck(name: "Sign-in", status: "fail", detail: "unauthorized"),
+            DoctorCheck(name: "Calendar source", status: "skip", detail: "disabled; task-only planning remains available"),
+        ],
+        ready: false)
+    var doctorFailure: BridgeError?
+
+    func setDoctor(_ value: DoctorReport) { doctorValue = value }
+    func setDoctorFailure(_ error: BridgeError?) { doctorFailure = error }
+    func doctor() async throws -> DoctorReport {
+        calls.append("doctor")
+        if let error = doctorFailure { throw error }
+        return doctorValue
+    }
+
     var projectsValue = ProjectsSnapshot(revision: "p1", entries: [], tasksError: nil)
     var previewValue = ProjectPreview(
         value: "", valueChanged: false, catalogDescendants: 0, exactTasks: [], subprojectTasks: [], destinationTaskOnly: false)
