@@ -230,6 +230,19 @@ final class SnapshotSession {
         await settle()
     }
 
+    /// Opens Settings on Projects, with the list read.
+    func openProjects() async {
+        await openSettings(.projects)
+        await store.catalog.reload()
+        await settle()
+    }
+
+    /// A row of the Projects list, by value.
+    func projectRow(_ value: String) -> ProjectRow {
+        guard let row = store.catalog.rows.first(where: { $0.value == value }) else { fatalError("no project row \(value)") }
+        return row
+    }
+
     /// Opens Settings on a tab, as ⌘, does, and makes it the window the image shows.
     func openSettings(_ tab: SettingsTab) async {
         UserDefaults.standard.set(tab.rawValue, forKey: "settings.tab")
