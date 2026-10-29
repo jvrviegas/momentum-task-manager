@@ -457,6 +457,7 @@ Dependencies, Recurrence, recurrence parent/mask metadata, Urgency, RawFields
 The apps keep tasks on a Momentum server ([ADR 0002](../docs/adr/0002-go-postgres-backend.md), [backend README](../backend/README.md)): JSON over HTTPS under `/v1`, with request and response types in `core/api`. Every request is scoped to the signed-in user.
 
 - **Sign-in:** `momentum login` runs the device flow (D1): it shows a code and opens the browser, where the person signs in with Google or GitHub. The token is saved in `credentials.json` next to `config.toml`, with mode `0600`; `momentum logout` revokes it. The macOS app signs in on its own and keeps its token in the Keychain.
+- **Google Calendar:** the server keeps one connection per account (ADR 0003). `momentum calendar connect` prints the one-time link, opens it, and waits until the account is connected; `status` and `disconnect` (which asks first) are its other two commands. A machine counts Google when `[calendar] source = "google"`; the planner then asks the server for the day's events and says "Calendar unavailable" with the reason when it cannot.
 - **Changes:** each change carries an idempotency key, so a retried request applies once, and is on the server once it answers.
 - **Dates:** the app resolves date expressions to instants in the device's time zone and sends the zone with the first change (D3).
 - **Estimates** are a task field on the server; no configuration is needed.
@@ -583,4 +584,4 @@ Momentum v1 is ready when:
 15. The daily ritual can be canceled/reopened, records selected commitments as inspectable tags, distinguishes obligations/rollover/candidates, reports capacity and unestimated work, and warns without blocking over-capacity plans.
 16. Recurring tasks support the approved presets and interval, show template/instance metadata, keep one pending instance at a time (ADR 0002, D5), and stop without rewriting history.
 17. Natural-language capture supports the documented local date/time/effort/priority/recurrence whitelist, opens review before inferred mutation, preserves prose, and retains explicit-trigger precedence.
-18. Optional local ICS awareness merges overlapping in-hours events, treats all-day/transparent events by configuration, and degrades to task-only planning when unavailable or stale.
+18. Optional calendar awareness, from local ICS files or from Google Calendar through the server (ADR 0003), merges overlapping in-hours events, treats all-day/transparent events by configuration, and degrades to task-only planning when unavailable or stale. The apps never persist event details, and the server never stores or logs them.
