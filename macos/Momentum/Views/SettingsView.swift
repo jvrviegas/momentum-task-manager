@@ -16,9 +16,7 @@ struct SettingsView: View {
     var body: some View {
         TabView(selection: $tab) {
             Tab("Projects", systemImage: "folder", value: SettingsTab.projects) {
-                SettingsPage {
-                    SettingsPlaceholder(title: "Projects", symbol: "folder", hint: "For now, edit the `[[projects]]` entries in `config.toml`. Changes apply without restarting.")
-                }
+                SettingsPage { ProjectsTab() }
             }
             Tab("Planning", systemImage: "text.badge.checkmark", value: SettingsTab.planning) {
                 SettingsPage { PlanningTab() }
@@ -49,6 +47,7 @@ struct SettingsView: View {
         await store.refreshStatus()
         await store.settings.reload()
         await store.macCalendar.refresh()
+        await store.catalog.reload()
     }
 }
 
