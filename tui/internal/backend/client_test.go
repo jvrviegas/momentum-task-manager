@@ -191,6 +191,76 @@ func TestModifySendsTheDiff(t *testing.T) {
 	}
 }
 
+func TestNoteAndDependencyChangesSendOnlyTheirField(t *testing.T) {
+	c, fake := newFakeServer(t, "")
+	ctx := t.Context()
+	entry := time.Date(2026, 10, 15, 9, 31, 0, 0, time.UTC)
+	for _, send := range []func() error{
+		func() error { return c.AddNote(ctx, "u", "Asked Ana for the quote") },
+		func() error { return c.RemoveNote(ctx, "u", entry, "Asked Ana for the quote") },
+		func() error { return c.AddDependency(ctx, "u", "q") },
+		func() error { return c.RemoveDependency(ctx, "u", "q") },
+	} {
+		if err := send(); err != nil {
+			t.Fatal(err)
+		}
+	}
+	want := []string{
+		`{"annotations":{"add":["Asked Ana for the quote"]}}`,
+		`{"annotations":{"remove":[{"entry":"2026-10-15T09:31:00Z","description":"Asked Ana for the quote"}]}}`,
+		`{"depends":{"add":["q"]}}`,
+		`{"depends":{"remove":["q"]}}`,
+	}
+	got := fake.seen()
+	if len(got) != len(want) {
+		t.Fatalf("requests %+v", got)
+	}
+	for i, request := range got {
+		if request.pattern != api.RouteModifyTask || request.body != want[i] {
+			t.Errorf("request %d = %+v, want body %s", i, request, want[i])
+		}
+	}
+
+	// A refusal reaches the caller on its field.
+	fake.answer(api.RouteModifyTask, http.StatusBadRequest, `{"code":"invalid","message":"a task cannot depend on itself","field":"depends"}`)
+	var failure *api.Error
+	if err := c.AddDependency(ctx, "u", "u"); !errors.As(err, &failure) || failure.Code != api.CodeInvalid || failure.Field != "depends" {
+		t.Errorf("error = %#v", err)
+	}
+}
+
+func TestDuplicateCopiesAPendingTask(t *testing.T) {
+	c, fake := newFakeServer(t, "")
+	ctx := t.Context()
+	fake.answer(api.RouteListTasks, http.StatusOK, `{"tasks":[{"uuid":"a","description":"Send the invoice","status":"pending",`+
+		`"project":"work","priority":"H","estimateMinutes":30,"entry":"2026-10-14T08:00:00Z","modified":"2026-10-15T08:00:00Z",`+
+		`"due":"2026-10-16T22:59:59Z","scheduled":"2026-10-16T08:00:00Z","start":"2026-10-15T09:00:00Z",`+
+		`"tags":["money","momentum-plan-2026-10-15"],"annotations":[{"entry":"2026-10-15T09:00:00Z","description":"Ask for the PO"}],`+
+		`"depends":["q"],"recurrence":"weekly","parent":"p","urgency":9}]}`)
+	fake.answer(api.RouteCreateTask, http.StatusOK, `{"uuid":"copy","description":"Send the invoice","status":"pending"}`)
+
+	copied, err := c.Duplicate(ctx, "a")
+	if err != nil || copied != "copy" {
+		t.Fatalf("duplicate = %q, %v", copied, err)
+	}
+	// The exact times, without the plan's tag, the start, the notes, the
+	// dependencies or the repeat.
+	want := `{"description":"Send the invoice","project":"work","priority":"H","due":"2026-10-16T22:59:59Z",` +
+		`"scheduled":"2026-10-16T08:00:00Z","estimateMinutes":30,"tags":["money"]}`
+	if got := fake.seen(); len(got) != 2 || got[0].pattern != api.RouteListTasks || got[1].pattern != api.RouteCreateTask || got[1].body != want {
+		t.Errorf("requests %+v\nwant create %s", got, want)
+	}
+
+	// A task no longer pending is not copied.
+	var failure *api.Error
+	if _, err := c.Duplicate(ctx, "gone"); !errors.As(err, &failure) || failure.Code != api.CodeConflict {
+		t.Errorf("error = %#v", err)
+	}
+	if got := fake.patterns(); !reflect.DeepEqual(got, []string{api.RouteListTasks}) {
+		t.Errorf("routes %v", got)
+	}
+}
+
 func TestUnsupportedDatesAreRefusedBeforeSending(t *testing.T) {
 	c, fake := newFakeServer(t, "Europe/Lisbon")
 	for _, test := range []struct {
