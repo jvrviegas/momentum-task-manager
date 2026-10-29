@@ -37,6 +37,8 @@ Plain, direct, brief. Say "you" to the person, never "the user". Say "click", ne
 | Buffer | Time kept free each day for what you can't plan | slack, padding, margin |
 | Calendar file | An `.ics` file whose meetings take time off a day's capacity; added in Settings ▸ Calendar | calendar feed, subscription, source |
 | Available, Stale, Missing, Unreadable | The four states of a calendar file, always a word with a symbol | OK, Old, Not found, Error, Broken |
+| Source | Where this Mac reads its meetings from, **Calendar files** or **macOS Calendar**; kept on this Mac, not in `config.toml` | provider, account, feed |
+| macOS Calendar | The Calendar app's own calendars, read with the Mac's permission; Settings ▸ Calendar lists them by account with a switch each | iCloud calendar, system calendar, EventKit |
 | Working hours | The hours of the day whose meetings take time off the capacity; Start and End in Settings ▸ Calendar, 09:00 to 17:00 by default | office hours, availability, day length |
 | Free event | An event the calendar marks as free rather than busy, such as a reminder; **Count events shown as free** makes it count | transparent event, available event |
 | Stale after | How long a calendar file may go unchanged before it shows as Stale; `0m` means never | expiry, max age, refresh interval |
