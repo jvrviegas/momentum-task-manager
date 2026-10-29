@@ -732,6 +732,7 @@ Screens: —
 Acceptance:
 - [manual] `spctl --assess` accepts the app and the bundled `momentum-bridge`.
 - [manual] The build is hardened and signed with a Developer ID, not ad hoc; the Keychain prompt on rebuild no longer appears.
+Blocked (2026-10-29): this Mac has only Apple Development certificates, no Developer ID Application one, so the build cannot be signed for distribution here, and notarizing sends the app to Apple, which needs approval. Turning on the hardened runtime also needs the `com.apple.security.personal-information.calendars` entitlement, or S-047's calendar access stops working in that build.
 Status: todo
 
 ## Later
