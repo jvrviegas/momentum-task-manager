@@ -33,6 +33,8 @@ actor SnapshotBridge: TaskBridge {
         var googleStatus = GoogleCalendarStatus(offered: true, connected: false, email: nil, needsReconnect: false)
         /// How long the link a connect gets works, in seconds.
         var googleLinkLifetime: TimeInterval = 600
+        /// Whether Google can be asked to revoke the access on a disconnect.
+        var googleRevoked = true
         var calendarEnabled = true
         var calendarFiles = SnapshotBridge.defaultCalendarFiles
         var calendarHours = (start: "09:00", end: "17:00")
@@ -360,6 +362,13 @@ actor SnapshotBridge: TaskBridge {
     func connectCalendar() async throws -> CalendarConnectLink {
         CalendarConnectLink(
             url: "https://momentum.example.com/calendar/connect/snapshot", expiresAt: .now.addingTimeInterval(config.googleLinkLifetime))
+    }
+
+    /// The account is no longer connected, and the server says whether Google
+    /// could be asked to revoke the access.
+    func disconnectCalendar() async throws -> GoogleCalendarDisconnect {
+        config.googleStatus = GoogleCalendarStatus(offered: config.googleStatus.offered, connected: false, email: nil, needsReconnect: false)
+        return GoogleCalendarDisconnect(revoked: config.googleRevoked)
     }
 
     // MARK: Projects
