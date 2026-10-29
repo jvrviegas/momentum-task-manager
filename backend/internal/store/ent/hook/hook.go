@@ -9,6 +9,30 @@ import (
 	"github.com/jvrviegas/momentum-task-manager/backend/internal/store/ent"
 )
 
+// The CalendarConnectionFunc type is an adapter to allow the use of ordinary
+// function as CalendarConnection mutator.
+type CalendarConnectionFunc func(context.Context, *ent.CalendarConnectionMutation) (ent.Value, error)
+
+// Mutate calls f(ctx, m).
+func (f CalendarConnectionFunc) Mutate(ctx context.Context, m ent.Mutation) (ent.Value, error) {
+	if mv, ok := m.(*ent.CalendarConnectionMutation); ok {
+		return f(ctx, mv)
+	}
+	return nil, fmt.Errorf("unexpected mutation type %T. expect *ent.CalendarConnectionMutation", m)
+}
+
+// The CalendarLinkFunc type is an adapter to allow the use of ordinary
+// function as CalendarLink mutator.
+type CalendarLinkFunc func(context.Context, *ent.CalendarLinkMutation) (ent.Value, error)
+
+// Mutate calls f(ctx, m).
+func (f CalendarLinkFunc) Mutate(ctx context.Context, m ent.Mutation) (ent.Value, error) {
+	if mv, ok := m.(*ent.CalendarLinkMutation); ok {
+		return f(ctx, mv)
+	}
+	return nil, fmt.Errorf("unexpected mutation type %T. expect *ent.CalendarLinkMutation", m)
+}
+
 // The DeviceAuthorizationFunc type is an adapter to allow the use of ordinary
 // function as DeviceAuthorization mutator.
 type DeviceAuthorizationFunc func(context.Context, *ent.DeviceAuthorizationMutation) (ent.Value, error)
