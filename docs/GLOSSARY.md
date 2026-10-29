@@ -44,6 +44,7 @@ Plain, direct, brief. Say "you" to the person, never "the user". Say "click", ne
 | From tasks | The tag of a project that only tasks use, with **Add to Catalog…** to keep it | discovered, orphan, unknown |
 | Include subprojects | The choice that makes a rename also move the entries and tasks below the project | cascade, recursive |
 | Catalog only, Catalog + pending tasks | The two ways to save a rename: the catalog alone (the default), or the catalog and the pending tasks that use the old value | label only, migrate |
+| Check, Report | A **Check** is one result of Diagnostics, always a word (OK, Skipped, Problem) with a symbol; the **Report** is all of them with the versions and the config path, which **Copy Report** puts on the clipboard | test, health check, log, diagnostics file |
 | Working hours | The hours of the day whose meetings take time off the capacity; Start and End in Settings ▸ Calendar, 09:00 to 17:00 by default | office hours, availability, day length |
 | Free event | An event the calendar marks as free rather than busy, such as a reminder; **Count events shown as free** makes it count | transparent event, available event |
 | Stale after | How long a calendar file may go unchanged before it shows as Stale; `0m` means never | expiry, max age, refresh interval |
