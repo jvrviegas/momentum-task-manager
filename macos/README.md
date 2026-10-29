@@ -59,7 +59,7 @@ To see the app, `tools/snap.sh` builds the Debug app and saves a window image of
   - **Planning:** **Use Plan Today** turns the Plan button, the sidebar's Today’s plan box, the menu item and `P` on or off. Daily capacity, buffer and each weekday's own capacity are typed as `8h` or `7h30m`; a value the config would refuse stays in its field with a message and is not saved.
   - **Calendar:** **Use calendar files** and the list of `.ics` files, added with **Add…** and taken out with **Remove**. Each file shows whether it is available, stale, missing or unreadable, and **Stale after** sets how long a file may go unchanged before it shows as stale. **Working hours** (Start and End), **Count all-day events** and **Count events shown as free** choose which meetings take time off the day. **Source** chooses, for this Mac only, between the calendar files and **macOS Calendar**: choosing it asks the Mac for access to your calendars, lists them by account with a switch each, and hands today's events to the bridge on each load and plan (titles only with a plan). Without access, Plan Today says “Calendar unavailable: no access” and the tab offers to open System Settings. Choosing macOS Calendar never changes `[calendar] enabled` or `paths`. The app only reads; a build with the hardened runtime needs the `com.apple.security.personal-information.calendars` entitlement.
   - **Appearance:** System, Light or Dark, for this Mac only.
-  - **Diagnostics** says how to do the same in the terminal until it is built.
+  - **Diagnostics:** the checks of the server, the sign-in, the time zone, the config and the calendar (and macOS Calendar when it is the source), each an OK, Skipped or Problem with its detail, the app and bridge versions and the config path. **Show in Finder** reveals `config.toml`, **Copy Report** copies the checks and versions for a bug report, with no sign-in code or event title, and **Check Again** runs them again. The checks are the terminal app's `momentum doctor`, without its Terminal and State directory checks.
 
 The bridge reads `config.toml` again whenever the file changes, on each load and when Settings opens, so `[planning]`, `[calendar]`, `[projects]`, `refresh_interval` and `[sync]` edits apply without a restart. A file that no longer loads leaves the last good settings in use, and Settings says why. A changed `[backend] url` still needs the app to be quit and reopened, and Settings says so.
 
@@ -88,7 +88,7 @@ Where each one already exists; — means it does not apply.
 
 | Item | Description | TUI | macOS |
 |---|---|---|---|
-| Settings window | Projects catalog, appearance, planning, calendar, and diagnostics | Partly: Projects and Appearance | Partly: Projects, Appearance, Planning and Calendar |
+| Settings window | Projects catalog, appearance, planning, calendar, and diagnostics | Partly: Projects and Appearance | Yes |
 | Signed release build | A build signed for distribution, not ad hoc like the Debug build | — | No |
 
 ## Nice to have
