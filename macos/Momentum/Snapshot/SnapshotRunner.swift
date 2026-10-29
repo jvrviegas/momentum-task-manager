@@ -34,7 +34,9 @@ final class SnapshotHost {
         let url = scene.config.backendURL ?? ""
         let saved = scene.signedIn
             ? [SavedSignIn(server: url, token: "snapshot-token", email: "joao@example.com", expiresAt: .now.addingTimeInterval(86400))] : []
-        return AppStore(bridge: SnapshotBridge(scene.config), signIns: SnapshotSignInStore(saved))
+        return AppStore(
+            bridge: SnapshotBridge(scene.config), signIns: SnapshotSignInStore(saved),
+            calendarSource: SnapshotCalendarSource(access: scene.macAccess))
     }
 
     /// Takes every page in light and dark, then quits.
@@ -211,6 +213,8 @@ final class SnapshotSession {
         NSApp.windows.filter(isSettings).forEach { $0.performClose(nil) }
         UserDefaults.standard.removeObject(forKey: AppearanceChoice.key)
         UserDefaults.standard.removeObject(forKey: "settings.tab")
+        UserDefaults.standard.removeObject(forKey: MacCalendarModel.sourceKey)
+        UserDefaults.standard.removeObject(forKey: MacCalendarModel.offKey)
     }
 
     /// Closes Settings as ⌘W does, then opens it again, as ⌘, would.
