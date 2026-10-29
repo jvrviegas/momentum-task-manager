@@ -28,6 +28,8 @@ targets:
         GENERATE_INFOPLIST_FILE: YES
         INFOPLIST_KEY_CFBundleDisplayName: Momentum Task Manager
         INFOPLIST_KEY_LSApplicationCategoryType: public.app-category.productivity
+        # Asked for when Settings > Calendar chooses macOS Calendar. The app only reads.
+        INFOPLIST_KEY_NSCalendarsFullAccessUsageDescription: Momentum Task Manager reads the times of today’s meetings to take them off the day’s capacity in Plan Today. It never changes your calendar.
         # Teal, from the design. The dark value is deeper than the design's
         # dark accent so white text on default buttons stays legible.
         ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME: AccentColor
