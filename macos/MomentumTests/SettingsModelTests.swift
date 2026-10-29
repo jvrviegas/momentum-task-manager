@@ -180,7 +180,7 @@ struct SettingsModelTests {
         let settings = try decoder.decode(SettingsSnapshot.self, from: Data("""
         {"configPath":"/tmp/config.toml","revision":"abc",
          "planning":{"enabled":true,"dailyCapacity":"8h","buffer":"1h","weekdayCapacity":{}},
-         "calendar":{"enabled":true,"workingStart":"09:00","workingEnd":"17:00","includeAllDay":false,
+         "calendar":{"source":"files","enabled":true,"workingStart":"09:00","workingEnd":"17:00","includeAllDay":false,
            "includeTransparent":false,"staleAfter":"24h","files":[
            {"path":"~/a.ics","status":"available","modified":"2026-10-14T09:00:00+01:00"},
            {"path":"~/b.ics","status":"missing"},
@@ -195,9 +195,10 @@ struct SettingsModelTests {
         let settings = try JSONDecoder().decode(SettingsSnapshot.self, from: Data("""
         {"configPath":"/tmp/config.toml","revision":"abc",
          "planning":{"enabled":true,"dailyCapacity":"8h","buffer":"1h","weekdayCapacity":{}},
-         "calendar":{"enabled":false,"files":[],"workingStart":"08:30","workingEnd":"16:00",
+         "calendar":{"source":"google","enabled":false,"files":[],"workingStart":"08:30","workingEnd":"16:00",
                      "includeAllDay":true,"includeTransparent":false,"staleAfter":"0m"}}
         """.utf8))
+        #expect(settings.calendar.source == "google")
         #expect(settings.calendar.workingStart == "08:30" && settings.calendar.workingEnd == "16:00")
         #expect(settings.calendar.includeAllDay && !settings.calendar.includeTransparent)
         #expect(settings.calendar.staleAfter == "0m")
