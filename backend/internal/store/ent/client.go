@@ -16,6 +16,8 @@ import (
 	"entgo.io/ent/dialect"
 	"entgo.io/ent/dialect/sql"
 	"entgo.io/ent/dialect/sql/sqlgraph"
+	"github.com/jvrviegas/momentum-task-manager/backend/internal/store/ent/calendarconnection"
+	"github.com/jvrviegas/momentum-task-manager/backend/internal/store/ent/calendarlink"
 	"github.com/jvrviegas/momentum-task-manager/backend/internal/store/ent/deviceauthorization"
 	"github.com/jvrviegas/momentum-task-manager/backend/internal/store/ent/idempotencykey"
 	"github.com/jvrviegas/momentum-task-manager/backend/internal/store/ent/identity"
@@ -30,6 +32,10 @@ type Client struct {
 	config
 	// Schema is the client for creating, migrating and dropping schema.
 	Schema *migrate.Schema
+	// CalendarConnection is the client for interacting with the CalendarConnection builders.
+	CalendarConnection *CalendarConnectionClient
+	// CalendarLink is the client for interacting with the CalendarLink builders.
+	CalendarLink *CalendarLinkClient
 	// DeviceAuthorization is the client for interacting with the DeviceAuthorization builders.
 	DeviceAuthorization *DeviceAuthorizationClient
 	// IdempotencyKey is the client for interacting with the IdempotencyKey builders.
@@ -55,6 +61,8 @@ func NewClient(opts ...Option) *Client {
 
 func (c *Client) init() {
 	c.Schema = migrate.NewSchema(c.driver)
+	c.CalendarConnection = NewCalendarConnectionClient(c.config)
+	c.CalendarLink = NewCalendarLinkClient(c.config)
 	c.DeviceAuthorization = NewDeviceAuthorizationClient(c.config)
 	c.IdempotencyKey = NewIdempotencyKeyClient(c.config)
 	c.Identity = NewIdentityClient(c.config)
@@ -154,6 +162,8 @@ func (c *Client) Tx(ctx context.Context) (*Tx, error) {
 	return &Tx{
 		ctx:                 ctx,
 		config:              cfg,
+		CalendarConnection:  NewCalendarConnectionClient(cfg),
+		CalendarLink:        NewCalendarLinkClient(cfg),
 		DeviceAuthorization: NewDeviceAuthorizationClient(cfg),
 		IdempotencyKey:      NewIdempotencyKeyClient(cfg),
 		Identity:            NewIdentityClient(cfg),
@@ -180,6 +190,8 @@ func (c *Client) BeginTx(ctx context.Context, opts *sql.TxOptions) (*Tx, error) 
 	return &Tx{
 		ctx:                 ctx,
 		config:              cfg,
+		CalendarConnection:  NewCalendarConnectionClient(cfg),
+		CalendarLink:        NewCalendarLinkClient(cfg),
 		DeviceAuthorization: NewDeviceAuthorizationClient(cfg),
 		IdempotencyKey:      NewIdempotencyKeyClient(cfg),
 		Identity:            NewIdentityClient(cfg),
@@ -193,7 +205,7 @@ func (c *Client) BeginTx(ctx context.Context, opts *sql.TxOptions) (*Tx, error) 
 // Debug returns a new debug-client. It's used to get verbose logging on specific operations.
 //
 //	client.Debug().
-//		DeviceAuthorization.
+//		CalendarConnection.
 //		Query().
 //		Count(ctx)
 func (c *Client) Debug() *Client {
@@ -216,8 +228,8 @@ func (c *Client) Close() error {
 // In order to add hooks to a specific client, call: `client.Node.Use(...)`.
 func (c *Client) Use(hooks ...Hook) {
 	for _, n := range []interface{ Use(...Hook) }{
-		c.DeviceAuthorization, c.IdempotencyKey, c.Identity, c.Session, c.Task,
-		c.TaskEvent, c.User,
+		c.CalendarConnection, c.CalendarLink, c.DeviceAuthorization, c.IdempotencyKey,
+		c.Identity, c.Session, c.Task, c.TaskEvent, c.User,
 	} {
 		n.Use(hooks...)
 	}
@@ -227,8 +239,8 @@ func (c *Client) Use(hooks ...Hook) {
 // In order to add interceptors to a specific client, call: `client.Node.Intercept(...)`.
 func (c *Client) Intercept(interceptors ...Interceptor) {
 	for _, n := range []interface{ Intercept(...Interceptor) }{
-		c.DeviceAuthorization, c.IdempotencyKey, c.Identity, c.Session, c.Task,
-		c.TaskEvent, c.User,
+		c.CalendarConnection, c.CalendarLink, c.DeviceAuthorization, c.IdempotencyKey,
+		c.Identity, c.Session, c.Task, c.TaskEvent, c.User,
 	} {
 		n.Intercept(interceptors...)
 	}
@@ -237,6 +249,10 @@ func (c *Client) Intercept(interceptors ...Interceptor) {
 // Mutate implements the ent.Mutator interface.
 func (c *Client) Mutate(ctx context.Context, m Mutation) (Value, error) {
 	switch m := m.(type) {
+	case *CalendarConnectionMutation:
+		return c.CalendarConnection.mutate(ctx, m)
+	case *CalendarLinkMutation:
+		return c.CalendarLink.mutate(ctx, m)
 	case *DeviceAuthorizationMutation:
 		return c.DeviceAuthorization.mutate(ctx, m)
 	case *IdempotencyKeyMutation:
@@ -253,6 +269,306 @@ func (c *Client) Mutate(ctx context.Context, m Mutation) (Value, error) {
 		return c.User.mutate(ctx, m)
 	default:
 		return nil, fmt.Errorf("ent: unknown mutation type %T", m)
+	}
+}
+
+// CalendarConnectionClient is a client for the CalendarConnection schema.
+type CalendarConnectionClient struct {
+	config
+}
+
+// NewCalendarConnectionClient returns a client for the CalendarConnection from the given config.
+func NewCalendarConnectionClient(c config) *CalendarConnectionClient {
+	return &CalendarConnectionClient{config: c}
+}
+
+// Use adds a list of mutation hooks to the hooks stack.
+// A call to `Use(f, g, h)` equals to `calendarconnection.Hooks(f(g(h())))`.
+func (c *CalendarConnectionClient) Use(hooks ...Hook) {
+	c.hooks.CalendarConnection = append(c.hooks.CalendarConnection, hooks...)
+}
+
+// Intercept adds a list of query interceptors to the interceptors stack.
+// A call to `Intercept(f, g, h)` equals to `calendarconnection.Intercept(f(g(h())))`.
+func (c *CalendarConnectionClient) Intercept(interceptors ...Interceptor) {
+	c.inters.CalendarConnection = append(c.inters.CalendarConnection, interceptors...)
+}
+
+// Create returns a builder for creating a CalendarConnection entity.
+func (c *CalendarConnectionClient) Create() *CalendarConnectionCreate {
+	mutation := newCalendarConnectionMutation(c.config, OpCreate)
+	return &CalendarConnectionCreate{config: c.config, hooks: c.Hooks(), mutation: mutation}
+}
+
+// CreateBulk returns a builder for creating a bulk of CalendarConnection entities.
+func (c *CalendarConnectionClient) CreateBulk(builders ...*CalendarConnectionCreate) *CalendarConnectionCreateBulk {
+	return &CalendarConnectionCreateBulk{config: c.config, builders: builders}
+}
+
+// MapCreateBulk creates a bulk creation builder from the given slice. For each item in the slice, the function creates
+// a builder and applies setFunc on it.
+func (c *CalendarConnectionClient) MapCreateBulk(slice any, setFunc func(*CalendarConnectionCreate, int)) *CalendarConnectionCreateBulk {
+	rv := reflect.ValueOf(slice)
+	if rv.Kind() != reflect.Slice {
+		return &CalendarConnectionCreateBulk{err: fmt.Errorf("calling to CalendarConnectionClient.MapCreateBulk with wrong type %T, need slice", slice)}
+	}
+	builders := make([]*CalendarConnectionCreate, rv.Len())
+	for i := 0; i < rv.Len(); i++ {
+		builders[i] = c.Create()
+		setFunc(builders[i], i)
+	}
+	return &CalendarConnectionCreateBulk{config: c.config, builders: builders}
+}
+
+// Update returns an update builder for CalendarConnection.
+func (c *CalendarConnectionClient) Update() *CalendarConnectionUpdate {
+	mutation := newCalendarConnectionMutation(c.config, OpUpdate)
+	return &CalendarConnectionUpdate{config: c.config, hooks: c.Hooks(), mutation: mutation}
+}
+
+// UpdateOne returns an update builder for the given entity.
+func (c *CalendarConnectionClient) UpdateOne(_m *CalendarConnection) *CalendarConnectionUpdateOne {
+	mutation := newCalendarConnectionMutation(c.config, OpUpdateOne, withCalendarConnection(_m))
+	return &CalendarConnectionUpdateOne{config: c.config, hooks: c.Hooks(), mutation: mutation}
+}
+
+// UpdateOneID returns an update builder for the given id.
+func (c *CalendarConnectionClient) UpdateOneID(id int) *CalendarConnectionUpdateOne {
+	mutation := newCalendarConnectionMutation(c.config, OpUpdateOne, withCalendarConnectionID(id))
+	return &CalendarConnectionUpdateOne{config: c.config, hooks: c.Hooks(), mutation: mutation}
+}
+
+// Delete returns a delete builder for CalendarConnection.
+func (c *CalendarConnectionClient) Delete() *CalendarConnectionDelete {
+	mutation := newCalendarConnectionMutation(c.config, OpDelete)
+	return &CalendarConnectionDelete{config: c.config, hooks: c.Hooks(), mutation: mutation}
+}
+
+// DeleteOne returns a builder for deleting the given entity.
+func (c *CalendarConnectionClient) DeleteOne(_m *CalendarConnection) *CalendarConnectionDeleteOne {
+	return c.DeleteOneID(_m.ID)
+}
+
+// DeleteOneID returns a builder for deleting the given entity by its id.
+func (c *CalendarConnectionClient) DeleteOneID(id int) *CalendarConnectionDeleteOne {
+	builder := c.Delete().Where(calendarconnection.ID(id))
+	builder.mutation.id = &id
+	builder.mutation.op = OpDeleteOne
+	return &CalendarConnectionDeleteOne{builder}
+}
+
+// Query returns a query builder for CalendarConnection.
+func (c *CalendarConnectionClient) Query() *CalendarConnectionQuery {
+	return &CalendarConnectionQuery{
+		config: c.config,
+		ctx:    &QueryContext{Type: TypeCalendarConnection},
+		inters: c.Interceptors(),
+	}
+}
+
+// Get returns a CalendarConnection entity by its id.
+func (c *CalendarConnectionClient) Get(ctx context.Context, id int) (*CalendarConnection, error) {
+	return c.Query().Where(calendarconnection.ID(id)).Only(ctx)
+}
+
+// GetX is like Get, but panics if an error occurs.
+func (c *CalendarConnectionClient) GetX(ctx context.Context, id int) *CalendarConnection {
+	obj, err := c.Get(ctx, id)
+	if err != nil {
+		panic(err)
+	}
+	return obj
+}
+
+// QueryUser queries the user edge of a CalendarConnection.
+func (c *CalendarConnectionClient) QueryUser(_m *CalendarConnection) *UserQuery {
+	query := (&UserClient{config: c.config}).Query()
+	query.path = func(context.Context) (fromV *sql.Selector, _ error) {
+		id := _m.ID
+		step := sqlgraph.NewStep(
+			sqlgraph.From(calendarconnection.Table, calendarconnection.FieldID, id),
+			sqlgraph.To(user.Table, user.FieldID),
+			sqlgraph.Edge(sqlgraph.O2O, true, calendarconnection.UserTable, calendarconnection.UserColumn),
+		)
+		fromV = sqlgraph.Neighbors(_m.driver.Dialect(), step)
+		return fromV, nil
+	}
+	return query
+}
+
+// Hooks returns the client hooks.
+func (c *CalendarConnectionClient) Hooks() []Hook {
+	hooks := c.hooks.CalendarConnection
+	return append(hooks[:len(hooks):len(hooks)], calendarconnection.Hooks[:]...)
+}
+
+// Interceptors returns the client interceptors.
+func (c *CalendarConnectionClient) Interceptors() []Interceptor {
+	return c.inters.CalendarConnection
+}
+
+func (c *CalendarConnectionClient) mutate(ctx context.Context, m *CalendarConnectionMutation) (Value, error) {
+	switch m.Op() {
+	case OpCreate:
+		return (&CalendarConnectionCreate{config: c.config, hooks: c.Hooks(), mutation: m}).Save(ctx)
+	case OpUpdate:
+		return (&CalendarConnectionUpdate{config: c.config, hooks: c.Hooks(), mutation: m}).Save(ctx)
+	case OpUpdateOne:
+		return (&CalendarConnectionUpdateOne{config: c.config, hooks: c.Hooks(), mutation: m}).Save(ctx)
+	case OpDelete, OpDeleteOne:
+		return (&CalendarConnectionDelete{config: c.config, hooks: c.Hooks(), mutation: m}).Exec(ctx)
+	default:
+		return nil, fmt.Errorf("ent: unknown CalendarConnection mutation op: %q", m.Op())
+	}
+}
+
+// CalendarLinkClient is a client for the CalendarLink schema.
+type CalendarLinkClient struct {
+	config
+}
+
+// NewCalendarLinkClient returns a client for the CalendarLink from the given config.
+func NewCalendarLinkClient(c config) *CalendarLinkClient {
+	return &CalendarLinkClient{config: c}
+}
+
+// Use adds a list of mutation hooks to the hooks stack.
+// A call to `Use(f, g, h)` equals to `calendarlink.Hooks(f(g(h())))`.
+func (c *CalendarLinkClient) Use(hooks ...Hook) {
+	c.hooks.CalendarLink = append(c.hooks.CalendarLink, hooks...)
+}
+
+// Intercept adds a list of query interceptors to the interceptors stack.
+// A call to `Intercept(f, g, h)` equals to `calendarlink.Intercept(f(g(h())))`.
+func (c *CalendarLinkClient) Intercept(interceptors ...Interceptor) {
+	c.inters.CalendarLink = append(c.inters.CalendarLink, interceptors...)
+}
+
+// Create returns a builder for creating a CalendarLink entity.
+func (c *CalendarLinkClient) Create() *CalendarLinkCreate {
+	mutation := newCalendarLinkMutation(c.config, OpCreate)
+	return &CalendarLinkCreate{config: c.config, hooks: c.Hooks(), mutation: mutation}
+}
+
+// CreateBulk returns a builder for creating a bulk of CalendarLink entities.
+func (c *CalendarLinkClient) CreateBulk(builders ...*CalendarLinkCreate) *CalendarLinkCreateBulk {
+	return &CalendarLinkCreateBulk{config: c.config, builders: builders}
+}
+
+// MapCreateBulk creates a bulk creation builder from the given slice. For each item in the slice, the function creates
+// a builder and applies setFunc on it.
+func (c *CalendarLinkClient) MapCreateBulk(slice any, setFunc func(*CalendarLinkCreate, int)) *CalendarLinkCreateBulk {
+	rv := reflect.ValueOf(slice)
+	if rv.Kind() != reflect.Slice {
+		return &CalendarLinkCreateBulk{err: fmt.Errorf("calling to CalendarLinkClient.MapCreateBulk with wrong type %T, need slice", slice)}
+	}
+	builders := make([]*CalendarLinkCreate, rv.Len())
+	for i := 0; i < rv.Len(); i++ {
+		builders[i] = c.Create()
+		setFunc(builders[i], i)
+	}
+	return &CalendarLinkCreateBulk{config: c.config, builders: builders}
+}
+
+// Update returns an update builder for CalendarLink.
+func (c *CalendarLinkClient) Update() *CalendarLinkUpdate {
+	mutation := newCalendarLinkMutation(c.config, OpUpdate)
+	return &CalendarLinkUpdate{config: c.config, hooks: c.Hooks(), mutation: mutation}
+}
+
+// UpdateOne returns an update builder for the given entity.
+func (c *CalendarLinkClient) UpdateOne(_m *CalendarLink) *CalendarLinkUpdateOne {
+	mutation := newCalendarLinkMutation(c.config, OpUpdateOne, withCalendarLink(_m))
+	return &CalendarLinkUpdateOne{config: c.config, hooks: c.Hooks(), mutation: mutation}
+}
+
+// UpdateOneID returns an update builder for the given id.
+func (c *CalendarLinkClient) UpdateOneID(id int) *CalendarLinkUpdateOne {
+	mutation := newCalendarLinkMutation(c.config, OpUpdateOne, withCalendarLinkID(id))
+	return &CalendarLinkUpdateOne{config: c.config, hooks: c.Hooks(), mutation: mutation}
+}
+
+// Delete returns a delete builder for CalendarLink.
+func (c *CalendarLinkClient) Delete() *CalendarLinkDelete {
+	mutation := newCalendarLinkMutation(c.config, OpDelete)
+	return &CalendarLinkDelete{config: c.config, hooks: c.Hooks(), mutation: mutation}
+}
+
+// DeleteOne returns a builder for deleting the given entity.
+func (c *CalendarLinkClient) DeleteOne(_m *CalendarLink) *CalendarLinkDeleteOne {
+	return c.DeleteOneID(_m.ID)
+}
+
+// DeleteOneID returns a builder for deleting the given entity by its id.
+func (c *CalendarLinkClient) DeleteOneID(id int) *CalendarLinkDeleteOne {
+	builder := c.Delete().Where(calendarlink.ID(id))
+	builder.mutation.id = &id
+	builder.mutation.op = OpDeleteOne
+	return &CalendarLinkDeleteOne{builder}
+}
+
+// Query returns a query builder for CalendarLink.
+func (c *CalendarLinkClient) Query() *CalendarLinkQuery {
+	return &CalendarLinkQuery{
+		config: c.config,
+		ctx:    &QueryContext{Type: TypeCalendarLink},
+		inters: c.Interceptors(),
+	}
+}
+
+// Get returns a CalendarLink entity by its id.
+func (c *CalendarLinkClient) Get(ctx context.Context, id int) (*CalendarLink, error) {
+	return c.Query().Where(calendarlink.ID(id)).Only(ctx)
+}
+
+// GetX is like Get, but panics if an error occurs.
+func (c *CalendarLinkClient) GetX(ctx context.Context, id int) *CalendarLink {
+	obj, err := c.Get(ctx, id)
+	if err != nil {
+		panic(err)
+	}
+	return obj
+}
+
+// QueryUser queries the user edge of a CalendarLink.
+func (c *CalendarLinkClient) QueryUser(_m *CalendarLink) *UserQuery {
+	query := (&UserClient{config: c.config}).Query()
+	query.path = func(context.Context) (fromV *sql.Selector, _ error) {
+		id := _m.ID
+		step := sqlgraph.NewStep(
+			sqlgraph.From(calendarlink.Table, calendarlink.FieldID, id),
+			sqlgraph.To(user.Table, user.FieldID),
+			sqlgraph.Edge(sqlgraph.M2O, true, calendarlink.UserTable, calendarlink.UserColumn),
+		)
+		fromV = sqlgraph.Neighbors(_m.driver.Dialect(), step)
+		return fromV, nil
+	}
+	return query
+}
+
+// Hooks returns the client hooks.
+func (c *CalendarLinkClient) Hooks() []Hook {
+	hooks := c.hooks.CalendarLink
+	return append(hooks[:len(hooks):len(hooks)], calendarlink.Hooks[:]...)
+}
+
+// Interceptors returns the client interceptors.
+func (c *CalendarLinkClient) Interceptors() []Interceptor {
+	return c.inters.CalendarLink
+}
+
+func (c *CalendarLinkClient) mutate(ctx context.Context, m *CalendarLinkMutation) (Value, error) {
+	switch m.Op() {
+	case OpCreate:
+		return (&CalendarLinkCreate{config: c.config, hooks: c.Hooks(), mutation: m}).Save(ctx)
+	case OpUpdate:
+		return (&CalendarLinkUpdate{config: c.config, hooks: c.Hooks(), mutation: m}).Save(ctx)
+	case OpUpdateOne:
+		return (&CalendarLinkUpdateOne{config: c.config, hooks: c.Hooks(), mutation: m}).Save(ctx)
+	case OpDelete, OpDeleteOne:
+		return (&CalendarLinkDelete{config: c.config, hooks: c.Hooks(), mutation: m}).Exec(ctx)
+	default:
+		return nil, fmt.Errorf("ent: unknown CalendarLink mutation op: %q", m.Op())
 	}
 }
 
@@ -1293,6 +1609,38 @@ func (c *UserClient) GetX(ctx context.Context, id uuid.UUID) *User {
 	return obj
 }
 
+// QueryCalendarConnection queries the calendar_connection edge of a User.
+func (c *UserClient) QueryCalendarConnection(_m *User) *CalendarConnectionQuery {
+	query := (&CalendarConnectionClient{config: c.config}).Query()
+	query.path = func(context.Context) (fromV *sql.Selector, _ error) {
+		id := _m.ID
+		step := sqlgraph.NewStep(
+			sqlgraph.From(user.Table, user.FieldID, id),
+			sqlgraph.To(calendarconnection.Table, calendarconnection.FieldID),
+			sqlgraph.Edge(sqlgraph.O2O, false, user.CalendarConnectionTable, user.CalendarConnectionColumn),
+		)
+		fromV = sqlgraph.Neighbors(_m.driver.Dialect(), step)
+		return fromV, nil
+	}
+	return query
+}
+
+// QueryCalendarLinks queries the calendar_links edge of a User.
+func (c *UserClient) QueryCalendarLinks(_m *User) *CalendarLinkQuery {
+	query := (&CalendarLinkClient{config: c.config}).Query()
+	query.path = func(context.Context) (fromV *sql.Selector, _ error) {
+		id := _m.ID
+		step := sqlgraph.NewStep(
+			sqlgraph.From(user.Table, user.FieldID, id),
+			sqlgraph.To(calendarlink.Table, calendarlink.FieldID),
+			sqlgraph.Edge(sqlgraph.O2M, false, user.CalendarLinksTable, user.CalendarLinksColumn),
+		)
+		fromV = sqlgraph.Neighbors(_m.driver.Dialect(), step)
+		return fromV, nil
+	}
+	return query
+}
+
 // QueryDeviceAuthorizations queries the device_authorizations edge of a User.
 func (c *UserClient) QueryDeviceAuthorizations(_m *User) *DeviceAuthorizationQuery {
 	query := (&DeviceAuthorizationClient{config: c.config}).Query()
@@ -1417,11 +1765,11 @@ func (c *UserClient) mutate(ctx context.Context, m *UserMutation) (Value, error)
 // hooks and interceptors per client, for fast access.
 type (
 	hooks struct {
-		DeviceAuthorization, IdempotencyKey, Identity, Session, Task, TaskEvent,
-		User []ent.Hook
+		CalendarConnection, CalendarLink, DeviceAuthorization, IdempotencyKey, Identity,
+		Session, Task, TaskEvent, User []ent.Hook
 	}
 	inters struct {
-		DeviceAuthorization, IdempotencyKey, Identity, Session, Task, TaskEvent,
-		User []ent.Interceptor
+		CalendarConnection, CalendarLink, DeviceAuthorization, IdempotencyKey, Identity,
+		Session, Task, TaskEvent, User []ent.Interceptor
 	}
 )
