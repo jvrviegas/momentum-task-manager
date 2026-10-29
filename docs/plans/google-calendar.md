@@ -1,0 +1,131 @@
+# Implementation plan — Google Calendar as a calendar source
+
+**Created:** 2026-10-23  
+**Status:** D1–D9 approved on 2026-10-29, each as recommended. No task is started.  
+**Baseline:** `bcde650` on local `main`; `origin/main` is at `0d69645` until the Plan Today commits are pushed. Recheck HEAD and the working tree before starting.  
+**Related:** [Plan Today](./macos-plan-today.md) (done), which counts calendar time; [Settings](./macos-settings.md), whose Calendar tab (C04, C05) gains the Google option in G11.
+
+## Next-agent instructions
+
+1. Read this plan, [`CONTRIBUTING.md`](../../CONTRIBUTING.md), [`backend/README.md`](../../backend/README.md), [`backend/DEPLOY.md`](../../backend/DEPLOY.md), and the calendar parts of [`tui/DESIGN.md`](../../tui/DESIGN.md) (criterion 18) and the Plan Today plan (D3, D6).
+2. D1–D9 are the owner's calls, approved on 2026-10-29; do not reopen them.
+3. Mark a task complete only after its tests and gates pass, and record the commit in the tracker.
+4. Commit as [`AGENTS.md`](../../AGENTS.md) describes: one commit per file. Do not push, deploy, or change Google Cloud without instruction (backend plan, instruction 5). Before any Git operation that reaches `origin`, switch `gh` to `jvrviegas` and back, as `AGENTS.md` says.
+5. Tests never reach Google, Neon, or a real calendar: a fake Google (token, revoke and Calendar endpoints) on `httptest`, store tests on the local PostgreSQL from `compose.yaml`, and the fake Momentum server in the bridge and app tests.
+
+## Current state (verified at planning time)
+
+| Area | Where | What it means |
+|---|---|---|
+| Calendar source | `tui/internal/calendar/calendar.go:54` (`Load`), `:102` (`BusyIntervalsWithOptions`) | Only local `.ics` files. The parser has no `EXDATE` or `RECURRENCE-ID`, so a cancelled or moved occurrence of a repeating event is still counted at its original time. |
+| Calendar config | `tui/internal/config/planning.go:72` | `[calendar] enabled` requires `paths` (`:77`), and a path with `://` is refused (`:84`): "download subscribed calendars outside Momentum". |
+| Design rule | `tui/DESIGN.md:586` (criterion 18), `tui/README.md:129` | "Optional local ICS awareness"; "Momentum never fetches, edits, or persists event details". Fetching from Google changes this rule, so it needs an ADR. |
+| Bridge | `tui/internal/bridge/plan.go:98` (`readCalendar`), `server.go:55` (`Client`) | `plan` and every `load` read the calendar; a failure makes it unavailable (Plan Today D6). Event titles go only to `plan` (Plan Today D3). |
+| TUI | `tui/internal/app/planner.go:105` (`CalendarCommand`), `tui/cmd/momentum/main.go:173` (subcommands) | The planner reads files when it opens. Subcommands are `doctor`, `login`, `logout`, `import`. |
+| Google sign-in | `backend/internal/auth/provider.go:53`, `backend/cmd/momentum-server/main.go:94` | One Google OAuth client, scopes `openid` and `email`, callback `PUBLIC_URL/auth/callback/google`. |
+| Browser flow | `backend/internal/httpapi/pages.go:62` (`deviceSubmit`), `:94` (`callback`) | Sign-in binds the provider round trip to the browser with a state cookie, a CSRF cookie, and PKCE; the state works once. |
+| Secrets at rest | `backend/internal/auth/secret.go` | The server stores only hashes of its own tokens. Nothing encrypts a secret it must use later; a Google refresh token would be the first. |
+| Privacy | `backend/internal/store/rule/rule.go` | `FilterByViewer` and `CreateAsViewer` keep rows to their user; a new table uses them. |
+| Logging | `backend/internal/logging/logging.go:21` | Only allowlisted attributes are logged; request logs carry the route pattern, never the path or query. |
+| Deployment | `backend/DEPLOY.md:11`, `:15`, `:16` | Cloud Run and Neon in project `task-manager-493414`; secrets in Secret Manager; the Google client is a Web application **in Testing**, with test user `jvrviegas@gmail.com`. |
+| Settings plan | `docs/plans/macos-settings.md` S4, S5, C04, C05 | The Mac's Calendar tab will offer files or macOS Calendar; working hours, all-day and transparent apply to every source. |
+
+## Decisions (2026-10-23, approved 2026-10-29)
+
+| ID | Decision | Recommended | Trade-off and basis |
+|---|---|---|---|
+| D1 | Where the Google connection lives | **The Momentum server**, which keeps one connection per account and serves today's events to every app | One connection for the TUI and every Mac; reuses the Google client and its Secret Manager setup (`DEPLOY.md:15`). The cost is a Google token stored in Neon (D5). Rejected: each app connecting on its own (loopback OAuth, tokens in the Keychain and `credentials.json`), which keeps tokens off the server but needs two implementations and a connection per device. |
+| D2 | What Momentum may read | **`calendar.events.readonly`**: titles, times, all-day, free/busy and attendance | Keeps the strip's hover titles (Plan Today D3) and lets D4 see declined meetings. A free/busy-only scope reveals less but loses titles and declined status. Both are sensitive scopes, so the consent screen warns either way until the app is verified (D8). Confirm the exact free/busy scope name in Google's list if it is chosen. |
+| D3 | Which calendars count | **The primary calendar only** | No calendar-list scope and no picker. Calendars added to Google from elsewhere (a shared team calendar, a second account) do not count. Choosing calendars later needs `calendar.calendarlist.readonly` and a picker in each app. |
+| D4 | Declined meetings | **Not busy**; tentative and unanswered count | Matches what the person will attend. Files cannot say this today, so the two sources differ here. |
+| D5 | The refresh token at rest | **Encrypted with AES-256-GCM** under a new secret `CALENDAR_TOKEN_KEY` (Secret Manager `momentum-calendar-token-key`) | A database leak alone does not expose calendars. Losing or rotating the key means reconnecting. Without the key the server offers no Google Calendar. Rejected: plaintext behind Neon's access control. |
+| D6 | Where a machine chooses Google | **`[calendar] source = "google"` in `config.toml`**, read by the bridge and the TUI; the Mac's Calendar tab writes it | Both apps on a machine agree, and each machine opts in on its own while the connection is per account. Extends Settings S4 to three sources (files, macOS Calendar, Google); only macOS Calendar stays a Mac-only preference (S5). Rejected: a Mac-only preference plus a separate TUI setting. |
+| D7 | How fresh the sidebar is | **Each `load` reuses Google busy time for up to 5 minutes; opening Plan Today always fetches** | Keeps the one-minute auto-refresh from calling Google every minute and adding its latency to every load. The sidebar can lag a new meeting by up to 5 minutes; the sheet never does. Rejected: fetching on every load. |
+| D8 | The Google client's publishing status | **In production, unverified** | In Testing with an external user type, Google expires refresh tokens after 7 days, so you would reconnect weekly. In production without verification, the consent screen shows an "unverified app" warning once per connect, and the 100-user cap does not matter for a server limited to `ALLOWED_EMAILS`. Sign-in (`openid`, `email`) works either way. Verification removes the warning but takes Google's review. |
+| D9 | Which source counts on a Mac that holds macOS Calendar while `config.toml` says `google` | **macOS Calendar**: the Mac's preference wins, as the bridge already counts the Mac's events whatever `[calendar]` says (story S-047); choosing Google or Calendar files in the Mac's picker clears that preference and writes `[calendar] source` | Keeps one rule from Settings S5 and lets the picker show one value. Rejected: `config.toml` winning, which would leave a macOS Calendar choice on the Mac that does nothing. S-057 also rewrites the glossary's Source row, which says "not in `config.toml`". |
+
+## Consequences already settled
+
+| ID | Source | Consequence | What it means in practice |
+|---|---|---|---|
+| C1 | `DEPLOY.md:16`, D1 | The connection uses the existing Google OAuth client. The owner enables the Google Calendar API in `task-manager-493414`, adds the D2 scope to the consent screen, adds the redirect URI `<server>/calendar/callback/google` (and `http://localhost:8080/calendar/callback/google`), and creates the D5 secret. | Four Cloud console steps before the feature works in production; G12 writes them into `DEPLOY.md`. No agent does them. |
+| C2 | `pages.go:62`, `:94` | Connecting is its own browser flow, separate from sign-in: the app asks the server for a one-time link, the browser opens it, a page names the Momentum account and sets a state cookie, Google is asked with PKCE, `access_type=offline` and `prompt=consent`, and the callback checks the cookie and the state, which works once. The scopes add `openid` and `email`, so the page can say which Google account was connected. | Only the browser that opened the link can finish it, so nobody can attach their calendar to your account, or yours to theirs, with a crafted link. |
+| C3 | D1 | The connection belongs to the account, not to a device. Signing a device out does not disconnect it; disconnecting revokes the token at Google and deletes it. | Connect once, then turn Google on per machine (D6). |
+| C4 | Google Calendar API | Events are read with `singleEvents=true` and without deleted events, between the start and end of the device's day that the app sends. | Cancelled and moved occurrences of repeating meetings come out right, unlike `.ics` files. The day is the device's, as Plan Today's "today" already is. |
+| C5 | Settings S5, `calendar.go:102` | Google events go through `BusyIntervalsWithOptions` like file events: working hours, `include_all_day` and `include_transparent` apply ("Show as available" is transparent). | Busy minutes are the same for the same meetings from either source; G09 tests this. |
+| C6 | Plan Today D6 | A Google failure (no connection, a revoked token, Google unreachable) makes the calendar unavailable: zero calendar time and "Calendar unavailable: …", and planning goes on with tasks. A revoked or expired token is kept as "needs reconnecting" until you reconnect or disconnect. | Plan Today and the sidebar keep working; the message says to reconnect. Google is never stale, since it is read live. |
+| C7 | Plan Today D3, `logging.go:21` | The server never stores or logs events or titles; nothing is added to the logging allowlist. Titles reach the apps only through `plan`. | Only the token and the Google account's email are stored. |
+| C8 | `rule.go` | The new tables are limited to their user with `FilterByViewer` and `CreateAsViewer`; pending links expire after 10 minutes, like device codes. | Another user's connection is invisible; G04 tests it. |
+| C9 | `CONTRIBUTING.md` | Schema changes need `go generate ./...` and a reviewed migration from `cmd/migration-diff`, and `backend/` changes need `docker build -f backend/Dockerfile .`. | Part of G04 and the gates. |
+| C10 | `tui/DESIGN.md:586`, `tui/README.md:129` | An ADR (0003) records that Momentum reads Google Calendar through its server, and criterion 18 and the READMEs drop "never fetches". | The design rule changes on purpose, with a record. |
+| C11 | `planning.go:72` | With `source = "google"`, `paths` is not required, and Google needs a signed-in app. | `momentum doctor` and the Mac's Diagnostics report a missing connection. |
+
+Rejected while planning: Momentum fetching a Google "secret iCal address" (it is a link anyone can use, and the `.ics` parser cannot read repeating-event exceptions); macOS Calendar as the way to reach Google (it stays available through Settings C05, but serves only the Mac).
+
+## Contracts
+
+**Server (`core/api`):**
+
+- `POST /v1/calendar/google/connect` returns `url` (the one-time link) and `expiresAt`.
+- `GET /v1/calendar/google` returns `offered` (the server has a Google client and `CALENDAR_TOKEN_KEY`), `connected`, `email`, and `needsReconnect`.
+- `DELETE /v1/calendar/google` revokes the token at Google, deletes the connection, and answers 204.
+- `GET /v1/calendar/google/events?start=…&end=…` (RFC 3339) returns `events`, each with `title`, `start`, `end`, `allDay` and `transparent`; declined events are left out (D4). With no connection or a dead token it answers a new code, `calendar_unavailable`, with the reason.
+- Browser: `GET /calendar/connect/{link}` and `GET /calendar/callback/google`.
+
+**Bridge:** `calendarStatus`, `connectCalendar` and `disconnectCalendar` mirror the first three routes. `plan` and `load` read Google when `[calendar] source = "google"`, with the same `calendar` and summary fields as files; `stale` is always false.
+
+## Tracker
+
+| Status | ID | Task | Depends on | Verification |
+|---|---|---|---|---|
+| [ ] | G01 | ADR 0003: reading Google Calendar through the server, with D1–D9 | Approval | Reviewed against this plan. |
+| [ ] | G02 | `core/api`: the four routes, their types, `CodeCalendarUnavailable`, and client methods | G01 | Client tests against `httptest`: each route's method, path, query and answer; the error code reaches the caller. Go gates in `core/`. |
+| [ ] | G03 | Backend: `CALENDAR_TOKEN_KEY` in config, and AES-256-GCM sealing for stored secrets (D5) | G01 | Config tests: a key that is not 32 bytes of base64 is refused; no key turns the feature off. Seal tests: open gives back what was sealed; a changed ciphertext or another key fails. |
+| [ ] | G04 | Backend schema: `calendar_connections` (user, Google subject and email, sealed token, status) and `calendar_links` (pending connects: link and state hashes, PKCE verifier, nonce, expiry), with privacy rules; generated code and migration | G03 | Store tests on local PostgreSQL: another user's rows are invisible and cannot be created; one connection per user; an expired link is not found. `go generate`, reviewed migration. |
+| [ ] | G05 | Backend `internal/calendar` service: start a link, complete the callback, status, disconnect, and events from the primary calendar (D3) with the D2 scope | G02, G04 | Fake Google on `httptest`: the authorization URL asks for the D2 scope, `openid` and `email`, offline access and consent; the code exchange stores a sealed token; a link works once and expires; events map `start.date` to all-day and transparency to transparent; declined events are dropped; a repeating meeting with one cancelled and one moved instance gives the right times; `invalid_grant` marks the connection "needs reconnecting" and answers `calendar_unavailable`; disconnect calls Google's revoke and deletes the row, and with Google unreachable it still deletes the row and answers that the token was not revoked; logs carry no title (captured logger). |
+| [ ] | G06 | Backend wiring: routes and pages in `httpapi`, the service in `cmd/momentum-server`, the connect limit | G05 | `httpapi` tests: the JSON routes need sign-in; the callback without the state cookie, or with a used state, is refused; a server without the key or the Google client answers `offered: false`. Go gates in `backend/`; Docker build. |
+| [ ] | G07 | TUI config: `[calendar] source` (`files` default, `google`), validation | — | Config tests: `google` needs no `paths`; an unknown source is refused; `files` keeps today's rules. |
+| [ ] | G08 | TUI backend client: calendar status, connect, disconnect, and events as `calendar.Event` | G02, G07 | Tests against a fake Momentum server: events convert with their all-day and transparent flags; `calendar_unavailable` becomes an error with the server's reason. |
+| [ ] | G09 | Bridge: `readCalendar` reads Google for `source = "google"`, with D7's cache; `calendarStatus`, `connectCalendar`, `disconnectCalendar` | G08 | Bridge tests: the same meetings give the same busy minutes and blocks from Google as from an `.ics` fixture; an unavailable answer gives zero minutes and the error; `load` within 5 minutes reuses the busy time and `plan` always fetches; titles appear only in `plan`. |
+| [ ] | G10 | TUI: the planner's calendar command reads Google; `momentum calendar connect`, `status` and `disconnect`; a `doctor` check | G08 | App tests with the fake client; CLI tests: `connect` prints the link and waits for the connection, `status` shows the Google account or "needs reconnecting", `doctor` fails without a connection when the source is Google. |
+| [ ] | G11 | macOS: the Calendar tab's source picker gains Google Calendar, with Connect (opens the browser and waits), Disconnect, the account, and "needs reconnecting" | G09, Settings C04, C05 | Swift tests with a fake bridge: choosing Google writes `source`; connect opens the link and stops waiting once connected; disconnect asks first. Run the app against the fake server. |
+| [ ] | G12 | Docs: `backend/README.md` (routes, `CALENDAR_TOKEN_KEY`), `backend/DEPLOY.md` (C1 and D8 steps), `tui/README.md` and `tui/DESIGN.md` criterion 18, `macos/README.md` | G06, G10, G11 | Every route, setting and Cloud step above appears once. |
+
+## Acceptance criteria
+
+| Criterion | Proved by |
+|---|---|
+| Connecting needs the browser that opened the link and works once | G06 callback cases |
+| The stored token is sealed, and the server never stores or logs events | G03, G05 logging case |
+| A repeating meeting's cancelled and moved occurrences count correctly | G05 repeating-meeting case |
+| Google and files give the same busy minutes for the same meetings | G09 parity case |
+| A Google failure leaves planning working with zero calendar time | G05 `invalid_grant`, G09 unavailable case |
+| Each machine chooses Google with `[calendar] source` | G07, G10, G11 |
+| Declined meetings are not busy | G05 declined case |
+
+## Files touched
+
+| Where | Change |
+|---|---|
+| `docs/adr/0003-…` | New: the ADR (G01) |
+| `core/api` | Modified: routes, types, `CodeCalendarUnavailable`, client methods (G02) |
+| `backend/internal/config/config.go` | Modified: `CALENDAR_TOKEN_KEY` (G03) |
+| `backend/internal/…` sealing | New: AES-256-GCM seal and open (G03) |
+| `backend/internal/store/ent/schema/` | New: `calendar_connections`, `calendar_links`, with generated code and a migration (G04) |
+| `backend/internal/calendar` | New: the connection and events service (G05) |
+| `backend/internal/httpapi`, `backend/cmd/momentum-server` | Modified: routes, pages, wiring (G06) |
+| `tui/internal/config/planning.go` | Modified: `[calendar] source` (G07) |
+| `tui/internal/backend` | Modified: calendar client methods (G08) |
+| `tui/internal/bridge` | Modified: `readCalendar`, three new operations (G09) |
+| `tui/internal/app/planner.go`, `tui/cmd/momentum`, `tui/internal/diagnostics` | Modified: Google in the planner, `momentum calendar`, a `doctor` check (G10) |
+| macOS Calendar tab (Settings C04, C05) | Modified: the Google option (G11) |
+| `backend/README.md`, `backend/DEPLOY.md`, `tui/README.md`, `tui/DESIGN.md`, `macos/README.md` | Modified: docs (G12) |
+
+Unchanged on purpose: `tui/internal/calendar/calendar.go` (the `.ics` parser and the merge both sources share), Google sign-in (`backend/internal/auth/provider.go`, its scopes stay `openid` and `email`), and the logging allowlist (`backend/internal/logging/logging.go:21`, C7).
+
+## Out of scope
+
+- Choosing calendars other than the primary one (D3).
+- Writing to Google Calendar, or showing calendar events anywhere but Plan Today.
+- Fixing the `.ics` parser's missing `EXDATE` and `RECURRENCE-ID`; worth its own task.
+- Verifying the app with Google (D8).
