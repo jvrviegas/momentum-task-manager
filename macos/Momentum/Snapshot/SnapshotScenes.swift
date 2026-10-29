@@ -59,8 +59,22 @@ struct SnapshotScene {
         var noProjects = SnapshotBridge.Config()
         noProjects.projectRows = []
 
+        var problems = SnapshotBridge.Config()
+        problems.doctor = DoctorReport(
+            configPath: "~/.config/momentum/config.toml", bridgeVersion: "v0.1.0-12-g4bafc30",
+            checks: [
+                DoctorCheck(name: "Backend server", status: "fail", detail: "Momentum can’t reach https://momentum.example.com. Check your connection."),
+                DoctorCheck(name: "Sign-in", status: "skip", detail: "needs the server"),
+                DoctorCheck(name: "Time zone", status: "ok", detail: "Europe/Lisbon"),
+                DoctorCheck(name: "Momentum config", status: "ok", detail: "~/.config/momentum/config.toml"),
+                DoctorCheck(name: "Calendar source", status: "skip", detail: "disabled; task-only planning remains available"),
+            ],
+            ready: false)
+
         var badConfig = SnapshotBridge.Config()
         badConfig.configError = "config key \"calendar.paths\" requires at least one local ICS path"
+        badConfig.doctor.checks[3] = DoctorCheck(name: "Momentum config", status: "fail", detail: badConfig.configError ?? "")
+        badConfig.doctor.ready = false
         var movedServer = SnapshotBridge.Config()
         movedServer.restartRequired = true
 
@@ -170,6 +184,9 @@ struct SnapshotScene {
             SnapshotScene(
                 name: "settings-calendar-denied", macAccess: .denied,
                 run: { await $0.store.macCalendar.choose(.mac); await $0.openSettings(.calendar) }),
+            SnapshotScene(name: "settings-diagnostics", run: { await $0.openSettings(.diagnostics) }),
+            SnapshotScene(name: "settings-diagnostics-problems", config: problems, run: { await $0.openSettings(.diagnostics) }),
+            SnapshotScene(name: "settings-diagnostics-config-error", config: badConfig, run: { await $0.openSettings(.diagnostics) }),
             SnapshotScene(name: "settings-config-error", config: badConfig, run: { await $0.openSettings(.planning) }),
             SnapshotScene(name: "settings-restart", config: movedServer, run: { await $0.openSettings(.planning) }),
             SnapshotScene(name: "appearance-light", run: { await $0.chooseAppearance(.light) }),
