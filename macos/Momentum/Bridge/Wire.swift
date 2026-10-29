@@ -39,6 +39,9 @@ struct PlanningSettings: Decodable, Sendable, Equatable {
 }
 
 struct CalendarSettings: Decodable, Sendable, Equatable {
+    /// Which source config.toml names: "files" or "google". Enabled and files
+    /// are about the files only.
+    var source = "files"
     var enabled: Bool
     var files: [CalendarFile]
     /// Times of day as HH:MM.
@@ -71,9 +74,27 @@ struct PlanningChange: Encodable, Sendable, Equatable {
     var weekdayCapacity: [String: String]?
 }
 
+/// What the server says of this account's Google Calendar: whether it offers
+/// one at all, whether it is connected and as whom, and whether Google has
+/// stopped accepting the connection.
+struct GoogleCalendarStatus: Decodable, Sendable, Equatable {
+    var offered: Bool
+    var connected: Bool
+    var email: String?
+    var needsReconnect: Bool
+}
+
+/// The one-time link that connects Google Calendar to this account in a
+/// browser. It works once, until expiresAt.
+struct CalendarConnectLink: Decodable, Sendable, Equatable {
+    var url: String
+    var expiresAt: Date
+}
+
 /// The [calendar] keys a save changes; paths is the whole list of files.
 struct CalendarChange: Encodable, Sendable, Equatable {
     var revision: String
+    var source: String?
     var enabled: Bool?
     var paths: [String]?
     var workingStart: String?
