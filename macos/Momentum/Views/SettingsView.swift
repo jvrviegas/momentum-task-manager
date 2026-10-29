@@ -28,9 +28,7 @@ struct SettingsView: View {
                 SettingsPage { AppearanceSettings() }
             }
             Tab("Diagnostics", systemImage: "stethoscope", value: SettingsTab.diagnostics) {
-                SettingsPage {
-                    SettingsPlaceholder(title: "Diagnostics", symbol: "stethoscope", hint: "For now, run `momentum doctor` in a terminal.", showsConfig: false)
-                }
+                SettingsPage { DiagnosticsTab() }
             }
         }
         .frame(width: 760, height: 600)
@@ -119,27 +117,6 @@ private struct ConfigNotice: View {
             .padding(.vertical, 12)
             .background(Theme.warnSoft)
             .overlay(alignment: .bottom) { Rectangle().fill(Theme.separator).frame(height: 0.5) }
-        }
-    }
-}
-
-/// A tab whose own settings are not built yet.
-private struct SettingsPlaceholder: View {
-    @Environment(AppStore.self) private var store
-    let title: String
-    let symbol: String
-    let hint: LocalizedStringKey
-    var showsConfig = true
-
-    var body: some View {
-        ContentUnavailableView {
-            Label("\(title) isn’t in Settings yet", systemImage: symbol)
-        } description: {
-            Text(hint)
-        } actions: {
-            if showsConfig {
-                Button("Show config.toml in Finder") { ConfigFile.reveal(store.status?.configPath) }
-            }
         }
     }
 }
