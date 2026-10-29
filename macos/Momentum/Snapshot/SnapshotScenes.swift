@@ -56,6 +56,9 @@ struct SnapshotScene {
         noFiles.calendarEnabled = false
         noFiles.calendarFiles = []
 
+        var noProjects = SnapshotBridge.Config()
+        noProjects.projectRows = []
+
         var badConfig = SnapshotBridge.Config()
         badConfig.configError = "config key \"calendar.paths\" requires at least one local ICS path"
         var movedServer = SnapshotBridge.Config()
@@ -106,7 +109,43 @@ struct SnapshotScene {
                 run: { $0.store.showCapture = true; await $0.settle(); await $0.type(source); await $0.pressReturn() }),
 
             // Settings, and the appearance a person chooses.
-            SnapshotScene(name: "settings-projects", run: { await $0.openSettings(.projects) }),
+            SnapshotScene(name: "settings-projects", run: { await $0.openProjects() }),
+            SnapshotScene(name: "settings-projects-empty", config: noProjects, run: { await $0.openProjects() }),
+            SnapshotScene(
+                name: "settings-project-sheet",
+                run: {
+                    await $0.openProjects()
+                    $0.store.catalog.beginAdd()
+                    $0.store.catalog.sheet?.name = "Acme Corp"
+                    $0.store.catalog.sheet?.parent = "work.client"
+                    $0.store.catalog.sheet?.segment = "acme-corp"
+                }),
+            SnapshotScene(
+                name: "settings-project-add-from-tasks",
+                run: { await $0.openProjects(); $0.store.catalog.beginAdd(from: $0.projectRow("side.gig")) }),
+            SnapshotScene(
+                name: "settings-project-remove", run: { await $0.openProjects(); $0.store.catalog.beginRemove($0.projectRow("work")) }),
+            SnapshotScene(
+                name: "settings-project-rename",
+                run: {
+                    await $0.openProjects()
+                    $0.store.catalog.beginEdit($0.projectRow("work"))
+                    $0.store.catalog.sheet?.name = "Job"
+                    $0.store.catalog.sheet?.segment = "job"
+                    await $0.store.catalog.submit()
+                    $0.store.catalog.sheet?.mode = .catalogAndTasks
+                    $0.store.catalog.sheet?.includeSubprojects = true
+                }),
+            SnapshotScene(
+                name: "settings-project-rename-merge",
+                run: {
+                    await $0.openProjects()
+                    $0.store.catalog.beginEdit($0.projectRow("home"))
+                    $0.store.catalog.sheet?.parent = "side"
+                    $0.store.catalog.sheet?.segment = "gig"
+                    await $0.store.catalog.submit()
+                    $0.store.catalog.sheet?.mode = .catalogAndTasks
+                }),
             SnapshotScene(name: "settings-appearance", run: { await $0.openSettings(.appearance) }),
             SnapshotScene(name: "settings-reopened", run: { await $0.reopenSettings(.planning) }),
             SnapshotScene(name: "settings-planning", run: { await $0.openSettings(.planning) }),
