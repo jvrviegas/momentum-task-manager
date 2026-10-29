@@ -1,0 +1,25 @@
+{
+  "value": "job",
+  "valueChanged": true,
+  "catalogDescendants": 1,
+  "exactTasks": [
+    {
+      "uuid": "1",
+      "oldValue": "work",
+      "newValue": "job"
+    }
+  ],
+  "subprojectTasks": [
+    {
+      "uuid": "1",
+      "oldValue": "work",
+      "newValue": "job"
+    },
+    {
+      "uuid": "2",
+      "oldValue": "work.client",
+      "newValue": "job.client"
+    }
+  ],
+  "destinationTaskOnly": false
+}

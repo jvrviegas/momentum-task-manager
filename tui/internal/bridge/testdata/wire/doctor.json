@@ -1,0 +1,32 @@
+{
+  "configPath": "<dir>/config.toml",
+  "bridgeVersion": "v1.2.3",
+  "checks": [
+    {
+      "name": "Backend server",
+      "status": "ok",
+      "detail": "https://momentum.example answers; version 1.4.0"
+    },
+    {
+      "name": "Sign-in",
+      "status": "ok",
+      "detail": "ana@example.com until 2026-12-01"
+    },
+    {
+      "name": "Time zone",
+      "status": "ok",
+      "detail": "Europe/Lisbon"
+    },
+    {
+      "name": "Momentum config",
+      "status": "ok",
+      "detail": "<dir>/config.toml"
+    },
+    {
+      "name": "Calendar source",
+      "status": "skip",
+      "detail": "disabled; task-only planning remains available"
+    }
+  ],
+  "ready": true
+}

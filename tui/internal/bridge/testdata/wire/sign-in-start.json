@@ -1,0 +1,8 @@
+{
+  "deviceCode": "dc",
+  "userCode": "BCDFGHJK",
+  "verificationUrl": "https://m.example/device",
+  "verificationUrlComplete": "https://m.example/device?code=BCDFGHJK",
+  "expiresAt": "2026-10-16T11:10:00Z",
+  "intervalSeconds": 5
+}

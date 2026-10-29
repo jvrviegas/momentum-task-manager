@@ -1,0 +1,176 @@
+{
+  "tasks": [
+    {
+      "uuid": "6b9a5f9e-3c39-4a51-9d55-0d3c8f7f1a10",
+      "id": 7,
+      "description": "Send invoice",
+      "status": "pending",
+      "project": "work.client",
+      "priority": "H",
+      "estimateMinutes": 90,
+      "estimate": "1h 30m",
+      "entry": "2026-10-10T09:00:00Z",
+      "modified": "2026-10-13T09:00:00Z",
+      "due": "2026-10-14T16:00:00Z",
+      "scheduled": "2026-10-14T09:00:00Z",
+      "start": "2026-10-14T09:30:00Z",
+      "wait": "2026-10-13T08:00:00Z",
+      "until": "2026-10-30T00:00:00Z",
+      "tags": [
+        "finance",
+        "momentum-plan-2026-10-14"
+      ],
+      "annotations": [
+        {
+          "description": "Ask for the PO number",
+          "entry": "2026-10-13T11:00:00Z"
+        }
+      ],
+      "depends": [
+        "0d3c8f7f-3c39-4a51-9d55-6b9a5f9e1a10"
+      ],
+      "recur": "weekly",
+      "recurDisplay": "Weekly",
+      "parent": "3f0f2a54-51a9-4d55-8a2b-9b1e2c0d7e11",
+      "recurrenceTarget": "3f0f2a54-51a9-4d55-8a2b-9b1e2c0d7e11",
+      "urgency": 12.4,
+      "todayGroup": "Due Today",
+      "edit": {
+        "description": "Send invoice",
+        "project": "work.client",
+        "priority": "H",
+        "due": "2026-10-14 16:00",
+        "scheduled": "2026-10-14 09:00",
+        "tags": "finance momentum-plan-2026-10-14",
+        "estimate": "1h30m",
+        "recurrence": "weekly"
+      },
+      "extra": {
+        "customer": "\"Acme\""
+      }
+    },
+    {
+      "uuid": "overdue",
+      "id": 8,
+      "description": "Renew cert",
+      "status": "pending",
+      "estimateMinutes": 30,
+      "estimate": "30m",
+      "due": "2026-10-12T09:00:00Z",
+      "tags": [],
+      "annotations": [],
+      "depends": [],
+      "urgency": 9,
+      "todayGroup": "Overdue",
+      "edit": {
+        "description": "Renew cert",
+        "project": "",
+        "priority": "",
+        "due": "2026-10-12 09:00",
+        "scheduled": "",
+        "tags": "",
+        "estimate": "30m",
+        "recurrence": ""
+      }
+    },
+    {
+      "uuid": "inbox",
+      "id": 9,
+      "description": "Weekly review",
+      "status": "pending",
+      "project": "work",
+      "tags": [],
+      "annotations": [],
+      "depends": [],
+      "urgency": 0,
+      "edit": {
+        "description": "Weekly review",
+        "project": "work",
+        "priority": "",
+        "due": "",
+        "scheduled": "",
+        "tags": "",
+        "estimate": "",
+        "recurrence": ""
+      }
+    },
+    {
+      "uuid": "done",
+      "id": 10,
+      "description": "Pay rent",
+      "status": "completed",
+      "project": "home",
+      "end": "2026-10-13T18:00:00Z",
+      "tags": [],
+      "annotations": [],
+      "depends": [],
+      "urgency": 0,
+      "edit": {
+        "description": "Pay rent",
+        "project": "home",
+        "priority": "",
+        "due": "",
+        "scheduled": "",
+        "tags": "",
+        "estimate": "",
+        "recurrence": ""
+      }
+    }
+  ],
+  "today": [
+    {
+      "title": "Overdue",
+      "uuids": [
+        "overdue"
+      ]
+    },
+    {
+      "title": "Due Today",
+      "uuids": [
+        "6b9a5f9e-3c39-4a51-9d55-0d3c8f7f1a10"
+      ]
+    }
+  ],
+  "inbox": [
+    {
+      "title": "Work",
+      "project": "work",
+      "uuids": [
+        "inbox"
+      ]
+    }
+  ],
+  "completed": [
+    {
+      "title": "Yesterday",
+      "uuids": [
+        "done"
+      ]
+    }
+  ],
+  "projects": [
+    {
+      "value": "work",
+      "label": "Work"
+    },
+    {
+      "value": "work.client",
+      "label": "Work → Client"
+    },
+    {
+      "value": "home"
+    }
+  ],
+  "plan": {
+    "enabled": true,
+    "chosenCount": 0,
+    "chosenMinutes": 0,
+    "unestimatedChosen": 0,
+    "fixedMinutes": 120,
+    "unestimatedFixed": 0,
+    "capacityMinutes": 480,
+    "bufferMinutes": 60,
+    "calendarMinutes": 0,
+    "calendarAvailable": false
+  }
+}

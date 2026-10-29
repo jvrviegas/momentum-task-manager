@@ -1,0 +1,32 @@
+{
+  "configPath": "<dir>/config.toml",
+  "revision": "26de7a88be39520f5415338b837ceb888c8013e00af052fc0d9aeb4ccbf091a6",
+  "planning": {
+    "enabled": true,
+    "dailyCapacity": "7h30m",
+    "buffer": "45m",
+    "weekdayCapacity": {
+      "friday": "4h"
+    }
+  },
+  "calendar": {
+    "source": "files",
+    "enabled": true,
+    "files": [
+      {
+        "path": "~/Calendars/fresh.ics",
+        "status": "available",
+        "modified": "2026-10-14T09:00:00Z"
+      },
+      {
+        "path": "~/Calendars/gone.ics",
+        "status": "missing"
+      }
+    ],
+    "workingStart": "09:00",
+    "workingEnd": "17:00",
+    "includeAllDay": false,
+    "includeTransparent": false,
+    "staleAfter": "24h"
+  }
+}

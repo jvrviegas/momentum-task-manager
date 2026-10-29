@@ -1,0 +1,22 @@
+{
+  "active": true,
+  "kind": "project",
+  "start": 4,
+  "end": 7,
+  "suggestions": [
+    {
+      "value": "work",
+      "text": "#work",
+      "label": "Work",
+      "input": "Fix #work now",
+      "cursor": 9
+    },
+    {
+      "value": "work.client",
+      "text": "#work.client",
+      "label": "Work → Client",
+      "input": "Fix #work.client now",
+      "cursor": 16
+    }
+  ]
+}

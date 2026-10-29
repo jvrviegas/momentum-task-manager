@@ -1,0 +1,40 @@
+{
+  "added": false,
+  "review": {
+    "token": 1,
+    "source": "Call at 3pm",
+    "valid": false,
+    "requiresReview": true,
+    "description": "Call at 3pm",
+    "candidates": [
+      {
+        "field": "time",
+        "text": "at 3pm",
+        "value": "",
+        "start": 5,
+        "end": 11,
+        "provenance": "inferred",
+        "accepted": false,
+        "conflict": false,
+        "blocking": true,
+        "diagnostic": "a time needs a supported date phrase"
+      }
+    ],
+    "diagnostics": [
+      {
+        "message": "A bare time needs a date; add today/tomorrow/a weekday or use explicit @due syntax.",
+        "blocking": true
+      }
+    ],
+    "reviewValues": [
+      "Call at 3pm",
+      "",
+      "",
+      "",
+      "",
+      "",
+      "",
+      ""
+    ]
+  }
+}

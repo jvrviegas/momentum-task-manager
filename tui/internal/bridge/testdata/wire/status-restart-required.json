@@ -1,0 +1,7 @@
+{
+  "configPath": "<dir>/config.toml",
+  "mutationDelaySeconds": 15,
+  "refreshIntervalSeconds": 60,
+  "backendUrl": "https://momentum.example",
+  "restartRequired": true
+}

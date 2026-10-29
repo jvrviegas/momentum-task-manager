@@ -1,0 +1,41 @@
+{
+  "source": "Call Ana tomorrow #work",
+  "valid": true,
+  "requiresReview": true,
+  "description": "Call Ana",
+  "candidates": [
+    {
+      "field": "project",
+      "text": "#work",
+      "value": "work",
+      "start": 18,
+      "end": 23,
+      "provenance": "explicit",
+      "accepted": true,
+      "conflict": false,
+      "blocking": false
+    },
+    {
+      "field": "due",
+      "text": "tomorrow",
+      "value": "20261015T000000",
+      "start": 9,
+      "end": 17,
+      "provenance": "inferred",
+      "accepted": true,
+      "conflict": false,
+      "blocking": false
+    }
+  ],
+  "diagnostics": [],
+  "reviewValues": [
+    "Call Ana",
+    "20261015T000000",
+    "",
+    "",
+    "",
+    "work",
+    "",
+    ""
+  ]
+}

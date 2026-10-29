@@ -1,0 +1,51 @@
+{
+  "tasks": [
+    {
+      "uuid": "warned",
+      "id": 11,
+      "description": "Odd estimate",
+      "status": "pending",
+      "estimateWarning": "estimate must be a whole number of minutes",
+      "estimateRaw": "soon",
+      "tags": [],
+      "annotations": [],
+      "depends": [],
+      "urgency": 0,
+      "edit": {
+        "description": "Odd estimate",
+        "project": "",
+        "priority": "",
+        "due": "",
+        "scheduled": "",
+        "tags": "",
+        "estimate": "",
+        "recurrence": ""
+      }
+    }
+  ],
+  "today": [],
+  "inbox": [
+    {
+      "title": "No project",
+      "uuids": [
+        "warned"
+      ]
+    }
+  ],
+  "completed": [],
+  "completedError": "the server could not list completed tasks",
+  "projects": [],
+  "plan": {
+    "enabled": true,
+    "chosenCount": 0,
+    "chosenMinutes": 0,
+    "unestimatedChosen": 0,
+    "fixedMinutes": 0,
+    "unestimatedFixed": 0,
+    "capacityMinutes": 480,
+    "bufferMinutes": 60,
+    "calendarMinutes": 0,
+    "calendarAvailable": false,
+    "calendarError": "read calendar <dir>/Calendars/gone.ics: stat <dir>/Calendars/gone.ics: no such file or directory"
+  }
+}

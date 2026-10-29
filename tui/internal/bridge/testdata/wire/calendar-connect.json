@@ -1,0 +1,4 @@
+{
+  "url": "https://accounts.example/o/oauth2/auth?state=abc",
+  "expiresAt": "2026-10-14T10:10:00Z"
+}

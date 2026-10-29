@@ -1,0 +1,30 @@
+{
+  "revision": "9dd9a3def90783d5d9a8f337ec4a4b6ffb0e572ccedd19332f8bbac11b06dda8",
+  "entries": [
+    {
+      "value": "empty",
+      "name": "Empty",
+      "tag": "catalog",
+      "tasks": 0
+    },
+    {
+      "value": "home",
+      "name": "Home",
+      "tag": "catalog",
+      "tasks": 0
+    },
+    {
+      "value": "work",
+      "name": "Work",
+      "tag": "catalog",
+      "tasks": 0
+    },
+    {
+      "value": "work.client",
+      "name": "Client",
+      "tag": "catalog",
+      "tasks": 0
+    }
+  ],
+  "tasksError": "the server could not list tasks"
+}

@@ -1,0 +1,173 @@
+{
+  "date": "2026-10-14",
+  "tag": "momentum-plan-2026-10-14",
+  "capacityMinutes": 480,
+  "bufferMinutes": 60,
+  "obligations": [
+    {
+      "task": {
+        "uuid": "overdue",
+        "id": 0,
+        "description": "Renew cert",
+        "status": "pending",
+        "estimateMinutes": 30,
+        "estimate": "30m",
+        "due": "2026-10-12T09:00:00Z",
+        "tags": [],
+        "annotations": [],
+        "depends": [],
+        "urgency": 9,
+        "todayGroup": "Overdue",
+        "edit": {
+          "description": "Renew cert",
+          "project": "",
+          "priority": "",
+          "due": "2026-10-12 09:00",
+          "scheduled": "",
+          "tags": "",
+          "estimate": "30m",
+          "recurrence": ""
+        }
+      },
+      "selected": false
+    },
+    {
+      "task": {
+        "uuid": "due",
+        "id": 0,
+        "description": "Send invoice",
+        "status": "pending",
+        "due": "2026-10-14T17:00:00Z",
+        "tags": [],
+        "annotations": [],
+        "depends": [],
+        "urgency": 0,
+        "todayGroup": "Due Today",
+        "edit": {
+          "description": "Send invoice",
+          "project": "",
+          "priority": "",
+          "due": "2026-10-14 17:00",
+          "scheduled": "",
+          "tags": "",
+          "estimate": "",
+          "recurrence": ""
+        }
+      },
+      "selected": false
+    }
+  ],
+  "rollover": [
+    {
+      "task": {
+        "uuid": "rolled",
+        "id": 0,
+        "description": "Write ADR",
+        "status": "pending",
+        "tags": [
+          "docs",
+          "momentum-plan-2026-10-12"
+        ],
+        "annotations": [],
+        "depends": [],
+        "urgency": 0,
+        "edit": {
+          "description": "Write ADR",
+          "project": "",
+          "priority": "",
+          "due": "",
+          "scheduled": "",
+          "tags": "docs momentum-plan-2026-10-12",
+          "estimate": "",
+          "recurrence": ""
+        }
+      },
+      "selected": true,
+      "plannedDate": "2026-10-12"
+    }
+  ],
+  "candidates": [
+    {
+      "task": {
+        "uuid": "planned",
+        "id": 0,
+        "description": "Refactor ranking",
+        "status": "pending",
+        "tags": [
+          "momentum-plan-2026-10-14"
+        ],
+        "annotations": [],
+        "depends": [],
+        "urgency": 3,
+        "todayGroup": "Planned Today",
+        "edit": {
+          "description": "Refactor ranking",
+          "project": "",
+          "priority": "",
+          "due": "",
+          "scheduled": "",
+          "tags": "momentum-plan-2026-10-14",
+          "estimate": "",
+          "recurrence": ""
+        }
+      },
+      "selected": true
+    },
+    {
+      "task": {
+        "uuid": "idle",
+        "id": 0,
+        "description": "Weekly review",
+        "status": "pending",
+        "due": "2026-10-16T09:00:00Z",
+        "tags": [],
+        "annotations": [],
+        "depends": [],
+        "urgency": 0,
+        "edit": {
+          "description": "Weekly review",
+          "project": "",
+          "priority": "",
+          "due": "2026-10-16 09:00",
+          "scheduled": "",
+          "tags": "",
+          "estimate": "",
+          "recurrence": ""
+        }
+      },
+      "selected": false
+    }
+  ],
+  "calendar": {
+    "enabled": true,
+    "available": true,
+    "stale": false,
+    "busyMinutes": 105,
+    "eventCount": 3,
+    "workingStart": "09:00",
+    "workingEnd": "17:00",
+    "blocks": [
+      {
+        "start": "2026-10-14T09:30:00Z",
+        "end": "2026-10-14T09:45:00Z",
+        "titles": [
+          "Team stand-up"
+        ]
+      },
+      {
+        "start": "2026-10-14T11:00:00Z",
+        "end": "2026-10-14T12:00:00Z",
+        "titles": [
+          "Design review"
+        ]
+      },
+      {
+        "start": "2026-10-14T16:30:00Z",
+        "end": "2026-10-14T17:00:00Z",
+        "titles": [
+          "Retro"
+        ]
+      }
+    ]
+  }
+}
