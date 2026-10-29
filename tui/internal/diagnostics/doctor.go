@@ -39,12 +39,15 @@ func (r Report) OK() bool {
 // DoctorOptions contains injectable checks for deterministic tests. Backend
 // is nil when the config names no [backend] server.
 type DoctorOptions struct {
-	Backend     *BackendOptions
-	Config      config.Config
-	ConfigPath  string
-	HomeDir     string
-	StateDir    string
-	Terminal    string
+	Backend    *BackendOptions
+	Config     config.Config
+	ConfigPath string
+	HomeDir    string
+	StateDir   string
+	Terminal   string
+	// NoTerminal leaves out the Terminal and State directory checks, which
+	// belong to the terminal app: the macOS app has neither a terminal nor a log.
+	NoTerminal  bool
 	MkdirAll    func(string, os.FileMode) error
 	WritableDir func(string) error
 }
@@ -107,6 +110,9 @@ func Run(ctx context.Context, options DoctorOptions) Report {
 		report.Checks = append(report.Checks, Check{Name: "Calendar source", Detail: "disabled; task-only planning remains available", Skipped: true, OK: true})
 	}
 
+	if options.NoTerminal {
+		return report
+	}
 	terminal := options.Terminal
 	if terminal == "" {
 		terminal = os.Getenv("TERM")
