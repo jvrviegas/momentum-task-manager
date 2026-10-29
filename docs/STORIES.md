@@ -853,10 +853,11 @@ Screens: settings-diagnostics-google.png
 Depends: S-053, S-057
 Decisions: D1, D6
 Acceptance:
-- [unit] Go: `momentum doctor` with `source = "google"` fails its calendar check, with the reason, when there is no connection or it needs reconnecting, and passes when connected; with `files` it checks the files as before.
-- [snap] `settings-diagnostics-google`: the calendar check shows as a Problem with its symbol, its word and the reason.
-- [unit] Go: the Report holds no link, token or event title.
-- [unit] Go: with the server down, or no sign-in, the check is Skipped, never a Problem; a Google check passes only when the server says connected.
+- [unit] Go: `momentum doctor` with `source = "google"` fails its calendar check, with the reason, when there is no connection or it needs reconnecting, and passes when connected; with `files` it checks the files as before. `TestGoogleCalendarPassesWhenItIsConnected`, `TestGoogleCalendarFailsWithItsReasonAndWhereToFixItOnTheMac`, `TestGoogleCalendarIsCheckedWhateverEnabledSays`, `TestTheFilesSourceIsCheckedAsBeforeAndNeverAsksGoogle`, and for the Mac's own doctor `TestTheMacsDoctorChecksGoogleCalendarAndNamesWhereToFixIt`, `TestTheMacsDoctorStillChecksTheFilesWhenTheyAreTheSource`.
+- [snap] `settings-diagnostics-google`: the calendar check shows as a Problem with its symbol, its word and the reason. Read in light and dark.
+- [unit] Go: the Report holds no link, token or event title. `TestTheReportHoldsNoLinkTokenOrEventTitle`, `TestAGoogleCheckThatCannotBeAnsweredIsAProblemWithoutSecrets`, `TestTheMacsDoctorLeavesSecretsOutOfAGoogleCheckThatCouldNotAnswer`.
+- [unit] Go: with the server down, or no sign-in, the check is Skipped, never a Problem; a Google check passes only when the server says connected. `TestGoogleCalendarIsSkippedWithoutAServerOrASignIn`, `TestAServerClientThatCannotSayWhereGoogleStandsIsSkipped`.
+- [manual] With a real connection, run `momentum doctor` in a terminal and open Settings ▸ Diagnostics: both show the check. Not tried yet: it needs a real connection.
 UX:
 - Flow: Settings ▸ Calendar's problem is read in Settings ▸ Diagnostics (the checks run when the tab opens) -> read "Calendar source" -> fix it where the detail says -> **Check Again**. In the terminal, `momentum doctor` prints the same check.
 - Surface: inline, one more state of a row the Diagnostics list already has (information, no decision); no new screen, dialog or toast.
@@ -864,7 +865,8 @@ UX:
 - Words: the check stays "Calendar source", since it is about the Source; "read-only" echoes the files check; the reasons are the ones Plan Today, Settings and the server already use, and where the fix is in Settings ▸ Calendar the Mac's detail says so. `momentum doctor` gives the same reason without the Settings sentence, since the terminal app has no such tab; S-064 adds `momentum calendar connect` and the sentence that names it.
 - Access: unchanged from S-053: each check reads as its name, word and detail, a word and a symbol, never color alone.
 - Review: the check describes what `config.toml` names, which the terminal app follows too. When this Mac counts macOS Calendar over a `google` config (D9), both rows show, as they do with files today, so a Problem here can describe a source this Mac isn't using; the "macOS Calendar" row says what this Mac uses. One snapshot page shows the Problem; OK and Skipped look as S-053's rows do, and every state is unit-tested.
-Status: doing
+- Built: before this story a `google` source fell into the files check and reported "calendar source unavailable", or "disabled" with `enabled` off, which said nothing true about Google; the new tests failed that way first. The check reaches the server through an optional interface, so the terminal app's core client and the bridge's client both answer it without widening the interface the existing fakes use.
+Status: done
 
 ### S-064 Use Google Calendar in the terminal app
 As the user in the terminal, I run `momentum calendar connect` and the planner counts my Google meetings.
