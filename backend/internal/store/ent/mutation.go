@@ -13,6 +13,8 @@ import (
 	"entgo.io/ent"
 	"entgo.io/ent/dialect/sql"
 	"github.com/google/uuid"
+	"github.com/jvrviegas/momentum-task-manager/backend/internal/store/ent/calendarconnection"
+	"github.com/jvrviegas/momentum-task-manager/backend/internal/store/ent/calendarlink"
 	"github.com/jvrviegas/momentum-task-manager/backend/internal/store/ent/deviceauthorization"
 	"github.com/jvrviegas/momentum-task-manager/backend/internal/store/ent/idempotencykey"
 	"github.com/jvrviegas/momentum-task-manager/backend/internal/store/ent/identity"
@@ -33,6 +35,8 @@ const (
 	OpUpdateOne = ent.OpUpdateOne
 
 	// Node types.
+	TypeCalendarConnection  = "CalendarConnection"
+	TypeCalendarLink        = "CalendarLink"
 	TypeDeviceAuthorization = "DeviceAuthorization"
 	TypeIdempotencyKey      = "IdempotencyKey"
 	TypeIdentity            = "Identity"
@@ -41,6 +45,1420 @@ const (
 	TypeTaskEvent           = "TaskEvent"
 	TypeUser                = "User"
 )
+
+// CalendarConnectionMutation represents an operation that mutates the CalendarConnection nodes in the graph.
+type CalendarConnectionMutation struct {
+	config
+	op            Op
+	typ           string
+	id            *int
+	subject       *string
+	email         *string
+	sealed_token  *[]byte
+	status        *calendarconnection.Status
+	created_at    *time.Time
+	clearedFields map[string]struct{}
+	user          *uuid.UUID
+	cleareduser   bool
+	done          bool
+	oldValue      func(context.Context) (*CalendarConnection, error)
+	predicates    []predicate.CalendarConnection
+}
+
+var _ ent.Mutation = (*CalendarConnectionMutation)(nil)
+
+// calendarconnectionOption allows management of the mutation configuration using functional options.
+type calendarconnectionOption func(*CalendarConnectionMutation)
+
+// newCalendarConnectionMutation creates new mutation for the CalendarConnection entity.
+func newCalendarConnectionMutation(c config, op Op, opts ...calendarconnectionOption) *CalendarConnectionMutation {
+	m := &CalendarConnectionMutation{
+		config:        c,
+		op:            op,
+		typ:           TypeCalendarConnection,
+		clearedFields: make(map[string]struct{}),
+	}
+	for _, opt := range opts {
+		opt(m)
+	}
+	return m
+}
+
+// withCalendarConnectionID sets the ID field of the mutation.
+func withCalendarConnectionID(id int) calendarconnectionOption {
+	return func(m *CalendarConnectionMutation) {
+		var (
+			err   error
+			once  sync.Once
+			value *CalendarConnection
+		)
+		m.oldValue = func(ctx context.Context) (*CalendarConnection, error) {
+			once.Do(func() {
+				if m.done {
+					err = errors.New("querying old values post mutation is not allowed")
+				} else {
+					value, err = m.Client().CalendarConnection.Get(ctx, id)
+				}
+			})
+			return value, err
+		}
+		m.id = &id
+	}
+}
+
+// withCalendarConnection sets the old CalendarConnection of the mutation.
+func withCalendarConnection(node *CalendarConnection) calendarconnectionOption {
+	return func(m *CalendarConnectionMutation) {
+		m.oldValue = func(context.Context) (*CalendarConnection, error) {
+			return node, nil
+		}
+		m.id = &node.ID
+	}
+}
+
+// Client returns a new `ent.Client` from the mutation. If the mutation was
+// executed in a transaction (ent.Tx), a transactional client is returned.
+func (m CalendarConnectionMutation) Client() *Client {
+	client := &Client{config: m.config}
+	client.init()
+	return client
+}
+
+// Tx returns an `ent.Tx` for mutations that were executed in transactions;
+// it returns an error otherwise.
+func (m CalendarConnectionMutation) Tx() (*Tx, error) {
+	if _, ok := m.driver.(*txDriver); !ok {
+		return nil, errors.New("ent: mutation is not running in a transaction")
+	}
+	tx := &Tx{config: m.config}
+	tx.init()
+	return tx, nil
+}
+
+// ID returns the ID value in the mutation. Note that the ID is only available
+// if it was provided to the builder or after it was returned from the database.
+func (m *CalendarConnectionMutation) ID() (id int, exists bool) {
+	if m.id == nil {
+		return
+	}
+	return *m.id, true
+}
+
+// IDs queries the database and returns the entity ids that match the mutation's predicate.
+// That means, if the mutation is applied within a transaction with an isolation level such
+// as sql.LevelSerializable, the returned ids match the ids of the rows that will be updated
+// or updated by the mutation.
+func (m *CalendarConnectionMutation) IDs(ctx context.Context) ([]int, error) {
+	switch {
+	case m.op.Is(OpUpdateOne | OpDeleteOne):
+		id, exists := m.ID()
+		if exists {
+			return []int{id}, nil
+		}
+		fallthrough
+	case m.op.Is(OpUpdate | OpDelete):
+		return m.Client().CalendarConnection.Query().Where(m.predicates...).IDs(ctx)
+	default:
+		return nil, fmt.Errorf("IDs is not allowed on %s operations", m.op)
+	}
+}
+
+// SetUserID sets the "user_id" field.
+func (m *CalendarConnectionMutation) SetUserID(u uuid.UUID) {
+	m.user = &u
+}
+
+// UserID returns the value of the "user_id" field in the mutation.
+func (m *CalendarConnectionMutation) UserID() (r uuid.UUID, exists bool) {
+	v := m.user
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldUserID returns the old "user_id" field's value of the CalendarConnection entity.
+// If the CalendarConnection object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *CalendarConnectionMutation) OldUserID(ctx context.Context) (v uuid.UUID, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldUserID is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldUserID requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldUserID: %w", err)
+	}
+	return oldValue.UserID, nil
+}
+
+// ResetUserID resets all changes to the "user_id" field.
+func (m *CalendarConnectionMutation) ResetUserID() {
+	m.user = nil
+}
+
+// SetSubject sets the "subject" field.
+func (m *CalendarConnectionMutation) SetSubject(s string) {
+	m.subject = &s
+}
+
+// Subject returns the value of the "subject" field in the mutation.
+func (m *CalendarConnectionMutation) Subject() (r string, exists bool) {
+	v := m.subject
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldSubject returns the old "subject" field's value of the CalendarConnection entity.
+// If the CalendarConnection object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *CalendarConnectionMutation) OldSubject(ctx context.Context) (v string, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldSubject is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldSubject requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldSubject: %w", err)
+	}
+	return oldValue.Subject, nil
+}
+
+// ResetSubject resets all changes to the "subject" field.
+func (m *CalendarConnectionMutation) ResetSubject() {
+	m.subject = nil
+}
+
+// SetEmail sets the "email" field.
+func (m *CalendarConnectionMutation) SetEmail(s string) {
+	m.email = &s
+}
+
+// Email returns the value of the "email" field in the mutation.
+func (m *CalendarConnectionMutation) Email() (r string, exists bool) {
+	v := m.email
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldEmail returns the old "email" field's value of the CalendarConnection entity.
+// If the CalendarConnection object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *CalendarConnectionMutation) OldEmail(ctx context.Context) (v string, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldEmail is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldEmail requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldEmail: %w", err)
+	}
+	return oldValue.Email, nil
+}
+
+// ResetEmail resets all changes to the "email" field.
+func (m *CalendarConnectionMutation) ResetEmail() {
+	m.email = nil
+}
+
+// SetSealedToken sets the "sealed_token" field.
+func (m *CalendarConnectionMutation) SetSealedToken(b []byte) {
+	m.sealed_token = &b
+}
+
+// SealedToken returns the value of the "sealed_token" field in the mutation.
+func (m *CalendarConnectionMutation) SealedToken() (r []byte, exists bool) {
+	v := m.sealed_token
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldSealedToken returns the old "sealed_token" field's value of the CalendarConnection entity.
+// If the CalendarConnection object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *CalendarConnectionMutation) OldSealedToken(ctx context.Context) (v []byte, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldSealedToken is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldSealedToken requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldSealedToken: %w", err)
+	}
+	return oldValue.SealedToken, nil
+}
+
+// ResetSealedToken resets all changes to the "sealed_token" field.
+func (m *CalendarConnectionMutation) ResetSealedToken() {
+	m.sealed_token = nil
+}
+
+// SetStatus sets the "status" field.
+func (m *CalendarConnectionMutation) SetStatus(c calendarconnection.Status) {
+	m.status = &c
+}
+
+// Status returns the value of the "status" field in the mutation.
+func (m *CalendarConnectionMutation) Status() (r calendarconnection.Status, exists bool) {
+	v := m.status
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldStatus returns the old "status" field's value of the CalendarConnection entity.
+// If the CalendarConnection object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *CalendarConnectionMutation) OldStatus(ctx context.Context) (v calendarconnection.Status, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldStatus is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldStatus requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldStatus: %w", err)
+	}
+	return oldValue.Status, nil
+}
+
+// ResetStatus resets all changes to the "status" field.
+func (m *CalendarConnectionMutation) ResetStatus() {
+	m.status = nil
+}
+
+// SetCreatedAt sets the "created_at" field.
+func (m *CalendarConnectionMutation) SetCreatedAt(t time.Time) {
+	m.created_at = &t
+}
+
+// CreatedAt returns the value of the "created_at" field in the mutation.
+func (m *CalendarConnectionMutation) CreatedAt() (r time.Time, exists bool) {
+	v := m.created_at
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldCreatedAt returns the old "created_at" field's value of the CalendarConnection entity.
+// If the CalendarConnection object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *CalendarConnectionMutation) OldCreatedAt(ctx context.Context) (v time.Time, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldCreatedAt is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldCreatedAt requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldCreatedAt: %w", err)
+	}
+	return oldValue.CreatedAt, nil
+}
+
+// ResetCreatedAt resets all changes to the "created_at" field.
+func (m *CalendarConnectionMutation) ResetCreatedAt() {
+	m.created_at = nil
+}
+
+// ClearUser clears the "user" edge to the User entity.
+func (m *CalendarConnectionMutation) ClearUser() {
+	m.cleareduser = true
+	m.clearedFields[calendarconnection.FieldUserID] = struct{}{}
+}
+
+// UserCleared reports if the "user" edge to the User entity was cleared.
+func (m *CalendarConnectionMutation) UserCleared() bool {
+	return m.cleareduser
+}
+
+// UserIDs returns the "user" edge IDs in the mutation.
+// Note that IDs always returns len(IDs) <= 1 for unique edges, and you should use
+// UserID instead. It exists only for internal usage by the builders.
+func (m *CalendarConnectionMutation) UserIDs() (ids []uuid.UUID) {
+	if id := m.user; id != nil {
+		ids = append(ids, *id)
+	}
+	return
+}
+
+// ResetUser resets all changes to the "user" edge.
+func (m *CalendarConnectionMutation) ResetUser() {
+	m.user = nil
+	m.cleareduser = false
+}
+
+// Where appends a list predicates to the CalendarConnectionMutation builder.
+func (m *CalendarConnectionMutation) Where(ps ...predicate.CalendarConnection) {
+	m.predicates = append(m.predicates, ps...)
+}
+
+// WhereP appends storage-level predicates to the CalendarConnectionMutation builder. Using this method,
+// users can use type-assertion to append predicates that do not depend on any generated package.
+func (m *CalendarConnectionMutation) WhereP(ps ...func(*sql.Selector)) {
+	p := make([]predicate.CalendarConnection, len(ps))
+	for i := range ps {
+		p[i] = ps[i]
+	}
+	m.Where(p...)
+}
+
+// Op returns the operation name.
+func (m *CalendarConnectionMutation) Op() Op {
+	return m.op
+}
+
+// SetOp allows setting the mutation operation.
+func (m *CalendarConnectionMutation) SetOp(op Op) {
+	m.op = op
+}
+
+// Type returns the node type of this mutation (CalendarConnection).
+func (m *CalendarConnectionMutation) Type() string {
+	return m.typ
+}
+
+// Fields returns all fields that were changed during this mutation. Note that in
+// order to get all numeric fields that were incremented/decremented, call
+// AddedFields().
+func (m *CalendarConnectionMutation) Fields() []string {
+	fields := make([]string, 0, 6)
+	if m.user != nil {
+		fields = append(fields, calendarconnection.FieldUserID)
+	}
+	if m.subject != nil {
+		fields = append(fields, calendarconnection.FieldSubject)
+	}
+	if m.email != nil {
+		fields = append(fields, calendarconnection.FieldEmail)
+	}
+	if m.sealed_token != nil {
+		fields = append(fields, calendarconnection.FieldSealedToken)
+	}
+	if m.status != nil {
+		fields = append(fields, calendarconnection.FieldStatus)
+	}
+	if m.created_at != nil {
+		fields = append(fields, calendarconnection.FieldCreatedAt)
+	}
+	return fields
+}
+
+// Field returns the value of a field with the given name. The second boolean
+// return value indicates that this field was not set, or was not defined in the
+// schema.
+func (m *CalendarConnectionMutation) Field(name string) (ent.Value, bool) {
+	switch name {
+	case calendarconnection.FieldUserID:
+		return m.UserID()
+	case calendarconnection.FieldSubject:
+		return m.Subject()
+	case calendarconnection.FieldEmail:
+		return m.Email()
+	case calendarconnection.FieldSealedToken:
+		return m.SealedToken()
+	case calendarconnection.FieldStatus:
+		return m.Status()
+	case calendarconnection.FieldCreatedAt:
+		return m.CreatedAt()
+	}
+	return nil, false
+}
+
+// OldField returns the old value of the field from the database. An error is
+// returned if the mutation operation is not UpdateOne, or the query to the
+// database failed.
+func (m *CalendarConnectionMutation) OldField(ctx context.Context, name string) (ent.Value, error) {
+	switch name {
+	case calendarconnection.FieldUserID:
+		return m.OldUserID(ctx)
+	case calendarconnection.FieldSubject:
+		return m.OldSubject(ctx)
+	case calendarconnection.FieldEmail:
+		return m.OldEmail(ctx)
+	case calendarconnection.FieldSealedToken:
+		return m.OldSealedToken(ctx)
+	case calendarconnection.FieldStatus:
+		return m.OldStatus(ctx)
+	case calendarconnection.FieldCreatedAt:
+		return m.OldCreatedAt(ctx)
+	}
+	return nil, fmt.Errorf("unknown CalendarConnection field %s", name)
+}
+
+// SetField sets the value of a field with the given name. It returns an error if
+// the field is not defined in the schema, or if the type mismatched the field
+// type.
+func (m *CalendarConnectionMutation) SetField(name string, value ent.Value) error {
+	switch name {
+	case calendarconnection.FieldUserID:
+		v, ok := value.(uuid.UUID)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetUserID(v)
+		return nil
+	case calendarconnection.FieldSubject:
+		v, ok := value.(string)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetSubject(v)
+		return nil
+	case calendarconnection.FieldEmail:
+		v, ok := value.(string)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetEmail(v)
+		return nil
+	case calendarconnection.FieldSealedToken:
+		v, ok := value.([]byte)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetSealedToken(v)
+		return nil
+	case calendarconnection.FieldStatus:
+		v, ok := value.(calendarconnection.Status)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetStatus(v)
+		return nil
+	case calendarconnection.FieldCreatedAt:
+		v, ok := value.(time.Time)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetCreatedAt(v)
+		return nil
+	}
+	return fmt.Errorf("unknown CalendarConnection field %s", name)
+}
+
+// AddedFields returns all numeric fields that were incremented/decremented during
+// this mutation.
+func (m *CalendarConnectionMutation) AddedFields() []string {
+	return nil
+}
+
+// AddedField returns the numeric value that was incremented/decremented on a field
+// with the given name. The second boolean return value indicates that this field
+// was not set, or was not defined in the schema.
+func (m *CalendarConnectionMutation) AddedField(name string) (ent.Value, bool) {
+	return nil, false
+}
+
+// AddField adds the value to the field with the given name. It returns an error if
+// the field is not defined in the schema, or if the type mismatched the field
+// type.
+func (m *CalendarConnectionMutation) AddField(name string, value ent.Value) error {
+	switch name {
+	}
+	return fmt.Errorf("unknown CalendarConnection numeric field %s", name)
+}
+
+// ClearedFields returns all nullable fields that were cleared during this
+// mutation.
+func (m *CalendarConnectionMutation) ClearedFields() []string {
+	return nil
+}
+
+// FieldCleared returns a boolean indicating if a field with the given name was
+// cleared in this mutation.
+func (m *CalendarConnectionMutation) FieldCleared(name string) bool {
+	_, ok := m.clearedFields[name]
+	return ok
+}
+
+// ClearField clears the value of the field with the given name. It returns an
+// error if the field is not defined in the schema.
+func (m *CalendarConnectionMutation) ClearField(name string) error {
+	return fmt.Errorf("unknown CalendarConnection nullable field %s", name)
+}
+
+// ResetField resets all changes in the mutation for the field with the given name.
+// It returns an error if the field is not defined in the schema.
+func (m *CalendarConnectionMutation) ResetField(name string) error {
+	switch name {
+	case calendarconnection.FieldUserID:
+		m.ResetUserID()
+		return nil
+	case calendarconnection.FieldSubject:
+		m.ResetSubject()
+		return nil
+	case calendarconnection.FieldEmail:
+		m.ResetEmail()
+		return nil
+	case calendarconnection.FieldSealedToken:
+		m.ResetSealedToken()
+		return nil
+	case calendarconnection.FieldStatus:
+		m.ResetStatus()
+		return nil
+	case calendarconnection.FieldCreatedAt:
+		m.ResetCreatedAt()
+		return nil
+	}
+	return fmt.Errorf("unknown CalendarConnection field %s", name)
+}
+
+// AddedEdges returns all edge names that were set/added in this mutation.
+func (m *CalendarConnectionMutation) AddedEdges() []string {
+	edges := make([]string, 0, 1)
+	if m.user != nil {
+		edges = append(edges, calendarconnection.EdgeUser)
+	}
+	return edges
+}
+
+// AddedIDs returns all IDs (to other nodes) that were added for the given edge
+// name in this mutation.
+func (m *CalendarConnectionMutation) AddedIDs(name string) []ent.Value {
+	switch name {
+	case calendarconnection.EdgeUser:
+		if id := m.user; id != nil {
+			return []ent.Value{*id}
+		}
+	}
+	return nil
+}
+
+// RemovedEdges returns all edge names that were removed in this mutation.
+func (m *CalendarConnectionMutation) RemovedEdges() []string {
+	edges := make([]string, 0, 1)
+	return edges
+}
+
+// RemovedIDs returns all IDs (to other nodes) that were removed for the edge with
+// the given name in this mutation.
+func (m *CalendarConnectionMutation) RemovedIDs(name string) []ent.Value {
+	return nil
+}
+
+// ClearedEdges returns all edge names that were cleared in this mutation.
+func (m *CalendarConnectionMutation) ClearedEdges() []string {
+	edges := make([]string, 0, 1)
+	if m.cleareduser {
+		edges = append(edges, calendarconnection.EdgeUser)
+	}
+	return edges
+}
+
+// EdgeCleared returns a boolean which indicates if the edge with the given name
+// was cleared in this mutation.
+func (m *CalendarConnectionMutation) EdgeCleared(name string) bool {
+	switch name {
+	case calendarconnection.EdgeUser:
+		return m.cleareduser
+	}
+	return false
+}
+
+// ClearEdge clears the value of the edge with the given name. It returns an error
+// if that edge is not defined in the schema.
+func (m *CalendarConnectionMutation) ClearEdge(name string) error {
+	switch name {
+	case calendarconnection.EdgeUser:
+		m.ClearUser()
+		return nil
+	}
+	return fmt.Errorf("unknown CalendarConnection unique edge %s", name)
+}
+
+// ResetEdge resets all changes to the edge with the given name in this mutation.
+// It returns an error if the edge is not defined in the schema.
+func (m *CalendarConnectionMutation) ResetEdge(name string) error {
+	switch name {
+	case calendarconnection.EdgeUser:
+		m.ResetUser()
+		return nil
+	}
+	return fmt.Errorf("unknown CalendarConnection edge %s", name)
+}
+
+// CalendarLinkMutation represents an operation that mutates the CalendarLink nodes in the graph.
+type CalendarLinkMutation struct {
+	config
+	op            Op
+	typ           string
+	id            *int
+	link_hash     *[]byte
+	state_hash    *[]byte
+	code_verifier *string
+	nonce         *string
+	created_at    *time.Time
+	expires_at    *time.Time
+	clearedFields map[string]struct{}
+	user          *uuid.UUID
+	cleareduser   bool
+	done          bool
+	oldValue      func(context.Context) (*CalendarLink, error)
+	predicates    []predicate.CalendarLink
+}
+
+var _ ent.Mutation = (*CalendarLinkMutation)(nil)
+
+// calendarlinkOption allows management of the mutation configuration using functional options.
+type calendarlinkOption func(*CalendarLinkMutation)
+
+// newCalendarLinkMutation creates new mutation for the CalendarLink entity.
+func newCalendarLinkMutation(c config, op Op, opts ...calendarlinkOption) *CalendarLinkMutation {
+	m := &CalendarLinkMutation{
+		config:        c,
+		op:            op,
+		typ:           TypeCalendarLink,
+		clearedFields: make(map[string]struct{}),
+	}
+	for _, opt := range opts {
+		opt(m)
+	}
+	return m
+}
+
+// withCalendarLinkID sets the ID field of the mutation.
+func withCalendarLinkID(id int) calendarlinkOption {
+	return func(m *CalendarLinkMutation) {
+		var (
+			err   error
+			once  sync.Once
+			value *CalendarLink
+		)
+		m.oldValue = func(ctx context.Context) (*CalendarLink, error) {
+			once.Do(func() {
+				if m.done {
+					err = errors.New("querying old values post mutation is not allowed")
+				} else {
+					value, err = m.Client().CalendarLink.Get(ctx, id)
+				}
+			})
+			return value, err
+		}
+		m.id = &id
+	}
+}
+
+// withCalendarLink sets the old CalendarLink of the mutation.
+func withCalendarLink(node *CalendarLink) calendarlinkOption {
+	return func(m *CalendarLinkMutation) {
+		m.oldValue = func(context.Context) (*CalendarLink, error) {
+			return node, nil
+		}
+		m.id = &node.ID
+	}
+}
+
+// Client returns a new `ent.Client` from the mutation. If the mutation was
+// executed in a transaction (ent.Tx), a transactional client is returned.
+func (m CalendarLinkMutation) Client() *Client {
+	client := &Client{config: m.config}
+	client.init()
+	return client
+}
+
+// Tx returns an `ent.Tx` for mutations that were executed in transactions;
+// it returns an error otherwise.
+func (m CalendarLinkMutation) Tx() (*Tx, error) {
+	if _, ok := m.driver.(*txDriver); !ok {
+		return nil, errors.New("ent: mutation is not running in a transaction")
+	}
+	tx := &Tx{config: m.config}
+	tx.init()
+	return tx, nil
+}
+
+// ID returns the ID value in the mutation. Note that the ID is only available
+// if it was provided to the builder or after it was returned from the database.
+func (m *CalendarLinkMutation) ID() (id int, exists bool) {
+	if m.id == nil {
+		return
+	}
+	return *m.id, true
+}
+
+// IDs queries the database and returns the entity ids that match the mutation's predicate.
+// That means, if the mutation is applied within a transaction with an isolation level such
+// as sql.LevelSerializable, the returned ids match the ids of the rows that will be updated
+// or updated by the mutation.
+func (m *CalendarLinkMutation) IDs(ctx context.Context) ([]int, error) {
+	switch {
+	case m.op.Is(OpUpdateOne | OpDeleteOne):
+		id, exists := m.ID()
+		if exists {
+			return []int{id}, nil
+		}
+		fallthrough
+	case m.op.Is(OpUpdate | OpDelete):
+		return m.Client().CalendarLink.Query().Where(m.predicates...).IDs(ctx)
+	default:
+		return nil, fmt.Errorf("IDs is not allowed on %s operations", m.op)
+	}
+}
+
+// SetUserID sets the "user_id" field.
+func (m *CalendarLinkMutation) SetUserID(u uuid.UUID) {
+	m.user = &u
+}
+
+// UserID returns the value of the "user_id" field in the mutation.
+func (m *CalendarLinkMutation) UserID() (r uuid.UUID, exists bool) {
+	v := m.user
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldUserID returns the old "user_id" field's value of the CalendarLink entity.
+// If the CalendarLink object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *CalendarLinkMutation) OldUserID(ctx context.Context) (v uuid.UUID, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldUserID is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldUserID requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldUserID: %w", err)
+	}
+	return oldValue.UserID, nil
+}
+
+// ResetUserID resets all changes to the "user_id" field.
+func (m *CalendarLinkMutation) ResetUserID() {
+	m.user = nil
+}
+
+// SetLinkHash sets the "link_hash" field.
+func (m *CalendarLinkMutation) SetLinkHash(b []byte) {
+	m.link_hash = &b
+}
+
+// LinkHash returns the value of the "link_hash" field in the mutation.
+func (m *CalendarLinkMutation) LinkHash() (r []byte, exists bool) {
+	v := m.link_hash
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldLinkHash returns the old "link_hash" field's value of the CalendarLink entity.
+// If the CalendarLink object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *CalendarLinkMutation) OldLinkHash(ctx context.Context) (v []byte, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldLinkHash is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldLinkHash requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldLinkHash: %w", err)
+	}
+	return oldValue.LinkHash, nil
+}
+
+// ResetLinkHash resets all changes to the "link_hash" field.
+func (m *CalendarLinkMutation) ResetLinkHash() {
+	m.link_hash = nil
+}
+
+// SetStateHash sets the "state_hash" field.
+func (m *CalendarLinkMutation) SetStateHash(b []byte) {
+	m.state_hash = &b
+}
+
+// StateHash returns the value of the "state_hash" field in the mutation.
+func (m *CalendarLinkMutation) StateHash() (r []byte, exists bool) {
+	v := m.state_hash
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldStateHash returns the old "state_hash" field's value of the CalendarLink entity.
+// If the CalendarLink object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *CalendarLinkMutation) OldStateHash(ctx context.Context) (v *[]byte, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldStateHash is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldStateHash requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldStateHash: %w", err)
+	}
+	return oldValue.StateHash, nil
+}
+
+// ClearStateHash clears the value of the "state_hash" field.
+func (m *CalendarLinkMutation) ClearStateHash() {
+	m.state_hash = nil
+	m.clearedFields[calendarlink.FieldStateHash] = struct{}{}
+}
+
+// StateHashCleared returns if the "state_hash" field was cleared in this mutation.
+func (m *CalendarLinkMutation) StateHashCleared() bool {
+	_, ok := m.clearedFields[calendarlink.FieldStateHash]
+	return ok
+}
+
+// ResetStateHash resets all changes to the "state_hash" field.
+func (m *CalendarLinkMutation) ResetStateHash() {
+	m.state_hash = nil
+	delete(m.clearedFields, calendarlink.FieldStateHash)
+}
+
+// SetCodeVerifier sets the "code_verifier" field.
+func (m *CalendarLinkMutation) SetCodeVerifier(s string) {
+	m.code_verifier = &s
+}
+
+// CodeVerifier returns the value of the "code_verifier" field in the mutation.
+func (m *CalendarLinkMutation) CodeVerifier() (r string, exists bool) {
+	v := m.code_verifier
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldCodeVerifier returns the old "code_verifier" field's value of the CalendarLink entity.
+// If the CalendarLink object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *CalendarLinkMutation) OldCodeVerifier(ctx context.Context) (v string, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldCodeVerifier is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldCodeVerifier requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldCodeVerifier: %w", err)
+	}
+	return oldValue.CodeVerifier, nil
+}
+
+// ClearCodeVerifier clears the value of the "code_verifier" field.
+func (m *CalendarLinkMutation) ClearCodeVerifier() {
+	m.code_verifier = nil
+	m.clearedFields[calendarlink.FieldCodeVerifier] = struct{}{}
+}
+
+// CodeVerifierCleared returns if the "code_verifier" field was cleared in this mutation.
+func (m *CalendarLinkMutation) CodeVerifierCleared() bool {
+	_, ok := m.clearedFields[calendarlink.FieldCodeVerifier]
+	return ok
+}
+
+// ResetCodeVerifier resets all changes to the "code_verifier" field.
+func (m *CalendarLinkMutation) ResetCodeVerifier() {
+	m.code_verifier = nil
+	delete(m.clearedFields, calendarlink.FieldCodeVerifier)
+}
+
+// SetNonce sets the "nonce" field.
+func (m *CalendarLinkMutation) SetNonce(s string) {
+	m.nonce = &s
+}
+
+// Nonce returns the value of the "nonce" field in the mutation.
+func (m *CalendarLinkMutation) Nonce() (r string, exists bool) {
+	v := m.nonce
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldNonce returns the old "nonce" field's value of the CalendarLink entity.
+// If the CalendarLink object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *CalendarLinkMutation) OldNonce(ctx context.Context) (v string, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldNonce is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldNonce requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldNonce: %w", err)
+	}
+	return oldValue.Nonce, nil
+}
+
+// ClearNonce clears the value of the "nonce" field.
+func (m *CalendarLinkMutation) ClearNonce() {
+	m.nonce = nil
+	m.clearedFields[calendarlink.FieldNonce] = struct{}{}
+}
+
+// NonceCleared returns if the "nonce" field was cleared in this mutation.
+func (m *CalendarLinkMutation) NonceCleared() bool {
+	_, ok := m.clearedFields[calendarlink.FieldNonce]
+	return ok
+}
+
+// ResetNonce resets all changes to the "nonce" field.
+func (m *CalendarLinkMutation) ResetNonce() {
+	m.nonce = nil
+	delete(m.clearedFields, calendarlink.FieldNonce)
+}
+
+// SetCreatedAt sets the "created_at" field.
+func (m *CalendarLinkMutation) SetCreatedAt(t time.Time) {
+	m.created_at = &t
+}
+
+// CreatedAt returns the value of the "created_at" field in the mutation.
+func (m *CalendarLinkMutation) CreatedAt() (r time.Time, exists bool) {
+	v := m.created_at
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldCreatedAt returns the old "created_at" field's value of the CalendarLink entity.
+// If the CalendarLink object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *CalendarLinkMutation) OldCreatedAt(ctx context.Context) (v time.Time, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldCreatedAt is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldCreatedAt requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldCreatedAt: %w", err)
+	}
+	return oldValue.CreatedAt, nil
+}
+
+// ResetCreatedAt resets all changes to the "created_at" field.
+func (m *CalendarLinkMutation) ResetCreatedAt() {
+	m.created_at = nil
+}
+
+// SetExpiresAt sets the "expires_at" field.
+func (m *CalendarLinkMutation) SetExpiresAt(t time.Time) {
+	m.expires_at = &t
+}
+
+// ExpiresAt returns the value of the "expires_at" field in the mutation.
+func (m *CalendarLinkMutation) ExpiresAt() (r time.Time, exists bool) {
+	v := m.expires_at
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldExpiresAt returns the old "expires_at" field's value of the CalendarLink entity.
+// If the CalendarLink object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *CalendarLinkMutation) OldExpiresAt(ctx context.Context) (v time.Time, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldExpiresAt is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldExpiresAt requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldExpiresAt: %w", err)
+	}
+	return oldValue.ExpiresAt, nil
+}
+
+// ResetExpiresAt resets all changes to the "expires_at" field.
+func (m *CalendarLinkMutation) ResetExpiresAt() {
+	m.expires_at = nil
+}
+
+// ClearUser clears the "user" edge to the User entity.
+func (m *CalendarLinkMutation) ClearUser() {
+	m.cleareduser = true
+	m.clearedFields[calendarlink.FieldUserID] = struct{}{}
+}
+
+// UserCleared reports if the "user" edge to the User entity was cleared.
+func (m *CalendarLinkMutation) UserCleared() bool {
+	return m.cleareduser
+}
+
+// UserIDs returns the "user" edge IDs in the mutation.
+// Note that IDs always returns len(IDs) <= 1 for unique edges, and you should use
+// UserID instead. It exists only for internal usage by the builders.
+func (m *CalendarLinkMutation) UserIDs() (ids []uuid.UUID) {
+	if id := m.user; id != nil {
+		ids = append(ids, *id)
+	}
+	return
+}
+
+// ResetUser resets all changes to the "user" edge.
+func (m *CalendarLinkMutation) ResetUser() {
+	m.user = nil
+	m.cleareduser = false
+}
+
+// Where appends a list predicates to the CalendarLinkMutation builder.
+func (m *CalendarLinkMutation) Where(ps ...predicate.CalendarLink) {
+	m.predicates = append(m.predicates, ps...)
+}
+
+// WhereP appends storage-level predicates to the CalendarLinkMutation builder. Using this method,
+// users can use type-assertion to append predicates that do not depend on any generated package.
+func (m *CalendarLinkMutation) WhereP(ps ...func(*sql.Selector)) {
+	p := make([]predicate.CalendarLink, len(ps))
+	for i := range ps {
+		p[i] = ps[i]
+	}
+	m.Where(p...)
+}
+
+// Op returns the operation name.
+func (m *CalendarLinkMutation) Op() Op {
+	return m.op
+}
+
+// SetOp allows setting the mutation operation.
+func (m *CalendarLinkMutation) SetOp(op Op) {
+	m.op = op
+}
+
+// Type returns the node type of this mutation (CalendarLink).
+func (m *CalendarLinkMutation) Type() string {
+	return m.typ
+}
+
+// Fields returns all fields that were changed during this mutation. Note that in
+// order to get all numeric fields that were incremented/decremented, call
+// AddedFields().
+func (m *CalendarLinkMutation) Fields() []string {
+	fields := make([]string, 0, 7)
+	if m.user != nil {
+		fields = append(fields, calendarlink.FieldUserID)
+	}
+	if m.link_hash != nil {
+		fields = append(fields, calendarlink.FieldLinkHash)
+	}
+	if m.state_hash != nil {
+		fields = append(fields, calendarlink.FieldStateHash)
+	}
+	if m.code_verifier != nil {
+		fields = append(fields, calendarlink.FieldCodeVerifier)
+	}
+	if m.nonce != nil {
+		fields = append(fields, calendarlink.FieldNonce)
+	}
+	if m.created_at != nil {
+		fields = append(fields, calendarlink.FieldCreatedAt)
+	}
+	if m.expires_at != nil {
+		fields = append(fields, calendarlink.FieldExpiresAt)
+	}
+	return fields
+}
+
+// Field returns the value of a field with the given name. The second boolean
+// return value indicates that this field was not set, or was not defined in the
+// schema.
+func (m *CalendarLinkMutation) Field(name string) (ent.Value, bool) {
+	switch name {
+	case calendarlink.FieldUserID:
+		return m.UserID()
+	case calendarlink.FieldLinkHash:
+		return m.LinkHash()
+	case calendarlink.FieldStateHash:
+		return m.StateHash()
+	case calendarlink.FieldCodeVerifier:
+		return m.CodeVerifier()
+	case calendarlink.FieldNonce:
+		return m.Nonce()
+	case calendarlink.FieldCreatedAt:
+		return m.CreatedAt()
+	case calendarlink.FieldExpiresAt:
+		return m.ExpiresAt()
+	}
+	return nil, false
+}
+
+// OldField returns the old value of the field from the database. An error is
+// returned if the mutation operation is not UpdateOne, or the query to the
+// database failed.
+func (m *CalendarLinkMutation) OldField(ctx context.Context, name string) (ent.Value, error) {
+	switch name {
+	case calendarlink.FieldUserID:
+		return m.OldUserID(ctx)
+	case calendarlink.FieldLinkHash:
+		return m.OldLinkHash(ctx)
+	case calendarlink.FieldStateHash:
+		return m.OldStateHash(ctx)
+	case calendarlink.FieldCodeVerifier:
+		return m.OldCodeVerifier(ctx)
+	case calendarlink.FieldNonce:
+		return m.OldNonce(ctx)
+	case calendarlink.FieldCreatedAt:
+		return m.OldCreatedAt(ctx)
+	case calendarlink.FieldExpiresAt:
+		return m.OldExpiresAt(ctx)
+	}
+	return nil, fmt.Errorf("unknown CalendarLink field %s", name)
+}
+
+// SetField sets the value of a field with the given name. It returns an error if
+// the field is not defined in the schema, or if the type mismatched the field
+// type.
+func (m *CalendarLinkMutation) SetField(name string, value ent.Value) error {
+	switch name {
+	case calendarlink.FieldUserID:
+		v, ok := value.(uuid.UUID)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetUserID(v)
+		return nil
+	case calendarlink.FieldLinkHash:
+		v, ok := value.([]byte)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetLinkHash(v)
+		return nil
+	case calendarlink.FieldStateHash:
+		v, ok := value.([]byte)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetStateHash(v)
+		return nil
+	case calendarlink.FieldCodeVerifier:
+		v, ok := value.(string)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetCodeVerifier(v)
+		return nil
+	case calendarlink.FieldNonce:
+		v, ok := value.(string)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetNonce(v)
+		return nil
+	case calendarlink.FieldCreatedAt:
+		v, ok := value.(time.Time)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetCreatedAt(v)
+		return nil
+	case calendarlink.FieldExpiresAt:
+		v, ok := value.(time.Time)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetExpiresAt(v)
+		return nil
+	}
+	return fmt.Errorf("unknown CalendarLink field %s", name)
+}
+
+// AddedFields returns all numeric fields that were incremented/decremented during
+// this mutation.
+func (m *CalendarLinkMutation) AddedFields() []string {
+	return nil
+}
+
+// AddedField returns the numeric value that was incremented/decremented on a field
+// with the given name. The second boolean return value indicates that this field
+// was not set, or was not defined in the schema.
+func (m *CalendarLinkMutation) AddedField(name string) (ent.Value, bool) {
+	return nil, false
+}
+
+// AddField adds the value to the field with the given name. It returns an error if
+// the field is not defined in the schema, or if the type mismatched the field
+// type.
+func (m *CalendarLinkMutation) AddField(name string, value ent.Value) error {
+	switch name {
+	}
+	return fmt.Errorf("unknown CalendarLink numeric field %s", name)
+}
+
+// ClearedFields returns all nullable fields that were cleared during this
+// mutation.
+func (m *CalendarLinkMutation) ClearedFields() []string {
+	var fields []string
+	if m.FieldCleared(calendarlink.FieldStateHash) {
+		fields = append(fields, calendarlink.FieldStateHash)
+	}
+	if m.FieldCleared(calendarlink.FieldCodeVerifier) {
+		fields = append(fields, calendarlink.FieldCodeVerifier)
+	}
+	if m.FieldCleared(calendarlink.FieldNonce) {
+		fields = append(fields, calendarlink.FieldNonce)
+	}
+	return fields
+}
+
+// FieldCleared returns a boolean indicating if a field with the given name was
+// cleared in this mutation.
+func (m *CalendarLinkMutation) FieldCleared(name string) bool {
+	_, ok := m.clearedFields[name]
+	return ok
+}
+
+// ClearField clears the value of the field with the given name. It returns an
+// error if the field is not defined in the schema.
+func (m *CalendarLinkMutation) ClearField(name string) error {
+	switch name {
+	case calendarlink.FieldStateHash:
+		m.ClearStateHash()
+		return nil
+	case calendarlink.FieldCodeVerifier:
+		m.ClearCodeVerifier()
+		return nil
+	case calendarlink.FieldNonce:
+		m.ClearNonce()
+		return nil
+	}
+	return fmt.Errorf("unknown CalendarLink nullable field %s", name)
+}
+
+// ResetField resets all changes in the mutation for the field with the given name.
+// It returns an error if the field is not defined in the schema.
+func (m *CalendarLinkMutation) ResetField(name string) error {
+	switch name {
+	case calendarlink.FieldUserID:
+		m.ResetUserID()
+		return nil
+	case calendarlink.FieldLinkHash:
+		m.ResetLinkHash()
+		return nil
+	case calendarlink.FieldStateHash:
+		m.ResetStateHash()
+		return nil
+	case calendarlink.FieldCodeVerifier:
+		m.ResetCodeVerifier()
+		return nil
+	case calendarlink.FieldNonce:
+		m.ResetNonce()
+		return nil
+	case calendarlink.FieldCreatedAt:
+		m.ResetCreatedAt()
+		return nil
+	case calendarlink.FieldExpiresAt:
+		m.ResetExpiresAt()
+		return nil
+	}
+	return fmt.Errorf("unknown CalendarLink field %s", name)
+}
+
+// AddedEdges returns all edge names that were set/added in this mutation.
+func (m *CalendarLinkMutation) AddedEdges() []string {
+	edges := make([]string, 0, 1)
+	if m.user != nil {
+		edges = append(edges, calendarlink.EdgeUser)
+	}
+	return edges
+}
+
+// AddedIDs returns all IDs (to other nodes) that were added for the given edge
+// name in this mutation.
+func (m *CalendarLinkMutation) AddedIDs(name string) []ent.Value {
+	switch name {
+	case calendarlink.EdgeUser:
+		if id := m.user; id != nil {
+			return []ent.Value{*id}
+		}
+	}
+	return nil
+}
+
+// RemovedEdges returns all edge names that were removed in this mutation.
+func (m *CalendarLinkMutation) RemovedEdges() []string {
+	edges := make([]string, 0, 1)
+	return edges
+}
+
+// RemovedIDs returns all IDs (to other nodes) that were removed for the edge with
+// the given name in this mutation.
+func (m *CalendarLinkMutation) RemovedIDs(name string) []ent.Value {
+	return nil
+}
+
+// ClearedEdges returns all edge names that were cleared in this mutation.
+func (m *CalendarLinkMutation) ClearedEdges() []string {
+	edges := make([]string, 0, 1)
+	if m.cleareduser {
+		edges = append(edges, calendarlink.EdgeUser)
+	}
+	return edges
+}
+
+// EdgeCleared returns a boolean which indicates if the edge with the given name
+// was cleared in this mutation.
+func (m *CalendarLinkMutation) EdgeCleared(name string) bool {
+	switch name {
+	case calendarlink.EdgeUser:
+		return m.cleareduser
+	}
+	return false
+}
+
+// ClearEdge clears the value of the edge with the given name. It returns an error
+// if that edge is not defined in the schema.
+func (m *CalendarLinkMutation) ClearEdge(name string) error {
+	switch name {
+	case calendarlink.EdgeUser:
+		m.ClearUser()
+		return nil
+	}
+	return fmt.Errorf("unknown CalendarLink unique edge %s", name)
+}
+
+// ResetEdge resets all changes to the edge with the given name in this mutation.
+// It returns an error if the edge is not defined in the schema.
+func (m *CalendarLinkMutation) ResetEdge(name string) error {
+	switch name {
+	case calendarlink.EdgeUser:
+		m.ResetUser()
+		return nil
+	}
+	return fmt.Errorf("unknown CalendarLink edge %s", name)
+}
 
 // DeviceAuthorizationMutation represents an operation that mutates the DeviceAuthorization nodes in the graph.
 type DeviceAuthorizationMutation struct {
@@ -5601,6 +7019,11 @@ type UserMutation struct {
 	time_zone                    *string
 	created_at                   *time.Time
 	clearedFields                map[string]struct{}
+	calendar_connection          *int
+	clearedcalendar_connection   bool
+	calendar_links               map[int]struct{}
+	removedcalendar_links        map[int]struct{}
+	clearedcalendar_links        bool
 	device_authorizations        map[int]struct{}
 	removeddevice_authorizations map[int]struct{}
 	cleareddevice_authorizations bool
@@ -5834,6 +7257,99 @@ func (m *UserMutation) OldCreatedAt(ctx context.Context) (v time.Time, err error
 // ResetCreatedAt resets all changes to the "created_at" field.
 func (m *UserMutation) ResetCreatedAt() {
 	m.created_at = nil
+}
+
+// SetCalendarConnectionID sets the "calendar_connection" edge to the CalendarConnection entity by id.
+func (m *UserMutation) SetCalendarConnectionID(id int) {
+	m.calendar_connection = &id
+}
+
+// ClearCalendarConnection clears the "calendar_connection" edge to the CalendarConnection entity.
+func (m *UserMutation) ClearCalendarConnection() {
+	m.clearedcalendar_connection = true
+}
+
+// CalendarConnectionCleared reports if the "calendar_connection" edge to the CalendarConnection entity was cleared.
+func (m *UserMutation) CalendarConnectionCleared() bool {
+	return m.clearedcalendar_connection
+}
+
+// CalendarConnectionID returns the "calendar_connection" edge ID in the mutation.
+func (m *UserMutation) CalendarConnectionID() (id int, exists bool) {
+	if m.calendar_connection != nil {
+		return *m.calendar_connection, true
+	}
+	return
+}
+
+// CalendarConnectionIDs returns the "calendar_connection" edge IDs in the mutation.
+// Note that IDs always returns len(IDs) <= 1 for unique edges, and you should use
+// CalendarConnectionID instead. It exists only for internal usage by the builders.
+func (m *UserMutation) CalendarConnectionIDs() (ids []int) {
+	if id := m.calendar_connection; id != nil {
+		ids = append(ids, *id)
+	}
+	return
+}
+
+// ResetCalendarConnection resets all changes to the "calendar_connection" edge.
+func (m *UserMutation) ResetCalendarConnection() {
+	m.calendar_connection = nil
+	m.clearedcalendar_connection = false
+}
+
+// AddCalendarLinkIDs adds the "calendar_links" edge to the CalendarLink entity by ids.
+func (m *UserMutation) AddCalendarLinkIDs(ids ...int) {
+	if m.calendar_links == nil {
+		m.calendar_links = make(map[int]struct{})
+	}
+	for i := range ids {
+		m.calendar_links[ids[i]] = struct{}{}
+	}
+}
+
+// ClearCalendarLinks clears the "calendar_links" edge to the CalendarLink entity.
+func (m *UserMutation) ClearCalendarLinks() {
+	m.clearedcalendar_links = true
+}
+
+// CalendarLinksCleared reports if the "calendar_links" edge to the CalendarLink entity was cleared.
+func (m *UserMutation) CalendarLinksCleared() bool {
+	return m.clearedcalendar_links
+}
+
+// RemoveCalendarLinkIDs removes the "calendar_links" edge to the CalendarLink entity by IDs.
+func (m *UserMutation) RemoveCalendarLinkIDs(ids ...int) {
+	if m.removedcalendar_links == nil {
+		m.removedcalendar_links = make(map[int]struct{})
+	}
+	for i := range ids {
+		delete(m.calendar_links, ids[i])
+		m.removedcalendar_links[ids[i]] = struct{}{}
+	}
+}
+
+// RemovedCalendarLinks returns the removed IDs of the "calendar_links" edge to the CalendarLink entity.
+func (m *UserMutation) RemovedCalendarLinksIDs() (ids []int) {
+	for id := range m.removedcalendar_links {
+		ids = append(ids, id)
+	}
+	return
+}
+
+// CalendarLinksIDs returns the "calendar_links" edge IDs in the mutation.
+func (m *UserMutation) CalendarLinksIDs() (ids []int) {
+	for id := range m.calendar_links {
+		ids = append(ids, id)
+	}
+	return
+}
+
+// ResetCalendarLinks resets all changes to the "calendar_links" edge.
+func (m *UserMutation) ResetCalendarLinks() {
+	m.calendar_links = nil
+	m.clearedcalendar_links = false
+	m.removedcalendar_links = nil
 }
 
 // AddDeviceAuthorizationIDs adds the "device_authorizations" edge to the DeviceAuthorization entity by ids.
@@ -6327,7 +7843,13 @@ func (m *UserMutation) ResetField(name string) error {
 
 // AddedEdges returns all edge names that were set/added in this mutation.
 func (m *UserMutation) AddedEdges() []string {
-	edges := make([]string, 0, 6)
+	edges := make([]string, 0, 8)
+	if m.calendar_connection != nil {
+		edges = append(edges, user.EdgeCalendarConnection)
+	}
+	if m.calendar_links != nil {
+		edges = append(edges, user.EdgeCalendarLinks)
+	}
 	if m.device_authorizations != nil {
 		edges = append(edges, user.EdgeDeviceAuthorizations)
 	}
@@ -6353,6 +7875,16 @@ func (m *UserMutation) AddedEdges() []string {
 // name in this mutation.
 func (m *UserMutation) AddedIDs(name string) []ent.Value {
 	switch name {
+	case user.EdgeCalendarConnection:
+		if id := m.calendar_connection; id != nil {
+			return []ent.Value{*id}
+		}
+	case user.EdgeCalendarLinks:
+		ids := make([]ent.Value, 0, len(m.calendar_links))
+		for id := range m.calendar_links {
+			ids = append(ids, id)
+		}
+		return ids
 	case user.EdgeDeviceAuthorizations:
 		ids := make([]ent.Value, 0, len(m.device_authorizations))
 		for id := range m.device_authorizations {
@@ -6395,7 +7927,10 @@ func (m *UserMutation) AddedIDs(name string) []ent.Value {
 
 // RemovedEdges returns all edge names that were removed in this mutation.
 func (m *UserMutation) RemovedEdges() []string {
-	edges := make([]string, 0, 6)
+	edges := make([]string, 0, 8)
+	if m.removedcalendar_links != nil {
+		edges = append(edges, user.EdgeCalendarLinks)
+	}
 	if m.removeddevice_authorizations != nil {
 		edges = append(edges, user.EdgeDeviceAuthorizations)
 	}
@@ -6421,6 +7956,12 @@ func (m *UserMutation) RemovedEdges() []string {
 // the given name in this mutation.
 func (m *UserMutation) RemovedIDs(name string) []ent.Value {
 	switch name {
+	case user.EdgeCalendarLinks:
+		ids := make([]ent.Value, 0, len(m.removedcalendar_links))
+		for id := range m.removedcalendar_links {
+			ids = append(ids, id)
+		}
+		return ids
 	case user.EdgeDeviceAuthorizations:
 		ids := make([]ent.Value, 0, len(m.removeddevice_authorizations))
 		for id := range m.removeddevice_authorizations {
@@ -6463,7 +8004,13 @@ func (m *UserMutation) RemovedIDs(name string) []ent.Value {
 
 // ClearedEdges returns all edge names that were cleared in this mutation.
 func (m *UserMutation) ClearedEdges() []string {
-	edges := make([]string, 0, 6)
+	edges := make([]string, 0, 8)
+	if m.clearedcalendar_connection {
+		edges = append(edges, user.EdgeCalendarConnection)
+	}
+	if m.clearedcalendar_links {
+		edges = append(edges, user.EdgeCalendarLinks)
+	}
 	if m.cleareddevice_authorizations {
 		edges = append(edges, user.EdgeDeviceAuthorizations)
 	}
@@ -6489,6 +8036,10 @@ func (m *UserMutation) ClearedEdges() []string {
 // was cleared in this mutation.
 func (m *UserMutation) EdgeCleared(name string) bool {
 	switch name {
+	case user.EdgeCalendarConnection:
+		return m.clearedcalendar_connection
+	case user.EdgeCalendarLinks:
+		return m.clearedcalendar_links
 	case user.EdgeDeviceAuthorizations:
 		return m.cleareddevice_authorizations
 	case user.EdgeIdentities:
@@ -6509,6 +8060,9 @@ func (m *UserMutation) EdgeCleared(name string) bool {
 // if that edge is not defined in the schema.
 func (m *UserMutation) ClearEdge(name string) error {
 	switch name {
+	case user.EdgeCalendarConnection:
+		m.ClearCalendarConnection()
+		return nil
 	}
 	return fmt.Errorf("unknown User unique edge %s", name)
 }
@@ -6517,6 +8071,12 @@ func (m *UserMutation) ClearEdge(name string) error {
 // It returns an error if the edge is not defined in the schema.
 func (m *UserMutation) ResetEdge(name string) error {
 	switch name {
+	case user.EdgeCalendarConnection:
+		m.ResetCalendarConnection()
+		return nil
+	case user.EdgeCalendarLinks:
+		m.ResetCalendarLinks()
+		return nil
 	case user.EdgeDeviceAuthorizations:
 		m.ResetDeviceAuthorizations()
 		return nil
