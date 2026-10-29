@@ -39,6 +39,9 @@ type planningSettingsWire struct {
 }
 
 type calendarSettingsWire struct {
+	// Source is "files" or "google", as [calendar] source says. Enabled and
+	// Files are about files only (ADR 0003, D9).
+	Source  string             `json:"source"`
 	Enabled bool               `json:"enabled"`
 	Files   []calendarFileWire `json:"files"`
 	// WorkingStart and WorkingEnd are HH:MM; StaleAfter is a length as a
@@ -69,6 +72,7 @@ type savePlanningParams struct {
 
 type saveCalendarParams struct {
 	Revision           string    `json:"revision"`
+	Source             *string   `json:"source"`
 	Enabled            *bool     `json:"enabled"`
 	Paths              *[]string `json:"paths"`
 	WorkingStart       *string   `json:"workingStart"`
@@ -76,6 +80,14 @@ type saveCalendarParams struct {
 	IncludeAllDay      *bool     `json:"includeAllDay"`
 	IncludeTransparent *bool     `json:"includeTransparent"`
 	StaleAfter         *string   `json:"staleAfter"`
+}
+
+// calendarSource is the source [calendar] names, files when it names none.
+func calendarSource(settings config.CalendarConfig) string {
+	if settings.Source == "" {
+		return config.CalendarSourceFiles
+	}
+	return settings.Source
 }
 
 // settings answers with what the Settings tabs show. The file has been read
@@ -93,6 +105,7 @@ func (s *Server) settings(ctx context.Context) (*settingsResult, error) {
 			WeekdayCapacity: map[string]string{},
 		},
 		Calendar: calendarSettingsWire{
+			Source:             calendarSource(s.config.Calendar),
 			Enabled:            s.config.Calendar.Enabled,
 			Files:              []calendarFileWire{},
 			WorkingStart:       s.config.Calendar.WorkingStart,
@@ -142,7 +155,7 @@ func (s *Server) savePlanning(ctx context.Context, p savePlanningParams) (*setti
 func (s *Server) saveCalendar(ctx context.Context, p saveCalendarParams) (*settingsResult, error) {
 	home, _ := os.UserHomeDir()
 	patch := config.CalendarPatch{
-		Enabled: p.Enabled, Paths: p.Paths, WorkingStart: p.WorkingStart, WorkingEnd: p.WorkingEnd,
+		Source: p.Source, Enabled: p.Enabled, Paths: p.Paths, WorkingStart: p.WorkingStart, WorkingEnd: p.WorkingEnd,
 		IncludeAllDay: p.IncludeAllDay, IncludeTransparent: p.IncludeTransparent, StaleAfter: p.StaleAfter,
 	}.Normalized(home)
 	return s.saveConfig(ctx, p.Revision, func(store *config.FileProjectCatalogStore, snapshot config.ProjectCatalogSnapshot) error {
