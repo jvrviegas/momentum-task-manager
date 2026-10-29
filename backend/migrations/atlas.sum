@@ -1,5 +1,6 @@
-h1:ZO50p9I1YffS1CU/jeFOfV9IFbTzontN3rxAYaIT3mw=
+h1:z/3Sz/VnkStmFgUSOqdEmvHBQ2Q192DWmJnzAQdGQWg=
 20261014175612_init.sql h1:bXwm4mh5ORaHI7Uq/355mh8LOdNAIQW05FEKRQaN/v4=
 20261014214921_device_sign_in.sql h1:oexGfhv6ghPcqDOy6/yHc2RbvHhyVf2sZURqBK9ATHk=
 20261015213017_idempotency_keys.sql h1:DrzDWblqCfrdGt34qwo7T0W59KcfUPk/GkBFtJ7A60g=
 20261015224234_task_event_changes.sql h1:HnWLZ1TQhlkWSJr0mSPxnxCOflyFPUYCgj38fiWeUBY=
+20261029122410_google_calendar.sql h1:lZijbNQAIMHGg65zTd2+oxbOtKF/N+ciiNZNrGyOUVo=
