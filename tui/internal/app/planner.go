@@ -2,6 +2,7 @@ package app
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"os"
 	"sort"
@@ -28,8 +29,18 @@ type CalendarState struct {
 	Err          string
 }
 
+// GoogleCalendarClient is what a server client offers when it can read the
+// account's Google Calendar (ADR 0003). The planner asks for it apart from
+// Client, so a client that cannot read it only leaves a Google source
+// unavailable.
+type GoogleCalendarClient interface {
+	GoogleCalendarEvents(ctx context.Context, start, end time.Time) ([]calendar.Event, error)
+}
+
 // OpenPlanner opens the task-only ritual immediately, then optionally loads
-// configured local ICS sources without blocking the Bubble Tea update loop.
+// the calendar, from local ICS files or from Google Calendar, without blocking
+// the Bubble Tea update loop. A Google source counts whatever [calendar]
+// enabled says.
 func (m *Model) OpenPlanner() tea.Cmd {
 	if m == nil || m.MutationRunning || m.ActiveView == ViewSettings || !m.Config.Planning.Enabled {
 		return nil
@@ -39,11 +50,12 @@ func (m *Model) OpenPlanner() tea.Cmd {
 	m.Planner.SetSize(m.Width, m.Height)
 	m.Planner.OpenPlan(m.DailyPlan.Date, plannerItems(m.DailyPlan), plannerSummary(m.DailyPlan.Capacity, m.CalendarResult))
 	m.Overlay = OverlayPlanner
-	if !m.Config.Calendar.Enabled {
+	if !m.Config.Calendar.Enabled && m.Config.Calendar.Source != config.CalendarSourceGoogle {
 		return nil
 	}
+	google, _ := m.Client.(GoogleCalendarClient)
 	m.CalendarID++
-	return CalendarCommand(m.ctx, m.CalendarID, m.Config.Calendar, m.now())
+	return CalendarCommand(m.ctx, m.CalendarID, m.Config.Calendar, google, m.now())
 }
 
 func (m *Model) refreshDailyPlanView() {
@@ -100,20 +112,32 @@ func (m *Model) applyCalendar(message CalendarMsg) tea.Cmd {
 	return nil
 }
 
-// CalendarCommand reads local ICS sources and returns only busy-minute/count
-// summaries. It is safe to run while the planner remains interactive.
-func CalendarCommand(ctx context.Context, id uint64, settings config.CalendarConfig, now time.Time) tea.Cmd {
+// CalendarCommand reads the calendar and returns only busy-minute/count
+// summaries and the day's events. The calendar is Google Calendar, through
+// google, when settings say so, and the local ICS files otherwise. It is safe
+// to run while the planner remains interactive.
+func CalendarCommand(ctx context.Context, id uint64, settings config.CalendarConfig, google GoogleCalendarClient, now time.Time) tea.Cmd {
 	return func() tea.Msg {
-		home, _ := os.UserHomeDir()
-		result := calendar.Load(ctx, calendar.Options{
-			Paths:              settings.PathsFor(home),
+		options := calendar.Options{
 			IncludeAllDay:      settings.IncludeAllDay,
 			IncludeTransparent: settings.IncludeTransparent,
 			WorkingStart:       settings.WorkingStart,
 			WorkingEnd:         settings.WorkingEnd,
 			StaleAfter:         settings.StaleAfter,
 			Now:                now,
-		})
+		}
+		var result calendar.LoadResult
+		if settings.Source == config.CalendarSourceGoogle {
+			events, err := googleToday(ctx, google, now)
+			if err != nil {
+				return CalendarMsg{ID: id, Result: CalendarState{Err: conciseError(err)}}
+			}
+			result = calendar.FromEvents(events, options)
+		} else {
+			home, _ := os.UserHomeDir()
+			options.Paths = settings.PathsFor(home)
+			result = calendar.Load(ctx, options)
+		}
 		state := CalendarState{Stale: result.Stale}
 		if result.Err != nil {
 			state.Err = conciseError(result.Err)
@@ -133,6 +157,17 @@ func CalendarCommand(ctx context.Context, id uint64, settings config.CalendarCon
 		sort.SliceStable(state.Events, func(i, j int) bool { return state.Events[i].Start.Before(state.Events[j].Start) })
 		return CalendarMsg{ID: id, Result: state}
 	}
+}
+
+// googleToday reads the events of the device's day from Google Calendar, whose
+// answer is never stale. The day is the device's own, as all-day events follow
+// it.
+func googleToday(ctx context.Context, google GoogleCalendarClient, now time.Time) ([]calendar.Event, error) {
+	if google == nil {
+		return nil, errors.New("Google Calendar needs a Momentum server")
+	}
+	start := time.Date(now.Year(), now.Month(), now.Day(), 0, 0, 0, 0, now.Location())
+	return google.GoogleCalendarEvents(ctx, start, start.AddDate(0, 0, 1))
 }
 
 func planningConstraints(settings config.Config, calendarState CalendarState, now time.Time) domain.PlanningConstraints {
