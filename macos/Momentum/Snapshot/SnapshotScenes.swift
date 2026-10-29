@@ -59,6 +59,14 @@ struct SnapshotScene {
         var noProjects = SnapshotBridge.Config()
         noProjects.projectRows = []
 
+        // Google Calendar: the server offers it, and the account has or has not connected it.
+        var googleConnected = SnapshotBridge.Config()
+        googleConnected.googleStatus = GoogleCalendarStatus(offered: true, connected: true, email: "joao@gmail.com", needsReconnect: false)
+        var googleNotOffered = SnapshotBridge.Config()
+        googleNotOffered.googleStatus = GoogleCalendarStatus(offered: false, connected: false, email: nil, needsReconnect: false)
+        var googleExpiring = SnapshotBridge.Config()
+        googleExpiring.googleLinkLifetime = 0.1
+
         var problems = SnapshotBridge.Config()
         problems.doctor = DoctorReport(
             configPath: "~/.config/momentum/config.toml", bridgeVersion: "v0.1.0-12-g4bafc30",
@@ -184,6 +192,36 @@ struct SnapshotScene {
             SnapshotScene(
                 name: "settings-calendar-denied", macAccess: .denied,
                 run: { await $0.store.macCalendar.choose(.mac); await $0.openSettings(.calendar) }),
+            SnapshotScene(
+                name: "settings-calendar-google-connect",
+                run: { await $0.store.settings.reload(); await $0.store.settings.chooseCalendarSource(.google); await $0.openSettings(.calendar) }),
+            SnapshotScene(
+                name: "settings-calendar-google-waiting",
+                run: {
+                    await $0.store.settings.reload()
+                    await $0.store.settings.chooseCalendarSource(.google)
+                    await $0.openSettings(.calendar)
+                    $0.store.googleCalendar.connect()
+                    await $0.settle(600)
+                }),
+            SnapshotScene(
+                name: "settings-calendar-google", config: googleConnected,
+                run: { await $0.store.settings.reload(); await $0.store.settings.chooseCalendarSource(.google); await $0.openSettings(.calendar) }),
+            SnapshotScene(
+                name: "settings-calendar-google-not-offered", config: googleNotOffered,
+                run: { await $0.store.settings.reload(); await $0.store.settings.chooseCalendarSource(.google); await $0.openSettings(.calendar) }),
+            SnapshotScene(
+                name: "settings-calendar-google-signed-out", signedIn: false,
+                run: { await $0.store.settings.reload(); await $0.store.settings.chooseCalendarSource(.google); await $0.openSettings(.calendar) }),
+            SnapshotScene(
+                name: "settings-calendar-google-error", config: googleExpiring,
+                run: {
+                    await $0.store.settings.reload()
+                    await $0.store.settings.chooseCalendarSource(.google)
+                    await $0.openSettings(.calendar)
+                    $0.store.googleCalendar.connect()
+                    await $0.settle(3000)
+                }),
             SnapshotScene(name: "settings-diagnostics", run: { await $0.openSettings(.diagnostics) }),
             SnapshotScene(name: "settings-diagnostics-problems", config: problems, run: { await $0.openSettings(.diagnostics) }),
             SnapshotScene(name: "settings-diagnostics-config-error", config: badConfig, run: { await $0.openSettings(.diagnostics) }),
