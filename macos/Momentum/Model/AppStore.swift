@@ -73,6 +73,8 @@ final class AppStore {
     let signIns: any SignInStore
     /// The Planning and Calendar tabs of Settings.
     let settings = SettingsModel()
+    /// The Calendar tab's macOS Calendar source, kept on this Mac.
+    let macCalendar: MacCalendarModel
 
     private(set) var status: BridgeStatus?
     private(set) var startupError: String?
@@ -112,12 +114,15 @@ final class AppStore {
 
     init(
         bridge: any TaskBridge, signIns: any SignInStore = KeychainSignInStore(),
+        calendarSource: any CalendarEventSource = NoCalendarSource(), calendarDefaults: UserDefaults = .standard,
         sleep: @escaping @Sendable (TimeInterval) async throws -> Void = { try await Task.sleep(for: .seconds($0)) }
     ) {
         self.bridge = bridge
         self.signIns = signIns
         self.sleep = sleep
+        macCalendar = MacCalendarModel(eventSource: calendarSource, defaults: calendarDefaults)
         settings.store = self
+        macCalendar.store = self
     }
 
     // MARK: Derived state
@@ -214,7 +219,7 @@ final class AppStore {
     func refresh(announce: Bool = false) async {
         lastRefresh = .now
         do {
-            let snapshot = try await bridge.load()
+            let snapshot = try await bridge.load(calendar: macCalendar.input(titles: false))
             noteServer(nil)
             let previousOrder = visibleTasks.map(\.uuid)
             self.snapshot = snapshot
@@ -381,7 +386,7 @@ final class AppStore {
     func openPlan() async {
         guard planningEnabled, account != nil, !hasOverlay else { return }
         do {
-            let plan = try await bridge.plan()
+            let plan = try await bridge.plan(calendar: macCalendar.input(titles: true))
             noteServer(nil)
             planSheet = PlanSheet(plan: plan)
         } catch {
