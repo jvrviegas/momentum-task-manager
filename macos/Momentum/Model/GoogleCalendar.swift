@@ -41,6 +41,17 @@ final class GoogleCalendarModel {
     static let pollInterval: TimeInterval = 2
 
     private(set) var phase = Phase.checking
+    /// The prompt that asks before a disconnect, which the button opens.
+    var confirmingDisconnect = false
+    /// A disconnect is with the server.
+    private(set) var disconnecting = false
+    /// Why the last disconnect failed. Nothing changed.
+    private(set) var disconnectError: String?
+    /// The last disconnect could not ask Google to revoke the access, which
+    /// may still show in the Google account's settings. It is kept until the
+    /// person connects again, and not past the app, since it is about
+    /// something that already happened.
+    private(set) var notRevoked = false
     /// Where the account stood the last time the server said, which Cancel and
     /// an expired link go back to.
     @ObservationIgnored private var resting = Phase.notConnected
@@ -72,6 +83,8 @@ final class GoogleCalendarModel {
         do {
             phase = Self.phase(for: try await store.bridge.calendarStatus())
             resting = phase
+            disconnectError = nil
+            if email != nil { notRevoked = false }
         } catch {
             phase = .failed(error.localizedDescription)
         }
@@ -84,9 +97,42 @@ final class GoogleCalendarModel {
     @discardableResult
     func connect() -> Task<Void, Never> {
         polling?.cancel()
+        notRevoked = false
         let task = Task { await runConnect() }
         polling = task
         return task
+    }
+
+    /// The Google account the tab is about, while it is connected or needs
+    /// reconnecting.
+    var email: String? {
+        switch phase {
+        case .connected(let email), .needsReconnecting(let email): email
+        default: nil
+        }
+    }
+
+    /// Ends the connection, which belongs to the account, so it ends it for
+    /// every Mac and the terminal app. The server deletes it even when Google
+    /// could not be asked to revoke the access, and says so. A disconnect that
+    /// fails changes nothing, and the button is the way to try again. The app
+    /// loads again, so Plan Today and the meter give up the meetings at once.
+    func disconnect() async {
+        confirmingDisconnect = false
+        guard let store, email != nil, !disconnecting else { return }
+        disconnecting = true
+        defer { disconnecting = false }
+        disconnectError = nil
+        do {
+            let answer = try await store.bridge.disconnectCalendar()
+            phase = .notConnected
+            resting = .notConnected
+            notRevoked = !answer.revoked
+        } catch {
+            disconnectError = error.localizedDescription
+            return
+        }
+        await store.refresh()
     }
 
     /// Stops waiting for the browser. Nothing is connected, so the tab goes
