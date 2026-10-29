@@ -83,6 +83,24 @@ struct CalendarChange: Encodable, Sendable, Equatable {
     var staleAfter: String?
 }
 
+/// What stands in for the calendar files when this Mac's source is macOS
+/// Calendar, which only the app can read: today's events, or why there are
+/// none ("no access"). Event titles go only with a plan.
+struct CalendarInput: Encodable, Sendable, Equatable {
+    var error: String?
+    var events: [CalendarEvent]
+}
+
+/// One event as the Mac's Calendar has it. A free event is one the calendar
+/// shows as free rather than busy.
+struct CalendarEvent: Encodable, Sendable, Equatable {
+    var start: Date
+    var end: Date
+    var allDay: Bool
+    var free: Bool
+    var title: String?
+}
+
 /// A started device sign-in: show userCode, open verificationUrlComplete, and
 /// poll with deviceCode every intervalSeconds until expiresAt.
 struct DeviceSignIn: Decodable, Sendable, Equatable {
