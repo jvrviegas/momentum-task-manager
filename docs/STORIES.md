@@ -799,7 +799,7 @@ Depends: S-058
 Decisions: D7
 Acceptance:
 - [unit] Go, bridge with a fake server: `plan` always asks the server for events; a `load` within five minutes of the last fetch reuses its busy time and asks again after five; a reused answer carries no titles.
-- [unit] Go: a change to the working hours, the event choices or the source makes the next `load` fetch again, so S-046's "applies at once" still holds.
+- [unit] Go: a load keeps the day's events, not the busy minutes, so a change to the working hours or the event choices applies to the next load at once with no new fetch, which keeps S-046's "applies at once"; a failure is never kept, and another account's events are never reused.
 - [manual] Add a meeting in Google, open Plan Today and see it counted; close the sheet and see the sidebar's meter follow within five minutes.
 Status: todo
 
