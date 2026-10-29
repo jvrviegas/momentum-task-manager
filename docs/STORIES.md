@@ -739,7 +739,7 @@ Status: deferred
 
 Count the meetings in my Google Calendar against each day's capacity, on every machine I use. Plan: [`docs/plans/google-calendar.md`](./plans/google-calendar.md). Story to task: S-057 G02 to G09 for connecting, and G11; S-058 G05, G08 and G09; S-059 G05; S-060 G09; S-061 G05 and G11; S-062 G05 and G11; S-063 G10's `doctor` check; S-064 G10. Task G01 (the ADR) goes with S-057 and task G12 (docs) with the last story.
 
-The plan's decisions D1–D9 were approved on 2026-10-29, each as recommended, and no story is started. Each story's `Decisions:` line names the ones it rests on. If a decision changes, only the stories that name it change.
+The plan's decisions D1–D9 were approved on 2026-10-29, each as recommended. Stories S-057 to S-064 are done by their tests and snapshot pages; what is left is the Cloud steps of plan C1, which are the owner's, and each story's manual check against a real Google account. Each story's `Decisions:` line names the ones it rests on. If a decision changes, only the stories that name it change.
 
 M8 steps outside the Mac app in one place: S-064 is the terminal app's side (plan G10), which D6 asks for so that both apps on a machine agree. It stays in M8 (decided 2026-10-29).
 
