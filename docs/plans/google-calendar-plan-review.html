@@ -1,0 +1,601 @@
+<!doctype html>
+<html lang="pt-PT">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Google Calendar · Revisão do Plano</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500&family=IBM+Plex+Sans+Condensed:wght@500;600;700&family=IBM+Plex+Sans:ital,wght@0,400;0,500;0,600;1,400&display=swap">
+<style>
+:root {
+  color-scheme: light;
+  --paper: #f5f7fa;
+  --surface: #ffffff;
+  --surface-2: #eef1f5;
+  --ink: #18212c;
+  --ink-2: #4a5666;
+  --ink-3: #6f7b8b;
+  --rule: #d8dee6;
+  --accent: #2b5d8a;
+  --accent-soft: #e3ecf5;
+  --producing: #2c8a57;
+  --producing-soft: #e1f2e8;
+  --stopped: #c0492f;
+  --stopped-soft: #f8e5e0;
+  --unknown: #7c8695;
+  --unknown-soft: #eceef1;
+  --new: #2c8a57;
+  --mod: #a86a12;
+  --mod-soft: #f6ecda;
+  --warn-bg: #fbf3e2;
+  --warn-rule: #e3c98f;
+  --f-display: "IBM Plex Sans Condensed", "Arial Narrow", system-ui, sans-serif;
+  --f-body: "IBM Plex Sans", system-ui, -apple-system, "Segoe UI", sans-serif;
+  --f-mono: "IBM Plex Mono", ui-monospace, "SFMono-Regular", Menlo, monospace;
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    color-scheme: dark;
+    --paper: #11161d;
+    --surface: #18202a;
+    --surface-2: #1f2934;
+    --ink: #e6ebf1;
+    --ink-2: #b1bcc9;
+    --ink-3: #8894a3;
+    --rule: #2d3947;
+    --accent: #7fb0dc;
+    --accent-soft: #1d2d3e;
+    --producing: #5cc28a;
+    --producing-soft: #16301f;
+    --stopped: #ee7c62;
+    --stopped-soft: #3a1f19;
+    --unknown: #9aa4b2;
+    --unknown-soft: #252d37;
+    --new: #5cc28a;
+    --mod: #e0a94f;
+    --mod-soft: #33271a;
+    --warn-bg: #2c2517;
+    --warn-rule: #6b5628;
+  }
+}
+:root[data-theme="dark"] {
+  color-scheme: dark;
+  --paper: #11161d;
+  --surface: #18202a;
+  --surface-2: #1f2934;
+  --ink: #e6ebf1;
+  --ink-2: #b1bcc9;
+  --ink-3: #8894a3;
+  --rule: #2d3947;
+  --accent: #7fb0dc;
+  --accent-soft: #1d2d3e;
+  --producing: #5cc28a;
+  --producing-soft: #16301f;
+  --stopped: #ee7c62;
+  --stopped-soft: #3a1f19;
+  --unknown: #9aa4b2;
+  --unknown-soft: #252d37;
+  --new: #5cc28a;
+  --mod: #e0a94f;
+  --mod-soft: #33271a;
+  --warn-bg: #2c2517;
+  --warn-rule: #6b5628;
+}
+
+* { box-sizing: border-box; }
+html { -webkit-text-size-adjust: 100%; }
+body {
+  margin: 0;
+  background: var(--paper);
+  color: var(--ink);
+  font: 400 16px/1.6 var(--f-body);
+  padding: 0 16px;
+  padding-block: 40px 80px;
+}
+.wrap { max-width: 860px; margin: 0 auto; display: grid; gap: 56px; }
+h1, h2, h3 { font-family: var(--f-display); text-wrap: balance; line-height: 1.15; margin: 0; }
+h1 { font-size: clamp(30px, 5vw, 42px); font-weight: 700; letter-spacing: -0.01em; }
+h2 { font-size: 26px; font-weight: 600; }
+h3 { font-size: 19px; font-weight: 600; }
+p { margin: 0; max-width: 68ch; }
+code, .mono { font-family: var(--f-mono); font-size: 0.86em; }
+code { background: var(--surface-2); padding: 1px 5px; border-radius: 4px; word-break: break-word; }
+a { color: var(--accent); }
+.eyebrow {
+  font: 500 12px/1 var(--f-mono);
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--ink-3);
+}
+section { display: grid; gap: 18px; }
+.lede { font-size: 18px; color: var(--ink-2); }
+.muted { color: var(--ink-2); }
+
+/* Header */
+header { display: grid; gap: 16px; }
+.meta { display: flex; flex-wrap: wrap; gap: 8px 20px; font-size: 14px; color: var(--ink-2); }
+.meta b { color: var(--ink); font-weight: 600; }
+.facts { display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: 1px; background: var(--rule); border: 1px solid var(--rule); border-radius: 8px; overflow: hidden; }
+.fact { background: var(--surface); padding: 14px 16px; display: grid; gap: 2px; }
+.fact .n { font: 600 24px/1.1 var(--f-display); font-variant-numeric: tabular-nums; }
+.fact .l { font-size: 13px; color: var(--ink-2); }
+
+/* Flow diagram */
+.flow { display: grid; gap: 0; }
+.hop { display: grid; grid-template-columns: 40px 1fr; gap: 14px; align-items: start; }
+.hop .rail { display: flex; flex-direction: column; align-items: center; height: 100%; }
+.hop .dot { width: 28px; height: 28px; border-radius: 50%; border: 2px solid var(--accent); background: var(--surface); color: var(--accent); font: 600 13px/24px var(--f-mono); text-align: center; flex: none; }
+.hop .line { flex: 1; width: 2px; background: var(--rule); min-height: 16px; }
+.hop:last-child .line { display: none; }
+.hop .body { padding-bottom: 22px; display: grid; gap: 6px; }
+.hop .body h3 { font-size: 17px; }
+.where { font: 400 13px/1.4 var(--f-mono); color: var(--ink-3); }
+.hop.external .dot { border-color: var(--ink-3); color: var(--ink-3); }
+
+/* File map */
+.files { display: grid; gap: 10px; }
+.file { display: grid; grid-template-columns: auto 1fr; gap: 4px 14px; align-items: baseline; background: var(--surface); border: 1px solid var(--rule); border-radius: 8px; padding: 14px 16px; }
+.file .path { font: 500 14px/1.4 var(--f-mono); word-break: break-all; }
+.file p { grid-column: 2; font-size: 15px; color: var(--ink-2); }
+.tag { font: 600 11px/1 var(--f-mono); letter-spacing: 0.06em; text-transform: uppercase; padding: 5px 7px; border-radius: 4px; white-space: nowrap; }
+.tag.new { color: var(--new); background: var(--producing-soft); }
+.tag.mod { color: var(--mod); background: var(--mod-soft); }
+.tag.keep { color: var(--ink-3); background: var(--unknown-soft); }
+.group-label { font: 600 13px/1 var(--f-display); letter-spacing: 0.04em; text-transform: uppercase; color: var(--ink-3); margin-top: 8px; }
+
+/* State lamps */
+.lamps { display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 12px; }
+.lamp { border-radius: 8px; padding: 16px; display: grid; gap: 8px; border: 1px solid var(--rule); background: var(--surface); }
+.lamp .head { display: flex; align-items: center; gap: 10px; font: 600 18px/1 var(--f-display); }
+.lamp .bulb { width: 14px; height: 14px; border-radius: 50%; flex: none; }
+.lamp.producing .bulb { background: var(--producing); box-shadow: 0 0 0 4px var(--producing-soft); }
+.lamp.stopped .bulb { background: var(--stopped); box-shadow: 0 0 0 4px var(--stopped-soft); }
+.lamp.unknown .bulb { background: var(--unknown); box-shadow: 0 0 0 4px var(--unknown-soft); }
+.lamp .codes { font: 500 14px/1.4 var(--f-mono); color: var(--ink-2); }
+.lamp p { font-size: 15px; color: var(--ink-2); }
+
+/* Tables */
+.tbl { overflow-x: auto; border: 1px solid var(--rule); border-radius: 8px; background: var(--surface); }
+table { border-collapse: collapse; width: 100%; font-size: 15px; }
+th, td { text-align: left; vertical-align: top; padding: 10px 14px; border-bottom: 1px solid var(--rule); }
+th { font: 600 12px/1.3 var(--f-mono); letter-spacing: 0.05em; text-transform: uppercase; color: var(--ink-3); background: var(--surface-2); }
+tr:last-child td { border-bottom: 0; }
+td.k { font-family: var(--f-mono); font-size: 13.5px; white-space: nowrap; }
+
+/* Decisions */
+.decisions { display: grid; gap: 12px; }
+.dec { background: var(--surface); border: 1px solid var(--rule); border-radius: 8px; padding: 16px 18px; display: grid; gap: 8px; }
+.dec.flag { border-color: var(--warn-rule); background: var(--warn-bg); }
+.dec .top { display: flex; gap: 12px; align-items: baseline; justify-content: space-between; flex-wrap: wrap; }
+.dec .id { font: 600 13px/1 var(--f-mono); color: var(--accent); margin-right: 8px; }
+.dec h3 { font-size: 18px; display: inline; }
+.dec .why { font-size: 15px; color: var(--ink-2); }
+.dec .mean { font-size: 15px; }
+.dec .mean b { font-weight: 600; }
+.check { display: inline-flex; align-items: center; gap: 8px; font-size: 14px; color: var(--ink-2); cursor: pointer; user-select: none; }
+.check input { width: 18px; height: 18px; accent-color: var(--producing); cursor: pointer; }
+.check input:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+.pill { font: 600 11px/1 var(--f-mono); letter-spacing: 0.05em; text-transform: uppercase; padding: 4px 7px; border-radius: 4px; color: var(--mod); background: var(--mod-soft); }
+.progress { font-size: 14px; color: var(--ink-2); font-variant-numeric: tabular-nums; }
+.note-toggle { justify-self: start; font: 500 13px/1 var(--f-body); color: var(--accent); background: none; border: 1px dashed var(--rule); border-radius: 4px; padding: 6px 10px; cursor: pointer; }
+.note-toggle:hover { border-color: var(--accent); }
+.note-toggle.has-note { border-style: solid; border-color: var(--accent); }
+.note-toggle:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+.note-field { width: 100%; min-height: 72px; resize: vertical; font: 400 15px/1.5 var(--f-body); color: var(--ink); background: var(--surface); border: 1px solid var(--rule); border-radius: 6px; padding: 8px 10px; }
+.note-field:focus-visible { outline: 2px solid var(--accent); outline-offset: 1px; }
+.note-field[hidden] { display: none; }
+
+/* Notes */
+.note { border-left: 3px solid var(--warn-rule); background: var(--warn-bg); padding: 14px 16px; border-radius: 0 8px 8px 0; display: grid; gap: 6px; }
+.note h3 { font-size: 17px; }
+ul.plain { margin: 0; padding-left: 20px; display: grid; gap: 6px; max-width: 70ch; }
+.two { display: grid; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); gap: 16px; }
+.box { background: var(--surface); border: 1px solid var(--rule); border-radius: 8px; padding: 16px 18px; display: grid; gap: 10px; }
+
+/* Steps */
+ol.steps { list-style: none; margin: 0; padding: 0; display: grid; gap: 1px; background: var(--rule); border: 1px solid var(--rule); border-radius: 8px; overflow: hidden; counter-reset: s; }
+ol.steps li { background: var(--surface); padding: 12px 16px; display: grid; grid-template-columns: 44px 1fr auto; gap: 12px; align-items: baseline; counter-increment: s; }
+ol.steps li::before { content: "T" counter(s); font: 600 14px/1 var(--f-mono); color: var(--accent); }
+ol.steps .what { display: grid; gap: 2px; }
+ol.steps .what span { font-size: 14px; color: var(--ink-2); }
+ol.steps .c { font: 400 12.5px/1.3 var(--f-mono); color: var(--ink-3); text-align: right; }
+@media (max-width: 560px) {
+  ol.steps li { grid-template-columns: 36px 1fr; }
+  ol.steps .c { grid-column: 2; text-align: left; }
+  .file { grid-template-columns: 1fr; }
+  .file p { grid-column: 1; }
+}
+footer { font-size: 14px; color: var(--ink-3); border-top: 1px solid var(--rule); padding-top: 18px; }
+@media (prefers-reduced-motion: no-preference) {
+  .check input { transition: transform .12s; }
+  .check input:active { transform: scale(.92); }
+}
+</style>
+</head>
+<body>
+<div class="wrap">
+
+<header>
+  <div class="eyebrow">Revisão do plano · Google Calendar · servidor, TUI e app macOS</div>
+  <h1>Contar as reuniões do Google Calendar no planeamento do dia</h1>
+  <p class="lede">Hoje o Momentum só lê ficheiros <span class="mono">.ics</span> locais para saber quanto tempo do dia já está ocupado. Este plano liga a tua conta Google ao servidor Momentum, que passa a ler as reuniões do dia no Google Calendar e as entrega ao TUI e à app macOS. Cada máquina escolhe se usa o Google.</p>
+  <div class="meta">
+    <span><b>Repo</b> jvrviegas/momentum-task-manager</span>
+    <span><b>Branch a partir de</b> <span class="mono">main</span> (bcde650, local)</span>
+    <span><b>Plano</b> <span class="mono">docs/plans/google-calendar.md</span></span>
+    <span><b>Prazo</b> sem prazo</span>
+  </div>
+  <div class="facts">
+    <div class="fact"><span class="n">8</span><span class="l">decisões para aprovar</span></div>
+    <div class="fact"><span class="n">11</span><span class="l">consequências</span></div>
+    <div class="fact"><span class="n">12</span><span class="l">tarefas</span></div>
+    <div class="fact"><span class="n">4</span><span class="l">passos na Google Cloud</span></div>
+  </div>
+</header>
+
+<section>
+  <div class="eyebrow">A ideia num minuto</div>
+  <h2>O que vai ser construído</h2>
+  <p>Uma ligação ao Google Calendar guardada no servidor Momentum, uma vez por conta. Ligas uma vez no browser; depois, em cada máquina onde escolhes o Google, o Plan Today e a caixa "Today’s plan" da barra lateral descontam o tempo das tuas reuniões, como já fazem com ficheiros.</p>
+  <ul class="plain">
+    <li><b>Quanto do meu dia já está ocupado?</b> As reuniões do calendário principal, dentro do horário de trabalho, com as sobreposições contadas uma vez.</li>
+    <li><b>Que reuniões são?</b> O Plan Today mostra os blocos ocupados com os títulos ao passar o rato, como hoje.</li>
+    <li><b>E se o Google falhar?</b> O calendário fica indisponível, conta zero minutos e o planeamento continua só com tarefas.</li>
+  </ul>
+  <p class="muted">O servidor não guarda nem regista eventos: guarda só o token do Google, cifrado, e o email da conta Google ligada. Nada é escrito no Google Calendar.</p>
+</section>
+
+<section>
+  <div class="eyebrow">Onde acontece</div>
+  <h2>O percurso de uma ligação e de uma leitura</h2>
+  <div class="flow">
+    <div class="hop external">
+      <div class="rail"><span class="dot">·</span><span class="line"></span></div>
+      <div class="body"><h3>Pedes para ligar o Google Calendar</h3><p class="muted">No separador Calendar das definições do Mac, ou com <span class="mono">momentum calendar connect</span> no terminal.</p></div>
+    </div>
+    <div class="hop">
+      <div class="rail"><span class="dot">1</span><span class="line"></span></div>
+      <div class="body">
+        <h3>A app pede ao servidor um link de uso único</h3>
+        <p class="muted">O link vale 10 minutos e pertence à tua conta Momentum.</p>
+        <span class="where">core/api · POST /v1/calendar/google/connect; backend/internal/calendar (novo)</span>
+      </div>
+    </div>
+    <div class="hop">
+      <div class="rail"><span class="dot">2</span><span class="line"></span></div>
+      <div class="body">
+        <h3>O browser abre o link</h3>
+        <p class="muted">A página diz a que conta Momentum vais ligar o calendário e guarda um cookie que prende o resto do percurso a este browser, como o sign-in já faz.</p>
+        <span class="where">backend/internal/httpapi · GET /calendar/connect/{link} (novo)</span>
+      </div>
+    </div>
+    <div class="hop">
+      <div class="rail"><span class="dot">3</span><span class="line"></span></div>
+      <div class="body">
+        <h3>O Google pede-te autorização e devolve-te ao servidor</h3>
+        <p class="muted">O servidor confere o cookie, troca o código por um refresh token (a credencial que deixa o servidor voltar a ler sem te pedir de novo), cifra-o e guarda-o.</p>
+        <span class="where">backend/internal/httpapi · GET /calendar/callback/google; schema calendar_connections (novo)</span>
+      </div>
+    </div>
+    <div class="hop">
+      <div class="rail"><span class="dot">4</span><span class="line"></span></div>
+      <div class="body">
+        <h3>Ao abrir o Plan Today, ou a cada load, o bridge pede as reuniões do dia</h3>
+        <p class="muted">Só nas máquinas com <span class="mono">[calendar] source = "google"</span>. O load reaproveita a leitura até 5 minutos; o Plan Today lê sempre de novo.</p>
+        <span class="where">tui/internal/bridge/plan.go · readCalendar (editar)</span>
+      </div>
+    </div>
+    <div class="hop">
+      <div class="rail"><span class="dot">5</span><span class="line"></span></div>
+      <div class="body">
+        <h3>O servidor lê o calendário principal no Google</h3>
+        <p class="muted">Com as reuniões repetidas já desdobradas pelo Google, sem as recusadas, e sem guardar nem registar nada.</p>
+        <span class="where">backend/internal/calendar · GET /v1/calendar/google/events (novo)</span>
+      </div>
+    </div>
+    <div class="hop">
+      <div class="rail"><span class="dot">6</span><span class="line"></span></div>
+      <div class="body">
+        <h3>O bridge junta e corta as reuniões ao horário de trabalho</h3>
+        <p class="muted">Esta parte já existe: é a mesma conta que se faz com ficheiros, por isso as mesmas reuniões dão os mesmos minutos.</p>
+        <span class="where">tui/internal/calendar/calendar.go · BusyIntervalsWithOptions (sem alterações)</span>
+      </div>
+    </div>
+  </div>
+</section>
+
+<section>
+  <div class="eyebrow">A regra mais importante</div>
+  <h2>O que conta como tempo ocupado</h2>
+  <p>As reuniões do Google passam pelas mesmas regras que os ficheiros, com uma diferença: <b>o Google sabe quais reuniões recusaste e quais ocorrências de uma reunião repetida foram canceladas ou mudadas</b>, e os ficheiros <span class="mono">.ics</span> não.</p>
+  <div class="lamps">
+    <div class="lamp producing"><div class="head"><span class="bulb"></span>Conta</div><div class="codes">aceite · talvez · sem resposta</div><p>Dentro do horário de trabalho; uma ocorrência mudada conta na hora nova.</p></div>
+    <div class="lamp stopped"><div class="head"><span class="bulb"></span>Não conta</div><div class="codes">recusada · ocorrência cancelada</div><p>Recusada só se aprovares a D4.</p></div>
+    <div class="lamp unknown"><div class="head"><span class="bulb"></span>Depende da config</div><div class="codes">dia inteiro · "disponível"</div><p><span class="mono">include_all_day</span> e <span class="mono">include_transparent</span>, como nos ficheiros.</p></div>
+  </div>
+  <div class="two">
+    <div class="box"><h3>O Google não responde</h3><p class="muted">O calendário fica indisponível, conta zero e o Plan Today diz porquê; o planeamento continua.</p></div>
+    <div class="box"><h3>O token deixa de valer</h3><p class="muted">A ligação fica marcada "a precisar de nova ligação" até voltares a ligar ou desligares.</p></div>
+  </div>
+</section>
+
+<section>
+  <div class="eyebrow">Mapa de ficheiros</div>
+  <h2>O que muda no repo</h2>
+  <div class="files">
+    <div class="group-label">Novos</div>
+    <div class="file"><span class="tag new">novo</span><span class="path">docs/adr/0003-…</span><p>Regista que o Momentum passa a ler o Google Calendar pelo servidor, com as decisões D1 a D8.</p></div>
+    <div class="file"><span class="tag new">novo</span><span class="path">backend/internal/… (cifra)</span><p>Cifrar e decifrar segredos guardados, com AES-256-GCM.</p></div>
+    <div class="file"><span class="tag new">novo</span><span class="path">backend/internal/store/ent/schema/</span><p>As tabelas <span class="mono">calendar_connections</span> e <span class="mono">calendar_links</span>, o código gerado e a migration.</p></div>
+    <div class="file"><span class="tag new">novo</span><span class="path">backend/internal/calendar</span><p>O service que liga, desliga, diz o estado e lê as reuniões.</p></div>
+    <div class="group-label">Alterados</div>
+    <div class="file"><span class="tag mod">editar</span><span class="path">core/api</span><p>As quatro routes novas, os seus tipos, o código <span class="mono">calendar_unavailable</span> e os métodos do cliente.</p></div>
+    <div class="file"><span class="tag mod">editar</span><span class="path">backend/internal/config/config.go</span><p>A chave <span class="mono">CALENDAR_TOKEN_KEY</span>.</p></div>
+    <div class="file"><span class="tag mod">editar</span><span class="path">backend/internal/httpapi, backend/cmd/momentum-server</span><p>As routes, as páginas e a ligação do service ao servidor.</p></div>
+    <div class="file"><span class="tag mod">editar</span><span class="path">tui/internal/config/planning.go</span><p>A chave <span class="mono">[calendar] source</span>.</p></div>
+    <div class="file"><span class="tag mod">editar</span><span class="path">tui/internal/backend, tui/internal/bridge</span><p>O cliente do calendário e a leitura do Google no bridge, com três operações novas.</p></div>
+    <div class="file"><span class="tag mod">editar</span><span class="path">tui/internal/app/planner.go, tui/cmd/momentum, tui/internal/diagnostics</span><p>O Google no planeamento do TUI, <span class="mono">momentum calendar</span> e uma verificação no <span class="mono">doctor</span>.</p></div>
+    <div class="file"><span class="tag mod">editar</span><span class="path">Separador Calendar do Mac (Settings C04, C05)</span><p>A opção Google Calendar, com ligar e desligar.</p></div>
+    <div class="file"><span class="tag mod">editar</span><span class="path">READMEs, DEPLOY.md, tui/DESIGN.md</span><p>As routes, a chave nova, os passos na Google Cloud e a regra de design que muda.</p></div>
+    <div class="group-label">Intocados de propósito</div>
+    <div class="file"><span class="tag keep">manter</span><span class="path">tui/internal/calendar/calendar.go</span><p>O leitor de <span class="mono">.ics</span> e a conta de tempo ocupado que as duas fontes partilham.</p></div>
+    <div class="file"><span class="tag keep">manter</span><span class="path">backend/internal/auth/provider.go</span><p>O sign-in com Google continua a pedir só <span class="mono">openid</span> e <span class="mono">email</span>.</p></div>
+    <div class="file"><span class="tag keep">manter</span><span class="path">backend/internal/logging/logging.go</span><p>Nada entra na lista do que pode ser registado: nem títulos nem eventos.</p></div>
+  </div>
+</section>
+
+<section>
+  <div class="eyebrow">A tua revisão</div>
+  <h2>Decisões a aprovar antes de começar</h2>
+  <p>Cada uma destas é uma escolha tua: é um trade-off que nem o código nem os planos anteriores resolvem, e outra resposta muda o que vês. O agente que vai implementar tem instruções para não as reabrir, por isso este é o momento de mudar alguma. Marca cada uma com que concordas. As marcações ficam guardadas só neste browser.</p>
+  <div class="progress" id="dec-progress" aria-live="polite"></div>
+  <div class="decisions">
+    <div class="dec flag">
+      <div class="top"><div><span class="id">D1</span><h3>A ligação ao Google fica no servidor Momentum</h3></div><span class="pill">Decisão tua</span></div>
+      <p class="why">No servidor, ligas uma vez e o TUI e todos os Macs usam a mesma ligação, aproveitando o cliente Google que o sign-in já tem. O custo é guardar um token do Google na base de dados (ver D5). A alternativa, cada app ligar-se sozinha, deixa os tokens fora do servidor mas obriga a duas implementações e a ligar em cada máquina.</p>
+      <p class="mean"><b>O que significa:</b> o servidor passa a falar com o Google; desligar num sítio desliga em todos.</p>
+      <label class="check"><input type="checkbox" id="d1" data-dec> Concordo</label>
+    </div>
+    <div class="dec flag">
+      <div class="top"><div><span class="id">D2</span><h3>O Momentum pede para ler os eventos, com títulos</h3></div><span class="pill">Decisão tua</span></div>
+      <p class="why">O scope (as permissões pedidas ao Google) <span class="mono">calendar.events.readonly</span> dá títulos, horas, dia inteiro e se recusaste. Um scope só de disponibilidade revela menos, mas perde os títulos no Plan Today e não sabe das reuniões recusadas. Os dois levam o Google a mostrar um aviso até a app ser verificada (D8).</p>
+      <p class="mean"><b>O que significa:</b> o Plan Today mostra os títulos ao passar o rato, como com ficheiros, e a D4 é possível.</p>
+      <label class="check"><input type="checkbox" id="d2" data-dec> Concordo</label>
+    </div>
+    <div class="dec flag">
+      <div class="top"><div><span class="id">D3</span><h3>Conta só o calendário principal</h3></div><span class="pill">Decisão tua</span></div>
+      <p class="why">Sem escolher calendários não é preciso outro scope nem um ecrã de escolha. Calendários partilhados que adicionaste ao Google, ou de outra conta, não contam.</p>
+      <p class="mean"><b>O que significa:</b> se as tuas reuniões de trabalho vivem num calendário partilhado, ficam de fora até se acrescentar a escolha de calendários.</p>
+      <label class="check"><input type="checkbox" id="d3" data-dec> Concordo</label>
+    </div>
+    <div class="dec flag">
+      <div class="top"><div><span class="id">D4</span><h3>Reuniões recusadas não contam como ocupado</h3></div><span class="pill">Decisão tua</span></div>
+      <p class="why">Reflete aquilo a que vais mesmo. As marcadas com "talvez" e as que ainda não respondeste contam. Os ficheiros <span class="mono">.ics</span> não sabem isto, por isso as duas fontes diferem aqui.</p>
+      <p class="mean"><b>O que significa:</b> recusar um convite liberta esse tempo no Plan Today.</p>
+      <label class="check"><input type="checkbox" id="d4" data-dec> Concordo</label>
+    </div>
+    <div class="dec flag">
+      <div class="top"><div><span class="id">D5</span><h3>O token do Google fica cifrado com uma chave nova</h3></div><span class="pill">Decisão tua</span></div>
+      <p class="why">Cifrado com AES-256-GCM e a chave <span class="mono">CALENDAR_TOKEN_KEY</span>, guardada no Secret Manager como <span class="mono">momentum-calendar-token-key</span>. Uma fuga só da base de dados não expõe o teu calendário. Perder ou trocar a chave obriga a ligar de novo; sem a chave, o servidor não oferece o Google Calendar.</p>
+      <p class="mean"><b>O que significa:</b> mais um segredo para criar e guardar no deploy.</p>
+      <label class="check"><input type="checkbox" id="d5" data-dec> Concordo</label>
+    </div>
+    <div class="dec flag">
+      <div class="top"><div><span class="id">D6</span><h3>Cada máquina escolhe o Google no <span class="mono">config.toml</span></h3></div><span class="pill">Decisão tua</span></div>
+      <p class="why">Com <span class="mono">[calendar] source = "google"</span>, o TUI e a app Mac da mesma máquina concordam, e o separador Calendar do Mac escreve essa chave. Isto alarga a decisão S4 das definições a três fontes (ficheiros, Calendário do macOS, Google); só o Calendário do macOS continua a ser uma preferência apenas do Mac.</p>
+      <p class="mean"><b>O que significa:</b> a ligação é da conta, mas usar o Google é uma escolha por máquina.</p>
+      <label class="check"><input type="checkbox" id="d6" data-dec> Concordo</label>
+    </div>
+    <div class="dec flag">
+      <div class="top"><div><span class="id">D7</span><h3>A barra lateral pode atrasar-se até 5 minutos</h3></div><span class="pill">Decisão tua</span></div>
+      <p class="why">A app recarrega a cada minuto. Ir ao Google em cada load somaria essa espera a todos os loads; reaproveitar a leitura durante 5 minutos evita-o. Abrir o Plan Today lê sempre de novo.</p>
+      <p class="mean"><b>O que significa:</b> uma reunião marcada agora pode demorar até 5 minutos a aparecer na barra lateral, mas aparece logo no Plan Today.</p>
+      <label class="check"><input type="checkbox" id="d7" data-dec> Concordo</label>
+    </div>
+    <div class="dec flag">
+      <div class="top"><div><span class="id">D8</span><h3>O cliente Google passa a "em produção", sem verificação</h3></div><span class="pill">Decisão tua</span></div>
+      <p class="why">Hoje está em teste (<span class="mono">DEPLOY.md</span>). Em teste, o Google faz expirar o token ao fim de 7 dias, e terias de ligar de novo todas as semanas. Em produção sem verificação, o ecrã de consentimento mostra um aviso de "app não verificada" de cada vez que ligas; o limite de 100 utilizadores não importa, porque só os emails permitidos usam o servidor. A verificação tira o aviso, mas passa por uma análise do Google.</p>
+      <p class="mean"><b>O que significa:</b> ligas uma vez e vês um aviso do Google nesse momento. O sign-in funciona igual nos dois casos.</p>
+      <label class="check"><input type="checkbox" id="d8" data-dec> Concordo</label>
+    </div>
+  </div>
+</section>
+
+<section>
+  <div class="eyebrow">Para saberes</div>
+  <h2>Consequências do que o código e os planos já decidem</h2>
+  <p>Estas não são escolhas: seguem do código existente, do <span class="mono">DEPLOY.md</span>, dos planos anteriores ou de uma decisão acima. Não precisam de aprovação. Estão aqui pelo efeito que têm na prática. Se quiseres acrescentar algo, usa "Adicionar nota"; se discordares de alguma, passa a decisão. As notas ficam guardadas só neste browser: para chegarem ao plano, cola-as no chat.</p>
+  <div class="decisions">
+    <div class="dec">
+      <div class="top"><div><span class="id">C1</span><h3>Há quatro passos na Google Cloud antes de funcionar em produção</h3></div></div>
+      <p class="mean"><b>Na prática:</b> no projeto <span class="mono">task-manager-493414</span>, ativar a Google Calendar API, juntar o scope da D2 ao ecrã de consentimento, juntar o redirect URI <span class="mono">&lt;servidor&gt;/calendar/callback/google</span> (e o de <span class="mono">localhost</span>) e criar o segredo da D5. Ficam escritos no <span class="mono">DEPLOY.md</span>; nenhum agente os faz.</p>
+      <p class="why">Usa o cliente OAuth Google que já existe (<span class="mono">DEPLOY.md:16</span>) e a regra de não mexer na cloud sem instrução.</p>
+      <button type="button" class="note-toggle" aria-expanded="false" aria-controls="c1-note">Adicionar nota</button>
+      <textarea id="c1-note" class="note-field" data-note rows="3" aria-label="Nota sobre C1" placeholder="Informação a acrescentar, ou porque discordas" hidden></textarea>
+    </div>
+    <div class="dec">
+      <div class="top"><div><span class="id">C2</span><h3>Ninguém consegue ligar o calendário de outra pessoa com um link forjado</h3></div></div>
+      <p class="mean"><b>Na prática:</b> ligar é um percurso próprio, separado do sign-in. Só o browser que abriu o link o termina, o link funciona uma vez, e a página diz a que conta Momentum e a que conta Google ficou ligado.</p>
+      <p class="why">Segue o padrão do sign-in: cookie de estado, PKCE e estado de uso único (<span class="mono">pages.go:62</span>, <span class="mono">:94</span>).</p>
+      <button type="button" class="note-toggle" aria-expanded="false" aria-controls="c2-note">Adicionar nota</button>
+      <textarea id="c2-note" class="note-field" data-note rows="3" aria-label="Nota sobre C2" placeholder="Informação a acrescentar, ou porque discordas" hidden></textarea>
+    </div>
+    <div class="dec">
+      <div class="top"><div><span class="id">C3</span><h3>A ligação é da conta, não da máquina</h3></div></div>
+      <p class="mean"><b>Na prática:</b> fazer sign-out num dispositivo não desliga o Google. Desligar revoga o token no Google e apaga-o do servidor.</p>
+      <p class="why">Segue da D1: uma ligação por conta.</p>
+      <button type="button" class="note-toggle" aria-expanded="false" aria-controls="c3-note">Adicionar nota</button>
+      <textarea id="c3-note" class="note-field" data-note rows="3" aria-label="Nota sobre C3" placeholder="Informação a acrescentar, ou porque discordas" hidden></textarea>
+    </div>
+    <div class="dec">
+      <div class="top"><div><span class="id">C4</span><h3>Reuniões repetidas canceladas ou mudadas contam bem</h3></div></div>
+      <p class="mean"><b>Na prática:</b> uma ocorrência cancelada não conta e uma mudada conta na hora nova, ao contrário dos ficheiros <span class="mono">.ics</span>. O dia lido é o do dispositivo, como o "hoje" do Plan Today.</p>
+      <p class="why">O Google desdobra as repetições (<span class="mono">singleEvents=true</span>); o leitor de <span class="mono">.ics</span> não trata <span class="mono">EXDATE</span> nem <span class="mono">RECURRENCE-ID</span>.</p>
+      <button type="button" class="note-toggle" aria-expanded="false" aria-controls="c4-note">Adicionar nota</button>
+      <textarea id="c4-note" class="note-field" data-note rows="3" aria-label="Nota sobre C4" placeholder="Informação a acrescentar, ou porque discordas" hidden></textarea>
+    </div>
+    <div class="dec">
+      <div class="top"><div><span class="id">C5</span><h3>As mesmas reuniões dão os mesmos minutos nas duas fontes</h3></div></div>
+      <p class="mean"><b>Na prática:</b> o horário de trabalho, <span class="mono">include_all_day</span> e <span class="mono">include_transparent</span> aplicam-se ao Google como aos ficheiros; "Mostrar como disponível" no Google conta como transparente.</p>
+      <p class="why">As duas fontes passam por <span class="mono">BusyIntervalsWithOptions</span> (<span class="mono">calendar.go:102</span>) e pela decisão S5 das definições.</p>
+      <button type="button" class="note-toggle" aria-expanded="false" aria-controls="c5-note">Adicionar nota</button>
+      <textarea id="c5-note" class="note-field" data-note rows="3" aria-label="Nota sobre C5" placeholder="Informação a acrescentar, ou porque discordas" hidden></textarea>
+    </div>
+    <div class="dec">
+      <div class="top"><div><span class="id">C6</span><h3>Uma falha do Google nunca bloqueia o planeamento</h3></div></div>
+      <p class="mean"><b>Na prática:</b> sem ligação, com o token revogado ou com o Google em baixo, o calendário conta zero e o Plan Today diz "Calendar unavailable: …". Um token revogado fica marcado "a precisar de nova ligação". O aviso "Stale" nunca aparece, porque o Google é lido na hora.</p>
+      <p class="why">Segue a D6 do Plan Today para ficheiros ilegíveis.</p>
+      <button type="button" class="note-toggle" aria-expanded="false" aria-controls="c6-note">Adicionar nota</button>
+      <textarea id="c6-note" class="note-field" data-note rows="3" aria-label="Nota sobre C6" placeholder="Informação a acrescentar, ou porque discordas" hidden></textarea>
+    </div>
+    <div class="dec">
+      <div class="top"><div><span class="id">C7</span><h3>O servidor não guarda nem regista reuniões</h3></div></div>
+      <p class="mean"><b>Na prática:</b> no servidor ficam só o token cifrado e o email da conta Google. Os títulos chegam às apps só quando abres o Plan Today.</p>
+      <p class="why">Segue a D3 do Plan Today e a lista do que pode ser registado (<span class="mono">logging.go:21</span>), que não muda.</p>
+      <button type="button" class="note-toggle" aria-expanded="false" aria-controls="c7-note">Adicionar nota</button>
+      <textarea id="c7-note" class="note-field" data-note rows="3" aria-label="Nota sobre C7" placeholder="Informação a acrescentar, ou porque discordas" hidden></textarea>
+    </div>
+    <div class="dec">
+      <div class="top"><div><span class="id">C8</span><h3>A ligação de outra conta é invisível</h3></div></div>
+      <p class="mean"><b>Na prática:</b> as tabelas novas só deixam cada utilizador ver e criar as suas linhas, e os links pendentes expiram ao fim de 10 minutos, como os códigos de sign-in.</p>
+      <p class="why">As regras <span class="mono">FilterByViewer</span> e <span class="mono">CreateAsViewer</span> (<span class="mono">rule.go</span>).</p>
+      <button type="button" class="note-toggle" aria-expanded="false" aria-controls="c8-note">Adicionar nota</button>
+      <textarea id="c8-note" class="note-field" data-note rows="3" aria-label="Nota sobre C8" placeholder="Informação a acrescentar, ou porque discordas" hidden></textarea>
+    </div>
+    <div class="dec">
+      <div class="top"><div><span class="id">C9</span><h3>Há uma migration nova e a imagem do servidor tem de compilar</h3></div></div>
+      <p class="mean"><b>Na prática:</b> o schema novo leva <span class="mono">go generate</span> e uma migration revista, e as mudanças em <span class="mono">backend/</span> passam pelo <span class="mono">docker build</span>.</p>
+      <p class="why">As regras do <span class="mono">CONTRIBUTING.md</span>.</p>
+      <button type="button" class="note-toggle" aria-expanded="false" aria-controls="c9-note">Adicionar nota</button>
+      <textarea id="c9-note" class="note-field" data-note rows="3" aria-label="Nota sobre C9" placeholder="Informação a acrescentar, ou porque discordas" hidden></textarea>
+    </div>
+    <div class="dec">
+      <div class="top"><div><span class="id">C10</span><h3>A regra "o Momentum nunca vai buscar calendários" muda, com registo</h3></div></div>
+      <p class="mean"><b>Na prática:</b> um ADR novo (0003) regista a mudança, e o critério 18 do <span class="mono">tui/DESIGN.md</span> e os READMEs deixam de dizer que o Momentum nunca vai buscar eventos.</p>
+      <p class="why">Hoje o <span class="mono">tui/DESIGN.md:586</span> e o <span class="mono">tui/README.md:129</span> afirmam essa regra.</p>
+      <button type="button" class="note-toggle" aria-expanded="false" aria-controls="c10-note">Adicionar nota</button>
+      <textarea id="c10-note" class="note-field" data-note rows="3" aria-label="Nota sobre C10" placeholder="Informação a acrescentar, ou porque discordas" hidden></textarea>
+    </div>
+    <div class="dec">
+      <div class="top"><div><span class="id">C11</span><h3>Com o Google, não é preciso indicar ficheiros</h3></div></div>
+      <p class="mean"><b>Na prática:</b> com <span class="mono">source = "google"</span>, <span class="mono">paths</span> deixa de ser obrigatório; o <span class="mono">momentum doctor</span> e o diagnóstico do Mac avisam quando falta a ligação.</p>
+      <p class="why">Hoje <span class="mono">[calendar] enabled</span> exige <span class="mono">paths</span> (<span class="mono">planning.go:77</span>).</p>
+      <button type="button" class="note-toggle" aria-expanded="false" aria-controls="c11-note">Adicionar nota</button>
+      <textarea id="c11-note" class="note-field" data-note rows="3" aria-label="Nota sobre C11" placeholder="Informação a acrescentar, ou porque discordas" hidden></textarea>
+    </div>
+  </div>
+</section>
+
+<section>
+  <div class="eyebrow">Atenção</div>
+  <h2>O que ficou de fora ao planear</h2>
+  <p>Não há issue no Linear para este trabalho; o plano parte da conversa. Duas alternativas foram afastadas para não serem reabertas:</p>
+  <div class="note"><h3>O "endereço secreto em formato iCal" do Google</h3><p>É um link que qualquer pessoa pode usar, e o leitor de <span class="mono">.ics</span> não percebe cancelamentos nem mudanças em reuniões repetidas.</p></div>
+  <div class="note"><h3>Chegar ao Google pelo Calendário do macOS</h3><p>Continua disponível pela tarefa C05 das definições, mas serve só o Mac.</p></div>
+  <div class="note"><h3>Falha encontrada, não corrigida aqui</h3><p>O leitor de <span class="mono">.ics</span> ignora <span class="mono">EXDATE</span> e <span class="mono">RECURRENCE-ID</span> (<span class="mono">tui/internal/calendar/calendar.go</span>), por isso conta mal reuniões repetidas com exceções. Merece uma tarefa própria.</p></div>
+</section>
+
+<section>
+  <div class="eyebrow">Prova</div>
+  <h2>Como vamos saber que funciona</h2>
+  <div class="tbl"><table>
+    <thead><tr><th>Critério de aceitação</th><th>Verificado por</th></tr></thead>
+    <tbody>
+      <tr><td>Ligar só termina no browser que abriu o link, e só uma vez</td><td>G06: testes do callback sem cookie e com estado já usado</td></tr>
+      <tr><td>O token fica cifrado, e o servidor não guarda nem regista eventos</td><td>G03: testes de cifra; G05: teste de logs sem títulos</td></tr>
+      <tr><td>Cancelamentos e mudanças em reuniões repetidas contam bem</td><td>G05: caso da reunião repetida, com um Google falso</td></tr>
+      <tr><td>Google e ficheiros dão os mesmos minutos para as mesmas reuniões</td><td>G09: teste de paridade no bridge</td></tr>
+      <tr><td>Uma falha do Google deixa o planeamento a funcionar, com zero minutos</td><td>G05: caso <span class="mono">invalid_grant</span>; G09: caso indisponível</td></tr>
+      <tr><td>Cada máquina escolhe o Google com <span class="mono">[calendar] source</span></td><td>G07, G10, G11</td></tr>
+      <tr><td>Reuniões recusadas não contam</td><td>G05: caso da reunião recusada</td></tr>
+    </tbody>
+  </table></div>
+</section>
+
+<section>
+  <div class="eyebrow">Ordem de trabalho</div>
+  <h2>Um commit por ficheiro, por esta ordem</h2>
+  <ol class="steps">
+    <li><div class="what"><b>ADR 0003</b><span>A decisão de ler o Google Calendar pelo servidor, com D1 a D8.</span></div><span class="c">docs(adr)</span></li>
+    <li><div class="what"><b>Contrato em core/api</b><span>As quatro routes, os tipos, o código de erro e o cliente.</span></div><span class="c">feat(api) / test(api)</span></li>
+    <li><div class="what"><b>Chave e cifra no servidor</b><span><span class="mono">CALENDAR_TOKEN_KEY</span> e AES-256-GCM.</span></div><span class="c">feat(backend) / test(backend)</span></li>
+    <li><div class="what"><b>Schema e migration</b><span><span class="mono">calendar_connections</span> e <span class="mono">calendar_links</span>, com regras de privacidade.</span></div><span class="c">feat(backend) / test(backend)</span></li>
+    <li><div class="what"><b>Service do calendário</b><span>Ligar, estado, desligar e ler reuniões, testado contra um Google falso.</span></div><span class="c">feat(backend) / test(backend)</span></li>
+    <li><div class="what"><b>Routes, páginas e arranque do servidor</b><span>Inclui o limite de pedidos para ligar.</span></div><span class="c">feat(backend) / test(backend)</span></li>
+    <li><div class="what"><b>Config do TUI</b><span>A chave <span class="mono">[calendar] source</span>.</span></div><span class="c">feat(tui) / test(tui)</span></li>
+    <li><div class="what"><b>Cliente do servidor no TUI</b><span>Estado, ligar, desligar e reuniões como eventos de calendário.</span></div><span class="c">feat(tui) / test(tui)</span></li>
+    <li><div class="what"><b>Bridge</b><span>Ler o Google, a cache de 5 minutos e três operações novas.</span></div><span class="c">feat(bridge) / test(bridge)</span></li>
+    <li><div class="what"><b>TUI</b><span>O Google no planeamento, <span class="mono">momentum calendar</span> e o <span class="mono">doctor</span>.</span></div><span class="c">feat(tui) / test(tui)</span></li>
+    <li><div class="what"><b>App macOS</b><span>A opção Google Calendar no separador Calendar; depende das tarefas C04 e C05 das definições.</span></div><span class="c">feat(macos) / test(macos)</span></li>
+    <li><div class="what"><b>Documentação</b><span>READMEs, <span class="mono">DEPLOY.md</span> e o critério 18 do <span class="mono">tui/DESIGN.md</span>.</span></div><span class="c">docs</span></li>
+  </ol>
+</section>
+
+<section>
+  <div class="eyebrow">Limites</div>
+  <h2>Fora de âmbito</h2>
+  <ul class="plain">
+    <li>Escolher outros calendários além do principal (D3).</li>
+    <li>Escrever no Google Calendar, ou mostrar reuniões noutro sítio além do Plan Today.</li>
+    <li>Corrigir o leitor de <span class="mono">.ics</span> para <span class="mono">EXDATE</span> e <span class="mono">RECURRENCE-ID</span>.</li>
+    <li>Pedir ao Google a verificação da app (D8).</li>
+  </ul>
+</section>
+
+<footer>
+  Resume <span class="mono">docs/plans/google-calendar.md</span> (v1, 2026-10-23). O plano em markdown é o que o agente segue; se uma decisão mudar, edita-a lá.
+</footer>
+
+</div>
+<script>
+(function () {
+  var KEY = "google-calendar-review";
+  var boxes = Array.prototype.slice.call(document.querySelectorAll("input[data-dec]"));
+  var out = document.getElementById("dec-progress");
+  var saved = {};
+  try { saved = JSON.parse(localStorage.getItem(KEY) || "{}") || {}; } catch (e) { saved = {}; }
+  function render() {
+    var n = boxes.filter(function (b) { return b.checked; }).length;
+    out.textContent = n + " de " + boxes.length + " aprovadas" + (n === boxes.length ? " · pronto para entregar" : "");
+  }
+  function save() {
+    try { localStorage.setItem(KEY, JSON.stringify(saved)); } catch (e) {}
+  }
+  boxes.forEach(function (b) {
+    b.checked = !!saved[b.id];
+    b.addEventListener("change", function () {
+      saved[b.id] = b.checked;
+      save();
+      render();
+    });
+  });
+  render();
+
+  // Consequence notes: hidden until toggled; saved per textarea id with the ticks.
+  Array.prototype.slice.call(document.querySelectorAll("textarea[data-note]")).forEach(function (field) {
+    var btn = document.querySelector('[aria-controls="' + field.id + '"]');
+    if (!btn) return;
+    function label() {
+      var has = field.value.trim() !== "";
+      btn.textContent = !field.hidden ? "Esconder nota" : has ? "Mostrar nota" : "Adicionar nota";
+      btn.classList.toggle("has-note", has);
+    }
+    field.value = typeof saved[field.id] === "string" ? saved[field.id] : "";
+    label();
+    btn.addEventListener("click", function () {
+      field.hidden = !field.hidden;
+      btn.setAttribute("aria-expanded", String(!field.hidden));
+      label();
+      if (!field.hidden) field.focus();
+    });
+    field.addEventListener("input", function () {
+      saved[field.id] = field.value;
+      save();
+      label();
+    });
+  });
+})();
+</script>
+</body>
+</html>
