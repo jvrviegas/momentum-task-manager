@@ -11,11 +11,11 @@ struct SignInView: View {
         VStack(spacing: 16) {
             VStack(spacing: 4) {
                 Text("Sign in to Momentum").font(.title2.bold())
-                if let server = store.signIn?.server {
+                if let server = store.signInModel.flow?.server {
                     Text(server).foregroundStyle(.secondary).textSelection(.enabled)
                 }
             }
-            switch store.signIn?.phase ?? .starting {
+            switch store.signInModel.flow?.phase ?? .starting {
             case .starting:
                 ProgressView("Starting sign-in…")
                     .frame(minHeight: 120)
@@ -34,7 +34,7 @@ struct SignInView: View {
             }
             HStack {
                 Spacer()
-                Button("Cancel", role: .cancel) { store.cancelSignIn() }
+                Button("Cancel", role: .cancel) { store.signInModel.cancel() }
                     .keyboardShortcut(.cancelAction)
             }
         }
