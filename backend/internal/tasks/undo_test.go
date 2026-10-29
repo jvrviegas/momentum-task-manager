@@ -114,6 +114,66 @@ func TestUndoRevertsTheLatestChange(t *testing.T) {
 	}
 }
 
+func TestUndoTakesBackNotesAndDependencies(t *testing.T) {
+	f := newFixture(t)
+	quote := f.create(t, api.CreateTaskRequest{Description: "Get the quote"}).UUID
+	note := func(words string) api.ModifyTaskRequest {
+		return api.ModifyTaskRequest{Annotations: &api.AnnotationChange{Add: []string{words}}}
+	}
+	depend := api.ModifyTaskRequest{Depends: &api.DependencyChange{Add: []string{quote}}}
+	for _, test := range []struct {
+		name   string
+		setup  []api.ModifyTaskRequest
+		change func(before api.Task) api.ModifyTaskRequest
+	}{
+		{"add a note", nil, func(api.Task) api.ModifyTaskRequest { return note("Asked Ana") }},
+		// The note comes back in its place, with its time.
+		{"remove a note", []api.ModifyTaskRequest{note("First"), note("Second")}, func(before api.Task) api.ModifyTaskRequest {
+			return api.ModifyTaskRequest{Annotations: &api.AnnotationChange{Remove: before.Annotations[:1]}}
+		}},
+		{"add a dependency", nil, func(api.Task) api.ModifyTaskRequest { return depend }},
+		{"remove a dependency", []api.ModifyTaskRequest{depend}, func(api.Task) api.ModifyTaskRequest {
+			return api.ModifyTaskRequest{Depends: &api.DependencyChange{Remove: []string{quote}}}
+		}},
+	} {
+		t.Run(test.name, func(t *testing.T) {
+			id := f.create(t, api.CreateTaskRequest{Description: "Send the invoice"}).UUID
+			for _, request := range test.setup {
+				f.clock.Advance(time.Minute)
+				f.modify(t, f.alice, id, request)
+			}
+			before := f.stored(t, uuid.MustParse(id))
+			f.clock.Advance(time.Hour)
+			f.modify(t, f.alice, id, test.change(before))
+			if undone := f.undo(t, f.alice); !reflect.DeepEqual(withoutUrgency(undone), before) {
+				t.Errorf("undone\n%+v, want\n%+v", undone, before)
+			}
+			if stored := f.stored(t, uuid.MustParse(id)); !reflect.DeepEqual(stored, before) {
+				t.Errorf("stored\n%+v, want\n%+v", stored, before)
+			}
+		})
+	}
+}
+
+func TestOtherChangesKeepNotesAndDependencies(t *testing.T) {
+	f := newFixture(t)
+	quote := f.create(t, api.CreateTaskRequest{Description: "Get the quote"}).UUID
+	id := f.create(t, api.CreateTaskRequest{Description: "Send the invoice"}).UUID
+	f.modify(t, f.alice, id, api.ModifyTaskRequest{Annotations: &api.AnnotationChange{Add: []string{"Asked Ana"}}})
+	f.modify(t, f.alice, id, api.ModifyTaskRequest{Depends: &api.DependencyChange{Add: []string{quote}}})
+	before := f.stored(t, uuid.MustParse(id))
+
+	f.clock.Advance(time.Hour)
+	renamed := f.modify(t, f.alice, id, api.ModifyTaskRequest{Description: set("Send the final invoice"), Tags: &api.TagChange{Add: []string{"money"}}})
+	if !reflect.DeepEqual(renamed.Annotations, before.Annotations) || !reflect.DeepEqual(renamed.Depends, before.Depends) {
+		t.Errorf("renamed = %+v, want the notes and dependencies of %+v", renamed, before)
+	}
+	f.undo(t, f.alice)
+	if stored := f.stored(t, uuid.MustParse(id)); !reflect.DeepEqual(stored, before) {
+		t.Errorf("stored\n%+v, want\n%+v", stored, before)
+	}
+}
+
 func TestUndoOfACreateRemovesTheTask(t *testing.T) {
 	f := newFixture(t)
 	created := f.create(t, api.CreateTaskRequest{Description: "Typo", Tags: []string{"x"}})
