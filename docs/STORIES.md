@@ -856,7 +856,15 @@ Acceptance:
 - [unit] Go: `momentum doctor` with `source = "google"` fails its calendar check, with the reason, when there is no connection or it needs reconnecting, and passes when connected; with `files` it checks the files as before.
 - [snap] `settings-diagnostics-google`: the calendar check shows as a Problem with its symbol, its word and the reason.
 - [unit] Go: the Report holds no link, token or event title.
-Status: todo
+- [unit] Go: with the server down, or no sign-in, the check is Skipped, never a Problem; a Google check passes only when the server says connected.
+UX:
+- Flow: Settings ▸ Calendar's problem is read in Settings ▸ Diagnostics (the checks run when the tab opens) -> read "Calendar source" -> fix it where the detail says -> **Check Again**. In the terminal, `momentum doctor` prints the same check.
+- Surface: inline, one more state of a row the Diagnostics list already has (information, no decision); no new screen, dialog or toast.
+- States: with `[calendar] source = "files"` the check is as S-053 left it. With `source = "google"`, which counts whatever `[calendar] enabled` says (ADR 0003, D9): OK "Google Calendar connected as joao@gmail.com; read-only"; Problem "Google Calendar isn’t connected. Connect it in Settings ▸ Calendar.", "Google Calendar needs reconnecting. Reconnect it in Settings ▸ Calendar.", "Google Calendar isn’t available on this server. Ask whoever runs the server to turn it on.", or "Unable to check Google Calendar: <reason>" when the server is up but cannot answer; Skipped "needs the server" or "needs a sign-in" when the Backend server or Sign-in check did not pass, as the Sign-in check is Skipped with "needs the server".
+- Words: the check stays "Calendar source", since it is about the Source; "read-only" echoes the files check; the reasons are the ones Plan Today, Settings and the server already use, and where the fix is in Settings ▸ Calendar the Mac's detail says so. `momentum doctor` gives the same reason without the Settings sentence, since the terminal app has no such tab; S-064 adds `momentum calendar connect` and the sentence that names it.
+- Access: unchanged from S-053: each check reads as its name, word and detail, a word and a symbol, never color alone.
+- Review: the check describes what `config.toml` names, which the terminal app follows too. When this Mac counts macOS Calendar over a `google` config (D9), both rows show, as they do with files today, so a Problem here can describe a source this Mac isn't using; the "macOS Calendar" row says what this Mac uses. One snapshot page shows the Problem; OK and Skipped look as S-053's rows do, and every state is unit-tested.
+Status: doing
 
 ### S-064 Use Google Calendar in the terminal app
 As the user in the terminal, I run `momentum calendar connect` and the planner counts my Google meetings.
