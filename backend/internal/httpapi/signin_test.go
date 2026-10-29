@@ -15,6 +15,7 @@ import (
 	"testing"
 
 	"github.com/jvrviegas/momentum-task-manager/backend/internal/auth"
+	"github.com/jvrviegas/momentum-task-manager/backend/internal/calendar"
 	"github.com/jvrviegas/momentum-task-manager/backend/internal/logging"
 	"github.com/jvrviegas/momentum-task-manager/backend/internal/store/ent"
 	"github.com/jvrviegas/momentum-task-manager/backend/internal/store/ent/task"
@@ -45,6 +46,7 @@ type harness struct {
 	url      string
 	logs     *bytes.Buffer
 	provider *fakeProvider
+	google   *fakeGoogle
 	client   *ent.Client
 	server   *server
 }
@@ -60,10 +62,12 @@ func newHarness(t *testing.T) *harness {
 	var logs bytes.Buffer
 	logger := logging.New(&logs)
 	userTasks := tasks.New(client)
-	httpServer := httptest.NewServer(New(logger, "v1.2.3", service, userTasks, 0))
+	google := &fakeGoogle{grant: calendar.Grant{RefreshToken: "refresh-secret", Subject: "1157", Email: "alice@gmail.com"}}
+	calendars := calendar.New(client, calendar.Config{PublicURL: "http://momentum.test", Key: bytes.Repeat([]byte{7}, 32), Google: google, Logger: logger})
+	httpServer := httptest.NewServer(New(logger, "v1.2.3", service, userTasks, calendars, 0))
 	t.Cleanup(httpServer.Close)
-	return &harness{t: t, url: httpServer.URL, logs: &logs, provider: provider, client: client,
-		server: &server{logger: logger, auth: service, tasks: userTasks}}
+	return &harness{t: t, url: httpServer.URL, logs: &logs, provider: provider, google: google, client: client,
+		server: &server{logger: logger, auth: service, tasks: userTasks, calendar: calendars}}
 }
 
 // browser returns a client that keeps cookies and does not follow redirects.
