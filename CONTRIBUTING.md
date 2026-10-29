@@ -60,6 +60,8 @@ Backend store tests run only against a local PostgreSQL server named by `MOMENTU
 
 The import's Taskwarrior tests must use temporary `TASKRC` and `TASKDATA` values. They must not run in parallel and must retain the guard that rejects `~/.taskrc` and `~/.task`. Never use the deployed server or a production task database in tests; the apps' tests use fake servers.
 
+The macOS app's view of the bridge is kept as files: `tui/internal/bridge/testdata/wire` holds one answer per file, written by `TestWire…` and decoded by `macos/MomentumTests/WireContractTests.swift`. After changing the bridge's wire on purpose, run `go test ./internal/bridge -run TestWire -update` in `tui/`, commit the files that changed, and add any new file to `fixtures` in the Swift test.
+
 UI tests should assert terminal display width with Lip Gloss helpers and cover wide, compact, narrow, empty, loading, modal, suggestion, error, and unreachable-server states. Subprocess code must use `exec.CommandContext` with separate arguments.
 
 ## Changes
