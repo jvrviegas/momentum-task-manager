@@ -12,6 +12,7 @@ import (
 
 	"github.com/jvrviegas/momentum-task-manager/core/api"
 	"github.com/jvrviegas/momentum-task-manager/core/domain"
+	"github.com/jvrviegas/momentum-task-manager/tui/internal/calendar"
 	"github.com/jvrviegas/momentum-task-manager/tui/internal/config"
 	"github.com/jvrviegas/momentum-task-manager/tui/internal/quickadd"
 )
@@ -67,6 +68,10 @@ type Client interface {
 	ApplyProjectMigration(context.Context, domain.ProjectCatalogPlan, []domain.ProjectTaskMapping) error
 	Version(context.Context) (api.Version, error)
 	Session(context.Context) (api.Session, error)
+	GoogleCalendarStatus(context.Context) (api.GoogleCalendarStatus, error)
+	ConnectGoogleCalendar(context.Context) (api.GoogleCalendarLink, error)
+	DisconnectGoogleCalendar(context.Context) (api.GoogleCalendarDisconnect, error)
+	GoogleCalendarEvents(context.Context, time.Time, time.Time) ([]calendar.Event, error)
 }
 
 // apiFields names the edit fields that a backend error's fields belong to.
@@ -106,6 +111,8 @@ type Server struct {
 	tags       []string
 	reviews    map[int64]quickadd.Interpretation
 	nextReview int64
+	// googleEvents is what the last read of Google Calendar gave.
+	googleEvents googleCache
 }
 
 // NewServer returns a server that reaches the [backend] server in settings
@@ -305,6 +312,12 @@ func (s *Server) dispatch(ctx context.Context, op string, raw json.RawMessage) (
 		return s.applyPlan(ctx, p)
 	case "undo":
 		return nil, s.client.Undo(ctx)
+	case "calendarStatus":
+		return s.calendarStatus(ctx)
+	case "connectCalendar":
+		return s.connectCalendar(ctx)
+	case "disconnectCalendar":
+		return s.disconnectCalendar(ctx)
 	case "setToken":
 		var p tokenParams
 		if err := decode(raw, &p); err != nil {
