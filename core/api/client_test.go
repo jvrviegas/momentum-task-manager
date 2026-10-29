@@ -33,6 +33,7 @@ func recordingServer(t *testing.T, answer func(w http.ResponseWriter, r *http.Re
 		RouteStartTask, RouteStopTask, RouteStopRecurrence, RouteUndo, RouteListProjects, RouteListTags,
 		RoutePreviewProjectMigration, RouteApplyProjectMigration, RouteSetTimeZone, RouteSession,
 		RouteStartDeviceSignIn, RoutePollDeviceSignIn, RouteSignOut, RoutePreviewImport, RouteApplyImport,
+		RouteConnectGoogleCalendar, RouteGoogleCalendarStatus, RouteDisconnectGoogleCalendar, RouteGoogleCalendarEvents,
 	} {
 		mux.HandleFunc(route, func(w http.ResponseWriter, r *http.Request) {
 			body, _ := io.ReadAll(r.Body)
@@ -127,6 +128,22 @@ func TestClientSendsEachRoute(t *testing.T) {
 			want: []string{"home", "work"}, pattern: RouteListProjects, path: "/v1/projects"},
 		{name: "tags", answer: `{"tags":["next"]}`, send: func(c *Client) (any, error) { return c.Tags(ctx) },
 			want: []string{"next"}, pattern: RouteListTags, path: "/v1/tags"},
+		{name: "connect Google Calendar", answer: `{"url":"https://m.example/calendar/connect/abc","expiresAt":"2026-10-14T09:30:00Z"}`,
+			send:    func(c *Client) (any, error) { return c.ConnectGoogleCalendar(ctx) },
+			want:    GoogleCalendarLink{URL: "https://m.example/calendar/connect/abc", ExpiresAt: at(9)},
+			pattern: RouteConnectGoogleCalendar, path: "/v1/calendar/google/connect"},
+		{name: "Google Calendar status", answer: `{"offered":true,"connected":true,"email":"alice@gmail.com","needsReconnect":false}`,
+			send:    func(c *Client) (any, error) { return c.GoogleCalendarStatus(ctx) },
+			want:    GoogleCalendarStatus{Offered: true, Connected: true, Email: "alice@gmail.com"},
+			pattern: RouteGoogleCalendarStatus, path: "/v1/calendar/google"},
+		{name: "disconnect Google Calendar", answer: `{"revoked":true}`,
+			send: func(c *Client) (any, error) { return c.DisconnectGoogleCalendar(ctx) },
+			want: GoogleCalendarDisconnect{Revoked: true}, pattern: RouteDisconnectGoogleCalendar, path: "/v1/calendar/google"},
+		{name: "Google Calendar events", answer: `{"events":[{"title":"Standup","start":"2026-10-14T09:30:00Z","end":"2026-10-14T10:30:00Z","allDay":false,"transparent":false}]}`,
+			send:    func(c *Client) (any, error) { return c.GoogleCalendarEvents(ctx, ended, ended.AddDate(0, 0, 1)) },
+			want:    []GoogleCalendarEvent{{Title: "Standup", Start: at(9), End: at(10)}},
+			pattern: RouteGoogleCalendarEvents, path: "/v1/calendar/google/events",
+			query: "end=2026-10-15T00%3A00%3A00%2B01%3A00&start=2026-10-14T00%3A00%3A00%2B01%3A00"},
 		{name: "preview", answer: `{"tasks":[{"uuid":"` + id + `","oldValue":"work","newValue":"job"}]}`, send: func(c *Client) (any, error) {
 			return c.PreviewProjectMigration(ctx, migration)
 		}, want: ProjectMigrationPreview{Tasks: mappings}, pattern: RoutePreviewProjectMigration, path: "/v1/project-migrations/preview",
@@ -288,6 +305,19 @@ func TestClientReturnsTheServersErrorsWithoutRetrying(t *testing.T) {
 		if len(requests()) != 1 {
 			t.Errorf("%d: %d attempts, want 1", test.status, len(requests()))
 		}
+	}
+}
+
+func TestClientPassesOnWhyTheCalendarIsUnavailable(t *testing.T) {
+	client, requests := recordingServer(t, answerJSON(http.StatusFailedDependency,
+		`{"code":"calendar_unavailable","message":"Google Calendar needs reconnecting"}`))
+	_, err := client.GoogleCalendarEvents(t.Context(), at(0), at(23))
+	var failure *Error
+	if !errors.As(err, &failure) || *failure != (Error{Code: CodeCalendarUnavailable, Message: "Google Calendar needs reconnecting"}) {
+		t.Errorf("error = %#v, want calendar_unavailable with the server's reason", err)
+	}
+	if len(requests()) != 1 {
+		t.Errorf("%d attempts, want 1: the answer is the server's own, not an unreachable server", len(requests()))
 	}
 }
 
