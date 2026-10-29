@@ -11,6 +11,7 @@ import (
 	"time"
 
 	"github.com/jvrviegas/momentum-task-manager/backend/internal/auth"
+	"github.com/jvrviegas/momentum-task-manager/backend/internal/calendar"
 	"github.com/jvrviegas/momentum-task-manager/backend/internal/tasks"
 	"github.com/jvrviegas/momentum-task-manager/core/api"
 )
@@ -21,11 +22,12 @@ import (
 // and pages for the browser; the other /v1 routes need a signed-in user. Any
 // other route answers with an api.Error. Starting a sign-in, submitting the
 // code, and the providers' callbacks share one limit per client, and polling
-// has another; proxyHops is how many proxies in front of the server append
-// the client's address to X-Forwarded-For.
-func New(logger *slog.Logger, version string, signIn *auth.Service, userTasks *tasks.Service, proxyHops int) http.Handler {
-	s := &server{logger: logger, auth: signIn, tasks: userTasks, secure: strings.HasPrefix(signIn.PublicURL(), "https://"), proxyHops: proxyHops}
-	signIns, polls := newLimiter(signInLimit, limitWindow), newLimiter(pollLimit, limitWindow)
+// has another, as does connecting Google Calendar; proxyHops is how many
+// proxies in front of the server append the client's address to
+// X-Forwarded-For.
+func New(logger *slog.Logger, version string, signIn *auth.Service, userTasks *tasks.Service, calendars *calendar.Service, proxyHops int) http.Handler {
+	s := &server{logger: logger, auth: signIn, tasks: userTasks, calendar: calendars, secure: strings.HasPrefix(signIn.PublicURL(), "https://"), proxyHops: proxyHops}
+	signIns, polls, connects := newLimiter(signInLimit, limitWindow), newLimiter(pollLimit, limitWindow), newLimiter(signInLimit, limitWindow)
 	mux := http.NewServeMux()
 	mux.HandleFunc("GET /health", func(w http.ResponseWriter, r *http.Request) {
 		writeJSON(w, http.StatusOK, map[string]string{"status": "ok"})
@@ -53,6 +55,13 @@ func New(logger *slog.Logger, version string, signIn *auth.Service, userTasks *t
 	mux.HandleFunc(api.RouteSetTimeZone, s.authenticated(s.setTimeZone))
 	mux.HandleFunc(api.RoutePreviewImport, s.authenticated(s.previewImport))
 	mux.HandleFunc(api.RouteApplyImport, s.authenticated(s.applyImport))
+	mux.HandleFunc(api.RouteConnectGoogleCalendar, s.limited(connects, refuseConnect, s.authenticated(s.connectGoogleCalendar)))
+	mux.HandleFunc(api.RouteGoogleCalendarStatus, s.authenticated(s.googleCalendarStatus))
+	mux.HandleFunc(api.RouteDisconnectGoogleCalendar, s.authenticated(s.disconnectGoogleCalendar))
+	mux.HandleFunc(api.RouteGoogleCalendarEvents, s.authenticated(s.googleCalendarEvents))
+	mux.HandleFunc("GET "+calendar.ConnectPath+"{link}", s.limited(connects, refusePage, s.connectPage))
+	mux.HandleFunc("POST "+calendar.ConnectPath+"{link}", s.limited(connects, refusePage, s.connectSubmit))
+	mux.HandleFunc("GET "+calendar.CallbackPath, s.limited(connects, refusePage, s.connectCallback))
 	mux.HandleFunc("GET "+devicePath, s.devicePage)
 	mux.HandleFunc("POST "+devicePath, s.limited(signIns, refusePage, s.deviceSubmit))
 	mux.HandleFunc("GET "+callbackPath+"{provider}", s.limited(signIns, refusePage, s.callback))
@@ -63,9 +72,10 @@ func New(logger *slog.Logger, version string, signIn *auth.Service, userTasks *t
 }
 
 type server struct {
-	logger *slog.Logger
-	auth   *auth.Service
-	tasks  *tasks.Service
+	logger   *slog.Logger
+	auth     *auth.Service
+	tasks    *tasks.Service
+	calendar *calendar.Service
 	// secure marks cookies Secure when browsers reach the server over HTTPS.
 	secure bool
 	// proxyHops is how many trusted proxies append to X-Forwarded-For.
@@ -83,6 +93,8 @@ var errorStatus = map[string]int{
 	api.CodeSlowDown:             http.StatusBadRequest,
 	api.CodeAccessDenied:         http.StatusBadRequest,
 	api.CodeExpiredToken:         http.StatusBadRequest,
+	// Not a 502, 503 or 504, which the client retries as an unreachable server.
+	api.CodeCalendarUnavailable: http.StatusFailedDependency,
 }
 
 // internalError answers 500 and logs the type of the error, never its text,
