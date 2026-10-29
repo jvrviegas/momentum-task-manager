@@ -65,6 +65,8 @@ type Client interface {
 	StopRecurrence(context.Context, string) error
 	Undo(context.Context) error
 	ApplyProjectMigration(context.Context, domain.ProjectCatalogPlan, []domain.ProjectTaskMapping) error
+	Version(context.Context) (api.Version, error)
+	Session(context.Context) (api.Session, error)
 }
 
 // apiFields names the edit fields that a backend error's fields belong to.
@@ -86,6 +88,10 @@ type Server struct {
 	config     config.Config
 	configPath string
 	now        func() time.Time
+	// Version is the build of the bridge, and DeviceZone the IANA time zone of
+	// this Mac, which Diagnostics shows. The bridge's main sets them.
+	Version    string
+	DeviceZone string
 
 	// What reloadConfig keeps: the version of config.toml the settings came
 	// from, why a newer one was not applied, the [backend] settings the
@@ -207,6 +213,8 @@ func (s *Server) dispatch(ctx context.Context, op string, raw json.RawMessage) (
 	switch op {
 	case "status":
 		return s.status(ctx)
+	case "doctor":
+		return s.doctor(ctx)
 	case "settings":
 		return s.settings(ctx)
 	case "savePlanning":
