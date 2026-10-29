@@ -66,6 +66,19 @@ struct SnapshotScene {
         googleNotOffered.googleStatus = GoogleCalendarStatus(offered: false, connected: false, email: nil, needsReconnect: false)
         var googleExpiring = SnapshotBridge.Config()
         googleExpiring.googleLinkLifetime = 0.1
+        // Google no longer accepts the saved connection: the tab says so, and
+        // Plan Today and the sidebar count no meetings and give the reason.
+        var googleReconnect = SnapshotBridge.Config()
+        googleReconnect.googleStatus = GoogleCalendarStatus(offered: true, connected: true, email: "joao@gmail.com", needsReconnect: true)
+        let reconnectReason = "Google Calendar needs reconnecting"
+        var reconnectPlan = seed.dailyPlan
+        reconnectPlan.calendar = PlanCalendar(
+            enabled: true, available: false, stale: false, error: reconnectReason,
+            busyMinutes: 0, eventCount: 0, workingStart: "09:00", workingEnd: "17:00", blocks: [])
+        googleReconnect.plan = reconnectPlan
+        googleReconnect.seed.plan.calendarMinutes = 0
+        googleReconnect.seed.plan.calendarAvailable = false
+        googleReconnect.seed.plan.calendarError = reconnectReason
 
         var problems = SnapshotBridge.Config()
         problems.doctor = DoctorReport(
@@ -207,6 +220,10 @@ struct SnapshotScene {
             SnapshotScene(
                 name: "settings-calendar-google", config: googleConnected,
                 run: { await $0.store.settings.reload(); await $0.store.settings.chooseCalendarSource(.google); await $0.openSettings(.calendar) }),
+            SnapshotScene(
+                name: "settings-calendar-google-reconnect", config: googleReconnect,
+                run: { await $0.store.settings.reload(); await $0.store.settings.chooseCalendarSource(.google); await $0.openSettings(.calendar) }),
+            SnapshotScene(name: "plan-today-calendar-google-reconnect", config: googleReconnect, run: { await $0.store.openPlan() }),
             SnapshotScene(
                 name: "settings-calendar-google-not-offered", config: googleNotOffered,
                 run: { await $0.store.settings.reload(); await $0.store.settings.chooseCalendarSource(.google); await $0.openSettings(.calendar) }),
