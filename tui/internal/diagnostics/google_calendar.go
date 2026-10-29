@@ -16,9 +16,10 @@ type googleStatuser interface {
 // googleCalendarCheck is the "Calendar source" check when [calendar] source
 // is "google", which counts whatever [calendar] enabled says (D9). It needs the
 // server and a sign-in, as the Sign-in check needs the server, and is skipped
-// when either did not pass, since their own checks say why. Where a fix is in
-// the macOS app's Settings, the detail names it; the terminal app has no such
-// tab. earlier are the checks already made.
+// when either did not pass, since their own checks say why. The detail names
+// where the fix is: Settings ▸ Calendar in the macOS app, which has no
+// terminal, and momentum calendar connect in the terminal app. earlier are the
+// checks already made.
 func googleCalendarCheck(ctx context.Context, options DoctorOptions, earlier []Check) Check {
 	const name = "Calendar source"
 	skip := func(why string) Check { return Check{Name: name, Detail: why, Skipped: true, OK: true} }
@@ -36,19 +37,20 @@ func googleCalendarCheck(ctx context.Context, options DoctorOptions, earlier []C
 	if err != nil {
 		return Check{Name: name, Detail: "Unable to check Google Calendar: " + Redact(err.Error())}
 	}
-	problem := func(reason, fix string) Check {
-		if options.NoTerminal && fix != "" {
-			reason += ". " + fix
+	problem := func(reason, onTheMac, inTheTerminal string) Check {
+		fix := inTheTerminal
+		if options.NoTerminal {
+			fix = onTheMac
 		}
-		return Check{Name: name, Detail: reason}
+		return Check{Name: name, Detail: reason + ". " + fix}
 	}
 	switch {
 	case !status.Offered:
 		return Check{Name: name, Detail: "Google Calendar isn’t available on this server. Ask whoever runs the server to turn it on."}
 	case !status.Connected:
-		return problem("Google Calendar isn’t connected", "Connect it in Settings ▸ Calendar.")
+		return problem("Google Calendar isn’t connected", "Connect it in Settings ▸ Calendar.", "Run momentum calendar connect to connect it.")
 	case status.NeedsReconnect:
-		return problem("Google Calendar needs reconnecting", "Reconnect it in Settings ▸ Calendar.")
+		return problem("Google Calendar needs reconnecting", "Reconnect it in Settings ▸ Calendar.", "Run momentum calendar connect to reconnect it.")
 	}
 	return Check{Name: name, Detail: "Google Calendar connected as " + status.Email + "; read-only", OK: true}
 }
