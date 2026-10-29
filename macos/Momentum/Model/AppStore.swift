@@ -101,7 +101,6 @@ final class AppStore {
     private(set) var server = ServerState.unknown
     /// This Mac's sign-in to the server; nil when signed out.
     private(set) var account: SavedSignIn?
-    var signIn: SignInModel.Flow? { signInModel.flow }
 
     @ObservationIgnored private var clock: Task<Void, Never>?
     @ObservationIgnored private var lastRefresh = Date.distantPast
@@ -132,7 +131,7 @@ final class AppStore {
     var selectedTask: TaskItem? { selection.flatMap { tasksByUUID[$0] } }
     var projects: [ProjectEntry] { snapshot?.projects ?? [] }
     var hasOverlay: Bool {
-        showCapture || showShortcuts || editing != nil || pendingDelete != nil || pendingStopRecurrence != nil || signIn != nil
+        showCapture || showShortcuts || editing != nil || pendingDelete != nil || pendingStopRecurrence != nil || signInModel.flow != nil
             || planSheet != nil
     }
     var overdueCount: Int { snapshot?.today.first { $0.title == "Overdue" }?.uuids.count ?? 0 }
@@ -487,10 +486,6 @@ final class AppStore {
         return signInModel.begin(server: url)
     }
 
-    func cancelSignIn() {
-        signInModel.cancel()
-    }
-
     /// Takes over once the Keychain holds the new sign-in and the bridge has
     /// its token: revokes the sign-in it replaces, so that token stops
     /// working, and loads.
@@ -511,7 +506,7 @@ final class AppStore {
     /// Keychain even when the server cannot revoke it.
     func signOut() async {
         guard let url = backendURL else { return }
-        cancelSignIn()
+        signInModel.cancel()
         var failure: String?
         let saved = account ?? (try? signIns.read(server: url))
         if let saved {
