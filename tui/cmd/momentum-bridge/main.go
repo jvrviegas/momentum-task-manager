@@ -43,6 +43,8 @@ func run(args []string, stdin io.Reader, stdout, stderr io.Writer) int {
 	server := bridge.NewServer(func(token string) bridge.Client {
 		return backend.New(settings.Backend.URL, token, zone)
 	}, settings, resolvedPath)
+	server.Version = Version
+	server.DeviceZone = zone
 	if err := server.Serve(context.Background(), stdin, stdout); err != nil {
 		fmt.Fprintln(stderr, "momentum-bridge:", err)
 		return 1
