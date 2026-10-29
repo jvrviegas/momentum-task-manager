@@ -47,6 +47,9 @@ struct GoogleCalendarSection: View {
                 "Google Calendar isn’t available on this server", "Ask whoever runs the server to turn it on.",
                 symbol: "exclamationmark.triangle.fill")
         case .notConnected:
+            if google.notRevoked {
+                caution("Couldn’t reach Google to revoke its access, so it may still show in your Google account’s settings. Remove it there.")
+            }
             description
             Button("Connect…") { google.connect() }
         case .waiting:
@@ -61,17 +64,25 @@ struct GoogleCalendarSection: View {
                 Button("Cancel") { google.cancel() }
             }
         case .connected(let email):
+            disconnectError(google)
             Label {
                 Text("Connected as \(email)")
             } icon: {
                 Image(systemName: "checkmark.circle.fill").foregroundStyle(Theme.statusOK)
             }
+            Button("Disconnect…") { google.confirmingDisconnect = true }
+                .disabled(google.disconnecting)
         case .needsReconnecting(let email):
+            disconnectError(google)
             notice(
                 "Needs reconnecting",
                 "Google no longer accepts the saved connection to \(email). Plan Today counts no meetings until you reconnect.",
                 symbol: "exclamationmark.triangle.fill")
-            Button("Reconnect…") { google.connect() }
+            HStack {
+                Button("Reconnect…") { google.connect() }
+                Button("Disconnect…") { google.confirmingDisconnect = true }
+            }
+            .disabled(google.disconnecting)
         case .expired(let reconnecting):
             let verb = reconnecting ? "Reconnect" : "Connect"
             ErrorLine(text: "The link expired. Choose \(verb)… to try again.")
@@ -85,6 +96,25 @@ struct GoogleCalendarSection: View {
     private var description: some View {
         Text("The server reads today’s meetings in your primary Google calendar: their times, titles and whether you declined them. It never changes your calendar and never keeps the events.")
             .foregroundStyle(Theme.text2)
+    }
+
+    /// Why the last disconnect failed, above what the tab still shows.
+    @ViewBuilder
+    private func disconnectError(_ google: GoogleCalendarModel) -> some View {
+        if let message = google.disconnectError {
+            ErrorLine(text: "Unable to disconnect Google Calendar: \(message)")
+        }
+    }
+
+    /// Something the person should know that is not an error, as a symbol and words.
+    private func caution(_ text: String) -> some View {
+        Label {
+            Text(text).foregroundStyle(Theme.text2)
+        } icon: {
+            Image(systemName: "exclamationmark.triangle.fill").foregroundStyle(Theme.warn)
+        }
+        .font(.callout)
+        .fixedSize(horizontal: false, vertical: true)
     }
 
     /// A symbol and words, never color alone.
