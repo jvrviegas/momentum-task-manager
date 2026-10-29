@@ -11,6 +11,8 @@ import (
 	"entgo.io/ent/dialect/sql/sqlgraph"
 	"entgo.io/ent/schema/field"
 	"github.com/google/uuid"
+	"github.com/jvrviegas/momentum-task-manager/backend/internal/store/ent/calendarconnection"
+	"github.com/jvrviegas/momentum-task-manager/backend/internal/store/ent/calendarlink"
 	"github.com/jvrviegas/momentum-task-manager/backend/internal/store/ent/deviceauthorization"
 	"github.com/jvrviegas/momentum-task-manager/backend/internal/store/ent/idempotencykey"
 	"github.com/jvrviegas/momentum-task-manager/backend/internal/store/ent/identity"
@@ -60,6 +62,40 @@ func (_u *UserUpdate) SetNillableTimeZone(v *string) *UserUpdate {
 		_u.SetTimeZone(*v)
 	}
 	return _u
+}
+
+// SetCalendarConnectionID sets the "calendar_connection" edge to the CalendarConnection entity by ID.
+func (_u *UserUpdate) SetCalendarConnectionID(id int) *UserUpdate {
+	_u.mutation.SetCalendarConnectionID(id)
+	return _u
+}
+
+// SetNillableCalendarConnectionID sets the "calendar_connection" edge to the CalendarConnection entity by ID if the given value is not nil.
+func (_u *UserUpdate) SetNillableCalendarConnectionID(id *int) *UserUpdate {
+	if id != nil {
+		_u = _u.SetCalendarConnectionID(*id)
+	}
+	return _u
+}
+
+// SetCalendarConnection sets the "calendar_connection" edge to the CalendarConnection entity.
+func (_u *UserUpdate) SetCalendarConnection(v *CalendarConnection) *UserUpdate {
+	return _u.SetCalendarConnectionID(v.ID)
+}
+
+// AddCalendarLinkIDs adds the "calendar_links" edge to the CalendarLink entity by IDs.
+func (_u *UserUpdate) AddCalendarLinkIDs(ids ...int) *UserUpdate {
+	_u.mutation.AddCalendarLinkIDs(ids...)
+	return _u
+}
+
+// AddCalendarLinks adds the "calendar_links" edges to the CalendarLink entity.
+func (_u *UserUpdate) AddCalendarLinks(v ...*CalendarLink) *UserUpdate {
+	ids := make([]int, len(v))
+	for i := range v {
+		ids[i] = v[i].ID
+	}
+	return _u.AddCalendarLinkIDs(ids...)
 }
 
 // AddDeviceAuthorizationIDs adds the "device_authorizations" edge to the DeviceAuthorization entity by IDs.
@@ -155,6 +191,33 @@ func (_u *UserUpdate) AddTaskEvents(v ...*TaskEvent) *UserUpdate {
 // Mutation returns the UserMutation object of the builder.
 func (_u *UserUpdate) Mutation() *UserMutation {
 	return _u.mutation
+}
+
+// ClearCalendarConnection clears the "calendar_connection" edge to the CalendarConnection entity.
+func (_u *UserUpdate) ClearCalendarConnection() *UserUpdate {
+	_u.mutation.ClearCalendarConnection()
+	return _u
+}
+
+// ClearCalendarLinks clears all "calendar_links" edges to the CalendarLink entity.
+func (_u *UserUpdate) ClearCalendarLinks() *UserUpdate {
+	_u.mutation.ClearCalendarLinks()
+	return _u
+}
+
+// RemoveCalendarLinkIDs removes the "calendar_links" edge to CalendarLink entities by IDs.
+func (_u *UserUpdate) RemoveCalendarLinkIDs(ids ...int) *UserUpdate {
+	_u.mutation.RemoveCalendarLinkIDs(ids...)
+	return _u
+}
+
+// RemoveCalendarLinks removes "calendar_links" edges to CalendarLink entities.
+func (_u *UserUpdate) RemoveCalendarLinks(v ...*CalendarLink) *UserUpdate {
+	ids := make([]int, len(v))
+	for i := range v {
+		ids[i] = v[i].ID
+	}
+	return _u.RemoveCalendarLinkIDs(ids...)
 }
 
 // ClearDeviceAuthorizations clears all "device_authorizations" edges to the DeviceAuthorization entity.
@@ -337,6 +400,80 @@ func (_u *UserUpdate) sqlSave(ctx context.Context) (_node int, err error) {
 	}
 	if value, ok := _u.mutation.TimeZone(); ok {
 		_spec.SetField(user.FieldTimeZone, field.TypeString, value)
+	}
+	if _u.mutation.CalendarConnectionCleared() {
+		edge := &sqlgraph.EdgeSpec{
+			Rel:     sqlgraph.O2O,
+			Inverse: false,
+			Table:   user.CalendarConnectionTable,
+			Columns: []string{user.CalendarConnectionColumn},
+			Bidi:    false,
+			Target: &sqlgraph.EdgeTarget{
+				IDSpec: sqlgraph.NewFieldSpec(calendarconnection.FieldID, field.TypeInt),
+			},
+		}
+		_spec.Edges.Clear = append(_spec.Edges.Clear, edge)
+	}
+	if nodes := _u.mutation.CalendarConnectionIDs(); len(nodes) > 0 {
+		edge := &sqlgraph.EdgeSpec{
+			Rel:     sqlgraph.O2O,
+			Inverse: false,
+			Table:   user.CalendarConnectionTable,
+			Columns: []string{user.CalendarConnectionColumn},
+			Bidi:    false,
+			Target: &sqlgraph.EdgeTarget{
+				IDSpec: sqlgraph.NewFieldSpec(calendarconnection.FieldID, field.TypeInt),
+			},
+		}
+		for _, k := range nodes {
+			edge.Target.Nodes = append(edge.Target.Nodes, k)
+		}
+		_spec.Edges.Add = append(_spec.Edges.Add, edge)
+	}
+	if _u.mutation.CalendarLinksCleared() {
+		edge := &sqlgraph.EdgeSpec{
+			Rel:     sqlgraph.O2M,
+			Inverse: false,
+			Table:   user.CalendarLinksTable,
+			Columns: []string{user.CalendarLinksColumn},
+			Bidi:    false,
+			Target: &sqlgraph.EdgeTarget{
+				IDSpec: sqlgraph.NewFieldSpec(calendarlink.FieldID, field.TypeInt),
+			},
+		}
+		_spec.Edges.Clear = append(_spec.Edges.Clear, edge)
+	}
+	if nodes := _u.mutation.RemovedCalendarLinksIDs(); len(nodes) > 0 && !_u.mutation.CalendarLinksCleared() {
+		edge := &sqlgraph.EdgeSpec{
+			Rel:     sqlgraph.O2M,
+			Inverse: false,
+			Table:   user.CalendarLinksTable,
+			Columns: []string{user.CalendarLinksColumn},
+			Bidi:    false,
+			Target: &sqlgraph.EdgeTarget{
+				IDSpec: sqlgraph.NewFieldSpec(calendarlink.FieldID, field.TypeInt),
+			},
+		}
+		for _, k := range nodes {
+			edge.Target.Nodes = append(edge.Target.Nodes, k)
+		}
+		_spec.Edges.Clear = append(_spec.Edges.Clear, edge)
+	}
+	if nodes := _u.mutation.CalendarLinksIDs(); len(nodes) > 0 {
+		edge := &sqlgraph.EdgeSpec{
+			Rel:     sqlgraph.O2M,
+			Inverse: false,
+			Table:   user.CalendarLinksTable,
+			Columns: []string{user.CalendarLinksColumn},
+			Bidi:    false,
+			Target: &sqlgraph.EdgeTarget{
+				IDSpec: sqlgraph.NewFieldSpec(calendarlink.FieldID, field.TypeInt),
+			},
+		}
+		for _, k := range nodes {
+			edge.Target.Nodes = append(edge.Target.Nodes, k)
+		}
+		_spec.Edges.Add = append(_spec.Edges.Add, edge)
 	}
 	if _u.mutation.DeviceAuthorizationsCleared() {
 		edge := &sqlgraph.EdgeSpec{
@@ -656,6 +793,40 @@ func (_u *UserUpdateOne) SetNillableTimeZone(v *string) *UserUpdateOne {
 	return _u
 }
 
+// SetCalendarConnectionID sets the "calendar_connection" edge to the CalendarConnection entity by ID.
+func (_u *UserUpdateOne) SetCalendarConnectionID(id int) *UserUpdateOne {
+	_u.mutation.SetCalendarConnectionID(id)
+	return _u
+}
+
+// SetNillableCalendarConnectionID sets the "calendar_connection" edge to the CalendarConnection entity by ID if the given value is not nil.
+func (_u *UserUpdateOne) SetNillableCalendarConnectionID(id *int) *UserUpdateOne {
+	if id != nil {
+		_u = _u.SetCalendarConnectionID(*id)
+	}
+	return _u
+}
+
+// SetCalendarConnection sets the "calendar_connection" edge to the CalendarConnection entity.
+func (_u *UserUpdateOne) SetCalendarConnection(v *CalendarConnection) *UserUpdateOne {
+	return _u.SetCalendarConnectionID(v.ID)
+}
+
+// AddCalendarLinkIDs adds the "calendar_links" edge to the CalendarLink entity by IDs.
+func (_u *UserUpdateOne) AddCalendarLinkIDs(ids ...int) *UserUpdateOne {
+	_u.mutation.AddCalendarLinkIDs(ids...)
+	return _u
+}
+
+// AddCalendarLinks adds the "calendar_links" edges to the CalendarLink entity.
+func (_u *UserUpdateOne) AddCalendarLinks(v ...*CalendarLink) *UserUpdateOne {
+	ids := make([]int, len(v))
+	for i := range v {
+		ids[i] = v[i].ID
+	}
+	return _u.AddCalendarLinkIDs(ids...)
+}
+
 // AddDeviceAuthorizationIDs adds the "device_authorizations" edge to the DeviceAuthorization entity by IDs.
 func (_u *UserUpdateOne) AddDeviceAuthorizationIDs(ids ...int) *UserUpdateOne {
 	_u.mutation.AddDeviceAuthorizationIDs(ids...)
@@ -749,6 +920,33 @@ func (_u *UserUpdateOne) AddTaskEvents(v ...*TaskEvent) *UserUpdateOne {
 // Mutation returns the UserMutation object of the builder.
 func (_u *UserUpdateOne) Mutation() *UserMutation {
 	return _u.mutation
+}
+
+// ClearCalendarConnection clears the "calendar_connection" edge to the CalendarConnection entity.
+func (_u *UserUpdateOne) ClearCalendarConnection() *UserUpdateOne {
+	_u.mutation.ClearCalendarConnection()
+	return _u
+}
+
+// ClearCalendarLinks clears all "calendar_links" edges to the CalendarLink entity.
+func (_u *UserUpdateOne) ClearCalendarLinks() *UserUpdateOne {
+	_u.mutation.ClearCalendarLinks()
+	return _u
+}
+
+// RemoveCalendarLinkIDs removes the "calendar_links" edge to CalendarLink entities by IDs.
+func (_u *UserUpdateOne) RemoveCalendarLinkIDs(ids ...int) *UserUpdateOne {
+	_u.mutation.RemoveCalendarLinkIDs(ids...)
+	return _u
+}
+
+// RemoveCalendarLinks removes "calendar_links" edges to CalendarLink entities.
+func (_u *UserUpdateOne) RemoveCalendarLinks(v ...*CalendarLink) *UserUpdateOne {
+	ids := make([]int, len(v))
+	for i := range v {
+		ids[i] = v[i].ID
+	}
+	return _u.RemoveCalendarLinkIDs(ids...)
 }
 
 // ClearDeviceAuthorizations clears all "device_authorizations" edges to the DeviceAuthorization entity.
@@ -961,6 +1159,80 @@ func (_u *UserUpdateOne) sqlSave(ctx context.Context) (_node *User, err error) {
 	}
 	if value, ok := _u.mutation.TimeZone(); ok {
 		_spec.SetField(user.FieldTimeZone, field.TypeString, value)
+	}
+	if _u.mutation.CalendarConnectionCleared() {
+		edge := &sqlgraph.EdgeSpec{
+			Rel:     sqlgraph.O2O,
+			Inverse: false,
+			Table:   user.CalendarConnectionTable,
+			Columns: []string{user.CalendarConnectionColumn},
+			Bidi:    false,
+			Target: &sqlgraph.EdgeTarget{
+				IDSpec: sqlgraph.NewFieldSpec(calendarconnection.FieldID, field.TypeInt),
+			},
+		}
+		_spec.Edges.Clear = append(_spec.Edges.Clear, edge)
+	}
+	if nodes := _u.mutation.CalendarConnectionIDs(); len(nodes) > 0 {
+		edge := &sqlgraph.EdgeSpec{
+			Rel:     sqlgraph.O2O,
+			Inverse: false,
+			Table:   user.CalendarConnectionTable,
+			Columns: []string{user.CalendarConnectionColumn},
+			Bidi:    false,
+			Target: &sqlgraph.EdgeTarget{
+				IDSpec: sqlgraph.NewFieldSpec(calendarconnection.FieldID, field.TypeInt),
+			},
+		}
+		for _, k := range nodes {
+			edge.Target.Nodes = append(edge.Target.Nodes, k)
+		}
+		_spec.Edges.Add = append(_spec.Edges.Add, edge)
+	}
+	if _u.mutation.CalendarLinksCleared() {
+		edge := &sqlgraph.EdgeSpec{
+			Rel:     sqlgraph.O2M,
+			Inverse: false,
+			Table:   user.CalendarLinksTable,
+			Columns: []string{user.CalendarLinksColumn},
+			Bidi:    false,
+			Target: &sqlgraph.EdgeTarget{
+				IDSpec: sqlgraph.NewFieldSpec(calendarlink.FieldID, field.TypeInt),
+			},
+		}
+		_spec.Edges.Clear = append(_spec.Edges.Clear, edge)
+	}
+	if nodes := _u.mutation.RemovedCalendarLinksIDs(); len(nodes) > 0 && !_u.mutation.CalendarLinksCleared() {
+		edge := &sqlgraph.EdgeSpec{
+			Rel:     sqlgraph.O2M,
+			Inverse: false,
+			Table:   user.CalendarLinksTable,
+			Columns: []string{user.CalendarLinksColumn},
+			Bidi:    false,
+			Target: &sqlgraph.EdgeTarget{
+				IDSpec: sqlgraph.NewFieldSpec(calendarlink.FieldID, field.TypeInt),
+			},
+		}
+		for _, k := range nodes {
+			edge.Target.Nodes = append(edge.Target.Nodes, k)
+		}
+		_spec.Edges.Clear = append(_spec.Edges.Clear, edge)
+	}
+	if nodes := _u.mutation.CalendarLinksIDs(); len(nodes) > 0 {
+		edge := &sqlgraph.EdgeSpec{
+			Rel:     sqlgraph.O2M,
+			Inverse: false,
+			Table:   user.CalendarLinksTable,
+			Columns: []string{user.CalendarLinksColumn},
+			Bidi:    false,
+			Target: &sqlgraph.EdgeTarget{
+				IDSpec: sqlgraph.NewFieldSpec(calendarlink.FieldID, field.TypeInt),
+			},
+		}
+		for _, k := range nodes {
+			edge.Target.Nodes = append(edge.Target.Nodes, k)
+		}
+		_spec.Edges.Add = append(_spec.Edges.Add, edge)
 	}
 	if _u.mutation.DeviceAuthorizationsCleared() {
 		edge := &sqlgraph.EdgeSpec{
