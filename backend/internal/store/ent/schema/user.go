@@ -26,6 +26,8 @@ func (User) Fields() []ent.Field {
 
 func (User) Edges() []ent.Edge {
 	return []ent.Edge{
+		edge.To("calendar_connection", CalendarConnection.Type).Unique(),
+		edge.To("calendar_links", CalendarLink.Type),
 		edge.To("device_authorizations", DeviceAuthorization.Type),
 		edge.To("identities", Identity.Type),
 		edge.To("idempotency_keys", IdempotencyKey.Type),
