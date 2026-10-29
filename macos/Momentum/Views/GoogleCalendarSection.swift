@@ -66,9 +66,16 @@ struct GoogleCalendarSection: View {
             } icon: {
                 Image(systemName: "checkmark.circle.fill").foregroundStyle(Theme.statusOK)
             }
-        case .expired:
-            ErrorLine(text: "The link expired. Choose Connect… to try again.")
-            Button("Connect…") { google.connect() }
+        case .needsReconnecting(let email):
+            notice(
+                "Needs reconnecting",
+                "Google no longer accepts the saved connection to \(email). Plan Today counts no meetings until you reconnect.",
+                symbol: "exclamationmark.triangle.fill")
+            Button("Reconnect…") { google.connect() }
+        case .expired(let reconnecting):
+            let verb = reconnecting ? "Reconnect" : "Connect"
+            ErrorLine(text: "The link expired. Choose \(verb)… to try again.")
+            Button("\(verb)…") { google.connect() }
         case .failed(let reason):
             ErrorLine(text: "Unable to check Google Calendar: \(reason)")
             Button("Try Again") { Task { await google.refresh() } }
@@ -86,5 +93,6 @@ struct GoogleCalendarSection: View {
             Label(title, systemImage: symbol).fontWeight(.semibold)
             Text(detail).foregroundStyle(Theme.text2)
         }
+        .accessibilityElement(children: .combine)
     }
 }
