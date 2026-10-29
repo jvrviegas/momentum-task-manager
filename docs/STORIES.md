@@ -776,12 +776,12 @@ Screens: plan-today.png, today.png
 Depends: S-057, S-037
 Decisions: D2, D3
 Acceptance:
-- [unit] Go: the same meetings give the same busy minutes and blocks from Google as from an `.ics` fixture; working hours, **Count all-day events** and **Count events shown as free** apply to both; an all-day event arrives as all-day and a "free" one as transparent.
-- [unit] Go, fake Google: a repeating meeting with one cancelled and one moved occurrence gives the right times, which `.ics` files can't; only the primary calendar is read, between the start and end of the device's day.
-- [unit] Go: a Google answer is never stale, so **Stale after** doesn't touch it; titles come back only with `plan`, never with `load`.
-- [unit] Go, captured logger: the server stores and logs no event and no title.
-- [manual] The sheet shows the merged blocks with their titles on hover and the sidebar's meter counts them, as with files; run once with a real calendar.
-Status: todo
+- [unit] Go: the same meetings give the same busy minutes and blocks from Google as from an `.ics` fixture; working hours, **Count all-day events** and **Count events shown as free** apply to both; an all-day event arrives as all-day and a "free" one as transparent. Go (bridge) `TestGoogleGivesTheSameBusyTimeAndBlocksAsTheSameEventsInAFile`, `TestHoursAndEventChoicesApplyToGoogleEventsToo`, (server) `TestEventsComeFromThePrimaryCalendarForTheDay`.
+- [unit] Go, fake Google: a repeating meeting with one cancelled and one moved occurrence gives the right times, which `.ics` files can't; only the primary calendar is read, between the start and end of the device's day. `TestARepeatingMeetingWithACancelledAndAMovedOccurrence`, `TestEventsComeFromThePrimaryCalendarForTheDay`, `TestTheServerIsAskedForTodayInTheDevicesOwnOffset`.
+- [unit] Go: a Google answer is never stale, so **Stale after** doesn't touch it; titles come back only with `plan`, never with `load`. `TestGoogleGivesTheSameBusyTimeAndBlocksAsTheSameEventsInAFile` (not stale), `TestALoadNeverCarriesATitleAndPlanTodayDoes`.
+- [unit] Go, captured logger: the server stores and logs no event and no title. `TestLogsHoldNoSecretsAndNoTitles`, `TestConnectingGoogleCalendarOverHTTP`.
+- [manual] The sheet shows the merged blocks with their titles on hover and the sidebar's meter counts them, as with files; run once with a real calendar. Not tried yet: it needs a real connection, which is S-057's manual check.
+Status: done
 
 ### S-059 Leave out meetings I declined
 As the user, a meeting I declined doesn't take time off my day, and one I accepted, tentatively accepted or haven't answered does.
@@ -789,9 +789,9 @@ Screens: plan-today.png
 Depends: S-058
 Decisions: D2, D4
 Acceptance:
-- [unit] Go, fake Google: a declined event is not among the events the server returns, so it is neither in the strip nor in the busy minutes; accepted, tentative and unanswered events are.
-- [manual] Decline a meeting in Google and open Plan Today: its time comes back to the day. Files can't say declined, so the same meeting can differ between the two sources.
-Status: todo
+- [unit] Go, fake Google: a declined event is not among the events the server returns, so it is neither in the strip nor in the busy minutes; accepted, tentative and unanswered events are. `TestDeclinedMeetingsAreLeftOut`.
+- [manual] Decline a meeting in Google and open Plan Today: its time comes back to the day. Files can't say declined, so the same meeting can differ between the two sources. Not tried yet, for the same reason as S-058's.
+Status: done
 
 ### S-060 See a new meeting without waiting
 As the user, I add a meeting in Google and open Plan Today, and it is already counted; the sidebar catches up within five minutes.
@@ -799,10 +799,10 @@ Screens: plan-today.png, today.png
 Depends: S-058
 Decisions: D7
 Acceptance:
-- [unit] Go, bridge with a fake server: `plan` always asks the server for events; a `load` within five minutes of the last fetch reuses its busy time and asks again after five; a reused answer carries no titles.
-- [unit] Go: a load keeps the day's events, not the busy minutes, so a change to the working hours or the event choices applies to the next load at once with no new fetch, which keeps S-046's "applies at once"; a failure is never kept, and another account's events are never reused.
-- [manual] Add a meeting in Google, open Plan Today and see it counted; close the sheet and see the sidebar's meter follow within five minutes.
-Status: todo
+- [unit] Go, bridge with a fake server: `plan` always asks the server for events; a `load` within five minutes of the last fetch reuses its busy time and asks again after five; a reused answer carries no titles. `TestOpeningPlanTodayAlwaysAsksAndALoadReusesTheAnswerForFiveMinutes`, `TestACachedAnswerCarriesNoTitles`.
+- [unit] Go: a load keeps the day's events, not the busy minutes, so a change to the working hours or the event choices applies to the next load at once with no new fetch, which keeps S-046's "applies at once"; a failure is never kept, and another account's events are never reused. `TestChangingTheHoursOrEventChoicesNeedsNoNewFetch`, `TestAnUnavailableAnswerIsNotKept`, `TestSigningInAsSomeoneElseForgetsTheCachedAnswer`.
+- [manual] Add a meeting in Google, open Plan Today and see it counted; close the sheet and see the sidebar's meter follow within five minutes. Not tried yet, for the same reason as S-058's.
+Status: done
 
 ### S-061 Reconnect when Google stops answering
 As the user, when Google refuses my saved connection, I'm told to reconnect and can do it from the same tab, and planning goes on with tasks alone.
