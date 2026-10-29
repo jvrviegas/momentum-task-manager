@@ -348,6 +348,34 @@ func TestPagesExplainWhyConnectingFailed(t *testing.T) {
 	}
 }
 
+// The connection belongs to the account, not to a device (ADR 0003, C3), so a
+// device signing out, and the same person signing in on another, leaves it.
+func TestSigningOutAndInAgainKeepsTheCalendarConnection(t *testing.T) {
+	h := newHarness(t)
+	first := h.signIn("alice@example.com")
+	path := h.startConnect(first.Token)
+	browser := h.browser()
+	state := h.continueToGoogle(browser, path)
+	if status, _ := h.calendarCallback(browser, "code=calendar-code&state="+url.QueryEscape(state)); status != http.StatusOK {
+		t.Fatal("connecting failed")
+	}
+
+	if response, _ := h.do(http.DefaultClient, http.MethodPost, "/v1/auth/sign-out", first.Token, nil, ""); response.StatusCode != http.StatusNoContent {
+		t.Fatalf("sign-out: %d", response.StatusCode)
+	}
+	if response, _ := h.do(http.DefaultClient, http.MethodGet, "/v1/calendar/google", first.Token, nil, ""); response.StatusCode != http.StatusUnauthorized {
+		t.Fatalf("the signed-out device still reaches the calendar: %d", response.StatusCode)
+	}
+
+	second := h.signIn("alice@example.com")
+	if got := h.status(second.Token); got != (api.GoogleCalendarStatus{Offered: true, Connected: true, Email: "alice@gmail.com"}) {
+		t.Errorf("status on the new device = %+v, want the connection kept", got)
+	}
+	if revoked := h.google.revokedTokens(); len(revoked) != 0 {
+		t.Errorf("Google was asked to revoke %v when a device signed out", revoked)
+	}
+}
+
 func TestEachUserSeesOnlyTheirOwnCalendarConnection(t *testing.T) {
 	h := newHarness(t)
 	alice, bob := h.signIn("alice@example.com"), h.signIn("bob@example.com")
