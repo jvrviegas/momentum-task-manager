@@ -8,6 +8,9 @@ actor FakeBridge: TaskBridge {
     var statusValue: BridgeStatus
     var snapshots: [Snapshot]
     private(set) var calls: [String] = []
+    /// What each load and plan was handed in place of the calendar files.
+    private(set) var loadCalendars: [CalendarInput?] = []
+    private(set) var planCalendars: [CalendarInput?] = []
     var failNext: BridgeError?
     var failLoad: BridgeError?
     var polls: [Result<SignInPoll, BridgeError>] = []
@@ -41,8 +44,9 @@ actor FakeBridge: TaskBridge {
     }
 
     func status() async throws -> BridgeStatus { statusValue }
-    func load() async throws -> Snapshot {
+    func load(calendar: CalendarInput?) async throws -> Snapshot {
         calls.append("load")
+        loadCalendars.append(calendar)
         if let error = failLoad {
             failLoad = nil
             throw error
@@ -65,8 +69,9 @@ actor FakeBridge: TaskBridge {
     }
     func perform(_ action: TaskAction, uuid: String) async throws { try record("\(action.rawValue) \(uuid)") }
     func undo() async throws { try record("undo") }
-    func plan() async throws -> DailyPlan {
+    func plan(calendar: CalendarInput?) async throws -> DailyPlan {
         try record("plan")
+        planCalendars.append(calendar)
         return planValue
     }
     func applyPlan(date: String, uuids: [String]) async throws -> PlanSaveResult {
