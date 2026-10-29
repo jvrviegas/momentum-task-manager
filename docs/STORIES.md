@@ -587,16 +587,22 @@ Status: done
 
 ### S-047 Use the Mac's Calendar instead of files
 As the user, I choose macOS Calendar as my source and pick which calendars count.
-Screens: settings-calendar-mac.png, settings-calendar-denied.png
+Screens: settings-calendar-mac.png, settings-calendar-denied.png, plan-today-calendar-denied.png
 Depends: S-046
 Acceptance:
-- [self] The Calendar tab has a source picker with calendar files and macOS Calendar; choosing macOS Calendar asks for access.
-- [snap] Denied, the tab says so and offers to open System Settings › Privacy & Security › Calendars; Plan Today says "Calendar unavailable: no access".
-- [snap] Granted, calendars are listed by account with a switch each.
-- [unit] Events handed to the bridge give the same busy minutes as the same events read from a file; titles go only with `plan`.
-- [unit] Choosing macOS Calendar never changes `[calendar] enabled` or `paths`; the source and the chosen calendars stay on this Mac.
-- [manual] Run once with access granted and once denied.
-Status: todo
+- [unit] Swift `choosingMacOSCalendarAsksTheMacOnceAndLoadsAgain`: the Calendar tab has a **Source** picker with Calendar files and macOS Calendar; choosing macOS Calendar asks the Mac for access the first time, and the next load uses the Mac's events.
+- [snap] `settings-calendar-denied`: denied, the tab says so and offers **Open System Settings…** (Privacy & Security ▸ Calendars); `plan-today-calendar-denied`: Plan Today says "Calendar unavailable: no access". Unit: Swift `aMacThatSaysNoLeavesNoAccessForLoadAndPlan`, `comingBackFromSystemSettingsWithAccessLoadsAgain`, Go `TestCalendarsTheAppCouldNotReadMakeTheCalendarUnavailable`.
+- [snap] `settings-calendar-mac`: granted, calendars are listed by account with a switch each.
+- [unit] Go `TestEventsFromTheMacGiveTheSameBusyTimeAsTheSameEventsInAFile`, `TestTheHoursAndEventChoicesApplyToTheMacsEventsToo`, `TestFromEventsNarrowsToTheDayAndIsNeverStale`: events handed to the bridge give the same busy minutes and blocks as the same events read from a file, and the working hours and event choices apply to them; Swift `titlesGoOnlyWithAPlan` and Go `TestTitlesComeBackOnlyWhenTheAppSendsThem`: titles go only with `plan`; Swift `eventTimesAreSentAsISO8601`.
+- [unit] Swift `choosingMacOSCalendarNeverChangesTheConfigFile`, Go `TestTheMacCalendarNeedsNeitherTheFilesSwitchNorTheirPaths`: choosing macOS Calendar never changes `[calendar] enabled` or `paths`, and the bridge counts the Mac's events whatever they say; Swift `aCalendarSwitchedOffSendsNoEventsAndIsRemembered`: the source and the calendars that are off stay in this Mac's preferences, under `calendar.source` and `calendar.mac.off`.
+- [manual] Run once with access granted and once denied, with a real calendar; not tried by hand yet. The harness and the tests use a fake event source, so no calendar is read and the Mac's permission prompt never appears. The usage description (`NSCalendarsFullAccessUsageDescription`) is in the built Info.plist.
+UX:
+- Flow: Settings ▸ Calendar -> **Source** ▸ macOS Calendar -> the Mac asks for access to calendars the first time -> the tab lists the calendars by account, each with a switch -> switch off the ones that should not count -> the app loads again at once, so the sidebar's meter and the next Plan Today use them. Denied: the tab says so and **Open System Settings…** opens Privacy & Security ▸ Calendars; coming back to the app with access given loads again. Way back: **Source** ▸ Calendar files.
+- Surface: inline (a picker and switches change values on something already on screen), in the Calendar tab. The Mac's own permission alert is the system's; **Open System Settings…** leaves the app.
+- States: not asked yet ("Momentum Task Manager asks your Mac for access to your calendars. It only reads the times of today’s meetings." and **Allow Access…**); denied (a lock symbol and "Momentum Task Manager can’t read your calendars", "Allow it in System Settings ▸ Privacy & Security ▸ Calendars. Until then, Plan Today shows “Calendar unavailable: no access”.", **Open System Settings…**); granted with calendars (account names as small headings, a switch per calendar, all on at first, a calendar added later counts until it is switched off); granted with none ("No calendars found"). The calendar files groups hide while the source is macOS Calendar, and come back, as they were, when it is Calendar files. Working hours and Events that count apply to both sources. A cancelled meeting is not counted.
+- Words: picker "Source" with "Calendar files" and "macOS Calendar", caption "This applies to this Mac only. The terminal app keeps using the calendar files.", group "Calendars", caption "Meetings in the calendars that are on take time off each day’s capacity in Plan Today. Momentum Task Manager only reads today’s events; it never changes your calendar.", buttons "Allow Access…" and "Open System Settings…".
+- Access: the picker and each switch are labeled with their text; the denied state is a symbol and words, never color alone; **Open System Settings…** and **Allow Access…** are buttons reachable with Tab.
+Status: done
 
 ### S-048 Browse my projects
 As the user, I open Projects and see my project tree.
