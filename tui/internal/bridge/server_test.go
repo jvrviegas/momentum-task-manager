@@ -52,6 +52,21 @@ func (f *fakeClient) Undo(context.Context) error {
 	}
 	return f.act("undo")
 }
+func (f *fakeClient) AddNote(_ context.Context, uuid, text string) error {
+	return f.act("add-note " + uuid + " " + text)
+}
+func (f *fakeClient) RemoveNote(_ context.Context, uuid string, entry time.Time, text string) error {
+	return f.act("remove-note " + uuid + " " + entry.UTC().Format(time.RFC3339) + " " + text)
+}
+func (f *fakeClient) AddDependency(_ context.Context, uuid, on string) error {
+	return f.act("add-dependency " + uuid + " " + on)
+}
+func (f *fakeClient) RemoveDependency(_ context.Context, uuid, on string) error {
+	return f.act("remove-dependency " + uuid + " " + on)
+}
+func (f *fakeClient) Duplicate(_ context.Context, uuid string) (string, error) {
+	return "copy-of-" + uuid, f.act("duplicate " + uuid)
+}
 func (f *fakeClient) act(name string) error {
 	f.actions = append(f.actions, name)
 	return nil
