@@ -1,3 +1,4 @@
+import AppKit
 import Foundation
 import Observation
 
@@ -75,6 +76,8 @@ final class AppStore {
     let settings = SettingsModel()
     /// The Calendar tab's macOS Calendar source, kept on this Mac.
     let macCalendar: MacCalendarModel
+    /// The Calendar tab's Google Calendar source, which belongs to the account.
+    let googleCalendar: GoogleCalendarModel
     /// The Projects tab: the catalog and the values found only on tasks.
     let catalog = ProjectsModel()
     /// The Diagnostics tab: the checks and the report to copy.
@@ -119,14 +122,17 @@ final class AppStore {
     init(
         bridge: any TaskBridge, signIns: any SignInStore = KeychainSignInStore(),
         calendarSource: any CalendarEventSource = NoCalendarSource(), calendarDefaults: UserDefaults = .standard,
-        sleep: @escaping @Sendable (TimeInterval) async throws -> Void = { try await Task.sleep(for: .seconds($0)) }
+        sleep: @escaping @Sendable (TimeInterval) async throws -> Void = { try await Task.sleep(for: .seconds($0)) },
+        openURL: @escaping @MainActor (URL) -> Void = { NSWorkspace.shared.open($0) }
     ) {
         self.bridge = bridge
         self.signIns = signIns
         self.sleep = sleep
         macCalendar = MacCalendarModel(eventSource: calendarSource, defaults: calendarDefaults)
+        googleCalendar = GoogleCalendarModel(open: openURL, sleep: sleep)
         settings.store = self
         macCalendar.store = self
+        googleCalendar.store = self
         catalog.store = self
         diagnostics.store = self
     }
