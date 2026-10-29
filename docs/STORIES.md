@@ -682,21 +682,29 @@ Status: done
 
 ### S-053 Check that everything is working
 As the user, I open Diagnostics and copy a report for a bug report.
-Screens: settings-diagnostics.png
+Screens: settings-diagnostics.png, settings-diagnostics-problems.png, settings-diagnostics-config-error.png
 Depends: S-041
 Acceptance:
-- [snap] The tab lists the checks for the server, the sign-in, the time zone, the config and the calendar, with the app and bridge versions and the config path.
-- [manual] **Show in Finder** reveals the config file; **Copy Report** puts the report on the clipboard.
-- [unit] The `doctor` operation against the fake server; the copied report holds no token and no event title.
-- [snap] A config error from S-054 shows in this tab too, with the same words as the Settings banner.
-Status: todo
+- [snap] `settings-diagnostics`: the tab lists the checks for the server, the sign-in, the time zone, the config and the calendar, each a symbol and a word, with the app and bridge versions and the config path; `settings-diagnostics-problems` shows a failed and a skipped check.
+- [manual] **Show in Finder** reveals the config file; **Copy Report** puts the report on the clipboard; not tried by hand yet.
+- [unit] Go `TestDoctorChecksTheServerTheSignInTheZoneTheConfigAndTheCalendar`, `TestDoctorAnswersBeforeAServerIsNamed`, `TestDoctorCanLeaveOutTheTerminalChecks`: the `doctor` operation against the fake server, without the terminal app's Terminal and State directory checks, which belong to it.
+- [unit] Go `TestDoctorLeavesSecretsAndEventTitlesOutOfTheReport`; Swift `theReportHoldsNoTokenAndNoEventTitle`, `theReportListsTheVersionsThePathAndEachCheck`: the copied report holds no token and no event title.
+- [snap] `settings-diagnostics-config-error`, Go `TestDoctorFailsTheConfigCheckWithTheFilesOwnMessage`: a config error from S-054 shows in this tab too, as the same banner every Settings tab has, and as a failed config check with the file's own message.
+- [unit] Swift `macOSCalendarIsOneMoreCheckOnlyWhenItIsTheSource`, `aRunThatFailedSaysWhy`, `theAppVersionReadsTheInfoPlistAndTheBridgesAnswerDecodes`.
+UX:
+- Flow: Settings ▸ Diagnostics -> the checks run when the tab opens -> read each one -> **Copy Report** to paste into a bug report, **Show in Finder** to reach `config.toml`, **Check Again** after fixing something.
+- Surface: inline in the Diagnostics tab (information, no decision), with a banner above it when the config has a problem (S-054).
+- States: loading is a spinner; each check is a symbol and a word, "OK", "Skipped" or "Problem", with its name and a detail line that can be selected; the footer says "Everything is working." or "Something needs attention."; when the checks cannot run, "Unable to run the checks" with the reason and **Check Again**; macOS Calendar adds a check when it is this Mac's source ("N calendars; read-only", or "no access; allow it in System Settings ▸ Privacy & Security ▸ Calendars"); before a server is named the server check fails with how to add one; after **Copy Report** a "Copied" mark shows for two seconds.
+- Words: group "Checks", the check names "Backend server", "Sign-in", "Time zone", "Momentum config", "Calendar source" and "macOS Calendar", group "About" with "App", "Bridge" and "config.toml", buttons "Show in Finder", "Copy Report" and "Check Again"; hover text on Copy Report "Copy these checks and versions to paste into a bug report. They hold no sign-in code or event title."
+- Access: each check reads as its name, word and detail; the result is a word and a symbol, never color alone; the buttons are reachable with Tab.
+Status: done
 
 ### S-054 Edit `config.toml` in an editor and see it applied
 As the user, I change `config.toml` in my editor, or the TUI, and the app picks it up without a restart.
 Screens: settings-config-error.png, settings-restart.png
 Acceptance:
 - [unit] Go `TestAnEditToConfigAppliesOnTheNextLoad`, `TestStatusReadsTheFileBeforeSettingsDoes`, `TestOnlyAChangedFileIsReloaded`: the bridge reloads when the file's modification time or size changes, on each `load`, `plan` and `status`, so an edit shows in the next load and when Settings opens.
-- [unit] Go `TestAFileThatNoLongerValidatesKeepsTheLastGoodSettings`, `TestTheConfigNoticeReachesTheAppInStatus`; Swift `aRefreshReportsAFileThatWasNotApplied`, `openingSettingsReadsTheFileAgain`: a file that no longer validates keeps the last good settings, and the error reaches the app. Settings shows it (`settings-config-error`); Diagnostics shows it once S-053 lands.
+- [unit] Go `TestAFileThatNoLongerValidatesKeepsTheLastGoodSettings`, `TestTheConfigNoticeReachesTheAppInStatus`; Swift `aRefreshReportsAFileThatWasNotApplied`, `openingSettingsReadsTheFileAgain`: a file that no longer validates keeps the last good settings, and the error reaches the app. Settings shows it (`settings-config-error`); Diagnostics shows it too (S-053).
 - [unit] Go `TestAChangedBackendURLWaitsForARestart`: a changed `[backend] url` is ignored until the app restarts, and Settings says so (`settings-restart`).
 - [unit] Swift `theUndoDelayAndRefreshIntervalFollowTheFile`: the undo delay and the refresh interval follow the file after the next refresh.
 UX:
