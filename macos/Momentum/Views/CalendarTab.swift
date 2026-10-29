@@ -1,57 +1,32 @@
 import SwiftUI
 import UniformTypeIdentifiers
 
-/// Settings ▸ Calendar, for the calendar files source: whether the files count,
-/// which files there are, each with what loading it on its own found, and the
-/// hours and events that count against a day's capacity.
+/// Settings ▸ Calendar: where meetings come from (calendar files or macOS
+/// Calendar), and the hours and events that count against a day's capacity.
 struct CalendarTab: View {
     @Environment(AppStore.self) private var store
     @State private var choosing = false
 
     var body: some View {
         let model = store.settings
+        let mac = store.macCalendar
         if let calendar = model.snapshot?.calendar {
             Form {
                 if let notice = model.notice {
                     SettingsNotice(text: notice)
                 }
                 Section {
-                    Toggle(isOn: Binding(get: { calendar.enabled }, set: { value in Task { await model.setCalendarEnabled(value) } })) {
-                        VStack(alignment: .leading, spacing: 2) {
-                            Text("Use calendar files")
-                            Text("Meetings in these files take time off each day’s capacity in Plan Today.")
-                                .font(.callout)
-                                .foregroundStyle(Theme.text2)
-                        }
+                    Picker("Source", selection: Binding(get: { mac.source }, set: { value in Task { await mac.choose(value) } })) {
+                        Text("Calendar files").tag(CalendarSource.files)
+                        Text("macOS Calendar").tag(CalendarSource.mac)
                     }
-                    if let message = model.error("calendar", "enabled") {
-                        ErrorLine(text: message)
-                    }
-                }
-                Section {
-                    if calendar.files.isEmpty {
-                        VStack(alignment: .leading, spacing: 4) {
-                            Text("No calendar files yet").fontWeight(.semibold)
-                            Text("Export a calendar to an .ics file, then add it here. Momentum reads the file; it never fetches a calendar for you.")
-                                .foregroundStyle(Theme.text2)
-                        }
-                    }
-                    ForEach(calendar.files) { file in
-                        CalendarFileRow(file: file) { Task { await model.removeCalendarFile(file.path) } }
-                    }
-                    if let message = model.error("calendar", "paths") {
-                        ErrorLine(text: message)
-                    }
-                    Button("Add…") { choosing = true }
-                    LabeledContent("Stale after") {
-                        LengthField(
-                            tab: "calendar", field: "staleAfter", title: "Stale after", placeholder: "24h", value: calendar.staleAfter
-                        ) { await model.setStaleAfter($0) }
-                    }
-                } header: {
-                    Text("Calendar files")
                 } footer: {
-                    Text("A calendar file that hasn’t changed for this long shows as Stale. Calendar files only; 0m means never.")
+                    Text("This applies to this Mac only. The terminal app keeps using the calendar files.")
+                }
+                if mac.source == .files {
+                    filesSections(calendar, model)
+                } else {
+                    MacCalendarSection()
                 }
                 Section {
                     DatePicker("Start", selection: timeBinding(calendar.workingStart) { await model.setWorkingStart($0) }, displayedComponents: .hourAndMinute)
@@ -98,6 +73,52 @@ struct CalendarTab: View {
             ContentUnavailableView("Unable to read settings", systemImage: "exclamationmark.triangle", description: Text(notice))
         } else {
             ProgressView().frame(maxWidth: .infinity, maxHeight: .infinity)
+        }
+    }
+}
+
+extension CalendarTab {
+    /// The calendar files source: the switch, the files and how long a file
+    /// may go unchanged.
+    @ViewBuilder
+    fileprivate func filesSections(_ calendar: CalendarSettings, _ model: SettingsModel) -> some View {
+        Section {
+            Toggle(isOn: Binding(get: { calendar.enabled }, set: { value in Task { await model.setCalendarEnabled(value) } })) {
+                VStack(alignment: .leading, spacing: 2) {
+                    Text("Use calendar files")
+                    Text("Meetings in these files take time off each day’s capacity in Plan Today.")
+                        .font(.callout)
+                        .foregroundStyle(Theme.text2)
+                }
+            }
+            if let message = model.error("calendar", "enabled") {
+                ErrorLine(text: message)
+            }
+        }
+        Section {
+            if calendar.files.isEmpty {
+                VStack(alignment: .leading, spacing: 4) {
+                    Text("No calendar files yet").fontWeight(.semibold)
+                    Text("Export a calendar to an .ics file, then add it here. Momentum reads the file; it never fetches a calendar for you.")
+                        .foregroundStyle(Theme.text2)
+                }
+            }
+            ForEach(calendar.files) { file in
+                CalendarFileRow(file: file) { Task { await model.removeCalendarFile(file.path) } }
+            }
+            if let message = model.error("calendar", "paths") {
+                ErrorLine(text: message)
+            }
+            Button("Add…") { choosing = true }
+            LabeledContent("Stale after") {
+                LengthField(
+                    tab: "calendar", field: "staleAfter", title: "Stale after", placeholder: "24h", value: calendar.staleAfter
+                ) { await model.setStaleAfter($0) }
+            }
+        } header: {
+            Text("Calendar files")
+        } footer: {
+            Text("A calendar file that hasn’t changed for this long shows as Stale. Calendar files only; 0m means never.")
         }
     }
 }
