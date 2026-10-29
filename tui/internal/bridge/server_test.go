@@ -10,6 +10,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/jvrviegas/momentum-task-manager/core/api"
 	"github.com/jvrviegas/momentum-task-manager/core/domain"
 	"github.com/jvrviegas/momentum-task-manager/tui/internal/config"
 )
@@ -22,6 +23,8 @@ type fakeClient struct {
 	modified  []domain.TaskDiff
 	actions   []string
 	undoGate  chan struct{}
+	// fail is what each action answers, after it is recorded.
+	fail error
 }
 
 func (f *fakeClient) ExportPending(context.Context) ([]domain.Task, error) {
@@ -69,7 +72,7 @@ func (f *fakeClient) Duplicate(_ context.Context, uuid string) (string, error) {
 }
 func (f *fakeClient) act(name string) error {
 	f.actions = append(f.actions, name)
-	return nil
+	return f.fail
 }
 
 var testNow = time.Date(2026, 10, 14, 10, 0, 0, 0, time.Local)
@@ -282,6 +285,56 @@ func TestModifySendsOnlyChangedFieldsAndReportsFieldErrors(t *testing.T) {
 	}
 	if strings.Join(diff.Tags.Add, ",") != "c" || strings.Join(diff.Tags.Remove, ",") != "a" {
 		t.Fatalf("tags = %+v", diff.Tags)
+	}
+}
+
+func TestNotesDependenciesAndCopiesReachTheClient(t *testing.T) {
+	client := &fakeClient{}
+	responses := serve(t, newTestServer(client, config.Defaults()),
+		request(t, 1, "addNote", map[string]string{"uuid": "u", "text": "Asked Ana"}),
+		// The time comes back as load sent it.
+		request(t, 2, "removeNote", map[string]string{"uuid": "u", "entry": "2026-10-13T11:00:00Z", "text": "Asked Ana"}),
+		request(t, 3, "addDependency", dependencyParams{UUID: "u", On: "q"}),
+		request(t, 4, "removeDependency", dependencyParams{UUID: "u", On: "q"}),
+		request(t, 5, "duplicate", uuidParams{UUID: "u"}),
+	)
+	for id := int64(1); id <= 4; id++ {
+		if responses[id].Error != nil || string(responses[id].Result) != "{}" {
+			t.Errorf("response %d = %s, %+v", id, responses[id].Result, responses[id].Error)
+		}
+	}
+	if string(responses[5].Result) != `{"uuid":"copy-of-u"}` {
+		t.Errorf("duplicate = %s, %+v", responses[5].Result, responses[5].Error)
+	}
+	want := "add-note u Asked Ana|remove-note u 2026-10-13T11:00:00Z Asked Ana|add-dependency u q|remove-dependency u q|duplicate u"
+	if got := strings.Join(client.actions, "|"); got != want {
+		t.Errorf("actions = %s\nwant %s", got, want)
+	}
+}
+
+func TestNoteAndDependencyRefusalsNameTheirField(t *testing.T) {
+	for _, test := range []struct {
+		op       string
+		params   any
+		apiField string
+		field    string
+	}{
+		{"addNote", map[string]string{"uuid": "u", "text": " "}, "annotations", "note"},
+		{"addDependency", dependencyParams{UUID: "u", On: "u"}, "depends", "depends"},
+	} {
+		t.Run(test.op, func(t *testing.T) {
+			client := &fakeClient{fail: &api.Error{Code: api.CodeInvalid, Message: "refused", Field: test.apiField}}
+			responses := serve(t, newTestServer(client, config.Defaults()), request(t, 1, test.op, test.params))
+			if failure := responses[1].Error; failure == nil || failure.Field != test.field || failure.Message != "refused" {
+				t.Errorf("error = %+v, want refused on %s", failure, test.field)
+			}
+		})
+	}
+	// A copy the server refuses answers no task.
+	client := &fakeClient{fail: &api.Error{Code: api.CodeConflict, Message: "the task is no longer pending"}}
+	responses := serve(t, newTestServer(client, config.Defaults()), request(t, 1, "duplicate", uuidParams{UUID: "u"}))
+	if responses[1].Error == nil || responses[1].Result != nil {
+		t.Errorf("duplicate = %s, %+v", responses[1].Result, responses[1].Error)
 	}
 }
 
