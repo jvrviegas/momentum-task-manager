@@ -888,6 +888,84 @@ UX:
 - Built: the commands and the planner follow this block, and `tui/README.md`, `tui/DESIGN.md` (criterion 18 and the Server section) and the glossary now describe them. The fake server's tests were written first. Five deliberate breakages were each caught by the test meant for them: the planner counting Google only with `enabled` on, the day's window ending a day late, a connection Google refuses ending the wait for a reconnect, a disconnect that skips the question, and a link that is never checked for expiry (which waits for ever, so its test times out). `momentum calendar` is a command of its own in `extractCommand`, as `calendar connect`, so that `--config` may come after it; Go's flag parsing would otherwise have stopped at `connect` and left `--config` among the arguments. The planner reaches Google through an optional `GoogleCalendarClient`, as the doctor does, so the existing fake clients did not change. Plan task G12 (the rest of the docs) is not done: the server's README and DEPLOY steps and the Mac's README are still to write.
 Status: done
 
+## M9 Task details
+
+Keep what I need to know about a task with it: notes, what it waits on, and a copy to start a similar one. The server already stores notes and dependencies and the Mac shows both, but no app can change them, and the snapshot seed has notes that nobody can add. Chosen on 2026-10-29 from Later. It lifts the "Editing annotations, dependencies" non-goal of [`tui/DESIGN.md`](../tui/DESIGN.md) for the Mac app.
+
+Plan: [`docs/plans/task-details.md`](./plans/task-details.md). Story to task: N01 to N06 (the server, the TUI's client, the bridge and the Mac's bridge and store) serve every story; then S-065 and S-066 N07, S-067 and S-068 N08, S-069 N09, S-070 N10. Task N11 (docs) goes with the last story.
+
+The plan's decisions D1–D5 were approved on 2026-10-29, each as recommended; they replace the rules R1–R4 this milestone first proposed. In short: only the Mac app edits notes and dependencies (D1); a task may depend on a pending or completed task (D2); notes are added and removed, not edited (D3); a duplicate copies the description, project, priority, dates, estimate and tags, less the plan tag (D4); and only pending tasks offer Duplicate (D5). Each story's `Decisions:` line names the ones it rests on. If a decision changes, only the stories that name it change.
+
+### S-065 Add a note to a task
+As the user, I select a pending task and add a note, such as "Asked Ana for the quote", and it shows under Notes with the time I added it.
+Screens: inspector.png, inspector-add-note.png
+Depends: S-010
+Decisions: D1, D3
+Acceptance:
+- [unit] Go (server): a change that adds a note stores it after the task's notes, with the server's time; an empty note is refused on its field and changes nothing; a task that isn't pending refuses it; the change is one `task_events` row, so Undo removes the note.
+- [unit] Go (bridge): the op reaches the server for that task and answers `{}`, as `complete` does; a refused note comes back on its own field (plan C10).
+- [unit] Swift: adding sends the note for the selected task, loads again and opens the undo window with a toast naming the task; a refused note stays in its field with the server's reason.
+- [snap] `inspector-add-note`: the Notes section of a pending task that has a note, with the way to add another. A completed task offers none, since Completed is read-only.
+- [snap] `inspector`: a task without notes says "No notes.", not "No annotations.", as the row's hover text already says "note".
+- [manual] A note added on the Mac shows in the terminal app's details after its next refresh.
+Status: todo
+
+### S-066 Remove a note from a task
+As the user, I remove a note that no longer matters, and Undo brings it back.
+Screens: inspector-add-note.png
+Depends: S-065
+Decisions: D3
+Acceptance:
+- [unit] Go (server): the change names the note by its time and words and removes that note only; when the task no longer has it, as when another device removed it first, the change is refused as a conflict; Undo puts it back in its place with its time.
+- [unit] Swift: removing sends the note's time and words, loads again and opens the undo window; Undo restores the note.
+- [snap] `inspector-add-note`: each note of a pending task offers Remove.
+Status: todo
+
+### S-067 Make a task wait on another
+As the user, I say that "Send the invoice" depends on "Get the quote", and the inspector lists it under Depends on.
+Screens: inspector-depends.png, depends-picker.png
+Depends: S-010
+Decisions: D1, D2
+Acceptance:
+- [unit] Go (server): a change adds a dependency on another task of the same account; the task itself, an unknown or deleted task, another account's task and a loop are each refused on the field with a reason, and nothing changes; the change is one `task_events` row, so Undo removes it.
+- [unit] Go (bridge): the op, as in S-065.
+- [unit] Swift: the picker offers pending tasks by description, with search, and never the task itself or one that would close a loop; choosing one sends it, loads again and opens the undo window.
+- [snap] `depends-picker`: the picker over the main window, narrowed by a search.
+- [snap] `inspector-depends`: Depends on lists the task by its description, which selects it when clicked, as it does today. The snapshot seed's task that waits on another, which this story lets anyone make, shows it.
+Status: todo
+
+### S-068 Stop a task waiting on another
+As the user, I remove a dependency that no longer holds.
+Screens: inspector-depends.png
+Depends: S-067
+Decisions: D2
+Acceptance:
+- [unit] Go (server): removing a dependency the task doesn't have is refused as a conflict; Undo puts the dependency back.
+- [unit] Swift: removing sends it, loads again and opens the undo window. An entry the inspector shows only by its UUID, because that task is no longer loaded, can be removed too.
+- [snap] `inspector-depends`: each entry under Depends on offers Remove.
+Status: todo
+
+### S-069 See which tasks are blocked
+As the user, I see in Today and Inbox which tasks wait on an unfinished task, and in the inspector which tasks wait on this one.
+Screens: today.png, inbox.png, inspector-depends.png
+Depends: S-067
+Acceptance:
+- [unit] Swift: a task is blocked while any task it depends on is pending; a dependency that is completed, deleted or not loaded doesn't block it.
+- [snap] `today`: a blocked row shows a symbol, with hover text naming what it waits on; the symbol goes once that task is completed. The order is the server's, whose urgency already counts blocked and blocking tasks (`core/domain/urgency.go`).
+- [snap] `inspector-depends`: a section lists the pending tasks that wait on this one, each selecting its task when clicked.
+Status: todo
+
+### S-070 Duplicate a task
+As the user, I duplicate a task to start a similar one, and the copy is selected.
+Screens: context-menu.png, menu.png
+Depends: S-016
+Decisions: D4, D5
+Acceptance:
+- [unit] Go (bridge): duplicating creates a task with the fields D4 names through the server's create route, and the answer is kept as a wire file; a repeating task's copy doesn't repeat, and a planned task's copy is not in today's plan.
+- [unit] Swift: Duplicate selects the copy and opens the undo window with a toast naming the task; Undo removes the copy.
+- [snap] `context-menu`: Duplicate follows Edit… on a pending task. Task ▸ Duplicate has ⌘D, the Mac's key for it; a bare `d` stays Delete…, as in the terminal app.
+Status: todo
+
 ## Later
 
 - Choose which Google calendars count, not only the primary one (plan D3): needs the `calendar.calendarlist.readonly` scope and a picker in each app.
@@ -896,9 +974,9 @@ Status: done
 - A way from Plan Today's "Calendar unavailable" line to Settings ▸ Calendar, for every source (S-061 chose to leave it out, since files, macOS Calendar and Google all say their reason there without a link).
 - Custom smart views and filters.
 - Configurable keybindings.
-- Editing a task's notes and dependencies.
+- Changing a note's words (M9, plan D3).
+- Notes and dependencies in the terminal app (M9, plan D1).
 - Selecting several tasks and acting on them together.
-- Duplicating a task.
 - Notifications, and a helper that runs while the app is closed.
 
 ## Dropped
