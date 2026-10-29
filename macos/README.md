@@ -55,10 +55,11 @@ To see the app, `tools/snap.sh` builds the Debug app and saves a window image of
 - **Calendar:** with `[calendar]` on, each load reads its local `.ics` files (see [Daily planning and calendar awareness](../tui/README.md#daily-planning-and-calendar-awareness)). Busy time in working hours counts against the day's capacity, overlapping events once, and Plan Today shows the merged blocks with their titles on hover. When a file can't be read, the whole calendar is unavailable and planning goes on with tasks. Event titles are never stored or logged.
 
 - **Settings (⌘, or the sidebar's Settings row):** a window of five tabs, Projects, Planning, Calendar, Appearance and Diagnostics. Each change is applied at once and written to `config.toml`, keeping its comments and other keys; a save is refused, and the tab reloaded, when the file changed since the tab read it.
+  - **Projects:** the catalog in `config.toml` and the values found only on tasks, in one list with the hierarchy, each tagged Catalog or From tasks and with its pending-task count. **Add Project…**, **Edit…** and **Remove…** each open their own sheet or prompt and save at once, and a From tasks row offers **Add to Catalog…**. An edit that changes the full value goes on to a second step: **Catalog only** (the default) or **Catalog + pending tasks**, with **Include subprojects**, the counts and a warning when tasks already use the new value. The catalog is saved before the tasks move, the server moves all of them or none, and a rename that moves tasks closes the undo window.
   - **Planning:** **Use Plan Today** turns the Plan button, the sidebar's Today’s plan box, the menu item and `P` on or off. Daily capacity, buffer and each weekday's own capacity are typed as `8h` or `7h30m`; a value the config would refuse stays in its field with a message and is not saved.
   - **Calendar:** **Use calendar files** and the list of `.ics` files, added with **Add…** and taken out with **Remove**. Each file shows whether it is available, stale, missing or unreadable, and **Stale after** sets how long a file may go unchanged before it shows as stale. **Working hours** (Start and End), **Count all-day events** and **Count events shown as free** choose which meetings take time off the day. **Source** chooses, for this Mac only, between the calendar files and **macOS Calendar**: choosing it asks the Mac for access to your calendars, lists them by account with a switch each, and hands today's events to the bridge on each load and plan (titles only with a plan). Without access, Plan Today says “Calendar unavailable: no access” and the tab offers to open System Settings. Choosing macOS Calendar never changes `[calendar] enabled` or `paths`. The app only reads; a build with the hardened runtime needs the `com.apple.security.personal-information.calendars` entitlement.
   - **Appearance:** System, Light or Dark, for this Mac only.
-  - **Projects** and **Diagnostics** say how to do the same in `config.toml` or the terminal until they are built.
+  - **Diagnostics** says how to do the same in the terminal until it is built.
 
 The bridge reads `config.toml` again whenever the file changes, on each load and when Settings opens, so `[planning]`, `[calendar]`, `[projects]`, `refresh_interval` and `[sync]` edits apply without a restart. A file that no longer loads leaves the last good settings in use, and Settings says why. A changed `[backend] url` still needs the app to be quit and reopened, and Settings says so.
 
@@ -87,8 +88,7 @@ Where each one already exists; — means it does not apply.
 
 | Item | Description | TUI | macOS |
 |---|---|---|---|
-| Settings window | Projects catalog, appearance, planning, calendar, and diagnostics | Partly: Projects and Appearance | Partly: Appearance, Planning and Calendar |
-| Project migration | Rename a project in the catalog and move its pending tasks to the new value | Yes | No |
+| Settings window | Projects catalog, appearance, planning, calendar, and diagnostics | Partly: Projects and Appearance | Partly: Projects, Appearance, Planning and Calendar |
 | Signed release build | A build signed for distribution, not ad hoc like the Debug build | — | No |
 
 ## Nice to have
