@@ -69,9 +69,9 @@ func TestGoogleCalendarFailsWithItsReasonAndWhereToFixItOnTheMac(t *testing.T) {
 		mac, terminal string
 	}{
 		{"no connection", api.GoogleCalendarStatus{Offered: true},
-			"Google Calendar isn’t connected. Connect it in Settings ▸ Calendar.", "Google Calendar isn’t connected"},
+			"Google Calendar isn’t connected. Connect it in Settings ▸ Calendar.", "Google Calendar isn’t connected. Run momentum calendar connect to connect it."},
 		{"a connection Google refuses", api.GoogleCalendarStatus{Offered: true, Connected: true, Email: "joao@gmail.com", NeedsReconnect: true},
-			"Google Calendar needs reconnecting. Reconnect it in Settings ▸ Calendar.", "Google Calendar needs reconnecting"},
+			"Google Calendar needs reconnecting. Reconnect it in Settings ▸ Calendar.", "Google Calendar needs reconnecting. Run momentum calendar connect to reconnect it."},
 		{"a server that offers nothing", api.GoogleCalendarStatus{},
 			"Google Calendar isn’t available on this server. Ask whoever runs the server to turn it on.",
 			"Google Calendar isn’t available on this server. Ask whoever runs the server to turn it on."},
