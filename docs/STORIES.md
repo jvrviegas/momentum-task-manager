@@ -827,15 +827,23 @@ Status: done
 
 ### S-062 Disconnect Google Calendar
 As the user, I disconnect Google, after being asked, and Momentum forgets it.
-Screens: settings-calendar-google-disconnect.png
+Screens: settings-calendar-google-disconnect.png, settings-calendar-google-not-revoked.png
 Depends: S-057
 Decisions: D1, D5
 Acceptance:
-- [snap] `settings-calendar-google-disconnect`: **Disconnect…** asks first, names the account and says Momentum will stop reading the calendar and delete its saved access.
+- [snap] `settings-calendar-google-disconnect`: **Disconnect…** asks first, names the account and says Momentum will stop reading the calendar and delete its saved access; `settings-calendar-google-not-revoked`: after a disconnect Google could not revoke, the not-connected tab says the access may still show in the Google account's settings.
 - [unit] Go, fake Google: disconnecting calls Google's revoke and deletes the stored token and the connection row.
 - [unit] Swift, fake bridge: the source stays Google, the tab offers **Connect…** again, and Plan Today says "Calendar unavailable: <reason>" until I connect or choose another Source; the connection is the account's, so every Mac sees it gone.
 - [unit] Go, fake Google: with Google unreachable the revoke fails, the connection is still deleted, and the answer says the token was not revoked at Google; Swift, fake bridge: the tab shows that.
-Status: todo
+- [unit] Swift, fake bridge: a disconnect that fails keeps the connection and says why, and **Disconnect…** is the way to try again; **Cancel** in the prompt changes nothing and asks the server nothing.
+UX:
+- Flow: Settings ▸ Calendar (⌘,) -> Source ▸ Google Calendar, connected or needing to reconnect -> **Disconnect…** -> the prompt names the account -> **Disconnect** -> the tab shows S-057's not-connected state with **Connect…**, the app loads again, and Plan Today says "Calendar unavailable: Google Calendar isn’t connected" until a person connects or chooses another Source. **Cancel**, or Escape, changes nothing. Way back: **Connect…** makes a new connection, with the same Google account or another.
+- Surface: confirmation dialog, which the app already uses to ask before a removal (S-050): it ends a connection that belongs to the account, so it ends it for every Mac and the terminal app, and a person is asked first. The button sits inline in the section S-057 built, since it acts on what the section shows. The dialog is the system's; no sheet and no toast, since the tab changing is the feedback.
+- States: **Disconnect…** shows with "Connected as <email>", and beside **Reconnect…** under "Needs reconnecting"; while the server is asked, both buttons are off. After it: the not-connected state of S-057. If Google could not be asked to revoke the access, the connection is still deleted, and above the description the tab says, with a warning symbol, "Couldn’t reach Google to revoke its access, so it may still show in your Google account’s settings. Remove it there." The note stays until the person connects again, and lives only as long as the app runs, since it is about something that already happened. If the server cannot be asked at all ("Unable to disconnect Google Calendar: <reason>"), an error line shows above "Connected as <email>", nothing has changed, and **Disconnect…** is the retry. Another Mac, or the terminal app, finds the connection gone the next time it asks.
+- Words: button **Disconnect…** (an ellipsis, since it asks first); prompt title "Disconnect Google Calendar?"; message "Momentum will stop reading <email> and delete its saved access, for every Mac and the terminal app on your account. Plan Today counts no meetings until you connect again."; buttons **Disconnect** and **Cancel**; the notes above.
+- Access: **Disconnect…** is reachable with Tab and the prompt is the system's, so Escape cancels and VoiceOver reads its title and message; the notes are a symbol and words, and their title and detail read as one element.
+- Review: the connection belongs to the account, so disconnecting on one Mac removes it for all, and a terminal app whose `config.toml` says `google` then has nothing to read, which S-063's `momentum doctor` check reports. The word is Disconnect, never Sign Out, which is the Momentum sign-in. The failed-disconnect line is the same error line as S-057's expired link and has no page of its own; it is tested.
+Status: doing
 
 ### S-063 Check Google in Diagnostics
 As the user, I open Settings ▸ Diagnostics and see whether Google Calendar works.
