@@ -14,7 +14,8 @@ struct BridgeError: Error, LocalizedError, Decodable, Sendable, Equatable {
 /// it over the bundled Go `momentum-bridge`; tests use a fake.
 protocol TaskBridge: Sendable {
     func status() async throws -> BridgeStatus
-    func load() async throws -> Snapshot
+    /// calendar is nil unless this Mac reads its meetings from macOS Calendar.
+    func load(calendar: CalendarInput?) async throws -> Snapshot
     func interpret(_ input: String, literals: [TextSpan]) async throws -> Interpretation
     func suggest(_ input: String, cursor: Int) async throws -> SuggestResult
     func capture(_ input: String, literals: [TextSpan]) async throws -> CaptureResult
@@ -24,7 +25,7 @@ protocol TaskBridge: Sendable {
     func perform(_ action: TaskAction, uuid: String) async throws
     func undo() async throws
     // Plan Today.
-    func plan() async throws -> DailyPlan
+    func plan(calendar: CalendarInput?) async throws -> DailyPlan
     func applyPlan(date: String, uuids: [String]) async throws -> PlanSaveResult
     // Settings.
     func settings() async throws -> SettingsSnapshot
@@ -50,7 +51,11 @@ actor ProcessBridge: TaskBridge {
     /// through the pipe, never in arguments, the environment, or a file.
     private var token = ""
 
-    private static let encoder = JSONEncoder()
+    static let encoder: JSONEncoder = {
+        let encoder = JSONEncoder()
+        encoder.dateEncodingStrategy = .iso8601
+        return encoder
+    }()
     private static let decoder: JSONDecoder = {
         let decoder = JSONDecoder()
         decoder.dateDecodingStrategy = .iso8601
@@ -68,7 +73,7 @@ actor ProcessBridge: TaskBridge {
     }
 
     func status() async throws -> BridgeStatus { try await call("status") }
-    func load() async throws -> Snapshot { try await call("load") }
+    func load(calendar: CalendarInput?) async throws -> Snapshot { try await call("load", CalendarParams(calendar: calendar)) }
 
     func interpret(_ input: String, literals: [TextSpan]) async throws -> Interpretation {
         try await call("interpret", CaptureParams(input: input, literals: literals))
@@ -103,7 +108,7 @@ actor ProcessBridge: TaskBridge {
         let _: Empty = try await call("undo")
     }
 
-    func plan() async throws -> DailyPlan { try await call("plan") }
+    func plan(calendar: CalendarInput?) async throws -> DailyPlan { try await call("plan", CalendarParams(calendar: calendar)) }
 
     func settings() async throws -> SettingsSnapshot { try await call("settings") }
     func savePlanning(_ change: PlanningChange) async throws -> SettingsSnapshot { try await call("savePlanning", change) }
@@ -236,6 +241,7 @@ private struct Empty: Codable, Sendable {}
 private struct Changed: Decodable, Sendable { var changed: Bool }
 private struct UUIDParams: Encodable, Sendable { var uuid: String }
 private struct TokenParams: Encodable, Sendable { var token: String }
+private struct CalendarParams: Encodable, Sendable { var calendar: CalendarInput? }
 private struct PollParams: Encodable, Sendable { var deviceCode: String }
 private struct SuggestParams: Encodable, Sendable { var input: String; var cursor: Int }
 private struct CaptureParams: Encodable, Sendable { var input: String; var literals: [TextSpan] }
