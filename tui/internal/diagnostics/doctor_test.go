@@ -197,3 +197,31 @@ func TestDoctorChecksTheServer(t *testing.T) {
 		})
 	}
 }
+
+func TestDoctorCanLeaveOutTheTerminalChecks(t *testing.T) {
+	stateDir := filepath.Join(t.TempDir(), "state")
+	options := DoctorOptions{Config: config.Defaults(), ConfigPath: "/tmp/config.toml", StateDir: stateDir}
+
+	var names []string
+	for _, check := range Run(context.Background(), options).Checks {
+		names = append(names, check.Name)
+	}
+	if got := strings.Join(names, "|"); !strings.Contains(got, "Terminal") || !strings.Contains(got, "State directory") {
+		t.Fatalf("the terminal app keeps its checks: %v", names)
+	}
+
+	if err := os.RemoveAll(stateDir); err != nil {
+		t.Fatal(err)
+	}
+	options.NoTerminal = true
+	names = nil
+	for _, check := range Run(context.Background(), options).Checks {
+		names = append(names, check.Name)
+	}
+	if got := strings.Join(names, "|"); got != "Backend server|Momentum config|Calendar source" {
+		t.Fatalf("checks = %v", names)
+	}
+	if _, err := os.Stat(stateDir); !os.IsNotExist(err) {
+		t.Fatal("leaving the state directory check out must not create the directory")
+	}
+}
