@@ -13,11 +13,14 @@ One app target, `Momentum`, and one test target, `MomentumTests`, which runs ins
 ```text
 Views/            SwiftUI; take the AppStore from the environment
 Model/AppStore    @MainActor @Observable: tasks, selection, changes and undo,
-                  Plan Today, toasts, sign-in
+                  Plan Today, toasts, the account and sign-out
 Model/*Model      owned by the store, one per Settings tab or sheet:
                   settings, catalog (Projects), diagnostics,
                   macCalendar, googleCalendar. Each holds a weak back-reference
                   to the store for the bridge, the sign-in and a reload.
+                  signInModel (the sign-in sheet) has none: it is handed the
+                  bridge, the SignInStore and sleep, and tells the store
+                  through onSignedIn.
 Bridge/           TaskBridge (the protocol), ProcessBridge (an actor), Wire.swift
 ```
 
