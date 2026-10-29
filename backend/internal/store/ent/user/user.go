@@ -21,6 +21,10 @@ const (
 	FieldTimeZone = "time_zone"
 	// FieldCreatedAt holds the string denoting the created_at field in the database.
 	FieldCreatedAt = "created_at"
+	// EdgeCalendarConnection holds the string denoting the calendar_connection edge name in mutations.
+	EdgeCalendarConnection = "calendar_connection"
+	// EdgeCalendarLinks holds the string denoting the calendar_links edge name in mutations.
+	EdgeCalendarLinks = "calendar_links"
 	// EdgeDeviceAuthorizations holds the string denoting the device_authorizations edge name in mutations.
 	EdgeDeviceAuthorizations = "device_authorizations"
 	// EdgeIdentities holds the string denoting the identities edge name in mutations.
@@ -35,6 +39,20 @@ const (
 	EdgeTaskEvents = "task_events"
 	// Table holds the table name of the user in the database.
 	Table = "users"
+	// CalendarConnectionTable is the table that holds the calendar_connection relation/edge.
+	CalendarConnectionTable = "calendar_connections"
+	// CalendarConnectionInverseTable is the table name for the CalendarConnection entity.
+	// It exists in this package in order to avoid circular dependency with the "calendarconnection" package.
+	CalendarConnectionInverseTable = "calendar_connections"
+	// CalendarConnectionColumn is the table column denoting the calendar_connection relation/edge.
+	CalendarConnectionColumn = "user_id"
+	// CalendarLinksTable is the table that holds the calendar_links relation/edge.
+	CalendarLinksTable = "calendar_links"
+	// CalendarLinksInverseTable is the table name for the CalendarLink entity.
+	// It exists in this package in order to avoid circular dependency with the "calendarlink" package.
+	CalendarLinksInverseTable = "calendar_links"
+	// CalendarLinksColumn is the table column denoting the calendar_links relation/edge.
+	CalendarLinksColumn = "user_id"
 	// DeviceAuthorizationsTable is the table that holds the device_authorizations relation/edge.
 	DeviceAuthorizationsTable = "device_authorizations"
 	// DeviceAuthorizationsInverseTable is the table name for the DeviceAuthorization entity.
@@ -131,6 +149,27 @@ func ByCreatedAt(opts ...sql.OrderTermOption) OrderOption {
 	return sql.OrderByField(FieldCreatedAt, opts...).ToFunc()
 }
 
+// ByCalendarConnectionField orders the results by calendar_connection field.
+func ByCalendarConnectionField(field string, opts ...sql.OrderTermOption) OrderOption {
+	return func(s *sql.Selector) {
+		sqlgraph.OrderByNeighborTerms(s, newCalendarConnectionStep(), sql.OrderByField(field, opts...))
+	}
+}
+
+// ByCalendarLinksCount orders the results by calendar_links count.
+func ByCalendarLinksCount(opts ...sql.OrderTermOption) OrderOption {
+	return func(s *sql.Selector) {
+		sqlgraph.OrderByNeighborsCount(s, newCalendarLinksStep(), opts...)
+	}
+}
+
+// ByCalendarLinks orders the results by calendar_links terms.
+func ByCalendarLinks(term sql.OrderTerm, terms ...sql.OrderTerm) OrderOption {
+	return func(s *sql.Selector) {
+		sqlgraph.OrderByNeighborTerms(s, newCalendarLinksStep(), append([]sql.OrderTerm{term}, terms...)...)
+	}
+}
+
 // ByDeviceAuthorizationsCount orders the results by device_authorizations count.
 func ByDeviceAuthorizationsCount(opts ...sql.OrderTermOption) OrderOption {
 	return func(s *sql.Selector) {
@@ -213,6 +252,20 @@ func ByTaskEvents(term sql.OrderTerm, terms ...sql.OrderTerm) OrderOption {
 	return func(s *sql.Selector) {
 		sqlgraph.OrderByNeighborTerms(s, newTaskEventsStep(), append([]sql.OrderTerm{term}, terms...)...)
 	}
+}
+func newCalendarConnectionStep() *sqlgraph.Step {
+	return sqlgraph.NewStep(
+		sqlgraph.From(Table, FieldID),
+		sqlgraph.To(CalendarConnectionInverseTable, FieldID),
+		sqlgraph.Edge(sqlgraph.O2O, false, CalendarConnectionTable, CalendarConnectionColumn),
+	)
+}
+func newCalendarLinksStep() *sqlgraph.Step {
+	return sqlgraph.NewStep(
+		sqlgraph.From(Table, FieldID),
+		sqlgraph.To(CalendarLinksInverseTable, FieldID),
+		sqlgraph.Edge(sqlgraph.O2M, false, CalendarLinksTable, CalendarLinksColumn),
+	)
 }
 func newDeviceAuthorizationsStep() *sqlgraph.Step {
 	return sqlgraph.NewStep(
