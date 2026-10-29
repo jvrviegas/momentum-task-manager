@@ -4,7 +4,7 @@ import SwiftUI
 @main
 struct MomentumApp: App {
     @NSApplicationDelegateAdaptor(AppDelegate.self) private var delegate
-    @State private var store = AppStore(bridge: ProcessBridge.bundled())
+    @State private var store = AppStore(bridge: ProcessBridge.bundled(), calendarSource: EventKitSource())
     #if DEBUG
     /// Set by MOMENTUM_SNAPSHOT: the app walks its pages on a fake server.
     @State private var snapshots = SnapshotHost.fromEnvironment()
