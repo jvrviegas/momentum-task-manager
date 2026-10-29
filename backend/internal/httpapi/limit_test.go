@@ -11,6 +11,7 @@ import (
 	"time"
 
 	"github.com/jvrviegas/momentum-task-manager/backend/internal/auth"
+	"github.com/jvrviegas/momentum-task-manager/backend/internal/calendar"
 	"github.com/jvrviegas/momentum-task-manager/backend/internal/logging"
 	"github.com/jvrviegas/momentum-task-manager/backend/internal/tasks"
 	"github.com/jvrviegas/momentum-task-manager/core/api"
@@ -71,7 +72,7 @@ func TestClientAddressTrustsOnlyTheProxiesEntries(t *testing.T) {
 // each limit is checked before its route does anything.
 func TestSignInRoutesAreLimitedPerClient(t *testing.T) {
 	var logs bytes.Buffer
-	handler := New(logging.New(&logs), "dev", auth.New(nil, auth.Config{PublicURL: "https://momentum.test"}), tasks.New(nil), 1)
+	handler := New(logging.New(&logs), "dev", auth.New(nil, auth.Config{PublicURL: "https://momentum.test"}), tasks.New(nil), calendar.New(nil, calendar.Config{}), 1)
 	send := func(method, path, client string, body string) *httptest.ResponseRecorder {
 		request := httptest.NewRequest(method, path, strings.NewReader(body))
 		request.RemoteAddr = "10.0.0.1:443"
