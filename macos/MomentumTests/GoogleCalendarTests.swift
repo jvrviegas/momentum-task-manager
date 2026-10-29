@@ -156,6 +156,31 @@ struct GoogleCalendarTests {
         google.cancel()
     }
 
+    // MARK: The wire
+
+    /// What the Go bridge answers, byte for byte, read the way ProcessBridge reads it.
+    @Test func theBridgesAnswersDecode() throws {
+        let decoder = JSONDecoder()
+        decoder.dateDecodingStrategy = .iso8601
+        let status = try decoder.decode(
+            GoogleCalendarStatus.self, from: Data(#"{"offered":true,"connected":true,"email":"joao@gmail.com","needsReconnect":false}"#.utf8))
+        #expect(status == connectedStatus)
+        // A server that offers nothing sends no address.
+        let bare = try decoder.decode(GoogleCalendarStatus.self, from: Data(#"{"offered":false,"connected":false,"needsReconnect":false}"#.utf8))
+        #expect(bare == GoogleCalendarStatus(offered: false, connected: false, email: nil, needsReconnect: false))
+        let link = try decoder.decode(
+            CalendarConnectLink.self, from: Data(#"{"url":"https://m.example/calendar/connect/abc","expiresAt":"2026-10-14T09:30:00Z"}"#.utf8))
+        #expect(link.url == "https://m.example/calendar/connect/abc")
+        #expect(link.expiresAt == ISO8601DateFormatter().date(from: "2026-10-14T09:30:00Z"))
+    }
+
+    @Test func aSourceChangeSendsOnlyTheRevisionAndTheSource() throws {
+        let encoder = JSONEncoder()
+        encoder.outputFormatting = .sortedKeys
+        let data = try encoder.encode(CalendarChange(revision: "r1", source: "google"))
+        #expect(String(decoding: data, as: UTF8.self) == #"{"revision":"r1","source":"google"}"#)
+    }
+
     // MARK: Choosing the source
 
     @Test func choosingGoogleWritesTheSourceAndShowsItInThePicker() async {
