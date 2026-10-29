@@ -814,7 +814,14 @@ Acceptance:
 - [snap] `settings-calendar-google-reconnect`: "Needs reconnecting" with **Reconnect…**; `plan-today-calendar-google-reconnect`: Plan Today says "Calendar unavailable: <reason>".
 - [unit] Go, bridge: no connection, a dead token and Google unreachable each give zero calendar minutes and the reason, and ticking, saving and the sidebar's meter keep working (S-038).
 - [unit] Swift, fake bridge: **Reconnect…** follows S-057's connect flow; once connected the app loads again and the message goes.
-Status: todo
+UX:
+- Flow: Plan Today says "Calendar unavailable: Google Calendar needs reconnecting", or the sidebar's meter drops the meetings -> Settings ▸ Calendar (⌘,) -> Source ▸ Google Calendar shows "Needs reconnecting" -> **Reconnect…** opens the browser on a new one-time link (S-057's flow) -> "Waiting for your browser" -> approve -> "Connected as <email>" and the app loads again, so the meter and the next Plan Today count the meetings and the message goes. Way back: **Cancel** while waiting returns to "Needs reconnecting"; another **Source** at any time (the saved connection stays until it is reconnected or disconnected).
+- Surface: inline, in the section S-057 built (a button changes the state of something already on screen). No alert and no toast, since nothing needs an answer at once and planning goes on with tasks. Plan Today gets no new button: it is a sheet, its line already says what to do, and Settings is ⌘, away. Every Source states its reason there without a link, so a way to Settings would be one change for all three and goes in Later.
+- States: needs reconnecting (warning symbol, "Needs reconnecting", "Google no longer accepts the saved connection to <email>. Plan Today counts no meetings until you reconnect.", **Reconnect…**); then S-057's waiting, connected, expired and failed states, where **Cancel** and an expired link return to this state with **Reconnect…**, not **Connect…**. Reconnecting may use another Google account, and the tab then says "Connected as" that one. Plan Today shows its existing red line, "Calendar unavailable: Google Calendar needs reconnecting", and under it "Calendar time counts as zero; planning goes on with tasks."; the sidebar's meter counts no meetings.
+- Words: "Needs reconnecting"; the detail above; **Reconnect…** (an ellipsis, since it opens the browser; "reconnect" because a connection exists and is being replaced); the expired line "The link expired. Choose Reconnect… to try again."
+- Access: the state is a symbol and words, and its title and detail read as one element; **Reconnect…** is reachable with Tab; when the connection comes back VoiceOver announces "Connected as <email>", as in S-057.
+- Review: Plan Today tells a person what is wrong but not where to fix it; the way is Settings ▸ Calendar. **Disconnect…** (S-062) will sit beside **Reconnect…** for someone who would rather remove the connection.
+Status: doing
 
 ### S-062 Disconnect Google Calendar
 As the user, I disconnect Google, after being asked, and Momentum forgets it.
