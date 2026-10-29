@@ -12,6 +12,10 @@ import (
 // Tx is a transactional client that is created by calling Client.Tx().
 type Tx struct {
 	config
+	// CalendarConnection is the client for interacting with the CalendarConnection builders.
+	CalendarConnection *CalendarConnectionClient
+	// CalendarLink is the client for interacting with the CalendarLink builders.
+	CalendarLink *CalendarLinkClient
 	// DeviceAuthorization is the client for interacting with the DeviceAuthorization builders.
 	DeviceAuthorization *DeviceAuthorizationClient
 	// IdempotencyKey is the client for interacting with the IdempotencyKey builders.
@@ -157,6 +161,8 @@ func (tx *Tx) Client() *Client {
 }
 
 func (tx *Tx) init() {
+	tx.CalendarConnection = NewCalendarConnectionClient(tx.config)
+	tx.CalendarLink = NewCalendarLinkClient(tx.config)
 	tx.DeviceAuthorization = NewDeviceAuthorizationClient(tx.config)
 	tx.IdempotencyKey = NewIdempotencyKeyClient(tx.config)
 	tx.Identity = NewIdentityClient(tx.config)
@@ -173,7 +179,7 @@ func (tx *Tx) init() {
 // of them in order to commit or rollback the transaction.
 //
 // If a closed transaction is embedded in one of the generated entities, and the entity
-// applies a query, for example: DeviceAuthorization.QueryXXX(), the query will be executed
+// applies a query, for example: CalendarConnection.QueryXXX(), the query will be executed
 // through the driver which created this transaction.
 //
 // Note that txDriver is not goroutine safe.
