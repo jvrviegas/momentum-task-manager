@@ -17,7 +17,7 @@ const CodeConfigConflict = "configConflict"
 
 // localOps never reach the server, so they work before a server is named and
 // before a sign-in.
-var localOps = map[string]bool{"status": true, "settings": true, "savePlanning": true, "saveCalendar": true}
+var localOps = map[string]bool{"status": true, "settings": true, "savePlanning": true, "saveCalendar": true, "doctor": true}
 
 type settingsResult struct {
 	ConfigPath string `json:"configPath"`
