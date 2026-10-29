@@ -62,6 +62,8 @@ struct SnapshotScene {
         // Google Calendar: the server offers it, and the account has or has not connected it.
         var googleConnected = SnapshotBridge.Config()
         googleConnected.googleStatus = GoogleCalendarStatus(offered: true, connected: true, email: "joao@gmail.com", needsReconnect: false)
+        var googleNotRevoked = googleConnected
+        googleNotRevoked.googleRevoked = false
         var googleNotOffered = SnapshotBridge.Config()
         googleNotOffered.googleStatus = GoogleCalendarStatus(offered: false, connected: false, email: nil, needsReconnect: false)
         var googleExpiring = SnapshotBridge.Config()
@@ -220,6 +222,24 @@ struct SnapshotScene {
             SnapshotScene(
                 name: "settings-calendar-google", config: googleConnected,
                 run: { await $0.store.settings.reload(); await $0.store.settings.chooseCalendarSource(.google); await $0.openSettings(.calendar) }),
+            SnapshotScene(
+                name: "settings-calendar-google-disconnect", config: googleConnected,
+                run: {
+                    await $0.store.settings.reload()
+                    await $0.store.settings.chooseCalendarSource(.google)
+                    await $0.openSettings(.calendar)
+                    $0.store.googleCalendar.confirmingDisconnect = true
+                    await $0.settle(800)
+                }),
+            SnapshotScene(
+                name: "settings-calendar-google-not-revoked", config: googleNotRevoked,
+                run: {
+                    await $0.store.settings.reload()
+                    await $0.store.settings.chooseCalendarSource(.google)
+                    await $0.openSettings(.calendar)
+                    await $0.store.googleCalendar.disconnect()
+                    await $0.settle(600)
+                }),
             SnapshotScene(
                 name: "settings-calendar-google-reconnect", config: googleReconnect,
                 run: { await $0.store.settings.reload(); await $0.store.settings.chooseCalendarSource(.google); await $0.openSettings(.calendar) }),
