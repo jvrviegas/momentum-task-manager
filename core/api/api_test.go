@@ -137,6 +137,26 @@ func TestAuthJSON(t *testing.T) {
 		`{"code":"authorization_pending","message":"finish signing in in the browser"}`)
 }
 
+func TestGoogleCalendarJSON(t *testing.T) {
+	roundTrip(t, GoogleCalendarLink{URL: "https://momentum.example/calendar/connect/abc", ExpiresAt: at(9)},
+		`{"url":"https://momentum.example/calendar/connect/abc","expiresAt":"2026-10-14T09:30:00Z"}`)
+	roundTrip(t, GoogleCalendarStatus{Offered: true, Connected: true, Email: "alice@gmail.com"},
+		`{"offered":true,"connected":true,"email":"alice@gmail.com","needsReconnect":false}`)
+	roundTrip(t, GoogleCalendarStatus{Offered: true, Connected: true, Email: "alice@gmail.com", NeedsReconnect: true},
+		`{"offered":true,"connected":true,"email":"alice@gmail.com","needsReconnect":true}`)
+	// A server that does not offer Google Calendar sets nothing else.
+	roundTrip(t, GoogleCalendarStatus{}, `{"offered":false,"connected":false,"needsReconnect":false}`)
+	roundTrip(t, GoogleCalendarDisconnect{Revoked: false}, `{"revoked":false}`)
+	roundTrip(t, GoogleCalendarEvents{Events: []GoogleCalendarEvent{
+		{Title: "Standup", Start: at(9), End: at(10)},
+		{Title: "Offsite", Start: time.Date(2026, 10, 14, 0, 0, 0, 0, time.UTC), End: time.Date(2026, 10, 15, 0, 0, 0, 0, time.UTC), AllDay: true, Transparent: true},
+	}}, `{"events":[{"title":"Standup","start":"2026-10-14T09:30:00Z","end":"2026-10-14T10:30:00Z","allDay":false,"transparent":false},`+
+		`{"title":"Offsite","start":"2026-10-14T00:00:00Z","end":"2026-10-15T00:00:00Z","allDay":true,"transparent":true}]}`)
+	roundTrip(t, GoogleCalendarEvents{Events: []GoogleCalendarEvent{}}, `{"events":[]}`)
+	roundTrip(t, Error{Code: CodeCalendarUnavailable, Message: "Google Calendar needs reconnecting"},
+		`{"code":"calendar_unavailable","message":"Google Calendar needs reconnecting"}`)
+}
+
 func TestRoutesAreDistinctV1Patterns(t *testing.T) {
 	mux := http.NewServeMux()
 	for _, route := range []string{
@@ -145,6 +165,7 @@ func TestRoutesAreDistinctV1Patterns(t *testing.T) {
 		RoutePreviewProjectMigration, RouteApplyProjectMigration, RouteSetTimeZone,
 		RouteStartDeviceSignIn, RoutePollDeviceSignIn, RouteSession, RouteSignOut,
 		RoutePreviewImport, RouteApplyImport,
+		RouteConnectGoogleCalendar, RouteGoogleCalendarStatus, RouteDisconnectGoogleCalendar, RouteGoogleCalendarEvents,
 	} {
 		method, path, _ := strings.Cut(route, " ")
 		if method == "" || !strings.HasPrefix(path, "/v1/") {
