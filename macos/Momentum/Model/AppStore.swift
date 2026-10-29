@@ -75,6 +75,8 @@ final class AppStore {
     let settings = SettingsModel()
     /// The Calendar tab's macOS Calendar source, kept on this Mac.
     let macCalendar: MacCalendarModel
+    /// The Projects tab: the catalog and the values found only on tasks.
+    let catalog = ProjectsModel()
 
     private(set) var status: BridgeStatus?
     private(set) var startupError: String?
@@ -123,6 +125,7 @@ final class AppStore {
         macCalendar = MacCalendarModel(eventSource: calendarSource, defaults: calendarDefaults)
         settings.store = self
         macCalendar.store = self
+        catalog.store = self
     }
 
     // MARK: Derived state
@@ -436,6 +439,11 @@ final class AppStore {
     }
 
     // MARK: Messages
+
+    /// A project migration moves many tasks, which one undo cannot take back.
+    func closeUndoWindow() {
+        undoWindow.close()
+    }
 
     func show(_ message: String, _ kind: Toast.Kind = .info, offersUndo: Bool = false) {
         let lifetime: TimeInterval = kind == .error ? 7 : offersUndo ? 8 : 3.2
