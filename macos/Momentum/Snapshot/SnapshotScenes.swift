@@ -187,6 +187,14 @@ struct SnapshotScene {
             SnapshotScene(name: "settings-diagnostics", run: { await $0.openSettings(.diagnostics) }),
             SnapshotScene(name: "settings-diagnostics-problems", config: problems, run: { await $0.openSettings(.diagnostics) }),
             SnapshotScene(name: "settings-diagnostics-config-error", config: badConfig, run: { await $0.openSettings(.diagnostics) }),
+            SnapshotScene(
+                name: "settings-conflict",
+                run: {
+                    await $0.openSettings(.planning)
+                    await ($0.store.bridge as? SnapshotBridge)?.editedElsewhere(dailyCapacity: "6h")
+                    await $0.store.settings.setDailyCapacity("7h")
+                    await $0.settle()
+                }),
             SnapshotScene(name: "settings-config-error", config: badConfig, run: { await $0.openSettings(.planning) }),
             SnapshotScene(name: "settings-restart", config: movedServer, run: { await $0.openSettings(.planning) }),
             SnapshotScene(name: "appearance-light", run: { await $0.chooseAppearance(.light) }),
