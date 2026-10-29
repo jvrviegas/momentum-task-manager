@@ -34,6 +34,7 @@ protocol TaskBridge: Sendable {
     // Google Calendar, which the server reads for this account.
     func calendarStatus() async throws -> GoogleCalendarStatus
     func connectCalendar() async throws -> CalendarConnectLink
+    func disconnectCalendar() async throws -> GoogleCalendarDisconnect
     // Diagnostics.
     func doctor() async throws -> DoctorReport
     // Projects.
@@ -125,6 +126,7 @@ actor ProcessBridge: TaskBridge {
 
     func calendarStatus() async throws -> GoogleCalendarStatus { try await call("calendarStatus") }
     func connectCalendar() async throws -> CalendarConnectLink { try await call("connectCalendar") }
+    func disconnectCalendar() async throws -> GoogleCalendarDisconnect { try await call("disconnectCalendar") }
 
     func doctor() async throws -> DoctorReport { try await call("doctor") }
 
