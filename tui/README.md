@@ -34,6 +34,9 @@ momentum doctor
 momentum login
 momentum logout
 momentum import [--dry-run]
+momentum calendar connect
+momentum calendar status
+momentum calendar disconnect
 momentum --config PATH
 momentum --debug
 momentum --version
@@ -126,7 +129,7 @@ Themes are `auto`, `dark`, `light`, and `terminal` (your terminal's 16 ANSI colo
 
 `[planning]` defaults to 8 hours of focus capacity with a 1-hour buffer. Set `daily_capacity`, `buffer`, and optional `weekday_capacity` overrides in Momentum config. The ritual counts estimates and reports unestimated work separately; exceeding capacity is a warning, never a block. Canceling makes no task mutation.
 
-Calendar awareness is optional and currently supports local, read-only ICS files only. Configure `[calendar].enabled = true` and `paths`, plus working hours. Multiple files are merged, overlapping events are counted once, all-day and transparent events are configurable, and stale/missing files leave task-only planning usable. Momentum never fetches, edits, or persists event details; subscriptions must be refreshed by an external tool. See the [daily planning](docs/plans/daily-planning.md), [recurrence](docs/plans/recurring-tasks.md), and [calendar](docs/plans/calendar-awareness.md) implementation records.
+Calendar awareness is optional and read-only, from one of two sources chosen with `[calendar] source`. With `source = "files"`, the default, Momentum reads local ICS files: configure `[calendar].enabled = true` and `paths`, plus working hours. Multiple files are merged, overlapping events are counted once, all-day and transparent events are configurable, and stale/missing files leave task-only planning usable; subscriptions must be refreshed by an external tool. With `source = "google"`, Momentum reads your primary Google Calendar through the Momentum server ([ADR 0003](../docs/adr/0003-google-calendar-through-the-server.md)); it counts whatever `enabled` says, needs no `paths`, and the same working hours, all-day and transparent choices apply. A meeting you declined doesn't count, and a repeating meeting's cancelled and moved occurrences count at their right time. The server keeps one Google connection for your account, not one per machine: `momentum calendar connect` prints a link, opens it in the browser, and waits while you approve in Google; `momentum calendar status` says which Google account is connected and whether this machine's planner counts it; `momentum calendar disconnect` asks first, and then ends the connection for every device on your account. Each machine chooses Google by setting `source` itself, which the macOS app's Settings does for its own Mac. When Google can't be read (not connected, needing to reconnect, or the server can't reach it), the planner says "Calendar unavailable" with the reason, and planning goes on with tasks. The server stores and logs no events, and Momentum never persists them or edits your calendar. See the [daily planning](docs/plans/daily-planning.md), [recurrence](docs/plans/recurring-tasks.md), and [calendar](docs/plans/calendar-awareness.md) implementation records.
 ### Project suggestion catalog
 
 Store frequently used projects in your Momentum config, even before they have tasks:
@@ -155,7 +158,7 @@ Settings → Projects is a catalog-management screen, not a separate project dat
 
 `config.toml` may be tracked in dotfiles; `credentials.json`, which holds the sign-in, must not be. Momentum has no telemetry, crash reporting, automatic update checks, or network activity outside the configured server and the browser sign-in it starts.
 
-`momentum doctor` checks that the server answers, that the saved sign-in is valid there, the device's time zone, configuration, terminal support, and writable state paths, without mutating tasks or printing secret values. `--debug` writes redacted structured logs under the XDG state directory.
+`momentum doctor` checks that the server answers, that the saved sign-in is valid there, the device's time zone, configuration (and, with `source = "google"`, that Google Calendar is connected), terminal support, and writable state paths, without mutating tasks or printing secret values. `--debug` writes redacted structured logs under the XDG state directory.
 
 ## macOS app (preview)
 
