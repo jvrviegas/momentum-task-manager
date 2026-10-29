@@ -112,6 +112,7 @@ actor FakeBridge: TaskBridge {
             saveFailure = nil
             throw error
         }
+        if let source = change.source { settingsValue.calendar.source = source }
         if let enabled = change.enabled { settingsValue.calendar.enabled = enabled }
         if let time = change.workingStart { settingsValue.calendar.workingStart = time }
         if let time = change.workingEnd { settingsValue.calendar.workingEnd = time }
@@ -124,6 +125,30 @@ actor FakeBridge: TaskBridge {
         settingsValue.revision += "+"
         return settingsValue
     }
+    /// What the server says of Google Calendar, how a connect goes, and the
+    /// failure the next status or connect answers instead.
+    var googleStatus = GoogleCalendarStatus(offered: true, connected: false, email: nil, needsReconnect: false)
+    var googleLink = CalendarConnectLink(url: "https://momentum.example/calendar/connect/abc", expiresAt: .now.addingTimeInterval(600))
+    var googleFailure: BridgeError?
+
+    func setGoogle(status: GoogleCalendarStatus? = nil, link: CalendarConnectLink? = nil, failure: BridgeError? = nil) {
+        if let status { googleStatus = status }
+        if let link { googleLink = link }
+        googleFailure = failure
+    }
+
+    func calendarStatus() async throws -> GoogleCalendarStatus {
+        calls.append("calendarStatus")
+        if let error = googleFailure { throw error }
+        return googleStatus
+    }
+
+    func connectCalendar() async throws -> CalendarConnectLink {
+        calls.append("connectCalendar")
+        if let error = googleFailure { throw error }
+        return googleLink
+    }
+
     var doctorValue = DoctorReport(
         configPath: "/tmp/config.toml", bridgeVersion: "v0.1.0-test",
         checks: [
