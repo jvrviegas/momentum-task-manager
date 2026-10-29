@@ -1,32 +1,39 @@
 import SwiftUI
 import UniformTypeIdentifiers
 
-/// Settings ▸ Calendar: where meetings come from (calendar files or macOS
-/// Calendar), and the hours and events that count against a day's capacity.
+/// Settings ▸ Calendar: where meetings come from (calendar files, macOS
+/// Calendar or Google Calendar), and the hours and events that count against a
+/// day's capacity.
 struct CalendarTab: View {
     @Environment(AppStore.self) private var store
     @State private var choosing = false
 
     var body: some View {
         let model = store.settings
-        let mac = store.macCalendar
         if let calendar = model.snapshot?.calendar {
             Form {
                 if let notice = model.notice {
                     SettingsNotice(text: notice)
                 }
                 Section {
-                    Picker("Source", selection: Binding(get: { mac.source }, set: { value in Task { await mac.choose(value) } })) {
-                        Text("Calendar files").tag(CalendarSource.files)
-                        Text("macOS Calendar").tag(CalendarSource.mac)
+                    Picker("Source", selection: Binding(get: { model.calendarChoice }, set: { value in Task { await model.chooseCalendarSource(value) } })) {
+                        Text("Calendar files").tag(CalendarChoice.files)
+                        Text("macOS Calendar").tag(CalendarChoice.mac)
+                        Text("Google Calendar").tag(CalendarChoice.google)
+                    }
+                    if let message = model.error("calendar", "source") {
+                        ErrorLine(text: message)
                     }
                 } footer: {
-                    Text("This applies to this Mac only. The terminal app keeps using the calendar files.")
+                    Text("Calendar files and Google Calendar also apply to the terminal app on this Mac. macOS Calendar applies to this app only.")
                 }
-                if mac.source == .files {
+                switch model.calendarChoice {
+                case .files:
                     filesSections(calendar, model)
-                } else {
+                case .mac:
                     MacCalendarSection()
+                case .google:
+                    GoogleCalendarSection()
                 }
                 Section {
                     DatePicker("Start", selection: timeBinding(calendar.workingStart) { await model.setWorkingStart($0) }, displayedComponents: .hourAndMinute)
