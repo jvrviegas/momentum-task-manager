@@ -39,7 +39,7 @@ xcodebuild -scheme Momentum test                                  # Swift: store
 (cd ../tui && go test ./internal/bridge/ ./internal/quickadd/)    # Go: protocol, views, edits, capture review, plans, calendar
 ```
 
-The bridge's tests reach a fake server over HTTP, and its calendar tests read `.ics` files from a temporary directory.
+The bridge's tests reach a fake server over HTTP, and its calendar tests read `.ics` files from a temporary directory. Its answers are also kept as files in `tui/internal/bridge/testdata/wire`, which the Swift tests decode; after changing the wire on purpose, run `go test ./internal/bridge -run TestWire -update` in `tui/`.
 
 To see the app, `tools/snap.sh` builds the Debug app and saves a window image of each page in light and dark to `/tmp/Momentum-shots`, one `<page>-light.png` and `<page>-dark.png` per page. It runs on a fake server and an in-memory sign-in, under its own bundle identifier, so it never touches your server, Keychain, `config.toml` or the real app's preferences. `MOMENTUM_SNAPSHOT_PAGES=today,inbox` limits it to some pages. Run it from a terminal that has Screen Recording permission, and leave the screen alone while it runs, since the app's window comes to the front for each image.
 
