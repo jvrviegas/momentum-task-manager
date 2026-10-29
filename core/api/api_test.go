@@ -86,6 +86,18 @@ func TestModifyTaskRequestJSON(t *testing.T) {
 	roundTrip(t, ModifyTaskRequest{}, `{}`)
 }
 
+func TestNoteAndDependencyChangesJSON(t *testing.T) {
+	// Each goes alone, as the apps send one change at a time.
+	roundTrip(t, ModifyTaskRequest{Annotations: &AnnotationChange{Add: []string{"Asked Ana for the quote"}}},
+		`{"annotations":{"add":["Asked Ana for the quote"]}}`)
+	roundTrip(t, ModifyTaskRequest{Annotations: &AnnotationChange{Remove: []Annotation{{Entry: at(9), Description: "Outline agreed"}}}},
+		`{"annotations":{"remove":[{"entry":"2026-10-14T09:30:00Z","description":"Outline agreed"}]}}`)
+	roundTrip(t, ModifyTaskRequest{Depends: &DependencyChange{Add: []string{"0d1c6c58-8d4b-4a8e-9f4e-1b2b3c4d5e6f"}}},
+		`{"depends":{"add":["0d1c6c58-8d4b-4a8e-9f4e-1b2b3c4d5e6f"]}}`)
+	roundTrip(t, ModifyTaskRequest{Depends: &DependencyChange{Remove: []string{"0d1c6c58-8d4b-4a8e-9f4e-1b2b3c4d5e6f"}}},
+		`{"depends":{"remove":["0d1c6c58-8d4b-4a8e-9f4e-1b2b3c4d5e6f"]}}`)
+}
+
 func TestProjectJSON(t *testing.T) {
 	roundTrip(t, ProjectList{Projects: []string{"home", "work.client"}}, `{"projects":["home","work.client"]}`)
 	roundTrip(t, TagList{Tags: []string{"next"}}, `{"tags":["next"]}`)
