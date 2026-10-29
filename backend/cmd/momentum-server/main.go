@@ -17,10 +17,12 @@ import (
 	"time"
 
 	"github.com/jvrviegas/momentum-task-manager/backend/internal/auth"
+	"github.com/jvrviegas/momentum-task-manager/backend/internal/calendar"
 	"github.com/jvrviegas/momentum-task-manager/backend/internal/config"
 	"github.com/jvrviegas/momentum-task-manager/backend/internal/httpapi"
 	"github.com/jvrviegas/momentum-task-manager/backend/internal/logging"
 	"github.com/jvrviegas/momentum-task-manager/backend/internal/store"
+	"github.com/jvrviegas/momentum-task-manager/backend/internal/store/ent"
 	"github.com/jvrviegas/momentum-task-manager/backend/internal/tasks"
 )
 
@@ -76,16 +78,38 @@ func run(args []string) error {
 	signIn := auth.New(client, auth.Config{
 		PublicURL: settings.PublicURL, AllowedEmails: settings.AllowedEmails, Providers: providers,
 	})
+	calendars, err := calendarService(ctx, logger, client, settings)
+	if err != nil {
+		return err
+	}
 	listener, err := net.Listen("tcp", ":"+strconv.Itoa(settings.Port))
 	if err != nil {
 		return err
 	}
 	logger.Info("listening", slog.String("addr", listener.Addr().String()))
-	if err := httpapi.Serve(ctx, listener, httpapi.New(logger, Version, signIn, tasks.New(client), settings.ProxyHops), drain); err != nil {
+	if err := httpapi.Serve(ctx, listener, httpapi.New(logger, Version, signIn, tasks.New(client), calendars, settings.ProxyHops), drain); err != nil {
 		return err
 	}
 	logger.Info("stopped")
 	return nil
+}
+
+// calendarService returns the Google Calendar service, which offers Google
+// Calendar only with a Google OAuth client and CALENDAR_TOKEN_KEY both set
+// (ADR 0003, D5). Without them it still answers, saying nothing is offered.
+func calendarService(ctx context.Context, logger *slog.Logger, client *ent.Client, settings config.Config) (*calendar.Service, error) {
+	service := calendar.Config{PublicURL: settings.PublicURL, Key: settings.CalendarTokenKey, Logger: logger}
+	if settings.CalendarTokenKey == nil || !settings.Google.Configured() {
+		logger.Info("Google Calendar is not offered; it needs GOOGLE_CLIENT_ID, GOOGLE_CLIENT_SECRET and CALENDAR_TOKEN_KEY")
+		return calendar.New(client, service), nil
+	}
+	google, err := calendar.NewGoogle(ctx, auth.GoogleIssuer, settings.Google.ID, settings.Google.Secret,
+		settings.PublicURL+calendar.CallbackPath, calendar.GoogleAPI)
+	if err != nil {
+		return nil, err
+	}
+	service.Google = google
+	return calendar.New(client, service), nil
 }
 
 // signInProviders returns the providers the configuration has credentials
