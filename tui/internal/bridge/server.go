@@ -59,6 +59,11 @@ type Client interface {
 	Projects(context.Context) ([]string, error)
 	Add(context.Context, domain.NewTask) error
 	Modify(context.Context, string, domain.TaskDiff) error
+	AddNote(ctx context.Context, uuid, text string) error
+	RemoveNote(ctx context.Context, uuid string, entry time.Time, text string) error
+	AddDependency(ctx context.Context, uuid, on string) error
+	RemoveDependency(ctx context.Context, uuid, on string) error
+	Duplicate(ctx context.Context, uuid string) (string, error)
 	Complete(context.Context, string) error
 	Delete(context.Context, string) error
 	Start(context.Context, string) error
@@ -78,6 +83,7 @@ type Client interface {
 var apiFields = map[string]string{
 	"description": "description", "project": "project", "priority": "priority", "due": "due",
 	"scheduled": "scheduled", "recurrence": "recurrence", "estimateMinutes": "estimate", "tags": "tags",
+	"annotations": "note", "depends": "depends",
 }
 
 // Pure operations never reach the server and may answer out of order.
@@ -292,6 +298,34 @@ func (s *Server) dispatch(ctx context.Context, op string, raw json.RawMessage) (
 			return nil, err
 		}
 		return s.modify(ctx, p)
+	case "addNote", "removeNote":
+		var p noteParams
+		if err := decode(raw, &p); err != nil {
+			return nil, err
+		}
+		if op == "addNote" {
+			return nil, s.client.AddNote(ctx, p.UUID, p.Text)
+		}
+		return nil, s.client.RemoveNote(ctx, p.UUID, p.Entry, p.Text)
+	case "addDependency", "removeDependency":
+		var p dependencyParams
+		if err := decode(raw, &p); err != nil {
+			return nil, err
+		}
+		if op == "addDependency" {
+			return nil, s.client.AddDependency(ctx, p.UUID, p.On)
+		}
+		return nil, s.client.RemoveDependency(ctx, p.UUID, p.On)
+	case "duplicate":
+		var p uuidParams
+		if err := decode(raw, &p); err != nil {
+			return nil, err
+		}
+		copied, err := s.client.Duplicate(ctx, p.UUID)
+		if err != nil {
+			return nil, err
+		}
+		return &duplicateResult{UUID: copied}, nil
 	case "complete", "start", "stop", "delete", "stopRecurrence":
 		var p uuidParams
 		if err := decode(raw, &p); err != nil {
