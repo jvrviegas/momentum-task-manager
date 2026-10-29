@@ -76,13 +76,13 @@ func (s *Service) Create(ctx context.Context, key string, input api.CreateTaskRe
 // Modify changes the fields input names on a pending task, as a
 // domain.TaskDiff does, under the idempotency key. A recurrence turns a task
 // into the first instance of a new series, or changes the rule of the series
-// an instance or template belongs to.
+// an instance or template belongs to. An added note takes the change's time.
 func (s *Service) Modify(ctx context.Context, key string, id uuid.UUID, input api.ModifyTaskRequest) (api.Task, error) {
 	rule, err := validateModify(input)
 	if err != nil {
 		return api.Task{}, err
 	}
-	edit := func(t *api.Task, _ time.Time) error {
+	edit := func(t *api.Task, now time.Time) error {
 		t.Description = changed(t.Description, input.Description)
 		t.Project = changed(t.Project, input.Project)
 		t.Priority = changed(t.Priority, input.Priority)
@@ -93,6 +93,18 @@ func (s *Service) Modify(ctx context.Context, key string, id uuid.UUID, input ap
 			kept := slices.DeleteFunc(slices.Clone(t.Tags), func(tag string) bool { return slices.Contains(input.Tags.Remove, tag) })
 			t.Tags = uniqueTags(append(kept, input.Tags.Add...))
 		}
+		if input.Annotations != nil {
+			var err error
+			if t.Annotations, err = changedAnnotations(t.Annotations, *input.Annotations, now); err != nil {
+				return err
+			}
+		}
+		if input.Depends != nil {
+			var err error
+			if t.Depends, err = changedDependencies(t.Depends, *input.Depends); err != nil {
+				return err
+			}
+		}
 		if rule != "" {
 			t.Recurrence = rule
 		}
@@ -102,6 +114,11 @@ func (s *Service) Modify(ctx context.Context, key string, id uuid.UUID, input ap
 		row, err := c.lock(ctx, id)
 		if err != nil {
 			return nil, err
+		}
+		if input.Depends != nil {
+			if err := c.checkDependencies(ctx, id, input.Depends.Add); err != nil {
+				return nil, err
+			}
 		}
 		switch {
 		case rule == "":
@@ -248,6 +265,16 @@ func save(ctx context.Context, update *ent.TaskUpdateOne, t api.Task) (*ent.Task
 		update.SetTags(t.Tags)
 	} else {
 		update.ClearTags()
+	}
+	if len(t.Annotations) > 0 {
+		update.SetAnnotations(t.Annotations)
+	} else {
+		update.ClearAnnotations()
+	}
+	if len(t.Depends) > 0 {
+		update.SetDepends(t.Depends)
+	} else {
+		update.ClearDepends()
 	}
 	if parent, err := uuid.Parse(t.Parent); err == nil {
 		update.SetParent(parent)
@@ -425,6 +452,13 @@ func validateModify(input api.ModifyTaskRequest) (string, error) {
 			return "", err
 		}
 	}
+	if input.Annotations != nil {
+		for _, note := range input.Annotations.Add {
+			if strings.TrimSpace(note) == "" {
+				return "", invalid("annotations", "a note cannot be empty")
+			}
+		}
+	}
 	if input.Tags != nil {
 		return rule, checkTags(input.Tags.Add)
 	}
@@ -435,7 +469,9 @@ func validateModify(input api.ModifyTaskRequest) (string, error) {
 func onlyRecurrence(input api.ModifyTaskRequest) bool {
 	return input.Description.IsZero() && input.Project.IsZero() && input.Priority.IsZero() &&
 		input.Due.IsZero() && input.Scheduled.IsZero() && input.EstimateMinutes.IsZero() &&
-		(input.Tags == nil || len(input.Tags.Add)+len(input.Tags.Remove) == 0)
+		(input.Tags == nil || len(input.Tags.Add)+len(input.Tags.Remove) == 0) &&
+		(input.Annotations == nil || len(input.Annotations.Add)+len(input.Annotations.Remove) == 0) &&
+		(input.Depends == nil || len(input.Depends.Add)+len(input.Depends.Remove) == 0)
 }
 
 var errNoFirstDue = invalid("due", "recurring tasks need a first due date")
@@ -521,6 +557,103 @@ func uniqueTags(tags []string) []string {
 		}
 	}
 	return unique
+}
+
+// changedAnnotations returns notes with change applied: each removed note,
+// found by its time to the second and its words, goes, and each added one
+// follows the others with the time now. A note that is not there is a
+// conflict, as when another device removed it first.
+func changedAnnotations(notes []api.Annotation, change api.AnnotationChange, now time.Time) ([]api.Annotation, error) {
+	notes = slices.Clone(notes)
+	for _, removed := range change.Remove {
+		i := slices.IndexFunc(notes, func(note api.Annotation) bool {
+			return note.Description == removed.Description && note.Entry.Truncate(time.Second).Equal(removed.Entry.Truncate(time.Second))
+		})
+		if i < 0 {
+			return nil, conflict("the task has no such note")
+		}
+		notes = slices.Delete(notes, i, i+1)
+	}
+	for _, added := range change.Add {
+		notes = append(notes, api.Annotation{Entry: now, Description: strings.TrimSpace(added)})
+	}
+	return notes, nil
+}
+
+// changedDependencies returns depends with change applied. Removing a
+// dependency the task does not have is a conflict.
+func changedDependencies(depends []string, change api.DependencyChange) ([]string, error) {
+	depends = slices.Clone(depends)
+	for _, removed := range change.Remove {
+		i := slices.Index(depends, removed)
+		if i < 0 {
+			return nil, conflict("the task does not depend on that task")
+		}
+		depends = slices.Delete(depends, i, i+1)
+	}
+	return uniqueTags(append(depends, change.Add...)), nil
+}
+
+// checkDependencies refuses the dependencies on add that task id may not
+// have: itself, a task the user does not have, a deleted task, a series
+// template, or a task that already depends on id, which would close a loop.
+// Another user's task is not found, like a task that never existed.
+func (c *change) checkDependencies(ctx context.Context, id uuid.UUID, add []string) error {
+	if len(add) == 0 {
+		return nil
+	}
+	ids := make([]uuid.UUID, len(add))
+	for i, value := range add {
+		parsed, err := uuid.Parse(value)
+		if err != nil {
+			return invalid("depends", fmt.Sprintf("%q is not a task UUID", value))
+		}
+		if parsed == id {
+			return invalid("depends", "a task cannot depend on itself")
+		}
+		ids[i] = parsed
+	}
+	found, err := c.tx.Task.Query().Where(task.IDIn(ids...)).Select(task.FieldID, task.FieldStatus).All(ctx)
+	if err != nil {
+		return err
+	}
+	for _, dependency := range ids {
+		i := slices.IndexFunc(found, func(row *ent.Task) bool { return row.ID == dependency })
+		switch {
+		case i < 0:
+			return invalid("depends", "no such task")
+		case found[i].Status == task.StatusDeleted:
+			return invalid("depends", "a task cannot depend on a deleted task")
+		case found[i].Status == task.StatusRecurring:
+			return invalid("depends", "a task cannot depend on a recurring template; choose one of its tasks")
+		}
+	}
+	rows, err := c.tx.Task.Query().Where(task.DependsNotNil()).Select(task.FieldID, task.FieldDepends).All(ctx)
+	if err != nil {
+		return err
+	}
+	edges := make(map[uuid.UUID][]string, len(rows))
+	for _, row := range rows {
+		edges[row.ID] = row.Depends
+	}
+	// A loop is a way back to id from a new dependency.
+	seen := map[uuid.UUID]bool{}
+	for queue := slices.Clone(ids); len(queue) > 0; queue = queue[1:] {
+		next := queue[0]
+		if next == id {
+			return invalid("depends", "a task cannot depend on a task that depends on it")
+		}
+		if seen[next] {
+			continue
+		}
+		seen[next] = true
+		for _, value := range edges[next] {
+			if parsed, err := uuid.Parse(value); err == nil {
+				queue = append(queue, parsed)
+			}
+		}
+	}
+	return nil
 }
 
 func invalid(field, message string) *api.Error {
