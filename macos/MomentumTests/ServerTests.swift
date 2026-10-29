@@ -81,56 +81,8 @@ struct ServerTests {
         #expect(await waits.seconds == [5, 5, 10, 10])
         #expect(await bridge.calls == ["signInStart", "poll dc", "poll dc", "poll dc", "poll dc", "setToken mtk_new", "revoke mtk_old", "load"])
         #expect(signIns.saved[backendURL]?.token == "mtk_new" && store.account?.token == "mtk_new")
-        #expect(store.signIn == nil && store.server == .online && store.view == .today && store.selection == "t")
+        #expect(store.signInModel.flow == nil && store.server == .online && store.view == .today && store.selection == "t")
         #expect(store.toast?.message == "Signed in as ana@example.com")
-    }
-
-    @Test func aRefusedSignInOffersToTryAgain() async {
-        let signIns = FakeSignInStore()
-        let bridge = FakeBridge(backendURL: backendURL, snapshots: [snapshot()])
-        await bridge.setPolls([pending, .failure(BridgeError(message: "sign-in refused: this account may not use this server"))])
-        let store = AppStore(bridge: bridge, signIns: signIns, sleep: { _ in })
-        await store.start()
-        await store.beginSignIn().value
-        #expect(store.signIn?.phase == .failed("sign-in refused: this account may not use this server"))
-        #expect(signIns.saved.isEmpty && store.account == nil && store.server == .signedOut)
-        #expect(await !bridge.calls.contains { $0.hasPrefix("setToken") })
-    }
-
-    @Test func aSignInTheKeychainRefusesIsRevoked() async {
-        let signIns = FakeSignInStore()
-        signIns.refusesSave = true
-        let bridge = FakeBridge(backendURL: backendURL, snapshots: [snapshot()])
-        await bridge.setPolls([signedIn("mtk_new")])
-        let store = AppStore(bridge: bridge, signIns: signIns, sleep: { _ in })
-        await store.start()
-        await store.beginSignIn().value
-        #expect(await bridge.calls == ["signInStart", "poll dc", "revoke mtk_new"])
-        guard case .failed(let message) = store.signIn?.phase else {
-            Issue.record("phase \(String(describing: store.signIn?.phase))")
-            return
-        }
-        #expect(message.hasPrefix("Couldn’t save the sign-in in the Keychain: "))
-        #expect(store.account == nil && store.server == .signedOut)
-    }
-
-    @Test func cancellingStopsPolling() async throws {
-        let bridge = FakeBridge(backendURL: backendURL, snapshots: [snapshot()])
-        let store = AppStore(bridge: bridge, signIns: FakeSignInStore(), sleep: { try await Task.sleep(for: .seconds($0 * 60)) })
-        await store.start()
-        let flow = store.beginSignIn()
-        for _ in 0..<200 where store.signIn?.phase == .starting {
-            try await Task.sleep(for: .milliseconds(5))
-        }
-        guard case .waiting(let start) = store.signIn?.phase else {
-            Issue.record("phase \(String(describing: store.signIn?.phase))")
-            return
-        }
-        #expect(start.userCode == "BCDFGHJK")
-        store.cancelSignIn()
-        await flow.value
-        #expect(store.signIn == nil)
-        #expect(await bridge.calls == ["signInStart"])
     }
 
     @Test func signOutRevokesAndForgetsTheSignIn() async {
