@@ -9,6 +9,7 @@ import (
 
 	"github.com/jvrviegas/momentum-task-manager/core/domain"
 	"github.com/jvrviegas/momentum-task-manager/tui/internal/calendar"
+	"github.com/jvrviegas/momentum-task-manager/tui/internal/config"
 )
 
 const planDateLayout = "2006-01-02"
@@ -21,7 +22,7 @@ func (s *Server) plan(ctx context.Context, input *calendarInput) (*planResult, e
 	if err != nil {
 		return nil, err
 	}
-	busy := s.readCalendar(ctx, now, input)
+	busy := s.readCalendar(ctx, now, input, true)
 	plan := domain.BuildDailyPlan(pending, now, s.planningConstraints(now, busy))
 	return &planResult{
 		Date:            plan.Date.Format(planDateLayout),
@@ -55,7 +56,7 @@ func (s *Server) summarizePlan(ctx context.Context, pending []domain.Task, now t
 	if !s.config.Planning.Enabled {
 		return planSummary{}
 	}
-	busy := s.readCalendar(ctx, now, input)
+	busy := s.readCalendar(ctx, now, input, false)
 	plan := domain.BuildDailyPlan(pending, now, s.planningConstraints(now, busy))
 	summary := planSummary{
 		Enabled:           true,
@@ -92,14 +93,19 @@ func (s *Server) planningConstraints(now time.Time, busy calendarWire) domain.Pl
 	}
 }
 
-// readCalendar reads today's busy time from the [calendar] files as the
-// TUI's planner does, or from the events the app handed over when its source
-// is the Mac's Calendar. A file that cannot be read or parsed, or calendars
-// the app could not read, make the whole calendar unavailable, and planning
-// goes on with tasks only.
-func (s *Server) readCalendar(ctx context.Context, now time.Time, input *calendarInput) calendarWire {
+// readCalendar reads today's busy time from the events the app handed over
+// when its source is the Mac's Calendar, which count over everything else
+// (ADR 0003, D9); from Google Calendar, through the server, when [calendar]
+// source is "google"; and otherwise from the [calendar] files as the TUI's
+// planner does. Google counts whatever [calendar] enabled says. A file that
+// cannot be read or parsed, calendars the app could not read, or a Google
+// Calendar the server could not read make the whole calendar unavailable, and
+// planning goes on with tasks only. fresh is Plan Today's: it asks Google
+// again instead of reusing what a load kept.
+func (s *Server) readCalendar(ctx context.Context, now time.Time, input *calendarInput, fresh bool) calendarWire {
 	settings := s.config.Calendar
-	busy := calendarWire{Enabled: settings.Enabled || input != nil, WorkingStart: settings.WorkingStart, WorkingEnd: settings.WorkingEnd, Blocks: []busyBlock{}}
+	google := input == nil && settings.Source == config.CalendarSourceGoogle
+	busy := calendarWire{Enabled: settings.Enabled || input != nil || google, WorkingStart: settings.WorkingStart, WorkingEnd: settings.WorkingEnd, Blocks: []busyBlock{}}
 	if !busy.Enabled {
 		return busy
 	}
@@ -112,13 +118,21 @@ func (s *Server) readCalendar(ctx context.Context, now time.Time, input *calenda
 		Now:                now,
 	}
 	var loaded calendar.LoadResult
-	if input != nil {
+	switch {
+	case input != nil:
 		if input.Error != "" {
 			busy.Error = input.Error
 			return busy
 		}
 		loaded = calendar.FromEvents(input.events(), options)
-	} else {
+	case google:
+		events, err := s.googleToday(ctx, now, fresh)
+		if err != nil {
+			busy.Error = err.Error()
+			return busy
+		}
+		loaded = calendar.FromEvents(events, options)
+	default:
 		home, _ := os.UserHomeDir()
 		options.Paths = settings.PathsFor(home)
 		loaded = calendar.Load(ctx, options)
