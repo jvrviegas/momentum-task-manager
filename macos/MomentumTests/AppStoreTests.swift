@@ -130,11 +130,23 @@ actor FakeBridge: TaskBridge {
     var googleStatus = GoogleCalendarStatus(offered: true, connected: false, email: nil, needsReconnect: false)
     var googleLink = CalendarConnectLink(url: "https://momentum.example/calendar/connect/abc", expiresAt: .now.addingTimeInterval(600))
     var googleFailure: BridgeError?
+    /// Whether Google could be asked to revoke the access on a disconnect.
+    var googleRevoked = true
 
-    func setGoogle(status: GoogleCalendarStatus? = nil, link: CalendarConnectLink? = nil, failure: BridgeError? = nil) {
+    func setGoogle(
+        status: GoogleCalendarStatus? = nil, link: CalendarConnectLink? = nil, failure: BridgeError? = nil, revoked: Bool? = nil
+    ) {
         if let status { googleStatus = status }
         if let link { googleLink = link }
+        if let revoked { googleRevoked = revoked }
         googleFailure = failure
+    }
+
+    func disconnectCalendar() async throws -> GoogleCalendarDisconnect {
+        calls.append("disconnectCalendar")
+        if let error = googleFailure { throw error }
+        googleStatus = GoogleCalendarStatus(offered: googleStatus.offered, connected: false, email: nil, needsReconnect: false)
+        return GoogleCalendarDisconnect(revoked: googleRevoked)
     }
 
     func calendarStatus() async throws -> GoogleCalendarStatus {
