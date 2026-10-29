@@ -31,6 +31,9 @@ protocol TaskBridge: Sendable {
     func settings() async throws -> SettingsSnapshot
     func savePlanning(_ change: PlanningChange) async throws -> SettingsSnapshot
     func saveCalendar(_ change: CalendarChange) async throws -> SettingsSnapshot
+    // Google Calendar, which the server reads for this account.
+    func calendarStatus() async throws -> GoogleCalendarStatus
+    func connectCalendar() async throws -> CalendarConnectLink
     // Diagnostics.
     func doctor() async throws -> DoctorReport
     // Projects.
@@ -119,6 +122,9 @@ actor ProcessBridge: TaskBridge {
     func settings() async throws -> SettingsSnapshot { try await call("settings") }
     func savePlanning(_ change: PlanningChange) async throws -> SettingsSnapshot { try await call("savePlanning", change) }
     func saveCalendar(_ change: CalendarChange) async throws -> SettingsSnapshot { try await call("saveCalendar", change) }
+
+    func calendarStatus() async throws -> GoogleCalendarStatus { try await call("calendarStatus") }
+    func connectCalendar() async throws -> CalendarConnectLink { try await call("connectCalendar") }
 
     func doctor() async throws -> DoctorReport { try await call("doctor") }
 
