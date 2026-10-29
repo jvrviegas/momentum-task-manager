@@ -64,6 +64,7 @@ type Client interface {
 	Stop(context.Context, string) error
 	StopRecurrence(context.Context, string) error
 	Undo(context.Context) error
+	ApplyProjectMigration(context.Context, domain.ProjectCatalogPlan, []domain.ProjectTaskMapping) error
 }
 
 // apiFields names the edit fields that a backend error's fields belong to.
@@ -220,6 +221,20 @@ func (s *Server) dispatch(ctx context.Context, op string, raw json.RawMessage) (
 			return nil, err
 		}
 		return s.saveCalendar(ctx, p)
+	case "projects":
+		return s.projectList(ctx)
+	case "previewMigration":
+		var p projectEditParams
+		if err := decode(raw, &p); err != nil {
+			return nil, err
+		}
+		return s.previewMigration(ctx, p)
+	case "saveProject":
+		var p projectEditParams
+		if err := decode(raw, &p); err != nil {
+			return nil, err
+		}
+		return s.saveProject(ctx, p)
 	case "load":
 		var p loadParams
 		if err := decode(raw, &p); err != nil {
