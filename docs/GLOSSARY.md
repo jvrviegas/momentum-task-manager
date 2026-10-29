@@ -41,6 +41,8 @@ Plain, direct, brief. Say "you" to the person, never "the user". Say "click", ne
 | macOS Calendar | The Calendar app's own calendars, read with the Mac's permission; Settings ▸ Calendar lists them by account with a switch each | iCloud calendar, system calendar, EventKit |
 | Google Calendar | The primary calendar of the Google account you connected, read by the server; one of the three Sources | Google account, gcal, Google sync |
 | Connect | Let the server read your Google Calendar, by approving it in the browser (**Connect…**, with an ellipsis). The connection belongs to your Momentum account, not to a Mac. Never means Sign In | Sign In, link, authorize, add account |
+| Needs reconnecting | The state of a Google Calendar connection that Google no longer accepts, shown as a symbol and words in Settings ▸ Calendar; Plan Today says "Calendar unavailable: Google Calendar needs reconnecting" until it is reconnected | Expired, Disconnected, Broken, Signed out |
+| Reconnect | Connect again, in the browser, a Google Calendar connection that Google no longer accepts (**Reconnect…**, with an ellipsis); it replaces the saved connection, with the same Google account or another | Reauthorize, Relink, Refresh, Sign In |
 | Project | A place tasks belong to, written as a dotted value such as `work.client`; its name labels the last segment | folder, category, list |
 | Catalog | The projects kept in `config.toml`, which New Task suggests; managed in Settings ▸ Projects | project list, suggestions file |
 | From tasks | The tag of a project that only tasks use, with **Add to Catalog…** to keep it | discovered, orphan, unknown |
