@@ -4,6 +4,7 @@ package backend
 
 import (
 	"context"
+	"slices"
 	"sync"
 	"time"
 
@@ -78,6 +79,57 @@ func (c *Client) Modify(ctx context.Context, uuid string, diff domain.TaskDiff) 
 		return err
 	}
 	return c.change(ctx, func() (api.Task, error) { return c.server.ModifyTask(ctx, uuid, request) })
+}
+
+// AddNote adds a note with text to task uuid; the server gives it its time.
+func (c *Client) AddNote(ctx context.Context, uuid, text string) error {
+	return c.modifyTask(ctx, uuid, api.ModifyTaskRequest{Annotations: &api.AnnotationChange{Add: []string{text}}})
+}
+
+// RemoveNote removes the note of task uuid that was added at entry with text.
+func (c *Client) RemoveNote(ctx context.Context, uuid string, entry time.Time, text string) error {
+	remove := []api.Annotation{{Entry: entry, Description: text}}
+	return c.modifyTask(ctx, uuid, api.ModifyTaskRequest{Annotations: &api.AnnotationChange{Remove: remove}})
+}
+
+// AddDependency makes task uuid depend on task on.
+func (c *Client) AddDependency(ctx context.Context, uuid, on string) error {
+	return c.modifyTask(ctx, uuid, api.ModifyTaskRequest{Depends: &api.DependencyChange{Add: []string{on}}})
+}
+
+// RemoveDependency stops task uuid depending on task on.
+func (c *Client) RemoveDependency(ctx context.Context, uuid, on string) error {
+	return c.modifyTask(ctx, uuid, api.ModifyTaskRequest{Depends: &api.DependencyChange{Remove: []string{on}}})
+}
+
+func (c *Client) modifyTask(ctx context.Context, uuid string, request api.ModifyTaskRequest) error {
+	return c.change(ctx, func() (api.Task, error) { return c.server.ModifyTask(ctx, uuid, request) })
+}
+
+// Duplicate adds a task with the description, project, priority, dates,
+// estimate and tags of the pending task uuid, and returns its UUID (plan D4).
+// The daily plan's tag stays with the original, and the copy does not repeat.
+func (c *Client) Duplicate(ctx context.Context, uuid string) (string, error) {
+	pending, err := c.server.ListTasks(ctx, api.StatusPending, time.Time{})
+	if err != nil {
+		return "", err
+	}
+	i := slices.IndexFunc(pending, func(task api.Task) bool { return task.UUID == uuid })
+	if i < 0 {
+		return "", &api.Error{Code: api.CodeConflict, Message: "the task is no longer pending"}
+	}
+	original := pending[i]
+	request := api.CreateTaskRequest{
+		Description: original.Description, Project: original.Project, Priority: original.Priority,
+		Due: original.Due, Scheduled: original.Scheduled, EstimateMinutes: original.EstimateMinutes,
+		Tags: slices.DeleteFunc(slices.Clone(original.Tags), domain.IsPlanTag),
+	}
+	var created api.Task
+	err = c.change(ctx, func() (api.Task, error) {
+		created, err = c.server.CreateTask(ctx, request)
+		return created, err
+	})
+	return created.UUID, err
 }
 
 func (c *Client) Complete(ctx context.Context, uuid string) error {
