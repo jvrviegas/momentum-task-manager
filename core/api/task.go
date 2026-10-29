@@ -75,7 +75,8 @@ type CreateTaskRequest struct {
 // value sets it. Recurrence on a task that does not repeat makes it the first
 // instance of a new series; on an instance or a template, it changes the
 // series' rule, and a template takes no other field. A recurrence cannot be
-// cleared; RouteStopRecurrence ends a series instead.
+// cleared; RouteStopRecurrence ends a series instead. Annotations and Depends
+// add and remove notes and dependencies, as Tags does tags.
 type ModifyTaskRequest struct {
 	Description     Change[string]    `json:"description,omitzero"`
 	Project         Change[string]    `json:"project,omitzero"`
@@ -85,6 +86,8 @@ type ModifyTaskRequest struct {
 	Recurrence      Change[string]    `json:"recurrence,omitzero"`
 	EstimateMinutes Change[int]       `json:"estimateMinutes,omitzero"`
 	Tags            *TagChange        `json:"tags,omitempty"`
+	Annotations     *AnnotationChange `json:"annotations,omitempty"`
+	Depends         *DependencyChange `json:"depends,omitempty"`
 }
 
 // Change is one field of a ModifyTaskRequest. Value is used only with
@@ -115,6 +118,19 @@ func (c *Change[T]) UnmarshalJSON(data []byte) error {
 
 // TagChange adds and removes tags, leaving the task's other tags alone.
 type TagChange struct {
+	Add    []string `json:"add,omitempty"`
+	Remove []string `json:"remove,omitempty"`
+}
+
+// AnnotationChange adds notes, by their words, and removes notes, by their
+// time and words. The server gives an added note its time.
+type AnnotationChange struct {
+	Add    []string     `json:"add,omitempty"`
+	Remove []Annotation `json:"remove,omitempty"`
+}
+
+// DependencyChange adds and removes the tasks a task depends on, by UUID.
+type DependencyChange struct {
 	Add    []string `json:"add,omitempty"`
 	Remove []string `json:"remove,omitempty"`
 }
