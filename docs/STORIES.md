@@ -735,9 +735,118 @@ Acceptance:
 Deferred (2026-10-29): signing for distribution needs a Developer ID Application certificate, which needs a paid Apple Developer account, and there is none yet. Until then the app is built ad hoc, as before. When there is one: turning on the hardened runtime needs the `com.apple.security.personal-information.calendars` entitlement, or S-047's calendar access stops working in that build, and notarizing sends the app to Apple, which needs approval first.
 Status: deferred
 
+## M8 Google Calendar
+
+Count the meetings in my Google Calendar against each day's capacity, on every machine I use. Plan: [`docs/plans/google-calendar.md`](./plans/google-calendar.md). Story to task: S-057 G02 to G09 for connecting, and G11; S-058 G05, G08 and G09; S-059 G05; S-060 G09; S-061 G05 and G11; S-062 G05 and G11; S-063 G10's `doctor` check; S-064 G10. Task G01 (the ADR) goes with S-057 and task G12 (docs) with the last story.
+
+The plan's decisions D1–D9 were approved on 2026-10-29, each as recommended, and no story is started. Each story's `Decisions:` line names the ones it rests on. If a decision changes, only the stories that name it change.
+
+M8 steps outside the Mac app in one place: S-064 is the terminal app's side (plan G10), which D6 asks for so that both apps on a machine agree. It stays in M8 (decided 2026-10-29).
+
+Source rule (plan D9): D6 puts the source in `config.toml`, but S-047 keeps the Source in this Mac's preferences and the glossary says "not in `config.toml`". When the Mac holds macOS Calendar and `config.toml` says `google`, macOS Calendar counts, as S-047 already has the bridge count the Mac's events whatever `config.toml` says; choosing Google or Calendar files in the picker clears that preference and writes `source`. S-057 builds that rule and rewrites the glossary's Source row.
+
+### S-057 Connect my Google Calendar
+As the user, I choose Google Calendar as the Source, press **Connect…**, approve in the browser, and the tab says which Google account is connected.
+Screens: settings-calendar-google-connect.png, settings-calendar-google-waiting.png, settings-calendar-google.png, settings-calendar-google-not-offered.png
+Depends: S-047
+Decisions: D1, D2, D3, D5, D6, D8, D9
+Acceptance:
+- [snap] `settings-calendar-google-connect`: Source ▸ Google Calendar with no connection says what Momentum may read and offers **Connect…**; `settings-calendar-google-waiting`: after **Connect…** the tab says it is waiting for the browser and offers **Cancel**; `settings-calendar-google`: "Connected as <email>".
+- [snap] `settings-calendar-google-not-offered`: a server with no Google client or no `CALENDAR_TOKEN_KEY` answers `offered: false`, and the tab says Google Calendar isn't available on this server instead of offering **Connect…**.
+- [unit] Go, fake Google on `httptest`: the one-time link expires after ten minutes and works once; the authorization request asks for `calendar.events.readonly`, `openid` and `email`, with offline access, consent and PKCE; the callback without the state cookie, or with a used state, is refused, so no one can attach a calendar to someone else's account.
+- [unit] Go: the refresh token is stored sealed with AES-256-GCM, and a changed ciphertext or another key fails to open it; a key that is not 32 bytes of base64 is refused and no key turns the feature off; one connection per user, and another user's row is invisible.
+- [unit] Go, captured logger: no link, state, code or token appears in any log line of the flow.
+- [unit] Go: `[calendar] source` is `files` (the default) or `google`; `google` needs no `paths`; an unknown value is refused; `files` keeps today's rules.
+- [unit] Swift, fake bridge: choosing Google writes `[calendar] source = "google"` and clears a macOS Calendar choice (D9); **Connect…** opens the link and stops waiting once the status says connected; **Cancel** stops waiting without connecting.
+- [unit] Go and Swift: the connection belongs to the account, so a Mac that signs in later and chooses Google sees "Connected as <email>" without the browser, and signing a Mac out doesn't disconnect it.
+- [manual] With the Cloud steps of plan C1 done, connect once with a real Google account (D8: expect the "unverified app" warning). Tests never reach Google, so this is the only check against the real thing.
+Status: todo
+
+### S-058 Count my Google meetings in Plan Today
+As the user with Google connected, I open Plan Today and see my meetings taking time off the day.
+Screens: plan-today.png, today.png
+Depends: S-057, S-037
+Decisions: D2, D3
+Acceptance:
+- [unit] Go: the same meetings give the same busy minutes and blocks from Google as from an `.ics` fixture; working hours, **Count all-day events** and **Count events shown as free** apply to both; an all-day event arrives as all-day and a "free" one as transparent.
+- [unit] Go, fake Google: a repeating meeting with one cancelled and one moved occurrence gives the right times, which `.ics` files can't; only the primary calendar is read, between the start and end of the device's day.
+- [unit] Go: a Google answer is never stale, so **Stale after** doesn't touch it; titles come back only with `plan`, never with `load`.
+- [unit] Go, captured logger: the server stores and logs no event and no title.
+- [manual] The sheet shows the merged blocks with their titles on hover and the sidebar's meter counts them, as with files; run once with a real calendar.
+Status: todo
+
+### S-059 Leave out meetings I declined
+As the user, a meeting I declined doesn't take time off my day, and one I accepted, tentatively accepted or haven't answered does.
+Screens: plan-today.png
+Depends: S-058
+Decisions: D2, D4
+Acceptance:
+- [unit] Go, fake Google: a declined event is not among the events the server returns, so it is neither in the strip nor in the busy minutes; accepted, tentative and unanswered events are.
+- [manual] Decline a meeting in Google and open Plan Today: its time comes back to the day. Files can't say declined, so the same meeting can differ between the two sources.
+Status: todo
+
+### S-060 See a new meeting without waiting
+As the user, I add a meeting in Google and open Plan Today, and it is already counted; the sidebar catches up within five minutes.
+Screens: plan-today.png, today.png
+Depends: S-058
+Decisions: D7
+Acceptance:
+- [unit] Go, bridge with a fake server: `plan` always asks the server for events; a `load` within five minutes of the last fetch reuses its busy time and asks again after five; a reused answer carries no titles.
+- [unit] Go: a change to the working hours, the event choices or the source makes the next `load` fetch again, so S-046's "applies at once" still holds.
+- [manual] Add a meeting in Google, open Plan Today and see it counted; close the sheet and see the sidebar's meter follow within five minutes.
+Status: todo
+
+### S-061 Reconnect when Google stops answering
+As the user, when Google refuses my saved connection, I'm told to reconnect and can do it from the same tab, and planning goes on with tasks alone.
+Screens: settings-calendar-google-reconnect.png, plan-today-calendar-google-reconnect.png
+Depends: S-057, S-038
+Decisions: D8
+Acceptance:
+- [unit] Go, fake Google: `invalid_grant` marks the connection "needs reconnecting", the events route answers `calendar_unavailable` with the reason, and the mark stays until the person reconnects or disconnects. In Testing a token lasts seven days (D8), so this is the weekly case until the client is in production.
+- [snap] `settings-calendar-google-reconnect`: "Needs reconnecting" with **Reconnect…**; `plan-today-calendar-google-reconnect`: Plan Today says "Calendar unavailable: <reason>".
+- [unit] Go, bridge: no connection, a dead token and Google unreachable each give zero calendar minutes and the reason, and ticking, saving and the sidebar's meter keep working (S-038).
+- [unit] Swift, fake bridge: **Reconnect…** follows S-057's connect flow; once connected the app loads again and the message goes.
+Status: todo
+
+### S-062 Disconnect Google Calendar
+As the user, I disconnect Google, after being asked, and Momentum forgets it.
+Screens: settings-calendar-google-disconnect.png
+Depends: S-057
+Decisions: D1, D5
+Acceptance:
+- [snap] `settings-calendar-google-disconnect`: **Disconnect…** asks first, names the account and says Momentum will stop reading the calendar and delete its saved access.
+- [unit] Go, fake Google: disconnecting calls Google's revoke and deletes the stored token and the connection row.
+- [unit] Swift, fake bridge: the source stays Google, the tab offers **Connect…** again, and Plan Today says "Calendar unavailable: <reason>" until I connect or choose another Source; the connection is the account's, so every Mac sees it gone.
+- [unit] Go, fake Google: with Google unreachable the revoke fails, the connection is still deleted, and the answer says the token was not revoked at Google; Swift, fake bridge: the tab shows that.
+Status: todo
+
+### S-063 Check Google in Diagnostics
+As the user, I open Settings ▸ Diagnostics and see whether Google Calendar works.
+Screens: settings-diagnostics-google.png
+Depends: S-053, S-057
+Decisions: D1, D6
+Acceptance:
+- [unit] Go: `momentum doctor` with `source = "google"` fails its calendar check, with the reason, when there is no connection or it needs reconnecting, and passes when connected; with `files` it checks the files as before.
+- [snap] `settings-diagnostics-google`: the calendar check shows as a Problem with its symbol, its word and the reason.
+- [unit] Go: the Report holds no link, token or event title.
+Status: todo
+
+### S-064 Use Google Calendar in the terminal app
+As the user in the terminal, I run `momentum calendar connect` and the planner counts my Google meetings.
+Screens: —
+Depends: S-057, S-058
+Decisions: D1, D6
+Acceptance:
+- [unit] Go, fake Momentum server: `momentum calendar connect` prints the link and waits for the connection; `status` shows the Google account or "needs reconnecting"; `disconnect` asks first and then disconnects.
+- [unit] Go: with `source = "google"` the planner opens with Google's busy time and blocks, the same minutes the bridge gives; a failure shows "Calendar unavailable: <reason>" and planning goes on.
+- [manual] Run once against a real server with the real client.
+Status: todo
+
 ## Later
 
-- Google Calendar as a calendar source ([`docs/plans/google-calendar.md`](./plans/google-calendar.md)): connect and disconnect Google in Settings, see "needs reconnecting", and count Google meetings in Plan Today, declined ones left out. D1–D8 await approval and most of the work is in the server and the TUI, so it waits.
+- Choose which Google calendars count, not only the primary one (plan D3): needs the `calendar.calendarlist.readonly` scope and a picker in each app.
+- Fix the `.ics` parser's missing `EXDATE` and `RECURRENCE-ID`, so a cancelled or moved occurrence of a repeating event in a file counts right (plan, out of scope).
+- Get the Google client verified, so connecting stops showing the "unverified app" warning (plan D8).
 - Custom smart views and filters.
 - Configurable keybindings.
 - Editing a task's notes and dependencies.
@@ -751,5 +860,6 @@ Status: deferred
 - Contexts and hooks ([ADR 0002](./adr/0002-go-postgres-backend.md), D6), and the design's "Context" row and Taskwarrior log panel.
 - Taskwarrior inside the app: `momentum import` in the TUI copies the tasks over.
 - A Kanban board.
+- Writing to Google Calendar, and showing calendar events anywhere but Plan Today (plan, out of scope): Momentum reads a day's busy time and nothing else.
 - Telemetry, crash reporting and automatic update checks.
 - Windows, and the Homebrew tap (TUI only).
