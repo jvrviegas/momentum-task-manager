@@ -41,6 +41,17 @@ const (
 	reasonRefused      = "Google refused to share the calendar"
 )
 
+// Provider is Google as the service needs it: the OAuth round trip, a token's
+// refresh and revocation, and the Calendar API. *Google is the real one; the
+// tests of the HTTP layer use a fake.
+type Provider interface {
+	AuthCodeURL(state, nonce, verifier string) string
+	Exchange(ctx context.Context, code, nonce, verifier string) (Grant, error)
+	AccessToken(ctx context.Context, refreshToken string) (string, error)
+	Revoke(ctx context.Context, refreshToken string) error
+	Events(ctx context.Context, accessToken string, start, end time.Time) ([]api.GoogleCalendarEvent, error)
+}
+
 // Config configures a Service.
 type Config struct {
 	// PublicURL is the server's address as browsers reach it.
@@ -48,7 +59,7 @@ type Config struct {
 	// Key seals the refresh token (D5): 32 bytes. Without it, or without
 	// Google, the server offers no Google Calendar.
 	Key    []byte
-	Google *Google
+	Google Provider
 	Logger *slog.Logger
 }
 
@@ -57,7 +68,7 @@ type Service struct {
 	client    *ent.Client
 	publicURL string
 	key       []byte
-	google    *Google
+	google    Provider
 	logger    *slog.Logger
 	now       func() time.Time
 }
