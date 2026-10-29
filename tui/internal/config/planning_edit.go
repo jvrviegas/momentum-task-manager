@@ -150,6 +150,9 @@ func (s *FileProjectCatalogStore) SavePlanning(ctx context.Context, snapshot Pro
 // CalendarPatch holds the [calendar] keys a Settings tab changes. A nil field
 // is left as it is.
 type CalendarPatch struct {
+	// Source is CalendarSourceFiles or CalendarSourceGoogle. Enabled and Paths
+	// are about files only (ADR 0003, D9).
+	Source  *string
 	Enabled *bool
 	// Paths is the whole list of calendar files.
 	Paths *[]string
@@ -192,15 +195,22 @@ func (p CalendarPatch) Normalized(home string) CalendarPatch {
 // Check refuses what the config would refuse, with a message that says what
 // to do instead. current is the calendar settings before the change.
 func (p CalendarPatch) Check(current CalendarConfig) *FieldError {
-	enabled, paths := current.Enabled, current.Paths
+	enabled, paths, source := current.Enabled, current.Paths, current.Source
 	if p.Enabled != nil {
 		enabled = *p.Enabled
 	}
 	if p.Paths != nil {
 		paths = *p.Paths
 	}
+	if p.Source != nil {
+		if source = strings.TrimSpace(*p.Source); source != CalendarSourceFiles && source != CalendarSourceGoogle {
+			return &FieldError{Field: "source", Message: "Choose Calendar files or Google Calendar."}
+		}
+	}
+	// Files are only read, and so only checked, when they are the source.
+	google := source == CalendarSourceGoogle
 	for _, value := range paths {
-		if strings.Contains(value, "://") {
+		if !google && strings.Contains(value, "://") {
 			return &FieldError{Field: "paths", Message: "Choose a file on this Mac. Download a subscribed calendar first, then add the file."}
 		}
 	}
@@ -230,8 +240,11 @@ func (p CalendarPatch) Check(current CalendarConfig) *FieldError {
 			return &FieldError{Field: "staleAfter", Message: "Stale after can’t be negative."}
 		}
 	}
-	if enabled && len(paths) == 0 {
-		if p.Enabled == nil {
+	if !google && enabled && len(paths) == 0 {
+		switch {
+		case p.Source != nil:
+			return &FieldError{Field: "source", Message: "Add a calendar file first, or turn off Use calendar files."}
+		case p.Enabled == nil:
 			return &FieldError{Field: "paths", Message: "Turn off Use calendar files before removing the last one."}
 		}
 		return &FieldError{Field: "enabled", Message: "Add a calendar file first."}
@@ -263,6 +276,7 @@ func (s *FileProjectCatalogStore) SaveCalendar(ctx context.Context, snapshot Pro
 			key   string
 			value *string
 		}{
+			{"calendar.source", patch.Source},
 			{"calendar.working_start", patch.WorkingStart},
 			{"calendar.working_end", patch.WorkingEnd},
 			{"calendar.stale_after", patch.StaleAfter},
