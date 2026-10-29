@@ -3,6 +3,8 @@
 package ent
 
 import (
+	"github.com/jvrviegas/momentum-task-manager/backend/internal/store/ent/calendarconnection"
+	"github.com/jvrviegas/momentum-task-manager/backend/internal/store/ent/calendarlink"
 	"github.com/jvrviegas/momentum-task-manager/backend/internal/store/ent/deviceauthorization"
 	"github.com/jvrviegas/momentum-task-manager/backend/internal/store/ent/idempotencykey"
 	"github.com/jvrviegas/momentum-task-manager/backend/internal/store/ent/identity"
@@ -20,8 +22,47 @@ import (
 
 // schemaGraph holds a representation of ent/schema at runtime.
 var schemaGraph = func() *sqlgraph.Schema {
-	graph := &sqlgraph.Schema{Nodes: make([]*sqlgraph.Node, 7)}
+	graph := &sqlgraph.Schema{Nodes: make([]*sqlgraph.Node, 9)}
 	graph.Nodes[0] = &sqlgraph.Node{
+		NodeSpec: sqlgraph.NodeSpec{
+			Table:   calendarconnection.Table,
+			Columns: calendarconnection.Columns,
+			ID: &sqlgraph.FieldSpec{
+				Type:   field.TypeInt,
+				Column: calendarconnection.FieldID,
+			},
+		},
+		Type: "CalendarConnection",
+		Fields: map[string]*sqlgraph.FieldSpec{
+			calendarconnection.FieldUserID:      {Type: field.TypeUUID, Column: calendarconnection.FieldUserID},
+			calendarconnection.FieldSubject:     {Type: field.TypeString, Column: calendarconnection.FieldSubject},
+			calendarconnection.FieldEmail:       {Type: field.TypeString, Column: calendarconnection.FieldEmail},
+			calendarconnection.FieldSealedToken: {Type: field.TypeBytes, Column: calendarconnection.FieldSealedToken},
+			calendarconnection.FieldStatus:      {Type: field.TypeEnum, Column: calendarconnection.FieldStatus},
+			calendarconnection.FieldCreatedAt:   {Type: field.TypeTime, Column: calendarconnection.FieldCreatedAt},
+		},
+	}
+	graph.Nodes[1] = &sqlgraph.Node{
+		NodeSpec: sqlgraph.NodeSpec{
+			Table:   calendarlink.Table,
+			Columns: calendarlink.Columns,
+			ID: &sqlgraph.FieldSpec{
+				Type:   field.TypeInt,
+				Column: calendarlink.FieldID,
+			},
+		},
+		Type: "CalendarLink",
+		Fields: map[string]*sqlgraph.FieldSpec{
+			calendarlink.FieldUserID:       {Type: field.TypeUUID, Column: calendarlink.FieldUserID},
+			calendarlink.FieldLinkHash:     {Type: field.TypeBytes, Column: calendarlink.FieldLinkHash},
+			calendarlink.FieldStateHash:    {Type: field.TypeBytes, Column: calendarlink.FieldStateHash},
+			calendarlink.FieldCodeVerifier: {Type: field.TypeString, Column: calendarlink.FieldCodeVerifier},
+			calendarlink.FieldNonce:        {Type: field.TypeString, Column: calendarlink.FieldNonce},
+			calendarlink.FieldCreatedAt:    {Type: field.TypeTime, Column: calendarlink.FieldCreatedAt},
+			calendarlink.FieldExpiresAt:    {Type: field.TypeTime, Column: calendarlink.FieldExpiresAt},
+		},
+	}
+	graph.Nodes[2] = &sqlgraph.Node{
 		NodeSpec: sqlgraph.NodeSpec{
 			Table:   deviceauthorization.Table,
 			Columns: deviceauthorization.Columns,
@@ -45,7 +86,7 @@ var schemaGraph = func() *sqlgraph.Schema {
 			deviceauthorization.FieldExpiresAt:      {Type: field.TypeTime, Column: deviceauthorization.FieldExpiresAt},
 		},
 	}
-	graph.Nodes[1] = &sqlgraph.Node{
+	graph.Nodes[3] = &sqlgraph.Node{
 		NodeSpec: sqlgraph.NodeSpec{
 			Table:   idempotencykey.Table,
 			Columns: idempotencykey.Columns,
@@ -63,7 +104,7 @@ var schemaGraph = func() *sqlgraph.Schema {
 			idempotencykey.FieldCreatedAt:   {Type: field.TypeTime, Column: idempotencykey.FieldCreatedAt},
 		},
 	}
-	graph.Nodes[2] = &sqlgraph.Node{
+	graph.Nodes[4] = &sqlgraph.Node{
 		NodeSpec: sqlgraph.NodeSpec{
 			Table:   identity.Table,
 			Columns: identity.Columns,
@@ -80,7 +121,7 @@ var schemaGraph = func() *sqlgraph.Schema {
 			identity.FieldCreatedAt: {Type: field.TypeTime, Column: identity.FieldCreatedAt},
 		},
 	}
-	graph.Nodes[3] = &sqlgraph.Node{
+	graph.Nodes[5] = &sqlgraph.Node{
 		NodeSpec: sqlgraph.NodeSpec{
 			Table:   session.Table,
 			Columns: session.Columns,
@@ -98,7 +139,7 @@ var schemaGraph = func() *sqlgraph.Schema {
 			session.FieldRevokedAt: {Type: field.TypeTime, Column: session.FieldRevokedAt},
 		},
 	}
-	graph.Nodes[4] = &sqlgraph.Node{
+	graph.Nodes[6] = &sqlgraph.Node{
 		NodeSpec: sqlgraph.NodeSpec{
 			Table:   task.Table,
 			Columns: task.Columns,
@@ -131,7 +172,7 @@ var schemaGraph = func() *sqlgraph.Schema {
 			task.FieldExtra:           {Type: field.TypeJSON, Column: task.FieldExtra},
 		},
 	}
-	graph.Nodes[5] = &sqlgraph.Node{
+	graph.Nodes[7] = &sqlgraph.Node{
 		NodeSpec: sqlgraph.NodeSpec{
 			Table:   taskevent.Table,
 			Columns: taskevent.Columns,
@@ -152,7 +193,7 @@ var schemaGraph = func() *sqlgraph.Schema {
 			taskevent.FieldCreatedAt: {Type: field.TypeTime, Column: taskevent.FieldCreatedAt},
 		},
 	}
-	graph.Nodes[6] = &sqlgraph.Node{
+	graph.Nodes[8] = &sqlgraph.Node{
 		NodeSpec: sqlgraph.NodeSpec{
 			Table:   user.Table,
 			Columns: user.Columns,
@@ -168,6 +209,30 @@ var schemaGraph = func() *sqlgraph.Schema {
 			user.FieldCreatedAt: {Type: field.TypeTime, Column: user.FieldCreatedAt},
 		},
 	}
+	graph.MustAddE(
+		"user",
+		&sqlgraph.EdgeSpec{
+			Rel:     sqlgraph.O2O,
+			Inverse: true,
+			Table:   calendarconnection.UserTable,
+			Columns: []string{calendarconnection.UserColumn},
+			Bidi:    false,
+		},
+		"CalendarConnection",
+		"User",
+	)
+	graph.MustAddE(
+		"user",
+		&sqlgraph.EdgeSpec{
+			Rel:     sqlgraph.M2O,
+			Inverse: true,
+			Table:   calendarlink.UserTable,
+			Columns: []string{calendarlink.UserColumn},
+			Bidi:    false,
+		},
+		"CalendarLink",
+		"User",
+	)
 	graph.MustAddE(
 		"user",
 		&sqlgraph.EdgeSpec{
@@ -265,6 +330,30 @@ var schemaGraph = func() *sqlgraph.Schema {
 		"Session",
 	)
 	graph.MustAddE(
+		"calendar_connection",
+		&sqlgraph.EdgeSpec{
+			Rel:     sqlgraph.O2O,
+			Inverse: false,
+			Table:   user.CalendarConnectionTable,
+			Columns: []string{user.CalendarConnectionColumn},
+			Bidi:    false,
+		},
+		"User",
+		"CalendarConnection",
+	)
+	graph.MustAddE(
+		"calendar_links",
+		&sqlgraph.EdgeSpec{
+			Rel:     sqlgraph.O2M,
+			Inverse: false,
+			Table:   user.CalendarLinksTable,
+			Columns: []string{user.CalendarLinksColumn},
+			Bidi:    false,
+		},
+		"User",
+		"CalendarLink",
+	)
+	graph.MustAddE(
 		"device_authorizations",
 		&sqlgraph.EdgeSpec{
 			Rel:     sqlgraph.O2M,
@@ -346,6 +435,179 @@ type predicateAdder interface {
 }
 
 // addPredicate implements the predicateAdder interface.
+func (_q *CalendarConnectionQuery) addPredicate(pred func(s *sql.Selector)) {
+	_q.predicates = append(_q.predicates, pred)
+}
+
+// Filter returns a Filter implementation to apply filters on the CalendarConnectionQuery builder.
+func (_q *CalendarConnectionQuery) Filter() *CalendarConnectionFilter {
+	return &CalendarConnectionFilter{config: _q.config, predicateAdder: _q}
+}
+
+// addPredicate implements the predicateAdder interface.
+func (m *CalendarConnectionMutation) addPredicate(pred func(s *sql.Selector)) {
+	m.predicates = append(m.predicates, pred)
+}
+
+// Filter returns an entql.Where implementation to apply filters on the CalendarConnectionMutation builder.
+func (m *CalendarConnectionMutation) Filter() *CalendarConnectionFilter {
+	return &CalendarConnectionFilter{config: m.config, predicateAdder: m}
+}
+
+// CalendarConnectionFilter provides a generic filtering capability at runtime for CalendarConnectionQuery.
+type CalendarConnectionFilter struct {
+	predicateAdder
+	config
+}
+
+// Where applies the entql predicate on the query filter.
+func (f *CalendarConnectionFilter) Where(p entql.P) {
+	f.addPredicate(func(s *sql.Selector) {
+		if err := schemaGraph.EvalP(schemaGraph.Nodes[0].Type, p, s); err != nil {
+			s.AddError(err)
+		}
+	})
+}
+
+// WhereID applies the entql int predicate on the id field.
+func (f *CalendarConnectionFilter) WhereID(p entql.IntP) {
+	f.Where(p.Field(calendarconnection.FieldID))
+}
+
+// WhereUserID applies the entql [16]byte predicate on the user_id field.
+func (f *CalendarConnectionFilter) WhereUserID(p entql.ValueP) {
+	f.Where(p.Field(calendarconnection.FieldUserID))
+}
+
+// WhereSubject applies the entql string predicate on the subject field.
+func (f *CalendarConnectionFilter) WhereSubject(p entql.StringP) {
+	f.Where(p.Field(calendarconnection.FieldSubject))
+}
+
+// WhereEmail applies the entql string predicate on the email field.
+func (f *CalendarConnectionFilter) WhereEmail(p entql.StringP) {
+	f.Where(p.Field(calendarconnection.FieldEmail))
+}
+
+// WhereSealedToken applies the entql []byte predicate on the sealed_token field.
+func (f *CalendarConnectionFilter) WhereSealedToken(p entql.BytesP) {
+	f.Where(p.Field(calendarconnection.FieldSealedToken))
+}
+
+// WhereStatus applies the entql string predicate on the status field.
+func (f *CalendarConnectionFilter) WhereStatus(p entql.StringP) {
+	f.Where(p.Field(calendarconnection.FieldStatus))
+}
+
+// WhereCreatedAt applies the entql time.Time predicate on the created_at field.
+func (f *CalendarConnectionFilter) WhereCreatedAt(p entql.TimeP) {
+	f.Where(p.Field(calendarconnection.FieldCreatedAt))
+}
+
+// WhereHasUser applies a predicate to check if query has an edge user.
+func (f *CalendarConnectionFilter) WhereHasUser() {
+	f.Where(entql.HasEdge("user"))
+}
+
+// WhereHasUserWith applies a predicate to check if query has an edge user with a given conditions (other predicates).
+func (f *CalendarConnectionFilter) WhereHasUserWith(preds ...predicate.User) {
+	f.Where(entql.HasEdgeWith("user", sqlgraph.WrapFunc(func(s *sql.Selector) {
+		for _, p := range preds {
+			p(s)
+		}
+	})))
+}
+
+// addPredicate implements the predicateAdder interface.
+func (_q *CalendarLinkQuery) addPredicate(pred func(s *sql.Selector)) {
+	_q.predicates = append(_q.predicates, pred)
+}
+
+// Filter returns a Filter implementation to apply filters on the CalendarLinkQuery builder.
+func (_q *CalendarLinkQuery) Filter() *CalendarLinkFilter {
+	return &CalendarLinkFilter{config: _q.config, predicateAdder: _q}
+}
+
+// addPredicate implements the predicateAdder interface.
+func (m *CalendarLinkMutation) addPredicate(pred func(s *sql.Selector)) {
+	m.predicates = append(m.predicates, pred)
+}
+
+// Filter returns an entql.Where implementation to apply filters on the CalendarLinkMutation builder.
+func (m *CalendarLinkMutation) Filter() *CalendarLinkFilter {
+	return &CalendarLinkFilter{config: m.config, predicateAdder: m}
+}
+
+// CalendarLinkFilter provides a generic filtering capability at runtime for CalendarLinkQuery.
+type CalendarLinkFilter struct {
+	predicateAdder
+	config
+}
+
+// Where applies the entql predicate on the query filter.
+func (f *CalendarLinkFilter) Where(p entql.P) {
+	f.addPredicate(func(s *sql.Selector) {
+		if err := schemaGraph.EvalP(schemaGraph.Nodes[1].Type, p, s); err != nil {
+			s.AddError(err)
+		}
+	})
+}
+
+// WhereID applies the entql int predicate on the id field.
+func (f *CalendarLinkFilter) WhereID(p entql.IntP) {
+	f.Where(p.Field(calendarlink.FieldID))
+}
+
+// WhereUserID applies the entql [16]byte predicate on the user_id field.
+func (f *CalendarLinkFilter) WhereUserID(p entql.ValueP) {
+	f.Where(p.Field(calendarlink.FieldUserID))
+}
+
+// WhereLinkHash applies the entql []byte predicate on the link_hash field.
+func (f *CalendarLinkFilter) WhereLinkHash(p entql.BytesP) {
+	f.Where(p.Field(calendarlink.FieldLinkHash))
+}
+
+// WhereStateHash applies the entql []byte predicate on the state_hash field.
+func (f *CalendarLinkFilter) WhereStateHash(p entql.BytesP) {
+	f.Where(p.Field(calendarlink.FieldStateHash))
+}
+
+// WhereCodeVerifier applies the entql string predicate on the code_verifier field.
+func (f *CalendarLinkFilter) WhereCodeVerifier(p entql.StringP) {
+	f.Where(p.Field(calendarlink.FieldCodeVerifier))
+}
+
+// WhereNonce applies the entql string predicate on the nonce field.
+func (f *CalendarLinkFilter) WhereNonce(p entql.StringP) {
+	f.Where(p.Field(calendarlink.FieldNonce))
+}
+
+// WhereCreatedAt applies the entql time.Time predicate on the created_at field.
+func (f *CalendarLinkFilter) WhereCreatedAt(p entql.TimeP) {
+	f.Where(p.Field(calendarlink.FieldCreatedAt))
+}
+
+// WhereExpiresAt applies the entql time.Time predicate on the expires_at field.
+func (f *CalendarLinkFilter) WhereExpiresAt(p entql.TimeP) {
+	f.Where(p.Field(calendarlink.FieldExpiresAt))
+}
+
+// WhereHasUser applies a predicate to check if query has an edge user.
+func (f *CalendarLinkFilter) WhereHasUser() {
+	f.Where(entql.HasEdge("user"))
+}
+
+// WhereHasUserWith applies a predicate to check if query has an edge user with a given conditions (other predicates).
+func (f *CalendarLinkFilter) WhereHasUserWith(preds ...predicate.User) {
+	f.Where(entql.HasEdgeWith("user", sqlgraph.WrapFunc(func(s *sql.Selector) {
+		for _, p := range preds {
+			p(s)
+		}
+	})))
+}
+
+// addPredicate implements the predicateAdder interface.
 func (_q *DeviceAuthorizationQuery) addPredicate(pred func(s *sql.Selector)) {
 	_q.predicates = append(_q.predicates, pred)
 }
@@ -374,7 +636,7 @@ type DeviceAuthorizationFilter struct {
 // Where applies the entql predicate on the query filter.
 func (f *DeviceAuthorizationFilter) Where(p entql.P) {
 	f.addPredicate(func(s *sql.Selector) {
-		if err := schemaGraph.EvalP(schemaGraph.Nodes[0].Type, p, s); err != nil {
+		if err := schemaGraph.EvalP(schemaGraph.Nodes[2].Type, p, s); err != nil {
 			s.AddError(err)
 		}
 	})
@@ -483,7 +745,7 @@ type IdempotencyKeyFilter struct {
 // Where applies the entql predicate on the query filter.
 func (f *IdempotencyKeyFilter) Where(p entql.P) {
 	f.addPredicate(func(s *sql.Selector) {
-		if err := schemaGraph.EvalP(schemaGraph.Nodes[1].Type, p, s); err != nil {
+		if err := schemaGraph.EvalP(schemaGraph.Nodes[3].Type, p, s); err != nil {
 			s.AddError(err)
 		}
 	})
@@ -562,7 +824,7 @@ type IdentityFilter struct {
 // Where applies the entql predicate on the query filter.
 func (f *IdentityFilter) Where(p entql.P) {
 	f.addPredicate(func(s *sql.Selector) {
-		if err := schemaGraph.EvalP(schemaGraph.Nodes[2].Type, p, s); err != nil {
+		if err := schemaGraph.EvalP(schemaGraph.Nodes[4].Type, p, s); err != nil {
 			s.AddError(err)
 		}
 	})
@@ -636,7 +898,7 @@ type SessionFilter struct {
 // Where applies the entql predicate on the query filter.
 func (f *SessionFilter) Where(p entql.P) {
 	f.addPredicate(func(s *sql.Selector) {
-		if err := schemaGraph.EvalP(schemaGraph.Nodes[3].Type, p, s); err != nil {
+		if err := schemaGraph.EvalP(schemaGraph.Nodes[5].Type, p, s); err != nil {
 			s.AddError(err)
 		}
 	})
@@ -729,7 +991,7 @@ type TaskFilter struct {
 // Where applies the entql predicate on the query filter.
 func (f *TaskFilter) Where(p entql.P) {
 	f.addPredicate(func(s *sql.Selector) {
-		if err := schemaGraph.EvalP(schemaGraph.Nodes[4].Type, p, s); err != nil {
+		if err := schemaGraph.EvalP(schemaGraph.Nodes[6].Type, p, s); err != nil {
 			s.AddError(err)
 		}
 	})
@@ -883,7 +1145,7 @@ type TaskEventFilter struct {
 // Where applies the entql predicate on the query filter.
 func (f *TaskEventFilter) Where(p entql.P) {
 	f.addPredicate(func(s *sql.Selector) {
-		if err := schemaGraph.EvalP(schemaGraph.Nodes[5].Type, p, s); err != nil {
+		if err := schemaGraph.EvalP(schemaGraph.Nodes[7].Type, p, s); err != nil {
 			s.AddError(err)
 		}
 	})
@@ -991,7 +1253,7 @@ type UserFilter struct {
 // Where applies the entql predicate on the query filter.
 func (f *UserFilter) Where(p entql.P) {
 	f.addPredicate(func(s *sql.Selector) {
-		if err := schemaGraph.EvalP(schemaGraph.Nodes[6].Type, p, s); err != nil {
+		if err := schemaGraph.EvalP(schemaGraph.Nodes[8].Type, p, s); err != nil {
 			s.AddError(err)
 		}
 	})
@@ -1015,6 +1277,34 @@ func (f *UserFilter) WhereTimeZone(p entql.StringP) {
 // WhereCreatedAt applies the entql time.Time predicate on the created_at field.
 func (f *UserFilter) WhereCreatedAt(p entql.TimeP) {
 	f.Where(p.Field(user.FieldCreatedAt))
+}
+
+// WhereHasCalendarConnection applies a predicate to check if query has an edge calendar_connection.
+func (f *UserFilter) WhereHasCalendarConnection() {
+	f.Where(entql.HasEdge("calendar_connection"))
+}
+
+// WhereHasCalendarConnectionWith applies a predicate to check if query has an edge calendar_connection with a given conditions (other predicates).
+func (f *UserFilter) WhereHasCalendarConnectionWith(preds ...predicate.CalendarConnection) {
+	f.Where(entql.HasEdgeWith("calendar_connection", sqlgraph.WrapFunc(func(s *sql.Selector) {
+		for _, p := range preds {
+			p(s)
+		}
+	})))
+}
+
+// WhereHasCalendarLinks applies a predicate to check if query has an edge calendar_links.
+func (f *UserFilter) WhereHasCalendarLinks() {
+	f.Where(entql.HasEdge("calendar_links"))
+}
+
+// WhereHasCalendarLinksWith applies a predicate to check if query has an edge calendar_links with a given conditions (other predicates).
+func (f *UserFilter) WhereHasCalendarLinksWith(preds ...predicate.CalendarLink) {
+	f.Where(entql.HasEdgeWith("calendar_links", sqlgraph.WrapFunc(func(s *sql.Selector) {
+		for _, p := range preds {
+			p(s)
+		}
+	})))
 }
 
 // WhereHasDeviceAuthorizations applies a predicate to check if query has an edge device_authorizations.
