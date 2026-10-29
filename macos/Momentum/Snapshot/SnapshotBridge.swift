@@ -63,12 +63,18 @@ actor SnapshotBridge: TaskBridge {
             configError: config.configError, restartRequired: config.restartRequired)
     }
 
-    func load() async throws -> Snapshot {
+    func load(calendar: CalendarInput?) async throws -> Snapshot {
         loads += 1
         if config.hangLoad { try await Task.sleep(for: .seconds(3600)) }
         if let failure = config.loadFailure { throw failure }
         if loads > 1, let failure = config.failLoadsAfterFirst { throw failure }
-        return snapshot()
+        var snapshot = snapshot()
+        if let error = calendar?.error {
+            snapshot.plan?.calendarMinutes = 0
+            snapshot.plan?.calendarAvailable = false
+            snapshot.plan?.calendarError = error
+        }
+        return snapshot
     }
 
     /// The seed with the changes made since: completed and deleted tasks move
@@ -217,7 +223,15 @@ actor SnapshotBridge: TaskBridge {
 
     // MARK: Plan Today
 
-    func plan() async throws -> DailyPlan { config.plan ?? config.seed.dailyPlan }
+    func plan(calendar: CalendarInput?) async throws -> DailyPlan {
+        var plan = config.plan ?? config.seed.dailyPlan
+        if let error = calendar?.error {
+            plan.calendar = PlanCalendar(
+                enabled: true, available: false, stale: false, error: error, busyMinutes: 0, eventCount: 0,
+                workingStart: config.calendarHours.start, workingEnd: config.calendarHours.end, blocks: [])
+        }
+        return plan
+    }
 
     func applyPlan(date: String, uuids: [String]) async throws -> PlanSaveResult { config.applyPlanResult }
 
