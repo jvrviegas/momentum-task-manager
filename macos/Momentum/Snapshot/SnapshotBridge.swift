@@ -33,10 +33,23 @@ actor SnapshotBridge: TaskBridge {
         var includeAllDay = false
         var includeTransparent = false
         var staleAfter = "24h"
+        var doctor = SnapshotBridge.defaultDoctor
         var projectRows = SnapshotBridge.defaultProjectRows
         /// Why the task counts are missing.
         var projectsTasksError: String?
     }
+
+    /// Every check passing, as on a Mac that works.
+    static let defaultDoctor = DoctorReport(
+        configPath: "~/.config/momentum/config.toml", bridgeVersion: "v0.1.0-12-g4bafc30",
+        checks: [
+            DoctorCheck(name: "Backend server", status: "ok", detail: "https://momentum.example.com answers; version 1.4.0"),
+            DoctorCheck(name: "Sign-in", status: "ok", detail: "joao@example.com until 2026-12-01"),
+            DoctorCheck(name: "Time zone", status: "ok", detail: "Europe/Lisbon"),
+            DoctorCheck(name: "Momentum config", status: "ok", detail: "~/.config/momentum/config.toml"),
+            DoctorCheck(name: "Calendar source", status: "ok", detail: "1 local ICS source(s); read-only"),
+        ],
+        ready: true)
 
     /// A catalog with children, and two values only tasks have, in path order.
     static let defaultProjectRows = [
@@ -317,6 +330,8 @@ actor SnapshotBridge: TaskBridge {
     }
 
     // MARK: Projects
+
+    func doctor() async throws -> DoctorReport { config.doctor }
 
     func projects() async throws -> ProjectsSnapshot {
         ProjectsSnapshot(revision: "r\(revision)", entries: config.projectRows, tasksError: config.projectsTasksError)
