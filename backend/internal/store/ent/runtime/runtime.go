@@ -7,6 +7,8 @@ import (
 	"time"
 
 	"github.com/google/uuid"
+	"github.com/jvrviegas/momentum-task-manager/backend/internal/store/ent/calendarconnection"
+	"github.com/jvrviegas/momentum-task-manager/backend/internal/store/ent/calendarlink"
 	"github.com/jvrviegas/momentum-task-manager/backend/internal/store/ent/deviceauthorization"
 	"github.com/jvrviegas/momentum-task-manager/backend/internal/store/ent/idempotencykey"
 	"github.com/jvrviegas/momentum-task-manager/backend/internal/store/ent/identity"
@@ -24,6 +26,52 @@ import (
 // (default values, validators, hooks and policies) and stitches it
 // to their package variables.
 func init() {
+	calendarconnection.Policy = privacy.NewPolicies(schema.CalendarConnection{})
+	calendarconnection.Hooks[0] = func(next ent.Mutator) ent.Mutator {
+		return ent.MutateFunc(func(ctx context.Context, m ent.Mutation) (ent.Value, error) {
+			if err := calendarconnection.Policy.EvalMutation(ctx, m); err != nil {
+				return nil, err
+			}
+			return next.Mutate(ctx, m)
+		})
+	}
+	calendarconnectionFields := schema.CalendarConnection{}.Fields()
+	_ = calendarconnectionFields
+	// calendarconnectionDescSubject is the schema descriptor for subject field.
+	calendarconnectionDescSubject := calendarconnectionFields[1].Descriptor()
+	// calendarconnection.SubjectValidator is a validator for the "subject" field. It is called by the builders before save.
+	calendarconnection.SubjectValidator = calendarconnectionDescSubject.Validators[0].(func(string) error)
+	// calendarconnectionDescEmail is the schema descriptor for email field.
+	calendarconnectionDescEmail := calendarconnectionFields[2].Descriptor()
+	// calendarconnection.EmailValidator is a validator for the "email" field. It is called by the builders before save.
+	calendarconnection.EmailValidator = calendarconnectionDescEmail.Validators[0].(func(string) error)
+	// calendarconnectionDescSealedToken is the schema descriptor for sealed_token field.
+	calendarconnectionDescSealedToken := calendarconnectionFields[3].Descriptor()
+	// calendarconnection.SealedTokenValidator is a validator for the "sealed_token" field. It is called by the builders before save.
+	calendarconnection.SealedTokenValidator = calendarconnectionDescSealedToken.Validators[0].(func([]byte) error)
+	// calendarconnectionDescCreatedAt is the schema descriptor for created_at field.
+	calendarconnectionDescCreatedAt := calendarconnectionFields[5].Descriptor()
+	// calendarconnection.DefaultCreatedAt holds the default value on creation for the created_at field.
+	calendarconnection.DefaultCreatedAt = calendarconnectionDescCreatedAt.Default.(func() time.Time)
+	calendarlink.Policy = privacy.NewPolicies(schema.CalendarLink{})
+	calendarlink.Hooks[0] = func(next ent.Mutator) ent.Mutator {
+		return ent.MutateFunc(func(ctx context.Context, m ent.Mutation) (ent.Value, error) {
+			if err := calendarlink.Policy.EvalMutation(ctx, m); err != nil {
+				return nil, err
+			}
+			return next.Mutate(ctx, m)
+		})
+	}
+	calendarlinkFields := schema.CalendarLink{}.Fields()
+	_ = calendarlinkFields
+	// calendarlinkDescLinkHash is the schema descriptor for link_hash field.
+	calendarlinkDescLinkHash := calendarlinkFields[1].Descriptor()
+	// calendarlink.LinkHashValidator is a validator for the "link_hash" field. It is called by the builders before save.
+	calendarlink.LinkHashValidator = calendarlinkDescLinkHash.Validators[0].(func([]byte) error)
+	// calendarlinkDescCreatedAt is the schema descriptor for created_at field.
+	calendarlinkDescCreatedAt := calendarlinkFields[5].Descriptor()
+	// calendarlink.DefaultCreatedAt holds the default value on creation for the created_at field.
+	calendarlink.DefaultCreatedAt = calendarlinkDescCreatedAt.Default.(func() time.Time)
 	deviceauthorizationFields := schema.DeviceAuthorization{}.Fields()
 	_ = deviceauthorizationFields
 	// deviceauthorizationDescDeviceCodeHash is the schema descriptor for device_code_hash field.
