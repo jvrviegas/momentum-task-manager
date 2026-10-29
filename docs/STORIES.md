@@ -720,10 +720,9 @@ As the user, if the file changed while Settings was open, my save is refused and
 Screens: settings-conflict.png
 Depends: S-054
 Acceptance:
-- [unit] A save is refused when the file changed since it was read; comments and unrelated keys stay; a symlinked config stays a symlink.
-- [snap] After a refusal the tab reloads from disk, says the file changed outside Momentum, and asks me to make the change again.
-Built with S-043 to S-045, so only its snapshot page is left: Go `TestAFileThatChangedSinceItWasReadIsNeverOverwritten`, `TestSavePlanningChangesOnlyItsKeys` (comments and other keys stay), `TestSavePlanningKeepsASymlinkASymlink`, `TestASaveOnAFileThatChangedElsewhereIsRefused`, and Swift `aFileThatChangedElsewhereReloadsTheTabAndSaysSo`. Left: the `settings-conflict` page.
-Status: todo
+- [unit] A save is refused when the file changed since it was read; comments and unrelated keys stay; a symlinked config stays a symlink. Go `TestAFileThatChangedSinceItWasReadIsNeverOverwritten`, `TestSavePlanningChangesOnlyItsKeys` (comments and other keys stay), `TestSavePlanningKeepsASymlinkASymlink`, `TestASaveOnAFileThatChangedElsewhereIsRefused`, `TestAProjectSaveOnAFileThatChangedElsewhereIsRefused`; Swift `aFileThatChangedElsewhereReloadsTheTabAndSaysSo`, `aFileThatChangedElsewhereClosesTheSheetAndSaysSo` (Projects).
+- [snap] `settings-conflict`: after a refusal the tab reloads from disk, says the file changed outside Momentum, and asks me to make the change again: the Planning tab shows the notice, and the daily capacity field shows what the file says, not what was typed.
+Status: done
 
 ## M7 Release
 
