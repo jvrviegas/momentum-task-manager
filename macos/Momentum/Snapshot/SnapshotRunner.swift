@@ -41,8 +41,11 @@ final class SnapshotHost {
 
     /// Takes every page in light and dark, then quits.
     func run() async {
+        // Ten seconds for each image, since a page takes about five and the
+        // number of pages grows with the app.
+        let images = SnapshotScene.all(now: .now).filter { only?.contains($0.name) ?? true }.count * 2
         let watchdog = Task {
-            try await Task.sleep(for: .seconds(420))
+            try await Task.sleep(for: .seconds(max(420, 60 + 10 * Double(images))))
             fputs("SNAPSHOT timed out\n", stderr)
             exit(2)
         }
