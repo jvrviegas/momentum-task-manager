@@ -1,7 +1,10 @@
 package config
 
 import (
+	"bytes"
+	"encoding/base64"
 	"reflect"
+	"strings"
 	"testing"
 )
 
@@ -43,6 +46,42 @@ func TestLoadReadsEveryVariable(t *testing.T) {
 	}
 	if !config.Google.Configured() || (OAuthClient{}).Configured() {
 		t.Fatal("Configured() is wrong")
+	}
+}
+
+func TestLoadReadsTheCalendarTokenKey(t *testing.T) {
+	key := bytes.Repeat([]byte{7}, 32)
+	encoded := base64.StdEncoding.EncodeToString(key)
+	// A trailing newline is what `echo` leaves in a Secret Manager value.
+	for _, value := range []string{encoded, encoded + "\n", " " + encoded + " "} {
+		config, err := Load(env(map[string]string{"CALENDAR_TOKEN_KEY": value}))
+		if err != nil || !bytes.Equal(config.CalendarTokenKey, key) {
+			t.Errorf("CALENDAR_TOKEN_KEY %q: Load() = %v, %v; want the key", value, config.CalendarTokenKey, err)
+		}
+	}
+	// No key turns Google Calendar off; it is not an error.
+	if config, err := Load(env(nil)); err != nil || config.CalendarTokenKey != nil {
+		t.Errorf("without a key: Load() = %v, %v; want none", config.CalendarTokenKey, err)
+	}
+}
+
+func TestLoadRefusesACalendarTokenKeyThatIsNot32BytesOfBase64(t *testing.T) {
+	for name, value := range map[string]string{
+		"not base64":   "this is not base64!",
+		"16 bytes":     base64.StdEncoding.EncodeToString(bytes.Repeat([]byte{7}, 16)),
+		"31 bytes":     base64.StdEncoding.EncodeToString(bytes.Repeat([]byte{7}, 31)),
+		"33 bytes":     base64.StdEncoding.EncodeToString(bytes.Repeat([]byte{7}, 33)),
+		"unpadded":     strings.TrimRight(base64.StdEncoding.EncodeToString(bytes.Repeat([]byte{7}, 32)), "="),
+		"32 raw bytes": strings.Repeat("k", 32),
+	} {
+		_, err := Load(env(map[string]string{"CALENDAR_TOKEN_KEY": value}))
+		if err == nil {
+			t.Errorf("%s: Load() succeeded, want an error", name)
+			continue
+		}
+		if !strings.Contains(err.Error(), "CALENDAR_TOKEN_KEY") || strings.Contains(err.Error(), value) {
+			t.Errorf("%s: error %q must name the variable and leave its value out", name, err)
+		}
 	}
 }
 
