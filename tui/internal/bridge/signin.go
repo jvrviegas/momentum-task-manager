@@ -22,9 +22,11 @@ func (s *Server) backendURL() (string, error) {
 }
 
 // setToken signs every later request in with token; an empty token signs
-// them out.
+// them out. Another account has another calendar, so what was kept of the
+// last one goes.
 func (s *Server) setToken(token string) error {
 	s.client = s.connect(token)
+	s.forgetGoogle()
 	return nil
 }
 
