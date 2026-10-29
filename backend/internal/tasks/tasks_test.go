@@ -268,6 +268,153 @@ func TestModifyRejectsInvalidChanges(t *testing.T) {
 	}
 }
 
+func TestModifyAddsAndRemovesNotes(t *testing.T) {
+	f := newFixture(t)
+	created := f.create(t, api.CreateTaskRequest{Description: "Send the invoice"})
+	id := uuid.MustParse(created.UUID)
+	note := func(change api.AnnotationChange) (api.Task, error) {
+		return f.service.Modify(f.alice, uuid.NewString(), id, api.ModifyTaskRequest{Annotations: &change})
+	}
+
+	f.clock.Advance(time.Minute)
+	first := f.clock.now
+	if _, err := note(api.AnnotationChange{Add: []string{"Asked Ana for the quote"}}); err != nil {
+		t.Fatal(err)
+	}
+	f.clock.Advance(time.Minute)
+	added, err := note(api.AnnotationChange{Add: []string{"  Ana sent it  "}})
+	if err != nil {
+		t.Fatal(err)
+	}
+	// A note follows the others, with its change's time and its words trimmed.
+	both := []api.Annotation{{Entry: first, Description: "Asked Ana for the quote"}, {Entry: f.clock.now, Description: "Ana sent it"}}
+	if !reflect.DeepEqual(added.Annotations, both) || !added.Modified.Equal(f.clock.now) {
+		t.Errorf("added = %+v, want notes %+v", added, both)
+	}
+
+	// A note is found by its time to the second and its words.
+	removed, err := note(api.AnnotationChange{Remove: []api.Annotation{{Entry: first.Add(400 * time.Millisecond), Description: "Asked Ana for the quote"}}})
+	if err != nil || !reflect.DeepEqual(removed.Annotations, both[1:]) {
+		t.Errorf("removed = %+v, %v; want notes %+v", removed, err, both[1:])
+	}
+	// One that is no longer there, or whose words differ, is a conflict.
+	_, err = note(api.AnnotationChange{Remove: []api.Annotation{both[0]}})
+	wantError(t, err, api.CodeConflict, "")
+	_, err = note(api.AnnotationChange{Remove: []api.Annotation{{Entry: both[1].Entry, Description: "Ana sent"}}})
+	wantError(t, err, api.CodeConflict, "")
+	// An empty note is refused on its field, and a change with no note changes nothing.
+	_, err = note(api.AnnotationChange{Add: []string{" "}})
+	wantError(t, err, api.CodeInvalid, "annotations")
+	_, err = note(api.AnnotationChange{})
+	wantError(t, err, api.CodeInvalid, "")
+
+	if stored := toAPI(f.client.Task.GetX(f.alice, id)); !reflect.DeepEqual(stored.Annotations, both[1:]) {
+		t.Errorf("stored notes = %+v", stored.Annotations)
+	}
+	if events := f.events(t, f.alice, created.UUID); len(events) != 4 {
+		t.Errorf("%d events, want the create and three changes", len(events))
+	}
+
+	// A retry with the same key adds the note once.
+	key := uuid.NewString()
+	for range 2 {
+		if _, err := f.service.Modify(f.alice, key, id, api.ModifyTaskRequest{Annotations: &api.AnnotationChange{Add: []string{"Paid"}}}); err != nil {
+			t.Fatal(err)
+		}
+	}
+	if stored := toAPI(f.client.Task.GetX(f.alice, id)); len(stored.Annotations) != 2 {
+		t.Errorf("stored notes after a retry = %+v", stored.Annotations)
+	}
+
+	// Only pending tasks take a note: not a completed task, nor a series' template.
+	done := f.create(t, api.CreateTaskRequest{Description: "Agree the price"})
+	if _, err := f.service.Complete(f.alice, uuid.NewString(), uuid.MustParse(done.UUID)); err != nil {
+		t.Fatal(err)
+	}
+	instance := f.create(t, api.CreateTaskRequest{Description: "Water the plants", Due: at("2026-10-16T18:00:00Z"), Recurrence: "weekly"})
+	for _, closed := range []string{done.UUID, instance.Parent} {
+		_, err := f.service.Modify(f.alice, uuid.NewString(), uuid.MustParse(closed), api.ModifyTaskRequest{Annotations: &api.AnnotationChange{Add: []string{"Late"}}})
+		wantError(t, err, api.CodeConflict, "")
+	}
+}
+
+func TestModifyAddsAndRemovesDependencies(t *testing.T) {
+	f := newFixture(t)
+	invoice := f.create(t, api.CreateTaskRequest{Description: "Send the invoice"})
+	quote := f.create(t, api.CreateTaskRequest{Description: "Get the quote"})
+	price := f.create(t, api.CreateTaskRequest{Description: "Agree the price"})
+	if _, err := f.service.Complete(f.alice, uuid.NewString(), uuid.MustParse(price.UUID)); err != nil {
+		t.Fatal(err)
+	}
+	depend := func(ctx context.Context, id string, change api.DependencyChange) (api.Task, error) {
+		return f.service.Modify(ctx, uuid.NewString(), uuid.MustParse(id), api.ModifyTaskRequest{Depends: &change})
+	}
+
+	// A pending and a completed task, each once; the pending one blocks.
+	added, err := depend(f.alice, invoice.UUID, api.DependencyChange{Add: []string{quote.UUID, price.UUID, quote.UUID}})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if want := []string{quote.UUID, price.UUID}; !reflect.DeepEqual(added.Depends, want) {
+		t.Errorf("depends = %v, want %v", added.Depends, want)
+	}
+	if added.Urgency >= invoice.Urgency {
+		t.Errorf("urgency %v, want below %v once blocked", added.Urgency, invoice.Urgency)
+	}
+	removed, err := depend(f.alice, invoice.UUID, api.DependencyChange{Remove: []string{price.UUID}})
+	if err != nil || !reflect.DeepEqual(removed.Depends, []string{quote.UUID}) {
+		t.Errorf("removed = %+v, %v", removed.Depends, err)
+	}
+	_, err = depend(f.alice, invoice.UUID, api.DependencyChange{Remove: []string{price.UUID}})
+	wantError(t, err, api.CodeConflict, "")
+
+	deleted := f.create(t, api.CreateTaskRequest{Description: "Old idea"})
+	if _, err := f.service.Delete(f.alice, uuid.NewString(), uuid.MustParse(deleted.UUID)); err != nil {
+		t.Fatal(err)
+	}
+	instance := f.create(t, api.CreateTaskRequest{Description: "Water the plants", Due: at("2026-10-16T18:00:00Z"), Recurrence: "weekly"})
+	bobs := f.insert(t, f.bob, "Bob's task", nil).ID.String()
+	first := f.create(t, api.CreateTaskRequest{Description: "First"})
+	second := f.create(t, api.CreateTaskRequest{Description: "Second"})
+	third := f.create(t, api.CreateTaskRequest{Description: "Third"})
+	if _, err := depend(f.alice, first.UUID, api.DependencyChange{Add: []string{second.UUID}}); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := depend(f.alice, second.UUID, api.DependencyChange{Add: []string{third.UUID}}); err != nil {
+		t.Fatal(err)
+	}
+	unknown := uuid.NewString()
+	var messages = map[string]string{}
+	for _, test := range []struct {
+		name, task, on string
+	}{
+		{"itself", invoice.UUID, invoice.UUID},
+		{"not a UUID", invoice.UUID, "the quote"},
+		{"an unknown task", invoice.UUID, unknown},
+		{"another user's task", invoice.UUID, bobs},
+		{"a deleted task", invoice.UUID, deleted.UUID},
+		{"a series' template", invoice.UUID, instance.Parent},
+		{"a loop", quote.UUID, invoice.UUID},
+		{"a longer loop", third.UUID, first.UUID},
+	} {
+		t.Run(test.name, func(t *testing.T) {
+			before := len(f.events(t, f.alice, test.task))
+			_, err := depend(f.alice, test.task, api.DependencyChange{Add: []string{test.on}})
+			wantError(t, err, api.CodeInvalid, "depends")
+			if err != nil {
+				messages[test.name] = err.Error()
+			}
+			if after := len(f.events(t, f.alice, test.task)); after != before {
+				t.Errorf("%d events, want %d", after, before)
+			}
+		})
+	}
+	// Another user's task is as unknown as one that never existed.
+	if messages["another user's task"] != messages["an unknown task"] {
+		t.Errorf("another user's task: %q, an unknown task: %q", messages["another user's task"], messages["an unknown task"])
+	}
+}
+
 func TestStateChangesFollowTaskwarrior(t *testing.T) {
 	f := newFixture(t)
 	first := uuid.MustParse(f.create(t, api.CreateTaskRequest{Description: "First"}).UUID)
