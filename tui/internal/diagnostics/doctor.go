@@ -87,7 +87,9 @@ func Run(ctx context.Context, options DoctorOptions) Report {
 	configErr := options.Config.Validate()
 	report.Checks = append(report.Checks, Check{Name: "Momentum config", Detail: errorDetail(configErr, configPathDetail(options.ConfigPath)), OK: configErr == nil})
 
-	if options.Config.Calendar.Enabled {
+	if options.Config.Calendar.Source == config.CalendarSourceGoogle {
+		report.Checks = append(report.Checks, googleCalendarCheck(ctx, options, report.Checks))
+	} else if options.Config.Calendar.Enabled {
 		home := options.HomeDir
 		if home == "" {
 			home, _ = os.UserHomeDir()
