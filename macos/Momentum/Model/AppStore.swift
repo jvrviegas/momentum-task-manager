@@ -54,19 +54,6 @@ enum ServerState: Equatable {
     case unknown, online, unreachable, signedOut
 }
 
-/// A device sign-in in progress, which the sign-in sheet shows.
-struct SignInFlow: Identifiable, Equatable {
-    enum Phase: Equatable {
-        case starting
-        case waiting(DeviceSignIn)
-        case failed(String)
-    }
-
-    var server: String
-    var phase = Phase.starting
-    var id: String { server }
-}
-
 @MainActor
 @Observable
 final class AppStore {
@@ -82,6 +69,8 @@ final class AppStore {
     let catalog = ProjectsModel()
     /// The Diagnostics tab: the checks and the report to copy.
     let diagnostics = DiagnosticsModel()
+    /// The device sign-in that the sign-in sheet shows.
+    let signInModel: SignInModel
 
     private(set) var status: BridgeStatus?
     private(set) var startupError: String?
@@ -112,12 +101,10 @@ final class AppStore {
     private(set) var server = ServerState.unknown
     /// This Mac's sign-in to the server; nil when signed out.
     private(set) var account: SavedSignIn?
-    private(set) var signIn: SignInFlow?
+    var signIn: SignInModel.Flow? { signInModel.flow }
 
     @ObservationIgnored private var clock: Task<Void, Never>?
     @ObservationIgnored private var lastRefresh = Date.distantPast
-    @ObservationIgnored private var signInTask: Task<Void, Never>?
-    private let sleep: @Sendable (TimeInterval) async throws -> Void
 
     init(
         bridge: any TaskBridge, signIns: any SignInStore = KeychainSignInStore(),
@@ -127,14 +114,15 @@ final class AppStore {
     ) {
         self.bridge = bridge
         self.signIns = signIns
-        self.sleep = sleep
         macCalendar = MacCalendarModel(eventSource: calendarSource, defaults: calendarDefaults)
         googleCalendar = GoogleCalendarModel(open: openURL, sleep: sleep)
+        signInModel = SignInModel(bridge: bridge, signIns: signIns, sleep: sleep)
         settings.store = self
         macCalendar.store = self
         googleCalendar.store = self
         catalog.store = self
         diagnostics.store = self
+        signInModel.onSignedIn = { [weak self] in await self?.signedIn($0, replacing: $1) }
     }
 
     // MARK: Derived state
@@ -495,75 +483,21 @@ final class AppStore {
     /// any in progress.
     @discardableResult
     func beginSignIn() -> Task<Void, Never> {
-        signInTask?.cancel()
         guard let url = backendURL else { return Task {} }
-        signIn = SignInFlow(server: url)
-        let task = Task { await runSignIn(url) }
-        signInTask = task
-        return task
+        return signInModel.begin(server: url)
     }
 
     func cancelSignIn() {
-        signInTask?.cancel()
-        signInTask = nil
-        signIn = nil
+        signInModel.cancel()
     }
 
-    /// Polls until the person finishes in the browser, as `momentum login`
-    /// does: every interval, five seconds longer after each slowDown.
-    private func runSignIn(_ url: String) async {
-        do {
-            let start = try await bridge.startSignIn()
-            try Task.checkCancellation()
-            signIn?.phase = .waiting(start)
-            var interval = TimeInterval(start.intervalSeconds > 0 ? start.intervalSeconds : 5)
-            while true {
-                try await sleep(interval)
-                let poll = try await bridge.pollSignIn(deviceCode: start.deviceCode)
-                try Task.checkCancellation()
-                switch poll.state {
-                case "signedIn":
-                    await finishSignIn(url, poll)
-                    return
-                case "slowDown":
-                    interval += 5
-                default:
-                    continue
-                }
-            }
-        } catch {
-            guard !Task.isCancelled else { return }
-            signIn?.phase = .failed(error.localizedDescription)
-        }
-    }
-
-    /// Saves the new sign-in, signs the bridge in, and revokes the sign-in it
-    /// replaces, so that token stops working.
-    private func finishSignIn(_ url: String, _ poll: SignInPoll) async {
-        guard let token = poll.token, let expiresAt = poll.expiresAt else {
-            signIn?.phase = .failed("The server answered without a sign-in.")
-            return
-        }
-        let saved = SavedSignIn(server: url, token: token, email: poll.email ?? "", expiresAt: expiresAt)
-        let previous = try? signIns.read(server: url)
-        do {
-            try signIns.save(saved)
-        } catch {
-            try? await bridge.revoke(token: token) // the server shows a token only once
-            signIn?.phase = .failed("Couldn’t save the sign-in in the Keychain: \(error.localizedDescription)")
-            return
-        }
-        do {
-            try await bridge.setToken(token)
-        } catch {
-            signIn?.phase = .failed(error.localizedDescription) // the saved sign-in is used at the next launch
-            return
-        }
+    /// Takes over once the Keychain holds the new sign-in and the bridge has
+    /// its token: revokes the sign-in it replaces, so that token stops
+    /// working, and loads.
+    private func signedIn(_ saved: SavedSignIn, replacing previous: SavedSignIn?) async {
         account = saved
-        signIn = nil
-        signInTask = nil
         show("Signed in as \(saved.email)", .success)
-        if let previous, previous.token != token {
+        if let previous, previous.token != saved.token {
             do {
                 try await bridge.revoke(token: previous.token)
             } catch {
