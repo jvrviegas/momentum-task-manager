@@ -6,6 +6,12 @@ import (
 	"entgo.io/ent/dialect/sql"
 )
 
+// CalendarConnection is the predicate function for calendarconnection builders.
+type CalendarConnection func(*sql.Selector)
+
+// CalendarLink is the predicate function for calendarlink builders.
+type CalendarLink func(*sql.Selector)
+
 // DeviceAuthorization is the predicate function for deviceauthorization builders.
 type DeviceAuthorization func(*sql.Selector)
 
