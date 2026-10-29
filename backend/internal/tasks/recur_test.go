@@ -298,6 +298,25 @@ func TestASeriesHasOneOpenInstance(t *testing.T) {
 	}
 }
 
+func TestNotesAndDependenciesStayOnTheirInstance(t *testing.T) {
+	f := newFixture(t)
+	f.setZone(t, f.alice, "Europe/Lisbon")
+	quote := f.create(t, api.CreateTaskRequest{Description: "Buy compost"}).UUID
+	instance := f.create(t, api.CreateTaskRequest{Description: "Water the plants", Due: at("2026-10-16T18:00:00Z"), Recurrence: "weekly"})
+	f.modify(t, f.alice, instance.UUID, api.ModifyTaskRequest{Annotations: &api.AnnotationChange{Add: []string{"Use the rain water"}}})
+	f.modify(t, f.alice, instance.UUID, api.ModifyTaskRequest{Depends: &api.DependencyChange{Add: []string{quote}}})
+	f.clock.Advance(time.Hour)
+
+	f.complete(t, f.alice, instance.UUID)
+	// Unlike Taskwarrior, the next instance takes neither.
+	if next := f.next(t, f.template(t, instance)); next.Annotations != nil || next.Depends != nil {
+		t.Errorf("next = %+v", next)
+	}
+	if closed := f.stored(t, uuid.MustParse(instance.UUID)); len(closed.Annotations) != 1 || len(closed.Depends) != 1 {
+		t.Errorf("closed = %+v", closed)
+	}
+}
+
 func TestModifyStartsASeries(t *testing.T) {
 	f := newFixture(t)
 	created := f.create(t, api.CreateTaskRequest{Description: "Backup", Project: "ops", Due: at("2026-10-16T21:00:00Z"), Tags: []string{"server"}})
