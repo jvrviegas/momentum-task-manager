@@ -1,7 +1,7 @@
 # Implementation plan — Google Calendar as a calendar source
 
 **Created:** 2026-10-23  
-**Status:** D1–D9 approved on 2026-10-29, each as recommended. No task is started.  
+**Status:** D1–D9 approved on 2026-10-29, each as recommended. G01 is done; no other task is started.  
 **Baseline:** `bcde650` on local `main`; `origin/main` is at `0d69645` until the Plan Today commits are pushed. Recheck HEAD and the working tree before starting.  
 **Related:** [Plan Today](./macos-plan-today.md) (done), which counts calendar time; [Settings](./macos-settings.md), whose Calendar tab (C04, C05) gains the Google option in G11.
 
@@ -78,7 +78,7 @@ Rejected while planning: Momentum fetching a Google "secret iCal address" (it is
 
 | Status | ID | Task | Depends on | Verification |
 |---|---|---|---|---|
-| [ ] | G01 | ADR 0003: reading Google Calendar through the server, with D1–D9 | Approval | Reviewed against this plan. |
+| [x] | G01 | ADR 0003: reading Google Calendar through the server, with D1–D9 | Approval | Reviewed against this plan. Done: `d199b98`; D1–D9 and the settled consequences read against this plan's tables. |
 | [ ] | G02 | `core/api`: the four routes, their types, `CodeCalendarUnavailable`, and client methods | G01 | Client tests against `httptest`: each route's method, path, query and answer; the error code reaches the caller. Go gates in `core/`. |
 | [ ] | G03 | Backend: `CALENDAR_TOKEN_KEY` in config, and AES-256-GCM sealing for stored secrets (D5) | G01 | Config tests: a key that is not 32 bytes of base64 is refused; no key turns the feature off. Seal tests: open gives back what was sealed; a changed ciphertext or another key fails. |
 | [ ] | G04 | Backend schema: `calendar_connections` (user, Google subject and email, sealed token, status) and `calendar_links` (pending connects: link and state hashes, PKCE verifier, nonce, expiry), with privacy rules; generated code and migration | G03 | Store tests on local PostgreSQL: another user's rows are invisible and cannot be created; one connection per user; an expired link is not found. `go generate`, reviewed migration. |
