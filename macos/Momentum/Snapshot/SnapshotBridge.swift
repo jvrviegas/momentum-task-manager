@@ -33,7 +33,20 @@ actor SnapshotBridge: TaskBridge {
         var includeAllDay = false
         var includeTransparent = false
         var staleAfter = "24h"
+        var projectRows = SnapshotBridge.defaultProjectRows
+        /// Why the task counts are missing.
+        var projectsTasksError: String?
     }
+
+    /// A catalog with children, and two values only tasks have, in path order.
+    static let defaultProjectRows = [
+        ProjectRow(value: "home", name: "Home", tag: "catalog", tasks: 2),
+        ProjectRow(value: "side.gig", name: "gig", tag: "tasks", tasks: 1),
+        ProjectRow(value: "work", name: "Work", tag: "catalog", tasks: 4),
+        ProjectRow(value: "work.client", name: "Client", tag: "catalog", tasks: 3),
+        ProjectRow(value: "work.client.acme", name: "Acme", tag: "catalog", tasks: 1),
+        ProjectRow(value: "work.legacy", name: "legacy", tag: "tasks", tasks: 2),
+    ]
 
     /// The four states a calendar file can be in.
     static let defaultCalendarFiles = [
@@ -301,6 +314,62 @@ actor SnapshotBridge: TaskBridge {
         }
         revision += 1
         return settingsSnapshot()
+    }
+
+    // MARK: Projects
+
+    func projects() async throws -> ProjectsSnapshot {
+        ProjectsSnapshot(revision: "r\(revision)", entries: config.projectRows, tasksError: config.projectsTasksError)
+    }
+
+    /// Checks a draft as the real bridge does and counts the tasks a rename
+    /// would move, from the counts the rows carry.
+    func previewMigration(_ edit: ProjectEdit) async throws -> ProjectPreview {
+        guard edit.revision == "r\(revision)" else { throw Self.conflict }
+        let value = try checkedValue(edit)
+        func moves(_ includeSubprojects: Bool) -> [ProjectTaskMove] {
+            config.projectRows.flatMap { row -> [ProjectTaskMove] in
+                guard row.value == edit.source || (includeSubprojects && row.value.hasPrefix(edit.source + ".")) else { return [] }
+                let moved = value + row.value.dropFirst(edit.source.count)
+                return (0..<row.tasks).map { ProjectTaskMove(uuid: "\(row.value)-\($0)", oldValue: row.value, newValue: moved) }
+            }
+        }
+        return ProjectPreview(
+            value: value, valueChanged: value != edit.source,
+            catalogDescendants: config.projectRows.filter { $0.inCatalog && $0.value.hasPrefix(edit.source + ".") }.count,
+            exactTasks: moves(false), subprojectTasks: moves(true),
+            destinationTaskOnly: config.projectRows.contains { !$0.inCatalog && ($0.value == value || $0.value.hasPrefix(value + ".")) })
+    }
+
+    func saveProject(_ edit: ProjectEdit) async throws -> ProjectSaveResult {
+        guard edit.revision == "r\(revision)" else { throw Self.conflict }
+        if edit.action == "remove" {
+            config.projectRows = config.projectRows.compactMap { row in
+                guard row.value == edit.source || (edit.removeChildren && row.inCatalog && row.value.hasPrefix(edit.source + ".")) else { return row }
+                // A value tasks still use stays, as one found only on tasks.
+                return row.tasks > 0 ? ProjectRow(value: row.value, name: ProjectsModel.split(row.value).segment, tag: "tasks", tasks: row.tasks) : nil
+            }
+        } else {
+            let value = try checkedValue(edit)
+            let tasks = config.projectRows.first { $0.value == value }?.tasks ?? 0
+            config.projectRows.removeAll { $0.value == value || $0.value == edit.source }
+            config.projectRows.append(ProjectRow(value: value, name: edit.name, tag: "catalog", tasks: tasks))
+            config.projectRows.sort { $0.value.split(separator: ".").map(String.init).lexicographicallyPrecedes($1.value.split(separator: ".").map(String.init)) }
+        }
+        revision += 1
+        return ProjectSaveResult(revision: "r\(revision)", changed: 0)
+    }
+
+    private func checkedValue(_ edit: ProjectEdit) throws -> String {
+        if edit.name.trimmingCharacters(in: .whitespaces).isEmpty { throw BridgeError(message: "Enter a name.", field: "name") }
+        if edit.segment.range(of: "^[a-z0-9]+(?:-[a-z0-9]+)*$", options: .regularExpression) == nil {
+            throw BridgeError(message: "Use lowercase letters, numbers and hyphens, such as client-name.", field: "segment")
+        }
+        let value = edit.parent.isEmpty ? edit.segment : "\(edit.parent).\(edit.segment)"
+        if config.projectRows.contains(where: { $0.inCatalog && $0.value == value && $0.value != edit.source }) {
+            throw BridgeError(message: "“\(value)” is already in the catalog.", field: "segment")
+        }
+        return value
     }
 
     private static let conflict = BridgeError(
