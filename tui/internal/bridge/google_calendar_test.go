@@ -244,6 +244,23 @@ func TestACachedAnswerCarriesNoTitles(t *testing.T) {
 	}
 }
 
+// The titles are for Plan Today alone: a load's whole answer, which the app
+// keeps in the sidebar, holds none, and Plan Today's holds those of the
+// meetings inside the working hours, as its blocks do (an early call before
+// them is in no block).
+func TestALoadNeverCarriesATitleAndPlanTodayDoes(t *testing.T) {
+	server := newPlanServer(&googleClient{events: googleEvents()}, googleSettings())
+	responses := serve(t, server, request(t, 1, "load", nil), request(t, 2, "plan", nil))
+	for _, event := range googleEvents() {
+		if strings.Contains(string(responses[1].Result), event.Summary) {
+			t.Errorf("a load carries the title %q", event.Summary)
+		}
+		if inHours := event.Summary != "Early call"; inHours && !strings.Contains(string(responses[2].Result), event.Summary) {
+			t.Errorf("Plan Today lacks the title %q", event.Summary)
+		}
+	}
+}
+
 func TestSigningInAsSomeoneElseForgetsTheCachedAnswer(t *testing.T) {
 	client := &googleClient{events: googleEvents()}
 	server := newPlanServer(client, googleSettings())
