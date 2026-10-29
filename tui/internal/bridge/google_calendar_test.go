@@ -261,6 +261,26 @@ func TestALoadNeverCarriesATitleAndPlanTodayDoes(t *testing.T) {
 	}
 }
 
+// Disconnecting ends the calendar at once: the meetings a load kept for the
+// next five minutes must not outlive the connection.
+func TestDisconnectingForgetsTheKeptEventsSoTheNextLoadSaysSo(t *testing.T) {
+	client := &googleClient{events: googleEvents()}
+	server := newPlanServer(client, googleSettings())
+	if summary := loadWith(t, server, nil); summary.CalendarMinutes != 120 {
+		t.Fatalf("before disconnecting: %+v", summary)
+	}
+	serve(t, server, request(t, 1, "disconnectCalendar", nil))
+	// The server now has no calendar to read.
+	client.mu.Lock()
+	client.err = &api.Error{Code: api.CodeCalendarUnavailable, Message: "Google Calendar isn’t connected"}
+	client.mu.Unlock()
+
+	summary := loadWith(t, server, nil)
+	if summary.CalendarAvailable || summary.CalendarMinutes != 0 || summary.CalendarError != "Google Calendar isn’t connected" {
+		t.Fatalf("after disconnecting: %+v, want the reason and no meetings", summary)
+	}
+}
+
 func TestSigningInAsSomeoneElseForgetsTheCachedAnswer(t *testing.T) {
 	client := &googleClient{events: googleEvents()}
 	server := newPlanServer(client, googleSettings())
