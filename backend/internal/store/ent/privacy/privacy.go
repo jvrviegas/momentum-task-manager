@@ -111,6 +111,54 @@ func DenyMutationOperationRule(op ent.Op) MutationRule {
 	return OnMutationOperation(rule, op)
 }
 
+// The CalendarConnectionQueryRuleFunc type is an adapter to allow the use of ordinary
+// functions as a query rule.
+type CalendarConnectionQueryRuleFunc func(context.Context, *ent.CalendarConnectionQuery) error
+
+// EvalQuery return f(ctx, q).
+func (f CalendarConnectionQueryRuleFunc) EvalQuery(ctx context.Context, q ent.Query) error {
+	if q, ok := q.(*ent.CalendarConnectionQuery); ok {
+		return f(ctx, q)
+	}
+	return Denyf("ent/privacy: unexpected query type %T, expect *ent.CalendarConnectionQuery", q)
+}
+
+// The CalendarConnectionMutationRuleFunc type is an adapter to allow the use of ordinary
+// functions as a mutation rule.
+type CalendarConnectionMutationRuleFunc func(context.Context, *ent.CalendarConnectionMutation) error
+
+// EvalMutation calls f(ctx, m).
+func (f CalendarConnectionMutationRuleFunc) EvalMutation(ctx context.Context, m ent.Mutation) error {
+	if m, ok := m.(*ent.CalendarConnectionMutation); ok {
+		return f(ctx, m)
+	}
+	return Denyf("ent/privacy: unexpected mutation type %T, expect *ent.CalendarConnectionMutation", m)
+}
+
+// The CalendarLinkQueryRuleFunc type is an adapter to allow the use of ordinary
+// functions as a query rule.
+type CalendarLinkQueryRuleFunc func(context.Context, *ent.CalendarLinkQuery) error
+
+// EvalQuery return f(ctx, q).
+func (f CalendarLinkQueryRuleFunc) EvalQuery(ctx context.Context, q ent.Query) error {
+	if q, ok := q.(*ent.CalendarLinkQuery); ok {
+		return f(ctx, q)
+	}
+	return Denyf("ent/privacy: unexpected query type %T, expect *ent.CalendarLinkQuery", q)
+}
+
+// The CalendarLinkMutationRuleFunc type is an adapter to allow the use of ordinary
+// functions as a mutation rule.
+type CalendarLinkMutationRuleFunc func(context.Context, *ent.CalendarLinkMutation) error
+
+// EvalMutation calls f(ctx, m).
+func (f CalendarLinkMutationRuleFunc) EvalMutation(ctx context.Context, m ent.Mutation) error {
+	if m, ok := m.(*ent.CalendarLinkMutation); ok {
+		return f(ctx, m)
+	}
+	return Denyf("ent/privacy: unexpected mutation type %T, expect *ent.CalendarLinkMutation", m)
+}
+
 // The DeviceAuthorizationQueryRuleFunc type is an adapter to allow the use of ordinary
 // functions as a query rule.
 type DeviceAuthorizationQueryRuleFunc func(context.Context, *ent.DeviceAuthorizationQuery) error
@@ -314,6 +362,10 @@ var _ QueryMutationRule = FilterFunc(nil)
 
 func queryFilter(q ent.Query) (Filter, error) {
 	switch q := q.(type) {
+	case *ent.CalendarConnectionQuery:
+		return q.Filter(), nil
+	case *ent.CalendarLinkQuery:
+		return q.Filter(), nil
 	case *ent.DeviceAuthorizationQuery:
 		return q.Filter(), nil
 	case *ent.IdempotencyKeyQuery:
@@ -335,6 +387,10 @@ func queryFilter(q ent.Query) (Filter, error) {
 
 func mutationFilter(m ent.Mutation) (Filter, error) {
 	switch m := m.(type) {
+	case *ent.CalendarConnectionMutation:
+		return m.Filter(), nil
+	case *ent.CalendarLinkMutation:
+		return m.Filter(), nil
 	case *ent.DeviceAuthorizationMutation:
 		return m.Filter(), nil
 	case *ent.IdempotencyKeyMutation:
