@@ -1,7 +1,7 @@
 # Implementation plan — Google Calendar as a calendar source
 
 **Created:** 2026-10-23  
-**Status:** D1–D9 approved on 2026-10-29, each as recommended. G01 is done; no other task is started.  
+**Status:** D1–D9 approved on 2026-10-29, each as recommended. G01 and G02 are done; no other task is started.  
 **Baseline:** `bcde650` on local `main`; `origin/main` is at `0d69645` until the Plan Today commits are pushed. Recheck HEAD and the working tree before starting.  
 **Related:** [Plan Today](./macos-plan-today.md) (done), which counts calendar time; [Settings](./macos-settings.md), whose Calendar tab (C04, C05) gains the Google option in G11.
 
@@ -68,8 +68,8 @@ Rejected while planning: Momentum fetching a Google "secret iCal address" (it is
 
 - `POST /v1/calendar/google/connect` returns `url` (the one-time link) and `expiresAt`.
 - `GET /v1/calendar/google` returns `offered` (the server has a Google client and `CALENDAR_TOKEN_KEY`), `connected`, `email`, and `needsReconnect`.
-- `DELETE /v1/calendar/google` revokes the token at Google, deletes the connection, and answers 204.
-- `GET /v1/calendar/google/events?start=…&end=…` (RFC 3339) returns `events`, each with `title`, `start`, `end`, `allDay` and `transparent`; declined events are left out (D4). With no connection or a dead token it answers a new code, `calendar_unavailable`, with the reason.
+- `DELETE /v1/calendar/google` revokes the token at Google, deletes the connection, and answers 200 with `revoked`. `revoked` is false only when Google could not be asked; the connection is deleted either way (story S-062). Departure from the first draft, which answered 204: a 204 has no body to say the token was not revoked.
+- `GET /v1/calendar/google/events?start=…&end=…` (RFC 3339) returns `events`, each with `title`, `start`, `end`, `allDay` and `transparent`; declined events are left out (D4). With no connection or a dead token it answers a new code, `calendar_unavailable`, with the reason and HTTP 424, since the client retries a 502, 503 or 504 as an unreachable server.
 - Browser: `GET /calendar/connect/{link}` and `GET /calendar/callback/google`.
 
 **Bridge:** `calendarStatus`, `connectCalendar` and `disconnectCalendar` mirror the first three routes. `plan` and `load` read Google when `[calendar] source = "google"`, with the same `calendar` and summary fields as files; `stale` is always false.
@@ -79,7 +79,7 @@ Rejected while planning: Momentum fetching a Google "secret iCal address" (it is
 | Status | ID | Task | Depends on | Verification |
 |---|---|---|---|---|
 | [x] | G01 | ADR 0003: reading Google Calendar through the server, with D1–D9 | Approval | Reviewed against this plan. Done: `d199b98`; D1–D9 and the settled consequences read against this plan's tables. |
-| [ ] | G02 | `core/api`: the four routes, their types, `CodeCalendarUnavailable`, and client methods | G01 | Client tests against `httptest`: each route's method, path, query and answer; the error code reaches the caller. Go gates in `core/`. |
+| [x] | G02 | `core/api`: the four routes, their types, `CodeCalendarUnavailable`, and client methods | G01 | Client tests against `httptest`: each route's method, path, query and answer; the error code reaches the caller. Go gates in `core/`. Done: `9063832`–`8804daf`; `gofmt`, `go test`, `go test -race` and `go vet` pass in `core/`. The events window goes out in the device's own UTC offset, because all-day events follow it. The Docker build waits for G06. |
 | [ ] | G03 | Backend: `CALENDAR_TOKEN_KEY` in config, and AES-256-GCM sealing for stored secrets (D5) | G01 | Config tests: a key that is not 32 bytes of base64 is refused; no key turns the feature off. Seal tests: open gives back what was sealed; a changed ciphertext or another key fails. |
 | [ ] | G04 | Backend schema: `calendar_connections` (user, Google subject and email, sealed token, status) and `calendar_links` (pending connects: link and state hashes, PKCE verifier, nonce, expiry), with privacy rules; generated code and migration | G03 | Store tests on local PostgreSQL: another user's rows are invisible and cannot be created; one connection per user; an expired link is not found. `go generate`, reviewed migration. |
 | [ ] | G05 | Backend `internal/calendar` service: start a link, complete the callback, status, disconnect, and events from the primary calendar (D3) with the D2 scope | G02, G04 | Fake Google on `httptest`: the authorization URL asks for the D2 scope, `openid` and `email`, offline access and consent; the code exchange stores a sealed token; a link works once and expires; events map `start.date` to all-day and transparency to transparent; declined events are dropped; a repeating meeting with one cancelled and one moved instance gives the right times; `invalid_grant` marks the connection "needs reconnecting" and answers `calendar_unavailable`; disconnect calls Google's revoke and deletes the row, and with Google unreachable it still deletes the row and answers that the token was not revoked; logs carry no title (captured logger). |
