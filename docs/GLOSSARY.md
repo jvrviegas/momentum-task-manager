@@ -39,6 +39,11 @@ Plain, direct, brief. Say "you" to the person, never "the user". Say "click", ne
 | Available, Stale, Missing, Unreadable | The four states of a calendar file, always a word with a symbol | OK, Old, Not found, Error, Broken |
 | Source | Where this Mac reads its meetings from, **Calendar files** or **macOS Calendar**; kept on this Mac, not in `config.toml` | provider, account, feed |
 | macOS Calendar | The Calendar app's own calendars, read with the Mac's permission; Settings ▸ Calendar lists them by account with a switch each | iCloud calendar, system calendar, EventKit |
+| Project | A place tasks belong to, written as a dotted value such as `work.client`; its name labels the last segment | folder, category, list |
+| Catalog | The projects kept in `config.toml`, which New Task suggests; managed in Settings ▸ Projects | project list, suggestions file |
+| From tasks | The tag of a project that only tasks use, with **Add to Catalog…** to keep it | discovered, orphan, unknown |
+| Include subprojects | The choice that makes a rename also move the entries and tasks below the project | cascade, recursive |
+| Catalog only, Catalog + pending tasks | The two ways to save a rename: the catalog alone (the default), or the catalog and the pending tasks that use the old value | label only, migrate |
 | Working hours | The hours of the day whose meetings take time off the capacity; Start and End in Settings ▸ Calendar, 09:00 to 17:00 by default | office hours, availability, day length |
 | Free event | An event the calendar marks as free rather than busy, such as a reminder; **Count events shown as free** makes it count | transparent event, available event |
 | Stale after | How long a calendar file may go unchanged before it shows as Stale; `0m` means never | expiry, max age, refresh interval |
