@@ -11,6 +11,8 @@ import (
 	"entgo.io/ent/dialect/sql/sqlgraph"
 	"entgo.io/ent/schema/field"
 	"github.com/google/uuid"
+	"github.com/jvrviegas/momentum-task-manager/backend/internal/store/ent/calendarconnection"
+	"github.com/jvrviegas/momentum-task-manager/backend/internal/store/ent/calendarlink"
 	"github.com/jvrviegas/momentum-task-manager/backend/internal/store/ent/deviceauthorization"
 	"github.com/jvrviegas/momentum-task-manager/backend/internal/store/ent/idempotencykey"
 	"github.com/jvrviegas/momentum-task-manager/backend/internal/store/ent/identity"
@@ -73,6 +75,40 @@ func (_c *UserCreate) SetNillableID(v *uuid.UUID) *UserCreate {
 		_c.SetID(*v)
 	}
 	return _c
+}
+
+// SetCalendarConnectionID sets the "calendar_connection" edge to the CalendarConnection entity by ID.
+func (_c *UserCreate) SetCalendarConnectionID(id int) *UserCreate {
+	_c.mutation.SetCalendarConnectionID(id)
+	return _c
+}
+
+// SetNillableCalendarConnectionID sets the "calendar_connection" edge to the CalendarConnection entity by ID if the given value is not nil.
+func (_c *UserCreate) SetNillableCalendarConnectionID(id *int) *UserCreate {
+	if id != nil {
+		_c = _c.SetCalendarConnectionID(*id)
+	}
+	return _c
+}
+
+// SetCalendarConnection sets the "calendar_connection" edge to the CalendarConnection entity.
+func (_c *UserCreate) SetCalendarConnection(v *CalendarConnection) *UserCreate {
+	return _c.SetCalendarConnectionID(v.ID)
+}
+
+// AddCalendarLinkIDs adds the "calendar_links" edge to the CalendarLink entity by IDs.
+func (_c *UserCreate) AddCalendarLinkIDs(ids ...int) *UserCreate {
+	_c.mutation.AddCalendarLinkIDs(ids...)
+	return _c
+}
+
+// AddCalendarLinks adds the "calendar_links" edges to the CalendarLink entity.
+func (_c *UserCreate) AddCalendarLinks(v ...*CalendarLink) *UserCreate {
+	ids := make([]int, len(v))
+	for i := range v {
+		ids[i] = v[i].ID
+	}
+	return _c.AddCalendarLinkIDs(ids...)
 }
 
 // AddDeviceAuthorizationIDs adds the "device_authorizations" edge to the DeviceAuthorization entity by IDs.
@@ -276,6 +312,38 @@ func (_c *UserCreate) createSpec() (*User, *sqlgraph.CreateSpec) {
 	if value, ok := _c.mutation.CreatedAt(); ok {
 		_spec.SetField(user.FieldCreatedAt, field.TypeTime, value)
 		_node.CreatedAt = value
+	}
+	if nodes := _c.mutation.CalendarConnectionIDs(); len(nodes) > 0 {
+		edge := &sqlgraph.EdgeSpec{
+			Rel:     sqlgraph.O2O,
+			Inverse: false,
+			Table:   user.CalendarConnectionTable,
+			Columns: []string{user.CalendarConnectionColumn},
+			Bidi:    false,
+			Target: &sqlgraph.EdgeTarget{
+				IDSpec: sqlgraph.NewFieldSpec(calendarconnection.FieldID, field.TypeInt),
+			},
+		}
+		for _, k := range nodes {
+			edge.Target.Nodes = append(edge.Target.Nodes, k)
+		}
+		_spec.Edges = append(_spec.Edges, edge)
+	}
+	if nodes := _c.mutation.CalendarLinksIDs(); len(nodes) > 0 {
+		edge := &sqlgraph.EdgeSpec{
+			Rel:     sqlgraph.O2M,
+			Inverse: false,
+			Table:   user.CalendarLinksTable,
+			Columns: []string{user.CalendarLinksColumn},
+			Bidi:    false,
+			Target: &sqlgraph.EdgeTarget{
+				IDSpec: sqlgraph.NewFieldSpec(calendarlink.FieldID, field.TypeInt),
+			},
+		}
+		for _, k := range nodes {
+			edge.Target.Nodes = append(edge.Target.Nodes, k)
+		}
+		_spec.Edges = append(_spec.Edges, edge)
 	}
 	if nodes := _c.mutation.DeviceAuthorizationsIDs(); len(nodes) > 0 {
 		edge := &sqlgraph.EdgeSpec{
