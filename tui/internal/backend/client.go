@@ -55,6 +55,12 @@ func (c *Client) list(ctx context.Context, status string, endedAfter time.Time) 
 // Projects returns the projects of pending tasks that are not waiting.
 func (c *Client) Projects(ctx context.Context) ([]string, error) { return c.server.Projects(ctx) }
 
+// Version answers which server this is, which a diagnostics check shows.
+func (c *Client) Version(ctx context.Context) (api.Version, error) { return c.server.Version(ctx) }
+
+// Session answers who this device is signed in as, and until when.
+func (c *Client) Session(ctx context.Context) (api.Session, error) { return c.server.Session(ctx) }
+
 // Tags returns the tags of pending tasks that are not waiting.
 func (c *Client) Tags(ctx context.Context) ([]string, error) { return c.server.Tags(ctx) }
 
