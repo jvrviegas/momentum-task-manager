@@ -278,6 +278,13 @@ actor SnapshotBridge: TaskBridge {
 
     func settings() async throws -> SettingsSnapshot { settingsSnapshot() }
 
+    /// Changes the daily capacity as an editor would, so the next save from a
+    /// tab that read the file before is refused.
+    func editedElsewhere(dailyCapacity: String) {
+        config.dailyCapacity = dailyCapacity
+        revision += 1
+    }
+
     /// Refuses what the real bridge refuses, with its words.
     func savePlanning(_ change: PlanningChange) async throws -> SettingsSnapshot {
         guard change.revision == "r\(revision)" else { throw Self.conflict }
