@@ -132,6 +132,30 @@ func (c *Client) Undo(ctx context.Context) (Task, error) {
 	return send[Task](ctx, c, call{route: RouteUndo, mutation: true})
 }
 
+// ConnectGoogleCalendar answers RouteConnectGoogleCalendar.
+func (c *Client) ConnectGoogleCalendar(ctx context.Context) (GoogleCalendarLink, error) {
+	return send[GoogleCalendarLink](ctx, c, call{route: RouteConnectGoogleCalendar})
+}
+
+// GoogleCalendarStatus answers RouteGoogleCalendarStatus.
+func (c *Client) GoogleCalendarStatus(ctx context.Context) (GoogleCalendarStatus, error) {
+	return send[GoogleCalendarStatus](ctx, c, call{route: RouteGoogleCalendarStatus})
+}
+
+// DisconnectGoogleCalendar answers RouteDisconnectGoogleCalendar.
+func (c *Client) DisconnectGoogleCalendar(ctx context.Context) (GoogleCalendarDisconnect, error) {
+	return send[GoogleCalendarDisconnect](ctx, c, call{route: RouteDisconnectGoogleCalendar})
+}
+
+// GoogleCalendarEvents answers RouteGoogleCalendarEvents for the events that
+// overlap start to end. It sends them in their own UTC offset, not UTC, since
+// all-day events follow the offset of start.
+func (c *Client) GoogleCalendarEvents(ctx context.Context, start, end time.Time) ([]GoogleCalendarEvent, error) {
+	query := url.Values{QueryStart: {start.Format(time.RFC3339)}, QueryEnd: {end.Format(time.RFC3339)}}
+	list, err := send[GoogleCalendarEvents](ctx, c, call{route: RouteGoogleCalendarEvents, query: query})
+	return list.Events, err
+}
+
 // Projects answers RouteListProjects.
 func (c *Client) Projects(ctx context.Context) ([]string, error) {
 	list, err := send[ProjectList](ctx, c, call{route: RouteListProjects})
