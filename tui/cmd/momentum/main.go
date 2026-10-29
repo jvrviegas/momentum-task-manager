@@ -55,7 +55,11 @@ func run(args []string, stdout, stderr io.Writer) int {
 		return 0
 	}
 	if remaining := flags.Args(); len(remaining) > 0 {
-		fmt.Fprintf(stderr, "momentum: unsupported argument %q; use inbox, today, completed, doctor, login, logout, or import\n", remaining[0])
+		fmt.Fprintf(stderr, "momentum: unsupported argument %q; use inbox, today, completed, doctor, login, logout, import, or calendar\n", remaining[0])
+		return 2
+	}
+	if command == "calendar" {
+		fmt.Fprintln(stderr, "momentum: calendar needs connect, status or disconnect")
 		return 2
 	}
 	if *dryRun && command != "import" {
@@ -70,6 +74,9 @@ func run(args []string, stdout, stderr io.Writer) int {
 	}
 	if command == "login" || command == "logout" {
 		return account(command, settings, resolvedPath, stdout, stderr)
+	}
+	if strings.HasPrefix(command, "calendar ") {
+		return calendarCommand(command, settings, resolvedPath, stdout, stderr)
 	}
 	if command == "import" {
 		return importTasks(context.Background(), settings, resolvedPath, taskwarrior.NewClient("task"), *dryRun, stdout, stderr)
@@ -170,11 +177,19 @@ func extractCommand(args []string) (string, []string, error) {
 	for index := 0; index < len(args); index++ {
 		arg := args[index]
 		switch arg {
-		case "inbox", "today", "completed", "doctor", "login", "logout", "import":
+		case "inbox", "today", "completed", "doctor", "login", "logout", "import", "calendar":
 			if command != "" {
 				return "", nil, fmt.Errorf("multiple commands: %s and %s", command, arg)
 			}
 			command = arg
+		case "connect", "status", "disconnect":
+			// Only calendar takes a command of its own; anywhere else these
+			// are arguments that run rejects.
+			if command == "calendar" {
+				command += " " + arg
+			} else {
+				flags = append(flags, arg)
+			}
 		case "--config", "-config":
 			flags = append(flags, arg)
 			if index+1 >= len(args) {
@@ -204,6 +219,7 @@ func printUsage(w io.Writer) {
 	fmt.Fprintln(w, "  momentum login")
 	fmt.Fprintln(w, "  momentum logout")
 	fmt.Fprintln(w, "  momentum import [--dry-run]")
+	fmt.Fprintln(w, "  momentum calendar connect|status|disconnect")
 	fmt.Fprintln(w)
 	fmt.Fprintln(w, "Options:")
 	fmt.Fprintln(w, "  --config PATH   use another config file")
