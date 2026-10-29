@@ -28,8 +28,9 @@ DATABASE_URL=postgres://postgres:postgres@localhost:5432/momentum?sslmode=disabl
 | `PORT` | Port to listen on; Cloud Run sets it. Defaults to `8080`. |
 | `PUBLIC_URL` | The server's address as browsers reach it, for the sign-in page and provider callbacks. Defaults to `http://localhost:<PORT>`. |
 | `ALLOWED_EMAILS` | Comma-separated addresses that may sign in. Empty, nobody can. |
-| `GOOGLE_CLIENT_ID`, `GOOGLE_CLIENT_SECRET` | A Google OAuth client; without them, Google sign-in is not offered. |
+| `GOOGLE_CLIENT_ID`, `GOOGLE_CLIENT_SECRET` | A Google OAuth client; without them, Google sign-in is not offered. Google Calendar uses the same client. |
 | `GITHUB_CLIENT_ID`, `GITHUB_CLIENT_SECRET` | A GitHub OAuth app; without them, GitHub sign-in is not offered. |
+| `CALENDAR_TOKEN_KEY` | 32 random bytes as base64 (`openssl rand -base64 32`), the key that seals each Google Calendar refresh token in the database. Without it, or without the Google client, Google Calendar is not offered. See [Google Calendar](#google-calendar). |
 | `TRUSTED_PROXY_HOPS` | How many proxies in front of the server append the client's address to `X-Forwarded-For`, from 0 to 10. Defaults to `0`, which uses the connection's address and ignores the header, since clients can forge it. |
 
 The server stops on SIGINT or SIGTERM and gives requests in flight 8 seconds to finish. The health check is `/health`, not `/healthz`, because Cloud Run reserves some paths that end in `z`.
@@ -52,6 +53,29 @@ ALLOWED_EMAILS=you@example.com
 GITHUB_CLIENT_ID=…
 GITHUB_CLIENT_SECRET=…
 ```
+
+## Google Calendar
+
+The server reads the signed-in user's primary Google Calendar for the apps, read-only, with one connection per account whichever device made it ([ADR 0003](../docs/adr/0003-google-calendar-through-the-server.md)). It is offered only with the Google client and `CALENDAR_TOKEN_KEY`; without either, `GET /v1/calendar/google` answers `offered: false`, nothing else works, and the server says why in its log at start.
+
+The refresh token is the first secret the server has to use later, so it is stored sealed with AES-256-GCM under `CALENDAR_TOKEN_KEY`: a copy of the database without the key reveals no calendar. A key that is not 32 bytes of base64 stops the server at start, and its error leaves the value out. Losing or changing the key makes every saved connection unreadable, so each shows as needing to reconnect until its owner connects again.
+
+The JSON routes need a token:
+
+| Route | Meaning |
+|---|---|
+| `POST /v1/calendar/google/connect` | Answers `url`, a one-time link, and `expiresAt`, 10 minutes ahead. Another call makes another link and the older one expires. |
+| `GET /v1/calendar/google` | Answers `offered`, `connected`, `email` (the Google account) and `needsReconnect`. |
+| `DELETE /v1/calendar/google` | Asks Google to revoke the token, deletes the connection, and answers `revoked`. `revoked` is false only when Google could not be asked; the connection is deleted either way. |
+| `GET /v1/calendar/google/events?start=…&end=…` | The primary calendar's events that overlap the window, as `title`, `start`, `end`, `allDay` and `transparent`. `start` and `end` are RFC 3339 instants, and the offset they carry is the one all-day events follow, so apps send their device's day. A repeating event arrives as its occurrences, with cancelled ones left out and moved ones at their new time, and events the person declined are left out. With no connection, or one Google refuses, it answers `calendar_unavailable` with the reason and HTTP 424, since the apps retry a 502, 503 or 504 as an unreachable server. |
+
+Connecting is a browser flow of its own, separate from sign-in. The person opens the link, a page names the Momentum account the calendar would join and asks to continue, and the form sends the browser to Google with PKCE, offline access and consent. `GET` and `POST /calendar/connect/{link}` and `GET /calendar/callback/google` are those pages. The callback needs the state cookie the form set, and the state works once, so only the browser that opened the link can finish it, and nobody can attach a calendar to someone else's account. Google is asked for `openid`, `email` and `https://www.googleapis.com/auth/calendar.events.readonly`, and a reply without the refresh token or that scope connects nothing. A person who refuses at Google leaves the link to expire.
+
+When Google answers `invalid_grant` the connection is marked as needing to reconnect and stays so until the person reconnects, which replaces it in place, or disconnects. The connect route, its pages and the callback share a limit of 30 requests per client in 10 minutes, apart from the sign-in limit, so connecting never uses up a sign-in; over it, the route answers 429 `rate_limited` and the pages a 429 page.
+
+The server keeps the sealed token and the Google account's id and address, and never an event: each request asks Google for only an event's status, title, times, transparency and the person's own answer, and passes them on. No link, state, code, token or title reaches a log, and nothing was added to the allowlist in `internal/logging`.
+
+To try it locally, run the server with `CALENDAR_TOKEN_KEY` set (Compose reads it from your shell or `.env`, as it does the provider credentials) and a Google client as for sign-in. In that client's Google Cloud project, enable the Google Calendar API, add the scope above to the consent screen, and add the redirect URI `http://localhost:8080/calendar/callback/google` to the client. The tests never reach Google: they use a fake Google on `httptest`. [DEPLOY.md](./DEPLOY.md#turn-on-google-calendar) has the deployed service's steps.
 
 ## Tasks
 
