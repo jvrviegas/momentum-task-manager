@@ -36,8 +36,9 @@ services:
       postgres:
         condition: service_healthy
 
-  # Sign-in reads ALLOWED_EMAILS and the provider credentials from your
-  # shell or an .env file next to this one.
+  # Sign-in reads ALLOWED_EMAILS and the provider credentials, and Google
+  # Calendar CALENDAR_TOKEN_KEY, from your shell or an .env file next to this
+  # one.
   server:
     build: *server-image
     environment:
@@ -49,6 +50,7 @@ services:
       GOOGLE_CLIENT_SECRET: ${GOOGLE_CLIENT_SECRET:-}
       GITHUB_CLIENT_ID: ${GITHUB_CLIENT_ID:-}
       GITHUB_CLIENT_SECRET: ${GITHUB_CLIENT_SECRET:-}
+      CALENDAR_TOKEN_KEY: ${CALENDAR_TOKEN_KEY:-}
     ports:
       - "127.0.0.1:8080:8080"
     depends_on:
