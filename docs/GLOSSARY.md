@@ -23,6 +23,8 @@ Plain, direct, brief. Say "you" to the person, never "the user". Say "click", ne
 | New Task | The command and the sheet that add a task (⌘N, `c`, the toolbar button, File ▸ New Task) | Quick capture, capture, quick add, create |
 | Add Task | The button that adds the task in the review sheet; the toast says "Added “…”" | Save, Create, Submit |
 | Complete | Mark a task done; it leaves its view and shows in Completed | check, finish, close, tick |
+| Note | Words kept with a task, each with the time it was added: added with **Add** in the inspector's Notes or with `a`, removed with its × or **Remove Note**, never edited. The terminal app shows them | annotation, comment, memo |
+| Remove | Take a note, or a dependency, off a task; Undo puts it back. Delete is for tasks | Delete (for a note), Clear, Unlink |
 | Refresh | Load the tasks again from the server | reload, sync, update |
 | Undo | Take back the last change, for as long as the toolbar shows "Saved · undo" and a countdown | revert, restore |
 | Online | The toolbar's word when the server answered and nothing is waiting | Connected, Synced |
