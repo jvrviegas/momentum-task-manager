@@ -82,6 +82,9 @@ struct ContentView: View {
         .sheet(item: Binding(get: { store.signInModel.flow }, set: { if $0 == nil { store.signInModel.cancel() } })) { _ in
             SignInView()
         }
+        .sheet(item: $store.dependencyPicker) { _ in
+            DependencyPickerView()
+        }
         .sheet(item: Binding(get: { store.planSheet }, set: { if $0 == nil { store.cancelPlan() } })) { _ in
             // The design's 1040×720, kept inside the window.
             PlanTodayView()
