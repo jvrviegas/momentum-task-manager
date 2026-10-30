@@ -1009,7 +1009,8 @@ UX:
 - States: a completed task offers no Duplicate (D5): its context menu keeps only Show Details, and the menu item is off. The server refuses, as when the task was completed elsewhere: the toast gives the reason, "the task is no longer pending".
 - Words: "Duplicate" (no ellipsis: it asks nothing) with ⌘D; toast "Duplicated “<description>”"; Keyboard Shortcuts row "⌘D Duplicate". The copy keeps the description, without "copy" (D4).
 - Access: ⌘D from the list, and a bare `d` stays Delete…; the menu items read Duplicate.
-Status: todo
+- Built: `duplicate` and `shortcuts` were read in light and dark and match this block. The snapshot bridge now keeps its copies and puts each after its original in the same section, so the page shows a real copy; the bridge's own views decide where a copy really goes. The context menu, the Task menu and ⌘D were not tried by hand. Found, not changed here: the Keyboard Shortcuts sheet is taller than the 720-point window and runs past its bottom edge; it did before this story, which adds one row to its longest column.
+Status: done
 
 ## Later
 
