@@ -134,6 +134,16 @@ struct SnapshotScene {
                 session.store.noteDraft.write("Asked Ana in finance; the PO arrives on Monday", for: invoice)
                 session.store.noteDraft.focusRequested = true
             }),
+            SnapshotScene(name: "inspector-depends", run: { session in
+                session.store.view = .inbox
+                session.store.selection = session.task("Migrate the staging database").uuid
+            }),
+            SnapshotScene(name: "depends-picker", run: { session in
+                let invoice = session.task("Send Q3 invoice")
+                session.store.selection = invoice.uuid
+                session.store.dependencyPicker = DependencyPicker(task: invoice, query: "northwind")
+                await session.settle(900)
+            }),
             SnapshotScene(
                 name: "inspector-note-error",
                 config: { var c = SnapshotBridge.Config(); c.noteFailure = BridgeError(message: "cannot reach the Momentum server: connection refused", code: "unreachable"); return c }(),
