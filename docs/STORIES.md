@@ -954,7 +954,8 @@ UX:
 - States: candidates: pending tasks in the order the load gives them, each with its project, never the task itself, one it already depends on, or one that waits on it, directly or through others. No candidates: "No Tasks to Choose" with "Only pending tasks can be chosen, and not one that waits on this task." No match: "No Results for “…”". Long descriptions truncate with the whole description as hover help. Refused by the server, as when another device made a loop first: the toast gives the reason and nothing changes.
 - Words: section "Depends on"; button and Task menu item "Add Dependency…" (an ellipsis: the sheet asks which task); sheet title "Add Dependency"; message "“<description>” will wait on the task you choose."; search placeholder "Search tasks"; buttons "Cancel" and "Add"; toast "“<description>” now depends on “<dependency>”". Dependency is the glossary's word; prerequisite, blocker and link are not.
 - Access: the whole flow works from the keyboard: the Task menu, then typing, ↑ ↓, Return and Escape in the sheet. Each row reads as its description, then its project; the chosen row is the list's selection, so VoiceOver says it is selected.
-Status: todo
+- Built: `depends-picker` and `inspector-depends` were read in light and dark and match this block. The sheet's state is `DependencyPicker`, next to `TaskDependencies`, so a page can show it searched; double-clicking a row adds it too. Depends on now shows on every pending task, so **Add Dependency…** has a place. A description that wraps under Depends on used to be centred by the link button style; it is now a plain button in the link color, aligned to the left, with the link pointer. Not tried by hand: ↑ ↓ and Return in the sheet.
+Status: done
 
 ### S-068 Stop a task waiting on another
 As the user, I remove a dependency that no longer holds.
