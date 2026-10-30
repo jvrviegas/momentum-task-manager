@@ -17,6 +17,8 @@ actor SnapshotBridge: TaskBridge {
         /// The first load never answers.
         var hangLoad = false
         var signInFailure: BridgeError?
+        /// What adding a note answers instead of adding it.
+        var noteFailure: BridgeError?
         var applyPlanResult = PlanSaveResult(applied: 3, total: 3)
         var captureReview: Interpretation?
         var plan: DailyPlan?
@@ -240,7 +242,9 @@ actor SnapshotBridge: TaskBridge {
     func modify(uuid: String, before: EditFields, after: EditFields) async throws -> Bool { before != after }
 
     // No page shows what a note, a dependency or a copy changes after it is made.
-    func addNote(uuid: String, text: String) async throws {}
+    func addNote(uuid: String, text: String) async throws {
+        if let error = config.noteFailure { throw error }
+    }
     func removeNote(uuid: String, note: Annotation) async throws {}
     func addDependency(uuid: String, on: String) async throws {}
     func removeDependency(uuid: String, on: String) async throws {}
