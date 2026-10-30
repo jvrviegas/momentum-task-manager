@@ -31,6 +31,7 @@ struct WireContractTests {
         Fixture("capture-added", CaptureResult.self),
         Fixture("capture-review", CaptureResult.self),
         Fixture("modify", Changed.self),
+        Fixture("duplicate", Duplicated.self),
         Fixture("plan", DailyPlan.self),
         Fixture("apply-plan", PlanSaveResult.self),
         Fixture("apply-plan-stopped", PlanSaveResult.self),
