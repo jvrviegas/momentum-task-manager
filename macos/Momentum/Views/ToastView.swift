@@ -88,7 +88,7 @@ struct ShortcutsView: View {
         ("Navigate", [("j / ↓", "Next task"), ("k / ↑", "Previous task"), ("g / G", "First / last task"),
                       ("1 2 3", "Inbox / Today / Completed"), ("↩", "Show / hide details"), ("/", "Search; ↩ keeps the filter"),
                       ("esc", "Clear search")]),
-        ("Act on selection", [("Space", "Complete"), ("s", "Start / stop"), ("d", "Delete…"), ("x", "Stop repeating…"),
+        ("Act on selection", [("Space", "Complete"), ("s", "Start / stop"), ("a", "Add note"), ("d", "Delete…"), ("x", "Stop repeating…"),
                               ("u", "Undo"), ("r", "Refresh"), ("c", "Quick capture"), ("P", "Plan Today…")]),
         ("Edit a field", [("e", "Description"), ("E", "Estimate"), ("p", "Project"), ("!", "Priority"),
                           ("D", "Due"), ("S", "Scheduled"), ("t", "Tags"), ("R", "Repeats")]),
