@@ -58,6 +58,9 @@ struct MomentumCommands: Commands {
             Button("Edit…") { if let task = actionable { store.editing = EditRequest(task: task, focus: .description) } }
                 .keyboardShortcut("e")
                 .disabled(actionable == nil)
+            Button("Duplicate") { if let task = actionable { Task { await store.duplicate(task) } } }
+                .keyboardShortcut("d")
+                .disabled(actionable == nil)
             Button("Add Note") {
                 store.showInspector = true
                 store.noteDraft.focusRequested = true
