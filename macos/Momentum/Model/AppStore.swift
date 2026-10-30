@@ -71,6 +71,8 @@ final class AppStore {
     let diagnostics = DiagnosticsModel()
     /// The device sign-in that the sign-in sheet shows.
     let signInModel: SignInModel
+    /// The note being written in the inspector.
+    let noteDraft = NoteDraft()
 
     private(set) var status: BridgeStatus?
     private(set) var startupError: String?
