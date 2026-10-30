@@ -123,6 +123,31 @@ struct TaskDetailsTests {
         #expect(dependencies.candidates(for: tasks[4]).map(\.uuid) == ["a", "b", "c", "f"])
     }
 
+    @Test func theSheetNarrowsTheCandidatesAndChoosesTheFirstMatch() {
+        let a = TaskItem.fixture("Send the invoice", uuid: "a")
+        let tasks = [a, TaskItem.fixture("Get the quote", uuid: "q"), TaskItem.fixture("Read the contract", uuid: "r")]
+        let dependencies = TaskDependencies(tasks: Dictionary(uniqueKeysWithValues: tasks.map { ($0.uuid, $0) }), order: tasks)
+        var picker = DependencyPicker(task: a)
+        #expect(picker.choices(in: dependencies).map(\.uuid) == ["q", "r"] && picker.chosen(in: dependencies)?.uuid == "q")
+        picker.selection = "r"
+        #expect(picker.chosen(in: dependencies)?.uuid == "r")
+        // A choice the search hides gives way to the first match.
+        picker.query = "quote"
+        #expect(picker.choices(in: dependencies).map(\.uuid) == ["q"] && picker.chosen(in: dependencies)?.uuid == "q")
+        picker.query = "nothing like it"
+        #expect(picker.chosen(in: dependencies) == nil)
+    }
+
+    @Test func addingTheChosenDependencyClosesTheSheet() async {
+        let a = TaskItem.fixture("a"), b = TaskItem.fixture("b")
+        let (store, bridge) = await started(snapshot(inbox: [a, b]))
+        store.dependencyPicker = DependencyPicker(task: a)
+        #expect(store.hasOverlay)
+        await store.addChosenDependency()
+        #expect(store.dependencyPicker == nil && !store.hasOverlay)
+        #expect(await bridge.calls.suffix(2) == ["addDependency a b", "load"])
+    }
+
     @Test func aTaskIsBlockedWhileADependencyIsPending() {
         let a = task("a", depends: ["b", "d", "gone"])
         let tasks = [a, task("b"), task("d", status: "completed"), task("e", depends: ["b"])]
