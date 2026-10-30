@@ -32,7 +32,7 @@ Momentum includes in-app catalog management and an explicit opt-in to migrate ch
 - Custom or user-defined views.
 - A Kanban board.
 - General bulk task operations. The explicit Settings → Projects pending-only value migration is the narrow documented exception; it is not a general bulk editor.
-- Editing annotations, dependencies, or arbitrary UDAs. Native recurrence presets and daily-plan tags are supported extensions documented below.
+- Editing annotations, dependencies, or arbitrary UDAs in the terminal app, which shows a task's annotations and dependencies. The macOS app adds and removes both through the server ([task details plan](../docs/plans/task-details.md), D1). Native recurrence presets and daily-plan tags are supported extensions documented below.
 - Contexts and hooks ([ADR 0002](../docs/adr/0002-go-postgres-backend.md), D6).
 - Desktop notifications or background execution while Momentum is closed.
 - Native Windows support.
