@@ -160,6 +160,12 @@ struct SnapshotScene {
 
             // Changes, and what a person is asked on the way.
             SnapshotScene(name: "undo", run: { await $0.store.complete($0.task("Review pull request")) }),
+            SnapshotScene(name: "duplicate", run: { session in
+                session.store.view = .inbox
+                let flights = session.task("Book flights to Lisbon")
+                session.store.selection = flights.uuid
+                await session.store.duplicate(flights)
+            }),
             SnapshotScene(name: "unreachable", config: offline, run: { await $0.store.refresh(announce: true) }),
             SnapshotScene(name: "edit", run: { $0.store.editing = EditRequest(task: $0.task("Prepare the Northwind"), focus: .description) }),
             SnapshotScene(name: "delete", run: { $0.store.pendingDelete = $0.task("Review pull request") }),
