@@ -989,7 +989,8 @@ UX:
 - States: blocked by one task: "Blocked by “…”"; by several: "Blocked by “…” and “…”". A completed, deleted or unloaded dependency blocks nothing, and neither does a waiting one, which the load leaves out (plan C11). Blocks shows only when a pending task waits on this one.
 - Words: the `hourglass` symbol; hover help "Blocked by “<description>”"; section "Blocks". Blocked and Blocks are the glossary's words; waiting is not, since a waiting task is one with a wait date.
 - Access: the symbol reads "Blocked" with the row; its meaning is a symbol and words, never color alone.
-Status: todo
+- Built: `inbox` and `inspector-blocks` were read in light and dark and match this block; `today` has no blocked task and did not change. The inspector's Depends on and Blocks share one link, which selects the task. The rule is `TaskDependencies.blockers`, covered by `aTaskIsBlockedWhileADependencyIsPending`. The hover help was not tried by hand.
+Status: done
 
 ### S-070 Duplicate a task
 As the user, I duplicate a task to start a similar one, and the copy is selected.
