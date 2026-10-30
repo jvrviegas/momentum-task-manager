@@ -97,7 +97,7 @@ struct ShortcutsView: View {
         ("Plan Today", [("j k ↑ ↓", "Move over choosable rows"), ("Space", "Tick / untick"), ("g / G", "First / last row"),
                         ("/ ⌘F", "Filter candidates"), ("↩", "Confirm plan"), ("esc", "Clear filter / cancel")]),
         ("App", [("⌘N", "New task"), ("⌘F", "Search"), ("⌘1 ⌘2 ⌘3", "Inbox / Today / Completed"),
-                 ("⌘Z", "Undo last change"), ("⇧⌘Z", "Redo"), ("⌘E", "Edit"), ("⌘↩", "Complete"), ("⌘T", "Start / stop"),
+                 ("⌘Z", "Undo last change"), ("⇧⌘Z", "Redo"), ("⌘E", "Edit"), ("⌘D", "Duplicate"), ("⌘↩", "Complete"), ("⌘T", "Start / stop"),
                  ("⇧⌘P", "Plan Today…"),
                  ("⌥⌘R", "Refresh"), ("⌃⌘I", "Inspector"), ("⇧⌘/", "Keyboard shortcuts")]),
     ]
