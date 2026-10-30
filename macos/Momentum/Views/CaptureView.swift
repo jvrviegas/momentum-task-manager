@@ -26,6 +26,9 @@ struct CaptureView: View {
     /// Lines up with the text, past the lead circle.
     private static let inset: CGFloat = 50
 
+    /// Marks, chips, preview and hints show the latest interpretation, even
+    /// while the one for the text just typed is on its way, so the sheet
+    /// doesn't shrink and grow, or the marks blink, on every keystroke.
     private var capture: some View {
         VStack(alignment: .leading, spacing: 0) {
             HStack(alignment: .top, spacing: 12) {
@@ -35,7 +38,7 @@ struct CaptureView: View {
                     .padding(.top, 7)
                     .accessibilityHidden(true)
                 ZStack(alignment: .topLeading) {
-                    CaptureTextView(model: model, text: model.input, revision: model.textRevision, interpretation: model.currentInterpretation) {
+                    CaptureTextView(model: model, text: model.input, revision: model.textRevision, interpretation: model.interpretation) {
                         dismiss()
                     }
                     .frame(height: 54)
@@ -55,7 +58,7 @@ struct CaptureView: View {
             VStack(alignment: .leading, spacing: 12) {
                 if !model.visibleSuggestions.isEmpty {
                     suggestions
-                } else if let interpretation = model.currentInterpretation, !interpretation.candidates.isEmpty {
+                } else if let interpretation = model.interpretation, !interpretation.candidates.isEmpty {
                     chips(interpretation)
                 }
                 if let error = model.error ?? model.parseError {
@@ -63,7 +66,7 @@ struct CaptureView: View {
                         .font(.system(size: 12))
                         .foregroundStyle(Theme.danger)
                         .textSelection(.enabled)
-                } else if let interpretation = model.currentInterpretation {
+                } else if let interpretation = model.interpretation {
                     preview(interpretation)
                 }
             }
@@ -74,8 +77,8 @@ struct CaptureView: View {
             Rectangle().fill(Theme.separator).frame(height: 0.5)
 
             HStack(spacing: 14) {
-                hint("↩", model.currentInterpretation?.valid == false ? "Review" : "Add")
-                hint("esc", model.currentInterpretation?.candidates.contains { $0.isInferred && $0.isHighlighted } == true ? "Keep phrase as text / Close" : "Close")
+                hint("↩", model.interpretation?.valid == false ? "Review" : "Add")
+                hint("esc", model.interpretation?.candidates.contains { $0.isInferred && $0.isHighlighted } == true ? "Keep phrase as text / Close" : "Close")
                 Spacer()
                 let triggers = "# project · ! priority · @ due · > scheduled · + tag · ~ estimate · ^ repeat"
                 Text(triggers)
@@ -244,6 +247,8 @@ struct CaptureTextView: NSViewRepresentable {
             if textView.string != text {
                 textView.string = text
                 textView.setSelectedRange(NSRange(location: text.utf16Offset(ofScalar: model.cursor), length: 0))
+                // The new text takes its first character's marks; start it plain.
+                context.coordinator.highlight(textView, nil)
             }
         }
         context.coordinator.highlight(textView, interpretation)
@@ -298,10 +303,13 @@ struct CaptureTextView: NSViewRepresentable {
 
         func highlight(_ textView: NSTextView, _ interpretation: Interpretation?) {
             guard !textView.hasMarkedText(), let storage = textView.textStorage else { return }
+            // While the interpretation for the text just typed is on its way,
+            // the marks stay: they move with the text as it is edited.
+            if let interpretation, interpretation.source != textView.string { return }
             let base: [NSAttributedString.Key: Any] = [.font: CaptureTextView.font, .foregroundColor: NSColor(Theme.text)]
             storage.beginEditing()
             storage.setAttributes(base, range: NSRange(location: 0, length: storage.length))
-            if let interpretation, interpretation.source == textView.string {
+            if let interpretation {
                 for candidate in interpretation.candidates where candidate.isHighlighted {
                     let range = textView.string.nsRange(ofScalars: candidate.start, candidate.end)
                     let flagged = candidate.blocking || candidate.conflict
