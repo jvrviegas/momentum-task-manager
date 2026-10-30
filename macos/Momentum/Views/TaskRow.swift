@@ -26,6 +26,13 @@ struct TaskRow: View {
                     if !task.annotations.isEmpty {
                         Image(systemName: "note.text").foregroundStyle(tone(Theme.text3)).help("\(task.annotations.count) note(s)")
                     }
+                    let blockers = task.isPending ? store.dependencies.blockers(of: task) : []
+                    if !blockers.isEmpty {
+                        Image(systemName: "hourglass")
+                            .foregroundStyle(tone(Theme.text3))
+                            .help("Blocked by \(blockers.map { "“\($0.description)”" }.formatted(.list(type: .and)))")
+                            .accessibilityLabel("Blocked")
+                    }
                 }
                 subline
             }
