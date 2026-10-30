@@ -977,12 +977,18 @@ Status: done
 
 ### S-069 See which tasks are blocked
 As the user, I see in Today and Inbox which tasks wait on an unfinished task, and in the inspector which tasks wait on this one.
-Screens: today.png, inbox.png, inspector-depends.png
+Screens: inbox.png, inspector-blocks.png
 Depends: S-067
 Acceptance:
-- [unit] Swift: a task is blocked while any task it depends on is pending; a dependency that is completed, deleted or not loaded doesn't block it.
-- [snap] `today`: a blocked row shows a symbol, with hover text naming what it waits on; the symbol goes once that task is completed. The order is the server's, whose urgency already counts blocked and blocking tasks (`core/domain/urgency.go`).
-- [snap] `inspector-depends`: a section lists the pending tasks that wait on this one, each selecting its task when clicked.
+- [unit] Swift: a task is blocked while any task it depends on is pending; a dependency that is completed, deleted or not loaded doesn't block it, so the symbol goes once that task is completed.
+- [snap] `inbox`: a blocked row shows an hourglass, with hover text naming what it waits on. The seed's only blocked task is in Inbox. The order is the server's, whose urgency already counts blocked and blocking tasks (`core/domain/urgency.go`).
+- [snap] `inspector-blocks`: Blocks lists the pending tasks that wait on the selected one, each selecting its task when clicked.
+UX:
+- Flow: nothing to do: Today and Inbox show an hourglass on each blocked row, and hovering it names what the task waits on -> select the task it waits on, and its inspector lists the blocked task under Blocks -> click to select it. Completing the dependency takes the hourglass away at the load that follows.
+- Surface: a symbol in the row, beside the repeat and note symbols (information on screen, not an action), and a section of the inspector (the inspector row of the surface table: details of the selection).
+- States: blocked by one task: "Blocked by “…”"; by several: "Blocked by “…” and “…”". A completed, deleted or unloaded dependency blocks nothing, and neither does a waiting one, which the load leaves out (plan C11). Blocks shows only when a pending task waits on this one.
+- Words: the `hourglass` symbol; hover help "Blocked by “<description>”"; section "Blocks". Blocked and Blocks are the glossary's words; waiting is not, since a waiting task is one with a wait date.
+- Access: the symbol reads "Blocked" with the row; its meaning is a symbol and words, never color alone.
 Status: todo
 
 ### S-070 Duplicate a task
