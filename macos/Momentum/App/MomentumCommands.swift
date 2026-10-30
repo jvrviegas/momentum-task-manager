@@ -58,6 +58,11 @@ struct MomentumCommands: Commands {
             Button("Edit…") { if let task = actionable { store.editing = EditRequest(task: task, focus: .description) } }
                 .keyboardShortcut("e")
                 .disabled(actionable == nil)
+            Button("Add Note") {
+                store.showInspector = true
+                store.noteDraft.focusRequested = true
+            }
+            .disabled(actionable == nil)
             Button("Stop Repeating…") { store.pendingStopRecurrence = actionable }
                 .disabled(actionable?.recurrenceTarget == nil)
             Button("Delete…") { store.pendingDelete = actionable }
