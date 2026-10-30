@@ -48,7 +48,9 @@ To see the app, `tools/snap.sh` builds the Debug app and saves a window image of
 - **Views:** Today (Overdue, Due Today, Scheduled Today, Planned Today), Inbox grouped by project, and Completed for the last 30 days. Startup opens Today when it has work, otherwise Inbox.
 - **Capture (⌘N or `c`):** natural language and `# ! @ > + ~ ^` triggers are highlighted live by the Go interpreter, with suggestions (↑ ↓, ⇥). Return adds the task; ambiguous input opens a correction review whose rules come from `internal/quickadd`.
 - **Edit (`e E p ! D S t R` or ⌘E):** only changed fields are sent, validated by the bridge with the TUI editor's rules.
-- **Actions:** complete (Space, ⌘↩), start/stop (`s`, ⌘T), delete (`d`), stop repeating (`x`), refresh (`r`), search (`/`, ⌘F, `project:name`, `project:none`).
+- **Actions:** complete (Space, ⌘↩), start/stop (`s`, ⌘T), duplicate (⌘D or the context menu), delete (`d`), stop repeating (`x`), refresh (`r`), search (`/`, ⌘F, `project:name`, `project:none`). A copy has the task's description, project, priority, dates, estimate and tags, but not its notes, dependencies, plan or repeat, and is selected once the list shows it.
+- **Notes (`a` or Task ▸ Add Note):** the inspector's Notes field adds a note to a pending task, with the time the server gives it; each note's × or **Remove Note** takes it off. Notes are added and removed, never edited, and a completed task's are read-only. The terminal app shows them too.
+- **Dependencies (Task ▸ Add Dependency…):** under the inspector's Depends on, **Add Dependency…** opens a sheet that searches the pending tasks this one may wait on, never itself or one that waits on it; each entry's × takes it off. A task waiting on a pending one is blocked: its row shows an hourglass, and the inspector of the task it waits on lists it under Blocks. The server refuses a dependency that would close a loop.
 - **Undo:** a change can be undone for `[sync].mutation_delay` (15 seconds by default) after it, unless the task changed since. The toast counts it down.
 - **Plan Today (`P`, ⇧⌘P, the toolbar's Plan, or the sidebar's Today's plan box):** tick the day's tasks against a capacity column, with the TUI's rules. Obligations (overdue, due or scheduled today) are fixed; tasks planned on an earlier day and still open roll over ticked; everything else is a candidate. The column takes obligations, calendar time and the buffer off the day's capacity, counts tasks without an estimate apart, and warns, but never blocks, when the choice goes over. Confirming writes only `momentum-plan-YYYY-MM-DD` tags, never dates, and offers no undo: reopen Plan Today to change the plan. When a change fails partway, the sheet stays open with its ticks, and confirming again finishes without applying anything twice. The sidebar box counts the tasks planned for today outside the obligations. `[planning] enabled = false` hides Plan Today.
   - In the sheet: ↑ ↓ or `j` `k` move over the rows you can tick, Space ticks, `g` `G` go to the first or last, `/` or ⌘F filter the candidates, ↩ confirms (in the filter, it returns to the list), and Esc cancels (in the filter, it clears the filter first).
@@ -99,9 +101,9 @@ From the deferred backlog in [`tui/IMPLEMENTATION_PLAN.md`](../tui/IMPLEMENTATIO
 |---|---|---|---|
 | Custom smart views and filters | Saved views beyond Inbox, Today, and Completed | No | No |
 | Configurable keybindings | Change the shortcuts, with checks for clashing keys | No | No |
-| Annotation and dependency editing | Change a task's annotations and dependencies | No | No |
+| Annotation and dependency editing | Change a task's annotations and dependencies | No | Yes: add and remove (M9) |
 | Bulk selection and operations | Select several tasks and act on them at once | No | No |
-| Task duplication | Copy a task into a new one | No | No |
+| Task duplication | Copy a task into a new one | No | Yes (M9) |
 | Desktop notifications/background agent | Notifications, and a helper that runs while Momentum is closed | No | No |
 | Homebrew tap | Install with `brew` | No | No |
 | Native Windows support | Run on Windows | No | — |
