@@ -22,6 +22,12 @@ protocol TaskBridge: Sendable {
     func captureReview(_ submission: ReviewSubmission) async throws
     func captureExplicit(_ input: String) async throws
     func modify(uuid: String, before: EditFields, after: EditFields) async throws -> Bool
+    func addNote(uuid: String, text: String) async throws
+    func removeNote(uuid: String, note: Annotation) async throws
+    func addDependency(uuid: String, on: String) async throws
+    func removeDependency(uuid: String, on: String) async throws
+    /// Adds a copy of the pending task uuid and answers the copy's UUID.
+    func duplicate(uuid: String) async throws -> String
     func perform(_ action: TaskAction, uuid: String) async throws
     func undo() async throws
     // Plan Today.
@@ -108,6 +114,28 @@ actor ProcessBridge: TaskBridge {
     func modify(uuid: String, before: EditFields, after: EditFields) async throws -> Bool {
         let result: Changed = try await call("modify", ModifyParams(uuid: uuid, before: before, after: after))
         return result.changed
+    }
+
+    func addNote(uuid: String, text: String) async throws {
+        let _: Empty = try await call("addNote", NoteParams(uuid: uuid, text: text, entry: nil))
+    }
+
+    /// The note is found by the time and words load sent.
+    func removeNote(uuid: String, note: Annotation) async throws {
+        let _: Empty = try await call("removeNote", NoteParams(uuid: uuid, text: note.description, entry: note.entry))
+    }
+
+    func addDependency(uuid: String, on: String) async throws {
+        let _: Empty = try await call("addDependency", DependencyParams(uuid: uuid, on: on))
+    }
+
+    func removeDependency(uuid: String, on: String) async throws {
+        let _: Empty = try await call("removeDependency", DependencyParams(uuid: uuid, on: on))
+    }
+
+    func duplicate(uuid: String) async throws -> String {
+        let result: Duplicated = try await call("duplicate", UUIDParams(uuid: uuid))
+        return result.uuid
     }
 
     func perform(_ action: TaskAction, uuid: String) async throws {
@@ -259,7 +287,10 @@ private struct Reply<Result: Decodable>: Decodable {
 
 private struct Empty: Codable, Sendable {}
 struct Changed: Decodable, Sendable { var changed: Bool }
+struct Duplicated: Decodable, Sendable { var uuid: String }
 private struct UUIDParams: Encodable, Sendable { var uuid: String }
+private struct NoteParams: Encodable, Sendable { var uuid: String; var text: String; var entry: Date? }
+private struct DependencyParams: Encodable, Sendable { var uuid: String; var on: String }
 private struct TokenParams: Encodable, Sendable { var token: String }
 private struct CalendarParams: Encodable, Sendable { var calendar: CalendarInput? }
 private struct PollParams: Encodable, Sendable { var deviceCode: String }
