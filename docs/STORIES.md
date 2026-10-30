@@ -898,27 +898,41 @@ The plan's decisions D1–D5 were approved on 2026-10-29, each as recommended; t
 
 ### S-065 Add a note to a task
 As the user, I select a pending task and add a note, such as "Asked Ana for the quote", and it shows under Notes with the time I added it.
-Screens: inspector.png, inspector-add-note.png
+Screens: inspector.png, inspector-add-note.png, inspector-note-error.png, completed.png
 Depends: S-010
 Decisions: D1, D3
 Acceptance:
 - [unit] Go (server): a change that adds a note stores it after the task's notes, with the server's time; an empty note is refused on its field and changes nothing; a task that isn't pending refuses it; the change is one `task_events` row, so Undo removes the note.
 - [unit] Go (bridge): the op reaches the server for that task and answers `{}`, as `complete` does; a refused note comes back on its own field (plan C10).
 - [unit] Swift: adding sends the note for the selected task, loads again and opens the undo window with a toast naming the task; a refused note stays in its field with the server's reason.
-- [snap] `inspector-add-note`: the Notes section of a pending task that has a note, with the way to add another. A completed task offers none, since Completed is read-only.
-- [snap] `inspector`: a task without notes says "No notes.", not "No annotations.", as the row's hover text already says "note".
+- [snap] `inspector`: a pending task's note, then the empty field "Add a note".
+- [snap] `inspector-add-note`: a note being written in the focused field, with **Add**.
+- [snap] `inspector-note-error`: a note the server refused keeps its words, with the reason under the field.
+- [snap] `completed`: a completed task's inspector has no field and says "No notes.", not "No annotations.", as the row's hover text already says "note".
 - [manual] A note added on the Mac shows in the terminal app's details after its next refresh.
-Status: todo
+UX:
+- Flow: select a pending task -> the inspector's Notes field, `a` in the list, or Task ▸ Add Note -> the field "Add a note" has the focus (the inspector opens if it was hidden) -> type -> Return or **Add** -> the note shows last with its time, the field empties and keeps the focus for another, and the toast says "Added a note to “…”" with Undo -> Escape takes the focus back to the list. Way back: Escape leaves the draft; Undo (⌘Z, `u` or the toast) removes the note.
+- Surface: inline, a field at the end of the inspector's Notes section (the first row of the surface table: it changes one value of the task already on screen). Not a sheet: a note is one line, typed while the task stays in view.
+- States: pending with notes: the notes, oldest first, each with its time, then the field. Pending without notes: the field alone, whose placeholder says what it is for. Completed: no field, and "No notes." when it has none, since Completed is read-only. Writing: **Add** works once the note has more than spaces. Saving: the field and **Add** wait. Refused: the field keeps the words and shows the reason under it with a warning symbol, such as "cannot reach the Momentum server: …". Long: a note wraps in its card; the field grows to four lines, then scrolls. Choosing another task starts a new draft.
+- Words: section "Notes"; placeholder "Add a note"; button "Add"; Task menu "Add Note" (no ellipsis: it moves the focus to a field, as Finder's Rename does); Keyboard Shortcuts row `a` "Add note"; toast "Added a note to “<description>”"; empty "No notes.". Note is the glossary's word; annotation is not.
+- Access: `a` from the list, Return adds, Escape returns to the list. The field reads "New note" and **Add** "Add note"; each note reads as its words, then its time; the warning is a symbol and words, never color alone.
+Status: doing
 
 ### S-066 Remove a note from a task
 As the user, I remove a note that no longer matters, and Undo brings it back.
-Screens: inspector-add-note.png
+Screens: inspector.png
 Depends: S-065
 Decisions: D3
 Acceptance:
 - [unit] Go (server): the change names the note by its time and words and removes that note only; when the task no longer has it, as when another device removed it first, the change is refused as a conflict; Undo puts it back in its place with its time.
 - [unit] Swift: removing sends the note's time and words, loads again and opens the undo window; Undo restores the note.
-- [snap] `inspector-add-note`: each note of a pending task offers Remove.
+- [snap] `inspector`: each note of a pending task has a remove button in its corner; a completed task's notes have none (`completed`).
+UX:
+- Flow: the remove button (×) in a note's corner, or **Remove Note** in the note's context menu -> the note goes at once, and the toast says "Removed a note from “…”" with Undo. Way back: Undo (⌘Z, `u` or the toast) puts the note back in its place with its time.
+- Surface: an inline button on the note (the first row of the surface table). No confirmation: Undo takes it back, and a note is a line, not a task. The button stays visible, quietly, so the keyboard and a snapshot can reach it.
+- States: completed task: no button. Another device removed it first: the toast gives the server's reason, "the task has no such note", and the next refresh shows the notes as they are.
+- Words: the button is the `xmark` symbol with hover help "Remove this note"; context menu "Remove Note"; toast "Removed a note from “<description>”". Remove, not Delete, which the glossary keeps for tasks.
+- Access: the button reads "Remove note" and is reached with Tab when Keyboard navigation is on; VoiceOver offers "Remove Note" as an action on the note.
 Status: todo
 
 ### S-067 Make a task wait on another
