@@ -28,6 +28,7 @@ Plain, direct, brief. Say "you" to the person, never "the user". Say "click", ne
 | Dependency | A task that this one waits on, listed under **Depends on** in the inspector: added with **Add Dependency…**, removed with its ×. While it is pending, this task is blocked | prerequisite, blocker, parent, link |
 | Blocked | A pending task with a dependency that is still pending; its row shows an hourglass, whose hover help names what it waits on | waiting (a task with a wait date), on hold, stuck |
 | Blocks | The inspector's list of the pending tasks that wait on the selected one | Blocking, Dependents, Required by |
+| Duplicate | Add a copy of a pending task, with its description, project, priority, dates, estimate and tags, but not its notes, dependencies, plan or repeat (⌘D, the context menu or Task ▸ Duplicate) | Copy, Clone, Make a copy |
 | Refresh | Load the tasks again from the server | reload, sync, update |
 | Undo | Take back the last change, for as long as the toolbar shows "Saved · undo" and a countdown | revert, restore |
 | Online | The toolbar's word when the server answered and nothing is waiting | Connected, Synced |
