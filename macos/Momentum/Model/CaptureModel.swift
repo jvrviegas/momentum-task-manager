@@ -89,8 +89,10 @@ final class CaptureModel {
     }
 
     /// Keeps a recognized phrase as description text, or removes an explicit
-    /// trigger token from the input.
+    /// trigger token from the input. A chip still showing for older text
+    /// does nothing: its offsets no longer match the input.
     func keepAsText(_ candidate: Candidate) {
+        guard currentInterpretation?.candidates.contains(candidate) == true else { return }
         if candidate.isInferred {
             literals.append(TextSpan(start: candidate.start, end: candidate.end))
             reinterpret()
