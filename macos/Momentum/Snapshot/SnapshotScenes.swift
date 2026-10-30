@@ -128,6 +128,23 @@ struct SnapshotScene {
             SnapshotScene(name: "inbox-empty", config: empty, run: { $0.store.view = .inbox }),
             SnapshotScene(name: "completed-empty", config: empty, run: { $0.store.view = .completed }),
             SnapshotScene(name: "inspector", run: { $0.store.selection = $0.task("Send Q3 invoice").uuid }),
+            SnapshotScene(name: "inspector-add-note", run: { session in
+                let invoice = session.task("Send Q3 invoice")
+                session.store.selection = invoice.uuid
+                session.store.noteDraft.write("Asked Ana in finance; the PO arrives on Monday", for: invoice)
+                session.store.noteDraft.focusRequested = true
+            }),
+            SnapshotScene(
+                name: "inspector-note-error",
+                config: { var c = SnapshotBridge.Config(); c.noteFailure = BridgeError(message: "cannot reach the Momentum server: connection refused", code: "unreachable"); return c }(),
+                run: { session in
+                    let invoice = session.task("Send Q3 invoice")
+                    session.store.selection = invoice.uuid
+                    session.store.noteDraft.write("Asked Ana in finance; the PO arrives on Monday", for: invoice)
+                    // Return was pressed in the field, which keeps the focus.
+                    session.store.noteDraft.focusRequested = true
+                    await session.store.noteDraft.add(to: invoice, in: session.store)
+                }),
             SnapshotScene(name: "search", run: { $0.store.view = .inbox; $0.store.query = "client" }),
 
             // Changes, and what a person is asked on the way.
