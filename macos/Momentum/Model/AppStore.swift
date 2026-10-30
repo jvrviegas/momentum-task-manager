@@ -94,6 +94,8 @@ final class AppStore {
     var pendingStopRecurrence: TaskItem?
     /// The Plan Today sheet; nil while it is closed.
     var planSheet: PlanSheet?
+    /// The Add Dependency sheet; nil while it is closed.
+    var dependencyPicker: DependencyPicker?
     private(set) var toast: Toast?
     /// How long the latest change can be undone (backend plan D7).
     private(set) var undoWindow = UndoWindow(delay: 0)
@@ -135,7 +137,7 @@ final class AppStore {
     var projects: [ProjectEntry] { snapshot?.projects ?? [] }
     var hasOverlay: Bool {
         showCapture || showShortcuts || editing != nil || pendingDelete != nil || pendingStopRecurrence != nil || signInModel.flow != nil
-            || planSheet != nil
+            || planSheet != nil || dependencyPicker != nil
     }
     var overdueCount: Int { snapshot?.today.first { $0.title == "Overdue" }?.uuids.count ?? 0 }
     /// Whether Plan Today is offered: [planning] enabled, as the TUI's
@@ -377,6 +379,13 @@ final class AppStore {
         await mutate("“\(task.description)” now depends on “\(dependency.description)”") {
             try await bridge.addDependency(uuid: task.uuid, on: dependency.uuid)
         }
+    }
+
+    /// Closes the Add Dependency sheet and adds the task it has chosen.
+    func addChosenDependency() async {
+        guard let picker = dependencyPicker, let chosen = picker.chosen(in: dependencies) else { return }
+        dependencyPicker = nil
+        await addDependency(picker.task, on: chosen)
     }
 
     /// Takes a UUID, since the task it names may no longer be loaded.
