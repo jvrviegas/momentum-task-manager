@@ -972,7 +972,8 @@ UX:
 - States: a completed task: no button. An entry shown only by its UUID, because that task is no longer loaded: it has the button too, since a dependency on a task long gone is the one most worth removing. Another device removed it first: the toast gives the reason, "the task does not depend on that task".
 - Words: the `xmark` symbol with hover help "Remove this dependency"; context menu "Remove Dependency"; toast "Removed a dependency from “<description>”".
 - Access: the button reads "Remove dependency"; VoiceOver offers "Remove Dependency" as an action on the entry.
-Status: todo
+- Built: `inspector-depends` was read in light and dark: the × sits at the end of the entry's first line, as a note's does. The context menu and the VoiceOver action were not tried by hand, nor an entry shown by its UUID, which no page has.
+Status: done
 
 ### S-069 See which tasks are blocked
 As the user, I see in Today and Inbox which tasks wait on an unfinished task, and in the inspector which tasks wait on this one.
