@@ -138,6 +138,7 @@ struct SnapshotScene {
                 session.store.view = .inbox
                 session.store.selection = session.task("Migrate the staging database").uuid
             }),
+            SnapshotScene(name: "inspector-blocks", run: { $0.store.selection = $0.task("Renew the TLS certificate").uuid }),
             SnapshotScene(name: "depends-picker", run: { session in
                 let invoice = session.task("Send Q3 invoice")
                 session.store.selection = invoice.uuid
