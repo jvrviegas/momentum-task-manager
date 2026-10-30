@@ -53,8 +53,11 @@ actor FakeBridge: TaskBridge {
         }
         return snapshots.count > 1 ? snapshots.removeFirst() : snapshots[0]
     }
+    /// Recognized in every input, whatever the text.
+    var candidates: [Candidate] = []
+    func setCandidates(_ candidates: [Candidate]) { self.candidates = candidates }
     func interpret(_ input: String, literals: [TextSpan]) async throws -> Interpretation {
-        Interpretation(token: nil, source: input, valid: true, requiresReview: false, description: input, candidates: [], diagnostics: [], reviewValues: [])
+        Interpretation(token: nil, source: input, valid: true, requiresReview: false, description: input, candidates: candidates, diagnostics: [], reviewValues: [])
     }
     func suggest(_ input: String, cursor: Int) async throws -> SuggestResult { .none }
     func capture(_ input: String, literals: [TextSpan]) async throws -> CaptureResult {
