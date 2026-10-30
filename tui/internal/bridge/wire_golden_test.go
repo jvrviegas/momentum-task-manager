@@ -153,6 +153,7 @@ func TestWireTasksAndCapture(t *testing.T) {
 		Before: editFields{Description: "Send invoice"},
 		After:  editFields{Description: "Send the invoice"},
 	})
+	wireAnswer(t, server, "duplicate", "duplicate", uuidParams{UUID: wireTask().UUID})
 }
 
 func TestWirePlanAndGoogleCalendar(t *testing.T) {
