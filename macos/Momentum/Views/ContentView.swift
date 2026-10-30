@@ -1,9 +1,10 @@
 import SwiftUI
 
 /// The pane with keyboard focus. The single-key shortcuts live on the sidebar
-/// and the task list, so leaving search hands focus back to the list.
+/// and the task list, so leaving search or the inspector's note field hands
+/// focus back to the list.
 enum FocusedPane: Hashable {
-    case sidebar, list, search
+    case sidebar, list, search, note
 }
 
 struct ContentView: View {
@@ -19,7 +20,7 @@ struct ContentView: View {
         } detail: {
             TaskListView(focus: $focus)
                 .inspector(isPresented: $store.showInspector) {
-                    InspectorView()
+                    InspectorView(focus: $focus)
                         .inspectorColumnWidth(min: 260, ideal: 340, max: 440)
                 }
         }
