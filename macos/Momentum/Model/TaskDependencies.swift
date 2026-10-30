@@ -41,3 +41,26 @@ struct TaskDependencies {
         return false
     }
 }
+
+/// The Add Dependency sheet (S-067): the task that will wait, the search, and
+/// the candidate chosen with the pointer or ↑ ↓.
+struct DependencyPicker: Identifiable {
+    var task: TaskItem
+    var query = ""
+    /// The chosen candidate; the first match when nil or no longer matching.
+    var selection: String?
+    var id: String { task.uuid }
+
+    /// The candidates the search matches, in order.
+    func choices(in dependencies: TaskDependencies) -> [TaskItem] {
+        let query = query.trimmingCharacters(in: .whitespaces)
+        let candidates = dependencies.candidates(for: task)
+        return query.isEmpty ? candidates : candidates.filter { TaskSearch.matches($0, query: query) }
+    }
+
+    /// The candidate Return adds.
+    func chosen(in dependencies: TaskDependencies) -> TaskItem? {
+        let choices = choices(in: dependencies)
+        return choices.first { $0.uuid == selection } ?? choices.first
+    }
+}
