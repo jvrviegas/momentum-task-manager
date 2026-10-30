@@ -21,6 +21,8 @@ actor SnapshotBridge: TaskBridge {
         var noteFailure: BridgeError?
         var applyPlanResult = PlanSaveResult(applied: 3, total: 3)
         var captureReview: Interpretation?
+        /// How long the interpreter takes to answer, in milliseconds.
+        var interpretDelay = 0
         var plan: DailyPlan?
         /// Why the newest config.toml was not applied.
         var configError: String?
@@ -206,6 +208,9 @@ actor SnapshotBridge: TaskBridge {
     ]
 
     func interpret(_ input: String, literals: [TextSpan]) async throws -> Interpretation {
+        if config.interpretDelay > 0 {
+            try? await Task.sleep(for: .milliseconds(config.interpretDelay))
+        }
         let scalars = Array(input.unicodeScalars)
         var candidates: [Candidate] = []
         for phrase in Self.phrases {
