@@ -994,13 +994,21 @@ Status: done
 
 ### S-070 Duplicate a task
 As the user, I duplicate a task to start a similar one, and the copy is selected.
-Screens: context-menu.png, menu.png
+Screens: duplicate.png, shortcuts.png, context-menu.png, menu.png
 Depends: S-016
 Decisions: D4, D5
 Acceptance:
 - [unit] Go (bridge): duplicating creates a task with the fields D4 names through the server's create route, and the answer is kept as a wire file; a repeating task's copy doesn't repeat, and a planned task's copy is not in today's plan.
 - [unit] Swift: Duplicate selects the copy and opens the undo window with a toast naming the task; Undo removes the copy.
-- [snap] `context-menu`: Duplicate follows Edit… on a pending task. Task ▸ Duplicate has ⌘D, the Mac's key for it; a bare `d` stays Delete…, as in the terminal app.
+- [snap] `duplicate`: the copy, selected, under its original, with the toast and Undo.
+- [snap] `shortcuts`: ⌘D Duplicate among the App keys.
+- [manual] The context menu offers Duplicate after Edit… on a pending task, and Task ▸ Duplicate has ⌘D, the Mac's key for it; a bare `d` stays Delete…, as in the terminal app. Menus are windows of their own, which the snapshot pages cannot show.
+UX:
+- Flow: select a pending task -> right-click ▸ Duplicate, Task ▸ Duplicate or ⌘D -> the copy appears and is selected, and the toast says "Duplicated “…”" with Undo. When the copy belongs to another view, as a task in Today only because it is planned, whose copy is not, the selection stays where it is and the toast still offers Undo. Way back: Undo (⌘Z, `u` or the toast) removes the copy.
+- Surface: a command, with no window of its own: an item in the context menu and in the Task menu, which acts at once on the selection, as Finder's Duplicate does.
+- States: a completed task offers no Duplicate (D5): its context menu keeps only Show Details, and the menu item is off. The server refuses, as when the task was completed elsewhere: the toast gives the reason, "the task is no longer pending".
+- Words: "Duplicate" (no ellipsis: it asks nothing) with ⌘D; toast "Duplicated “<description>”"; Keyboard Shortcuts row "⌘D Duplicate". The copy keeps the description, without "copy" (D4).
+- Access: ⌘D from the list, and a bare `d` stays Delete…; the menu items read Duplicate.
 Status: todo
 
 ## Later
