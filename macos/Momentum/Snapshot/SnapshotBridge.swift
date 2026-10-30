@@ -239,6 +239,13 @@ actor SnapshotBridge: TaskBridge {
 
     func modify(uuid: String, before: EditFields, after: EditFields) async throws -> Bool { before != after }
 
+    // No page shows what a note, a dependency or a copy changes after it is made.
+    func addNote(uuid: String, text: String) async throws {}
+    func removeNote(uuid: String, note: Annotation) async throws {}
+    func addDependency(uuid: String, on: String) async throws {}
+    func removeDependency(uuid: String, on: String) async throws {}
+    func duplicate(uuid: String) async throws -> String { uuid }
+
     func perform(_ action: TaskAction, uuid: String) async throws {
         switch action {
         case .complete: completed[uuid] = .now
