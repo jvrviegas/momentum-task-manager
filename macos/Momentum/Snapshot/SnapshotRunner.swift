@@ -59,7 +59,7 @@ final class SnapshotHost {
         // asking for the size.
         try? await Task.sleep(for: .seconds(2))
         var failures = 0
-        for check in await checkSettingsEntryPoints() {
+        for check in await checkSettingsEntryPoints() + checkCaptureWhileTyping() {
             print("SNAPSHOT check \(check.passed ? "ok" : "FAIL"): \(check.name)")
             if !check.passed { failures += 1 }
         }
@@ -109,6 +109,33 @@ final class SnapshotHost {
         checks.append(("a click on the sidebar's Settings row opens the window", wasClosed && settingsOpen()))
         SnapshotSession.reset()
         return checks
+    }
+
+    /// Types into Quick Add while the interpreter is slow: until it answers,
+    /// the sheet keeps its height and the text keeps its marks.
+    private func checkCaptureWhileTyping() async -> [(name: String, passed: Bool)] {
+        SnapshotSession.reset()
+        var slow = SnapshotBridge.Config()
+        slow.interpretDelay = 600
+        store = Self.makeStore(SnapshotScene(name: "", config: slow))
+        generation += 1
+        let session = SnapshotSession(store: store, openSettings: openSettings)
+        await store.start()
+        await session.settle()
+        store.showCapture = true
+        await session.settle()
+        // The cursor ends past the project, so no suggestions open or close.
+        await session.type("Prepare proposal #work.client tomorrow at 3pm")
+        await session.settle(600)
+        let before = session.captureLayout()
+        await session.type(" ok", settle: 150)
+        let typing = session.captureLayout()
+        store.showCapture = false
+        await session.settle()
+        return [
+            ("typing in Quick Add keeps the sheet's height", before.height > 0 && typing.height == before.height),
+            ("typing in Quick Add keeps the text's marks", before.marked > 0 && typing.marked == before.marked),
+        ]
     }
 
     private func take(_ scene: SnapshotScene, look: String) async throws {
@@ -262,11 +289,19 @@ final class SnapshotSession {
 
     /// Types into the capture sheet's text field the way a person does, so
     /// the sheet interprets and suggests as it would.
-    func type(_ text: String) async {
+    func type(_ text: String, settle milliseconds: Int = 700) async {
         guard let field = textView(in: window?.attachedSheet?.contentView) else { return }
         window?.attachedSheet?.makeFirstResponder(field)
         field.insertText(text, replacementRange: NSRange(location: NSNotFound, length: 0))
-        await settle()
+        await settle(milliseconds)
+    }
+
+    /// The capture sheet's height, and how many characters of its text are marked.
+    func captureLayout() -> (height: CGFloat, marked: Int) {
+        let sheet = window?.attachedSheet
+        guard let storage = textView(in: sheet?.contentView)?.textStorage else { return (sheet?.frame.height ?? 0, 0) }
+        let marked = (0..<storage.length).filter { storage.attribute(.backgroundColor, at: $0, effectiveRange: nil) != nil }.count
+        return (sheet?.frame.height ?? 0, marked)
     }
 
     /// Types into a text field of the window the image shows and presses
