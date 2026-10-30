@@ -63,6 +63,8 @@ struct MomentumCommands: Commands {
                 store.noteDraft.focusRequested = true
             }
             .disabled(actionable == nil)
+            Button("Add Dependency…") { if let task = actionable { store.dependencyPicker = DependencyPicker(task: task) } }
+                .disabled(actionable == nil)
             Button("Stop Repeating…") { store.pendingStopRecurrence = actionable }
                 .disabled(actionable?.recurrenceTarget == nil)
             Button("Delete…") { store.pendingDelete = actionable }
