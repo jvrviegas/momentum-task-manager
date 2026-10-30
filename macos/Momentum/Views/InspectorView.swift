@@ -2,13 +2,14 @@ import SwiftUI
 
 struct InspectorView: View {
     @Environment(AppStore.self) private var store
+    let focus: FocusState<FocusedPane?>.Binding
 
     var body: some View {
         Group {
             if let task = store.selectedTask {
                 GeometryReader { proxy in
                     ScrollView {
-                        TaskDetails(task: task)
+                        TaskDetails(task: task, focus: focus)
                             .frame(minHeight: proxy.size.height, alignment: .top)
                     }
                 }
@@ -23,6 +24,7 @@ struct InspectorView: View {
 private struct TaskDetails: View {
     @Environment(AppStore.self) private var store
     let task: TaskItem
+    let focus: FocusState<FocusedPane?>.Binding
     @State private var showTechnical = false
 
     var body: some View {
@@ -99,8 +101,8 @@ private struct TaskDetails: View {
                 }
             }
             section("Notes", systemImage: "note.text") {
-                if task.annotations.isEmpty {
-                    Text("No annotations.").font(.system(size: 12)).foregroundStyle(Theme.text3)
+                if task.annotations.isEmpty && !task.isPending {
+                    Text("No notes.").font(.system(size: 12)).foregroundStyle(Theme.text3)
                 }
                 ForEach(Array(task.annotations.enumerated()), id: \.offset) { _, note in
                     VStack(alignment: .leading, spacing: 3) {
@@ -113,6 +115,9 @@ private struct TaskDetails: View {
                     .padding(.vertical, 9)
                     .frame(maxWidth: .infinity, alignment: .leading)
                     .card(radius: 8)
+                }
+                if task.isPending {
+                    NoteField(task: task, focus: focus)
                 }
             }
             Spacer(minLength: 0)
@@ -290,6 +295,47 @@ private struct TaskDetails: View {
         .padding(.vertical, 12)
         .frame(maxWidth: .infinity, alignment: .leading)
         .overlay(alignment: .top) { divider }
+    }
+}
+
+/// The field at the end of a pending task's notes that adds one (S-065).
+/// Return or Add sends it; Escape hands the focus back to the list.
+private struct NoteField: View {
+    @Environment(AppStore.self) private var store
+    let task: TaskItem
+    let focus: FocusState<FocusedPane?>.Binding
+
+    var body: some View {
+        let draft = store.noteDraft
+        VStack(alignment: .leading, spacing: 6) {
+            HStack(alignment: .firstTextBaseline, spacing: 6) {
+                TextField("Add a note", text: Binding(get: { draft.text(for: task) }, set: { draft.write($0, for: task) }), axis: .vertical)
+                    .lineLimit(1...4)
+                    .textFieldStyle(.roundedBorder)
+                    .focused(focus, equals: .note)
+                    .onSubmit(add)
+                    .onExitCommand { focus.wrappedValue = .list }
+                    .accessibilityLabel("New note")
+                Button("Add", action: add)
+                    .disabled(!draft.canAdd(to: task))
+                    .accessibilityLabel("Add note")
+            }
+            if let error = draft.error(for: task) {
+                Label(error, systemImage: "exclamationmark.triangle")
+                    .font(.system(size: 11.5))
+                    .foregroundStyle(Theme.danger)
+                    .textSelection(.enabled)
+            }
+        }
+        .onChange(of: draft.focusRequested, initial: true) { _, requested in
+            guard requested else { return }
+            focus.wrappedValue = .note
+            draft.focusRequested = false
+        }
+    }
+
+    private func add() {
+        Task { await store.noteDraft.add(to: task, in: store) }
     }
 }
 
