@@ -37,6 +37,52 @@ struct TaskDetailsTests {
         #expect(store.undoClosesAt == nil && store.toast == nil)
     }
 
+    @Test func theDraftIsSentTrimmedAndEmptiesOnceAdded() async {
+        let a = TaskItem.fixture("a")
+        let (store, bridge) = await started(snapshot(inbox: [a]))
+        store.noteDraft.write("  Asked Ana  ", for: a)
+        await store.noteDraft.add(to: a, in: store)
+        #expect(await bridge.calls.suffix(2) == ["addNote a Asked Ana", "load"])
+        #expect(store.noteDraft.text(for: a).isEmpty && store.noteDraft.error(for: a) == nil)
+    }
+
+    @Test func aRefusedDraftKeepsItsWordsAndSaysWhy() async {
+        let a = TaskItem.fixture("a")
+        let (store, bridge) = await started(snapshot(inbox: [a]))
+        await bridge.setFailure(BridgeError(message: "cannot reach the Momentum server: connection refused", code: "unreachable"))
+        store.noteDraft.write("Asked Ana", for: a)
+        await store.noteDraft.add(to: a, in: store)
+        #expect(store.noteDraft.text(for: a) == "Asked Ana")
+        #expect(store.noteDraft.error(for: a) == "cannot reach the Momentum server: connection refused")
+        // Typing again clears the reason.
+        store.noteDraft.write("Asked Ana again", for: a)
+        #expect(store.noteDraft.error(for: a) == nil)
+    }
+
+    @Test func aDraftBelongsToOneTaskAndNeedsWords() async {
+        let a = TaskItem.fixture("a"), b = TaskItem.fixture("b")
+        let (store, bridge) = await started(snapshot(inbox: [a, b]))
+        store.noteDraft.write("For a", for: a)
+        #expect(store.noteDraft.text(for: b).isEmpty && !store.noteDraft.canAdd(to: b))
+        store.noteDraft.write(" \n ", for: a)
+        #expect(!store.noteDraft.canAdd(to: a))
+        await store.noteDraft.add(to: a, in: store)
+        #expect(await !bridge.calls.contains { $0.hasPrefix("addNote") })
+    }
+
+    @Test func aMovesTheFocusToTheNoteFieldOfAPendingTask() async {
+        let a = TaskItem.fixture("a")
+        let (store, _) = await started(snapshot(inbox: [a]))
+        store.showInspector = false
+        _ = TaskKeyCommands.handle(key: "a", characters: "a", modifiers: [], store: store, focusSearch: {})
+        #expect(store.showInspector && store.noteDraft.focusRequested)
+
+        store.noteDraft.focusRequested = false
+        store.view = .completed
+        _ = TaskKeyCommands.handle(key: "a", characters: "a", modifiers: [], store: store, focusSearch: {})
+        #expect(!store.noteDraft.focusRequested && store.toast?.message == "Completed tasks are read-only")
+    }
+
     @Test func removingANoteSendsItsWordsAndOffersUndo() async {
         var a = TaskItem.fixture("a")
         let note = Annotation(description: "Asked Ana", entry: Date(timeIntervalSince1970: 1_792_000_000))
