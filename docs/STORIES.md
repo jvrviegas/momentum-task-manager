@@ -946,8 +946,14 @@ Acceptance:
 - [unit] Go (server): a change adds a dependency on another task of the same account; the task itself, an unknown or deleted task, another account's task and a loop are each refused on the field with a reason, and nothing changes; the change is one `task_events` row, so Undo removes it.
 - [unit] Go (bridge): the op, as in S-065.
 - [unit] Swift: the picker offers pending tasks by description, with search, and never the task itself or one that would close a loop; choosing one sends it, loads again and opens the undo window.
-- [snap] `depends-picker`: the picker over the main window, narrowed by a search.
-- [snap] `inspector-depends`: Depends on lists the task by its description, which selects it when clicked, as it does today. The snapshot seed's task that waits on another, which this story lets anyone make, shows it.
+- [snap] `depends-picker`: the picker over the main window, narrowed by a search, with the first match chosen.
+- [snap] `inspector-depends`: Depends on lists the task by its description, which selects it when clicked, as it does today, and offers **Add Dependency…**. The snapshot seed's task that waits on another, which this story lets anyone make, shows it.
+UX:
+- Flow: select a pending task -> **Add Dependency…** under the inspector's Depends on, or Task ▸ Add Dependency… -> the Add Dependency sheet, its search field focused, the first task chosen -> type to narrow, ↑ ↓ to choose -> Return or **Add** -> the sheet closes, Depends on lists the task, and the toast says "“…” now depends on “…”" with Undo. Way back: Escape or **Cancel** closes the sheet and changes nothing; Undo (⌘Z, `u` or the toast) removes the dependency.
+- Surface: a sheet (the sheet row of the surface table: one short task that ends with a choice or a cancel). Not a popover: the choice is among every pending task, with search, which is more than a few choices, and a snapshot can show a sheet. Not a field in the Edit sheet, which edits the eight fields the terminal app edits too (D1).
+- States: candidates: pending tasks in the order the load gives them, each with its project, never the task itself, one it already depends on, or one that waits on it, directly or through others. No candidates: "No Tasks to Choose" with "Only pending tasks can be chosen, and not one that waits on this task." No match: "No Results for “…”". Long descriptions truncate with the whole description as hover help. Refused by the server, as when another device made a loop first: the toast gives the reason and nothing changes.
+- Words: section "Depends on"; button and Task menu item "Add Dependency…" (an ellipsis: the sheet asks which task); sheet title "Add Dependency"; message "“<description>” will wait on the task you choose."; search placeholder "Search tasks"; buttons "Cancel" and "Add"; toast "“<description>” now depends on “<dependency>”". Dependency is the glossary's word; prerequisite, blocker and link are not.
+- Access: the whole flow works from the keyboard: the Task menu, then typing, ↑ ↓, Return and Escape in the sheet. Each row reads as its description, then its project; the chosen row is the list's selection, so VoiceOver says it is selected.
 Status: todo
 
 ### S-068 Stop a task waiting on another
@@ -958,7 +964,13 @@ Decisions: D2
 Acceptance:
 - [unit] Go (server): removing a dependency the task doesn't have is refused as a conflict; Undo puts the dependency back.
 - [unit] Swift: removing sends it, loads again and opens the undo window. An entry the inspector shows only by its UUID, because that task is no longer loaded, can be removed too.
-- [snap] `inspector-depends`: each entry under Depends on offers Remove.
+- [snap] `inspector-depends`: each entry under Depends on has a remove button, as each note has.
+UX:
+- Flow: the remove button (×) at the end of an entry under Depends on, or **Remove Dependency** in the entry's context menu -> the entry goes at once, and the toast says "Removed a dependency from “…”" with Undo. Way back: Undo (⌘Z, `u` or the toast) puts it back.
+- Surface: an inline button on the entry (the first row of the surface table), like a note's. No confirmation: Undo takes it back.
+- States: a completed task: no button. An entry shown only by its UUID, because that task is no longer loaded: it has the button too, since a dependency on a task long gone is the one most worth removing. Another device removed it first: the toast gives the reason, "the task does not depend on that task".
+- Words: the `xmark` symbol with hover help "Remove this dependency"; context menu "Remove Dependency"; toast "Removed a dependency from “<description>”".
+- Access: the button reads "Remove dependency"; VoiceOver offers "Remove Dependency" as an action on the entry.
 Status: todo
 
 ### S-069 See which tasks are blocked
