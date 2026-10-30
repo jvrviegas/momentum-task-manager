@@ -909,14 +909,15 @@ Acceptance:
 - [snap] `inspector-add-note`: a note being written in the focused field, with **Add**.
 - [snap] `inspector-note-error`: a note the server refused keeps its words, with the reason under the field.
 - [snap] `completed`: a completed task's inspector has no field and says "No notes.", not "No annotations.", as the row's hover text already says "note".
-- [manual] A note added on the Mac shows in the terminal app's details after its next refresh.
+- [manual] A note added on the Mac shows in the terminal app's details after its next refresh. Not tried yet: it needs the server with this change running and both apps signed in.
 UX:
 - Flow: select a pending task -> the inspector's Notes field, `a` in the list, or Task ▸ Add Note -> the field "Add a note" has the focus (the inspector opens if it was hidden) -> type -> Return or **Add** -> the note shows last with its time, the field empties and keeps the focus for another, and the toast says "Added a note to “…”" with Undo -> Escape takes the focus back to the list. Way back: Escape leaves the draft; Undo (⌘Z, `u` or the toast) removes the note.
 - Surface: inline, a field at the end of the inspector's Notes section (the first row of the surface table: it changes one value of the task already on screen). Not a sheet: a note is one line, typed while the task stays in view.
 - States: pending with notes: the notes, oldest first, each with its time, then the field. Pending without notes: the field alone, whose placeholder says what it is for. Completed: no field, and "No notes." when it has none, since Completed is read-only. Writing: **Add** works once the note has more than spaces. Saving: the field and **Add** wait. Refused: the field keeps the words and shows the reason under it with a warning symbol, such as "cannot reach the Momentum server: …". Long: a note wraps in its card; the field grows to four lines, then scrolls. Choosing another task starts a new draft.
 - Words: section "Notes"; placeholder "Add a note"; button "Add"; Task menu "Add Note" (no ellipsis: it moves the focus to a field, as Finder's Rename does); Keyboard Shortcuts row `a` "Add note"; toast "Added a note to “<description>”"; empty "No notes.". Note is the glossary's word; annotation is not.
 - Access: `a` from the list, Return adds, Escape returns to the list. The field reads "New note" and **Add** "Add note"; each note reads as its words, then its time; the warning is a symbol and words, never color alone.
-Status: doing
+- Built: the four pages were read in light and dark and match this block. The draft lives in `NoteDraft`, which the store owns, so `a`, Task ▸ Add Note and the pages reach it; it belongs to one task, so another selection shows an empty field. The refused page keeps the focus in the field, as after Return. Not tried by hand: Return in the field, which wraps to more lines (SwiftUI's vertical text field sends Return on macOS; Option-Return would start a new line).
+Status: done
 
 ### S-066 Remove a note from a task
 As the user, I remove a note that no longer matters, and Undo brings it back.
