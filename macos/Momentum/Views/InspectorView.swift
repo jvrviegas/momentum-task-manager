@@ -93,12 +93,7 @@ private struct TaskDetails: View {
                     ForEach(task.depends, id: \.self) { uuid in
                         HStack(alignment: .firstTextBaseline, spacing: 6) {
                             if let dependency = store.tasksByUUID[uuid] {
-                                // The link style centres a description that wraps.
-                                Button { store.selection = uuid } label: {
-                                    Text(dependency.description).foregroundStyle(.link).multilineTextAlignment(.leading)
-                                }
-                                .buttonStyle(.plain)
-                                .pointerStyle(.link)
+                                link(to: dependency)
                             } else {
                                 Text(uuid).font(.system(size: 11.5, design: .monospaced)).foregroundStyle(Theme.text3)
                             }
@@ -123,6 +118,14 @@ private struct TaskDetails: View {
                     if task.isPending {
                         Button("Add Dependency…") { store.dependencyPicker = DependencyPicker(task: task) }
                             .controlSize(.small)
+                    }
+                }
+            }
+            let dependents = store.dependencies.dependents(of: task)
+            if !dependents.isEmpty {
+                section("Blocks", systemImage: "hourglass") {
+                    ForEach(dependents) { dependent in
+                        link(to: dependent)
                     }
                 }
             }
@@ -303,6 +306,16 @@ private struct TaskDetails: View {
 
     private func remove(_ note: Annotation) {
         Task { await store.removeNote(note, from: task) }
+    }
+
+    /// Selects other when clicked. The link button style would centre a
+    /// description that wraps.
+    private func link(to other: TaskItem) -> some View {
+        Button { store.selection = other.uuid } label: {
+            Text(other.description).foregroundStyle(.link).multilineTextAlignment(.leading)
+        }
+        .buttonStyle(.plain)
+        .pointerStyle(.link)
     }
 
     private func removeDependency(_ uuid: String) {
