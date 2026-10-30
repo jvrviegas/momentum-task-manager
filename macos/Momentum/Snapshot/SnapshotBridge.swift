@@ -87,6 +87,8 @@ actor SnapshotBridge: TaskBridge {
     private var deleted: Set<String> = []
     private var started: Set<String> = []
     private var stopped: Set<String> = []
+    /// The copies made since, each with its original, in the order made.
+    private var copies: [(uuid: String, original: String)] = []
 
     init(_ config: Config) {
         self.config = config
@@ -114,16 +116,30 @@ actor SnapshotBridge: TaskBridge {
     }
 
     /// The seed with the changes made since: completed and deleted tasks move
-    /// or leave, started tasks turn active.
+    /// or leave, started tasks turn active, and a copy follows its original
+    /// in the same section, as the bridge's views would place most copies.
     private func snapshot() -> Snapshot {
         let seed = config.seed
         func keep(_ sections: [TaskSection]) -> [TaskSection] {
             sections.compactMap { section in
-                let uuids = section.uuids.filter { completed[$0] == nil && !deleted.contains($0) }
+                var uuids = section.uuids.filter { completed[$0] == nil && !deleted.contains($0) }
+                for copy in copies {
+                    if let index = uuids.firstIndex(of: copy.original) { uuids.insert(copy.uuid, at: index + 1) }
+                }
                 return uuids.isEmpty ? nil : TaskSection(title: section.title, project: section.project, uuids: uuids)
             }
         }
-        let tasks = seed.tasks.filter { !deleted.contains($0.uuid) }.map { task -> TaskItem in
+        let copied = copies.compactMap { copy -> TaskItem? in
+            guard var task = seed.tasks.first(where: { $0.uuid == copy.original }) else { return nil }
+            task.uuid = copy.uuid
+            task.tags = task.tags.filter { !$0.hasPrefix("momentum-plan-") }
+            task.annotations = []
+            task.depends = []
+            task.start = nil
+            (task.recur, task.recurDisplay, task.parent, task.recurrenceTarget) = (nil, nil, nil, nil)
+            return task
+        }
+        let tasks = (seed.tasks + copied).filter { !deleted.contains($0.uuid) }.map { task -> TaskItem in
             var task = task
             if let end = completed[task.uuid] {
                 task.status = "completed"
@@ -241,14 +257,18 @@ actor SnapshotBridge: TaskBridge {
 
     func modify(uuid: String, before: EditFields, after: EditFields) async throws -> Bool { before != after }
 
-    // No page shows what a note, a dependency or a copy changes after it is made.
+    // No page shows what a note or a dependency changes after it is made.
     func addNote(uuid: String, text: String) async throws {
         if let error = config.noteFailure { throw error }
     }
     func removeNote(uuid: String, note: Annotation) async throws {}
     func addDependency(uuid: String, on: String) async throws {}
     func removeDependency(uuid: String, on: String) async throws {}
-    func duplicate(uuid: String) async throws -> String { uuid }
+    func duplicate(uuid: String) async throws -> String {
+        let copy = "\(uuid)-copy-\(copies.count + 1)"
+        copies.append((copy, uuid))
+        return copy
+    }
 
     func perform(_ action: TaskAction, uuid: String) async throws {
         switch action {
