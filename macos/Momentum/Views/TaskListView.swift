@@ -170,6 +170,7 @@ struct TaskMenu: View {
             Button("Complete") { Task { await store.complete(task) } }
             Button(task.start == nil ? "Start" : "Stop") { Task { await store.toggleStart(task) } }
             Button("Edit…") { store.editing = EditRequest(task: task, focus: .description) }
+            Button("Duplicate") { Task { await store.duplicate(task) } }
             if task.recurrenceTarget != nil {
                 Button("Stop Repeating…") { store.pendingStopRecurrence = task }
             }
