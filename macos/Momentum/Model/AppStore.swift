@@ -129,6 +129,7 @@ final class AppStore {
     var visibleSections: [ResolvedSection] { sections(for: view) }
     var visibleTasks: [TaskItem] { visibleSections.flatMap(\.tasks) }
     var selectedTask: TaskItem? { selection.flatMap { tasksByUUID[$0] } }
+    var dependencies: TaskDependencies { TaskDependencies(tasks: tasksByUUID, order: snapshot?.tasks ?? []) }
     var projects: [ProjectEntry] { snapshot?.projects ?? [] }
     var hasOverlay: Bool {
         showCapture || showShortcuts || editing != nil || pendingDelete != nil || pendingStopRecurrence != nil || signInModel.flow != nil
@@ -356,6 +357,47 @@ final class AppStore {
         let changed = try await exclusive { try await bridge.modify(uuid: task.uuid, before: task.edit, after: edits) }
         if changed {
             await didMutate("Updated “\(edits.description.trimmingCharacters(in: .whitespaces))”")
+        }
+    }
+
+    /// Adds a note to a pending task; a refused note is thrown so its field
+    /// can show why.
+    func addNote(_ text: String, to task: TaskItem) async throws {
+        try await exclusive { try await bridge.addNote(uuid: task.uuid, text: text) }
+        await didMutate("Added a note to “\(task.description)”")
+    }
+
+    func removeNote(_ note: Annotation, from task: TaskItem) async {
+        await mutate("Removed a note from “\(task.description)”") { try await bridge.removeNote(uuid: task.uuid, note: note) }
+    }
+
+    func addDependency(_ task: TaskItem, on dependency: TaskItem) async {
+        await mutate("“\(task.description)” now depends on “\(dependency.description)”") {
+            try await bridge.addDependency(uuid: task.uuid, on: dependency.uuid)
+        }
+    }
+
+    /// Takes a UUID, since the task it names may no longer be loaded.
+    func removeDependency(_ task: TaskItem, on dependency: String) async {
+        await mutate("Removed a dependency from “\(task.description)”") {
+            try await bridge.removeDependency(uuid: task.uuid, on: dependency)
+        }
+    }
+
+    /// Adds a copy of a pending task (task details plan D4) and selects it
+    /// once the load shows it.
+    func duplicate(_ task: TaskItem) async {
+        guard task.isPending else { return }
+        let copy: String
+        do {
+            copy = try await exclusive { try await bridge.duplicate(uuid: task.uuid) }
+        } catch {
+            show(error.localizedDescription, .error)
+            return
+        }
+        await didMutate("Duplicated “\(task.description)”")
+        if visibleTasks.contains(where: { $0.uuid == copy }) {
+            selection = copy
         }
     }
 
