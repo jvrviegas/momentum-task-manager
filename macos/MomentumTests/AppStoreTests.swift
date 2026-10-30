@@ -67,6 +67,17 @@ actor FakeBridge: TaskBridge {
         try record("modify \(uuid)")
         return before != after
     }
+    func addNote(uuid: String, text: String) async throws { try record("addNote \(uuid) \(text)") }
+    func removeNote(uuid: String, note: Annotation) async throws { try record("removeNote \(uuid) \(note.description)") }
+    func addDependency(uuid: String, on: String) async throws { try record("addDependency \(uuid) \(on)") }
+    func removeDependency(uuid: String, on: String) async throws { try record("removeDependency \(uuid) \(on)") }
+    /// The UUID the server gives the next copy.
+    var copyUUID = "copy"
+    func setCopyUUID(_ uuid: String) { copyUUID = uuid }
+    func duplicate(uuid: String) async throws -> String {
+        try record("duplicate \(uuid)")
+        return copyUUID
+    }
     func perform(_ action: TaskAction, uuid: String) async throws { try record("\(action.rawValue) \(uuid)") }
     func undo() async throws { try record("undo") }
     func plan(calendar: CalendarInput?) async throws -> DailyPlan {
