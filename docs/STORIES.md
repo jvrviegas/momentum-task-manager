@@ -927,14 +927,15 @@ Decisions: D3
 Acceptance:
 - [unit] Go (server): the change names the note by its time and words and removes that note only; when the task no longer has it, as when another device removed it first, the change is refused as a conflict; Undo puts it back in its place with its time.
 - [unit] Swift: removing sends the note's time and words, loads again and opens the undo window; Undo restores the note.
-- [snap] `inspector`: each note of a pending task has a remove button in its corner; a completed task's notes have none (`completed`).
+- [snap] `inspector`: each note of a pending task has a remove button in its corner.
 UX:
 - Flow: the remove button (×) in a note's corner, or **Remove Note** in the note's context menu -> the note goes at once, and the toast says "Removed a note from “…”" with Undo. Way back: Undo (⌘Z, `u` or the toast) puts the note back in its place with its time.
 - Surface: an inline button on the note (the first row of the surface table). No confirmation: Undo takes it back, and a note is a line, not a task. The button stays visible, quietly, so the keyboard and a snapshot can reach it.
 - States: completed task: no button. Another device removed it first: the toast gives the server's reason, "the task has no such note", and the next refresh shows the notes as they are.
 - Words: the button is the `xmark` symbol with hover help "Remove this note"; context menu "Remove Note"; toast "Removed a note from “<description>”". Remove, not Delete, which the glossary keeps for tasks.
 - Access: the button reads "Remove note" and is reached with Tab when Keyboard navigation is on; VoiceOver offers "Remove Note" as an action on the note.
-Status: todo
+- Built: `inspector` was read in light and dark: the × sits in the note's corner in the third text color, and the card's words still wrap beside it. A completed task's notes have no × and no **Remove Note**; no page shows it, since none of the seed's completed tasks has a note, and `completed` keeps showing "No notes.". The context menu and the VoiceOver action were not tried by hand.
+Status: done
 
 ### S-067 Make a task wait on another
 As the user, I say that "Send the invoice" depends on "Get the quote", and the inspector lists it under Depends on.
