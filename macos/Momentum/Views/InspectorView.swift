@@ -105,16 +105,34 @@ private struct TaskDetails: View {
                     Text("No notes.").font(.system(size: 12)).foregroundStyle(Theme.text3)
                 }
                 ForEach(Array(task.annotations.enumerated()), id: \.offset) { _, note in
-                    VStack(alignment: .leading, spacing: 3) {
-                        Text(note.description).textSelection(.enabled)
-                        if let entry = note.entry {
-                            Text(Format.full(entry)).font(.system(size: 11)).foregroundStyle(Theme.text3)
+                    HStack(alignment: .top, spacing: 6) {
+                        VStack(alignment: .leading, spacing: 3) {
+                            Text(note.description).textSelection(.enabled)
+                            if let entry = note.entry {
+                                Text(Format.full(entry)).font(.system(size: 11)).foregroundStyle(Theme.text3)
+                            }
+                        }
+                        .frame(maxWidth: .infinity, alignment: .leading)
+                        .accessibilityElement(children: .combine)
+                        // S-066: Undo takes a removal back, so nothing asks first.
+                        if task.isPending {
+                            Button("Remove note", systemImage: "xmark") { remove(note) }
+                                .labelStyle(.iconOnly)
+                                .buttonStyle(.borderless)
+                                .font(.system(size: 10, weight: .semibold))
+                                .foregroundStyle(Theme.text3)
+                                .help("Remove this note")
                         }
                     }
                     .padding(.horizontal, 11)
                     .padding(.vertical, 9)
-                    .frame(maxWidth: .infinity, alignment: .leading)
                     .card(radius: 8)
+                    .contextMenu {
+                        if task.isPending {
+                            Button("Remove Note") { remove(note) }
+                        }
+                    }
+                    .accessibilityAction(named: "Remove Note") { if task.isPending { remove(note) } }
                 }
                 if task.isPending {
                     NoteField(task: task, focus: focus)
@@ -255,6 +273,10 @@ private struct TaskDetails: View {
 
     private var divider: some View {
         Rectangle().fill(Theme.separator).frame(height: 0.5)
+    }
+
+    private func remove(_ note: Annotation) {
+        Task { await store.removeNote(note, from: task) }
     }
 
     private func row(_ label: String, @ViewBuilder value: () -> some View) -> some View {
