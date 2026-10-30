@@ -60,6 +60,10 @@ struct TaskKeyCommands: ViewModifier {
         case "u": Task { await store.undo() }
         case "s": if let task = actionable() { Task { await store.toggleStart(task) } }
         case "d": if let task = actionable() { store.pendingDelete = task }
+        case "a":
+            guard actionable() != nil else { break }
+            store.showInspector = true
+            store.noteDraft.focusRequested = true
         case "x", "X":
             guard let task = actionable() else { break }
             if task.recurrenceTarget != nil {
