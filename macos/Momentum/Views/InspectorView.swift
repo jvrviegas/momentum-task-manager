@@ -91,16 +91,34 @@ private struct TaskDetails: View {
             if task.isPending || !task.depends.isEmpty {
                 section("Depends on", systemImage: "link") {
                     ForEach(task.depends, id: \.self) { uuid in
-                        if let dependency = store.tasksByUUID[uuid] {
-                            // The link style centres a description that wraps.
-                            Button { store.selection = uuid } label: {
-                                Text(dependency.description).foregroundStyle(.link).multilineTextAlignment(.leading)
+                        HStack(alignment: .firstTextBaseline, spacing: 6) {
+                            if let dependency = store.tasksByUUID[uuid] {
+                                // The link style centres a description that wraps.
+                                Button { store.selection = uuid } label: {
+                                    Text(dependency.description).foregroundStyle(.link).multilineTextAlignment(.leading)
+                                }
+                                .buttonStyle(.plain)
+                                .pointerStyle(.link)
+                            } else {
+                                Text(uuid).font(.system(size: 11.5, design: .monospaced)).foregroundStyle(Theme.text3)
                             }
-                            .buttonStyle(.plain)
-                            .pointerStyle(.link)
-                        } else {
-                            Text(uuid).font(.system(size: 11.5, design: .monospaced)).foregroundStyle(Theme.text3)
+                            Spacer(minLength: 0)
+                            // S-068: Undo takes a removal back, so nothing asks first.
+                            if task.isPending {
+                                Button("Remove dependency", systemImage: "xmark") { removeDependency(uuid) }
+                                    .labelStyle(.iconOnly)
+                                    .buttonStyle(.borderless)
+                                    .font(.system(size: 10, weight: .semibold))
+                                    .foregroundStyle(Theme.text3)
+                                    .help("Remove this dependency")
+                            }
                         }
+                        .contextMenu {
+                            if task.isPending {
+                                Button("Remove Dependency") { removeDependency(uuid) }
+                            }
+                        }
+                        .accessibilityAction(named: "Remove Dependency") { if task.isPending { removeDependency(uuid) } }
                     }
                     if task.isPending {
                         Button("Add Dependency…") { store.dependencyPicker = DependencyPicker(task: task) }
@@ -285,6 +303,10 @@ private struct TaskDetails: View {
 
     private func remove(_ note: Annotation) {
         Task { await store.removeNote(note, from: task) }
+    }
+
+    private func removeDependency(_ uuid: String) {
+        Task { await store.removeDependency(task, on: uuid) }
     }
 
     private func row(_ label: String, @ViewBuilder value: () -> some View) -> some View {
