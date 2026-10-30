@@ -88,15 +88,23 @@ private struct TaskDetails: View {
                     .card(radius: 9)
                 }
             }
-            if !task.depends.isEmpty {
+            if task.isPending || !task.depends.isEmpty {
                 section("Depends on", systemImage: "link") {
                     ForEach(task.depends, id: \.self) { uuid in
                         if let dependency = store.tasksByUUID[uuid] {
-                            Button(dependency.description) { store.selection = uuid }
-                                .buttonStyle(.link)
+                            // The link style centres a description that wraps.
+                            Button { store.selection = uuid } label: {
+                                Text(dependency.description).foregroundStyle(.link).multilineTextAlignment(.leading)
+                            }
+                            .buttonStyle(.plain)
+                            .pointerStyle(.link)
                         } else {
                             Text(uuid).font(.system(size: 11.5, design: .monospaced)).foregroundStyle(Theme.text3)
                         }
+                    }
+                    if task.isPending {
+                        Button("Add Dependency…") { store.dependencyPicker = DependencyPicker(task: task) }
+                            .controlSize(.small)
                     }
                 }
             }
